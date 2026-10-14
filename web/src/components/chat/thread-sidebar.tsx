@@ -3,7 +3,8 @@
  * Rendering is split into sidebar/ sub-components; this file orchestrates
  * state, queries, mutations, and view routing.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { DragDropProvider } from '@dnd-kit/react';
 import {
   FolderOpen,
   MessageCircle,
@@ -379,21 +380,36 @@ export function ThreadSidebar() {
         throw new Error(payload.message || `HTTP ${response.status}`);
     },
     onSuccess: (_result, variables) => {
-      const current = useTimelineStore.getState();
-      if (current.threadId === variables.threadId) {
-        const moved = threadsById[variables.threadId];
-        setActiveThread(
-          variables.threadId,
-          variables.cwd,
-          moved?.threadTitle ?? undefined,
-        );
-      }
+      useTimelineStore
+        .getState()
+        .setThreadCwdForThread(variables.threadId, variables.cwd);
       invalidateThreads();
     },
     onError: (err) => {
       addSystemError(getApiErrorMessage(err));
     },
   });
+
+  const handleThreadDragEnd = useCallback(
+    (event: {
+      canceled: boolean;
+      operation: {
+        source: { data?: Record<string, unknown> } | null;
+        target: { data?: Record<string, unknown> } | null;
+      };
+    }) => {
+      if (event.canceled || moveThread.isPending) return;
+      const source = event.operation.source?.data;
+      const target = event.operation.target?.data;
+      if (source?.kind !== 'thread' || target?.kind !== 'workspace') return;
+      const threadId = source.threadId as string | undefined;
+      const sourceCwd = source.cwd as string | undefined;
+      const targetCwd = target.cwd as string | undefined;
+      if (!threadId || !targetCwd || sourceCwd === targetCwd) return;
+      moveThread.mutate({ threadId, cwd: targetCwd });
+    },
+    [moveThread],
+  );
 
   const archiveThread = useMutation({
     ...threadsArchiveThreadMutation(),
@@ -798,39 +814,39 @@ export function ThreadSidebar() {
       </div>
 
       <ScrollArea className="min-h-0 flex-1 px-2 [&_[data-slot=scroll-area-viewport]>div]:block!">
-        {sidebarView.type === 'overview' ? (
-          <WorkspaceOverview
-            archivedThreads={archivedThreads}
-            workspaceGroups={workspaceGroups}
-            collapsedGroups={collapsedGroups}
-            isLoading={
-              overviewThreadsQuery.isLoading || overviewArchivedQuery.isLoading
-            }
-            onToggleCollapse={toggleCollapsedGroup}
-            onOpenArchivedDetail={openArchivedDetail}
-            onOpenWorkspaceDetail={openWorkspaceDetail}
-            onCreateInWorkspace={(cwd) =>
-              createThread.mutate({ body: { cwd } })
-            }
-            renderThreadRow={renderThreadRow}
-            movingThread={moveThread.isPending}
-            onMoveThread={(threadId, cwd) =>
-              moveThread.mutate({ threadId, cwd })
-            }
-          />
-        ) : (
-          <WorkspaceDetail
-            sidebarView={sidebarView}
-            threads={detailThreads}
-            isLoading={detailQuery.isLoading}
-            hasPrevious={cursorStack.length > 0}
-            hasNext={!!detailQuery.data?.nextCursor}
-            onBack={() => setSidebarView({ type: 'overview' })}
-            onPrevious={goPrevious}
-            onNext={goNext}
-            renderThreadRow={renderThreadRow}
-          />
-        )}
+        <DragDropProvider onDragEnd={handleThreadDragEnd}>
+          {sidebarView.type === 'overview' ? (
+            <WorkspaceOverview
+              archivedThreads={archivedThreads}
+              workspaceGroups={workspaceGroups}
+              collapsedGroups={collapsedGroups}
+              isLoading={
+                overviewThreadsQuery.isLoading ||
+                overviewArchivedQuery.isLoading
+              }
+              onToggleCollapse={toggleCollapsedGroup}
+              onOpenArchivedDetail={openArchivedDetail}
+              onOpenWorkspaceDetail={openWorkspaceDetail}
+              onCreateInWorkspace={(cwd) =>
+                createThread.mutate({ body: { cwd } })
+              }
+              renderThreadRow={renderThreadRow}
+              movingThread={moveThread.isPending}
+            />
+          ) : (
+            <WorkspaceDetail
+              sidebarView={sidebarView}
+              threads={detailThreads}
+              isLoading={detailQuery.isLoading}
+              hasPrevious={cursorStack.length > 0}
+              hasNext={!!detailQuery.data?.nextCursor}
+              onBack={() => setSidebarView({ type: 'overview' })}
+              onPrevious={goPrevious}
+              onNext={goNext}
+              renderThreadRow={renderThreadRow}
+            />
+          )}
+        </DragDropProvider>
       </ScrollArea>
 
       {/* The collapse toggle deliberately lives in the shell header, not here:

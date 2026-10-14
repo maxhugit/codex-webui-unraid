@@ -41,6 +41,7 @@ export function createTimelineNavigationActions({
   | 'hasPendingApproval'
   | 'setActiveThread'
   | 'setReadOnlyThread'
+  | 'setThreadCwdForThread'
   | 'clearThread'
 > {
   return {
@@ -273,6 +274,13 @@ export function createTimelineNavigationActions({
         threadMode: 'readOnly',
       }));
       get().selectThread(thread.id);
+    },
+
+    setThreadCwdForThread: (threadId, cwd) => {
+      applyThreadUpdate(threadId, (runtime) => ({
+        ...runtime,
+        threadCwd: cwd,
+      }));
     },
 
     clearThread: () => get().selectThread(null),

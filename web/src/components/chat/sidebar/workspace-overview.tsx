@@ -1,9 +1,11 @@
 /** Overview view: pinned archive group + workspace groups with collapse. */
 import { Archive, ChevronDown, ChevronRight, Eye, Plus } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useDroppable } from '@dnd-kit/react';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ThreadDto } from '@/generated/api';
+import { cn } from '@/lib/utils';
 import type { WorkspaceGroup } from './sidebar-types';
 import { workspaceLabel } from './sidebar-types';
 
@@ -36,7 +38,6 @@ interface Props {
   onCreateInWorkspace: (cwd: string) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
   movingThread: boolean;
-  onMoveThread: (threadId: string, cwd: string) => void;
 }
 
 export function WorkspaceOverview({
@@ -50,7 +51,6 @@ export function WorkspaceOverview({
   onCreateInWorkspace,
   renderThreadRow,
   movingThread,
-  onMoveThread,
 }: Props) {
   const { t } = useTranslation();
   const archivedCollapsed = collapsedGroups.has('__archived__');
@@ -127,48 +127,10 @@ export function WorkspaceOverview({
       {workspaceGroups.map((group) => {
         const collapsed = collapsedGroups.has(group.cwd);
         return (
-          <section
+          <WorkspaceDropTarget
             key={group.cwd}
-            className="rounded-md transition-colors"
-            onDragOver={(event) => {
-              if (
-                movingThread ||
-                !event.dataTransfer.types.includes(
-                  'application/x-codex-thread-id',
-                )
-              )
-                return;
-              event.preventDefault();
-              event.dataTransfer.dropEffect = 'move';
-              event.currentTarget.classList.add(
-                'bg-primary/10',
-                'ring-1',
-                'ring-primary/30',
-              );
-            }}
-            onDragLeave={(event) => {
-              if (
-                event.currentTarget.contains(event.relatedTarget as Node | null)
-              )
-                return;
-              event.currentTarget.classList.remove(
-                'bg-primary/10',
-                'ring-1',
-                'ring-primary/30',
-              );
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              event.currentTarget.classList.remove(
-                'bg-primary/10',
-                'ring-1',
-                'ring-primary/30',
-              );
-              const threadId =
-                event.dataTransfer.getData('application/x-codex-thread-id') ||
-                event.dataTransfer.getData('text/plain');
-              if (threadId && !movingThread) onMoveThread(threadId, group.cwd);
-            }}
+            cwd={group.cwd}
+            disabled={movingThread}
           >
             <div
               className="mb-0.5 flex items-center gap-1 px-2"
@@ -228,7 +190,7 @@ export function WorkspaceOverview({
                 </motion.div>
               )}
             </AnimatePresence>
-          </section>
+          </WorkspaceDropTarget>
         );
       })}
 
@@ -238,5 +200,32 @@ export function WorkspaceOverview({
         </p>
       )}
     </div>
+  );
+}
+
+function WorkspaceDropTarget({
+  cwd,
+  disabled,
+  children,
+}: {
+  cwd: string;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  const { ref, isDropTarget } = useDroppable({
+    id: `workspace-${cwd}`,
+    disabled,
+    data: { kind: 'workspace', cwd },
+  });
+  return (
+    <section
+      ref={ref}
+      className={cn(
+        'rounded-md transition-colors',
+        isDropTarget && 'bg-primary/10 ring-1 ring-primary/30',
+      )}
+    >
+      {children}
+    </section>
   );
 }

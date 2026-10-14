@@ -14,6 +14,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useDraggable } from '@dnd-kit/react';
+import { Feedback } from '@dnd-kit/dom';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -85,6 +87,13 @@ export function ThreadRow({
   draggable = false,
 }: Props) {
   const { t } = useTranslation();
+  const dragEnabled = draggable && !archived && !destructiveDisabled;
+  const { ref: dragRef, isDragging } = useDraggable({
+    id: `thread-${thread.id}`,
+    disabled: !dragEnabled,
+    data: { kind: 'thread', threadId: thread.id, cwd: thread.cwd },
+    plugins: [Feedback.configure({ feedback: 'clone' })],
+  });
 
   // Status icon priority: approval > userInput > generating > idle
   const statusIcon = pendingApproval ? (
@@ -102,25 +111,19 @@ export function ThreadRow({
     pendingApprovalCount > 9 ? '9+' : String(pendingApprovalCount);
 
   return (
-    <div className="group flex items-center gap-0.5 pl-3">
+    <div
+      ref={dragRef}
+      className={cn(
+        'group flex items-center gap-0.5 pl-3',
+        isDragging && 'opacity-40',
+      )}
+    >
       <button
         type="button"
-        draggable={draggable && !archived && !destructiveDisabled}
-        onDragStart={(event) => {
-          event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData(
-            'application/x-codex-thread-id',
-            thread.id,
-          );
-          event.dataTransfer.setData('text/plain', thread.id);
-        }}
         onClick={onOpen}
         className={cn(
           'flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
-          draggable &&
-            !archived &&
-            !destructiveDisabled &&
-            'cursor-grab active:cursor-grabbing',
+          dragEnabled && 'cursor-grab active:cursor-grabbing',
           isActive
             ? 'bg-accent text-accent-foreground'
             : archived

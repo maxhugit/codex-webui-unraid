@@ -148,6 +148,7 @@ export interface TimelineState {
     title?: string | null,
   ) => Promise<boolean>;
   setReadOnlyThread: (thread: ThreadDto) => void;
+  setThreadCwdForThread: (threadId: string, cwd: string) => void;
   clearThread: () => void;
   hydrateTimeline: (turns: TurnDto[], cwd?: string | null) => void;
   setThreadTitle: (title: string | null) => void;
