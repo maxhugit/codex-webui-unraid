@@ -88,7 +88,7 @@ export function ThreadRow({
 }: Props) {
   const { t } = useTranslation();
   const dragEnabled = draggable && !archived && !destructiveDisabled;
-  const { ref: dragRef, isDragging } = useDraggable({
+  const { ref: dragRef, handleRef: dragHandleRef, isDragging } = useDraggable({
     id: `thread-${thread.id}`,
     disabled: !dragEnabled,
     data: { kind: 'thread', threadId: thread.id, cwd: thread.cwd },
@@ -119,11 +119,12 @@ export function ThreadRow({
       )}
     >
       <button
+        ref={dragHandleRef}
         type="button"
         onClick={onOpen}
         className={cn(
           'flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
-          dragEnabled && 'cursor-grab active:cursor-grabbing',
+          dragEnabled && 'touch-none cursor-grab active:cursor-grabbing',
           isActive
             ? 'bg-accent text-accent-foreground'
             : archived
