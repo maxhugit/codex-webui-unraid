@@ -35,9 +35,8 @@ interface Props {
   onOpenWorkspaceDetail: (cwd: string) => void;
   onCreateInWorkspace: (cwd: string) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
-  draggedThread: ThreadDto | null;
   movingThread: boolean;
-  onMoveThread: (thread: ThreadDto, cwd: string) => void;
+  onMoveThread: (threadId: string, cwd: string) => void;
 }
 
 export function WorkspaceOverview({
@@ -50,7 +49,6 @@ export function WorkspaceOverview({
   onOpenWorkspaceDetail,
   onCreateInWorkspace,
   renderThreadRow,
-  draggedThread,
   movingThread,
   onMoveThread,
 }: Props) {
@@ -134,9 +132,10 @@ export function WorkspaceOverview({
             className="rounded-md transition-colors"
             onDragOver={(event) => {
               if (
-                !draggedThread ||
-                draggedThread.cwd === group.cwd ||
-                movingThread
+                movingThread ||
+                !event.dataTransfer.types.includes(
+                  'application/x-codex-thread-id',
+                )
               )
                 return;
               event.preventDefault();
@@ -165,12 +164,10 @@ export function WorkspaceOverview({
                 'ring-1',
                 'ring-primary/30',
               );
-              if (
-                draggedThread &&
-                draggedThread.cwd !== group.cwd &&
-                !movingThread
-              )
-                onMoveThread(draggedThread, group.cwd);
+              const threadId =
+                event.dataTransfer.getData('application/x-codex-thread-id') ||
+                event.dataTransfer.getData('text/plain');
+              if (threadId && !movingThread) onMoveThread(threadId, group.cwd);
             }}
           >
             <div

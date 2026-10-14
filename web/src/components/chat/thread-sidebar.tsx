@@ -153,7 +153,6 @@ export function ThreadSidebar() {
   const [renameSimpleThread, setRenameSimpleThread] =
     useState<SimpleChatThread | null>(null);
   const [renameSimpleValue, setRenameSimpleValue] = useState('');
-  const [draggedThread, setDraggedThread] = useState<ThreadDto | null>(null);
 
   // ── Queries ─────────────────────────────────────────────────────────
   // The sidebar reads one server-side projection. It used to join a paginated
@@ -389,11 +388,9 @@ export function ThreadSidebar() {
           moved?.threadTitle ?? undefined,
         );
       }
-      setDraggedThread(null);
       invalidateThreads();
     },
     onError: (err) => {
-      setDraggedThread(null);
       addSystemError(getApiErrorMessage(err));
     },
   });
@@ -645,8 +642,7 @@ export function ThreadSidebar() {
         deleteBlockedReason={deleteBlockedReason}
         onDelete={() => setDeleteTargetId(thread.id)}
         onShowBranchGraph={() => setGraphTargetId(thread.id)}
-        onDragStart={archived ? undefined : setDraggedThread}
-        onDragEnd={() => setDraggedThread(null)}
+        draggable={!archived}
       />
     );
   };
@@ -817,10 +813,9 @@ export function ThreadSidebar() {
               createThread.mutate({ body: { cwd } })
             }
             renderThreadRow={renderThreadRow}
-            draggedThread={draggedThread}
             movingThread={moveThread.isPending}
-            onMoveThread={(thread, cwd) =>
-              moveThread.mutate({ threadId: thread.id, cwd })
+            onMoveThread={(threadId, cwd) =>
+              moveThread.mutate({ threadId, cwd })
             }
           />
         ) : (

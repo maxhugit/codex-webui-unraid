@@ -59,8 +59,7 @@ interface Props {
   onFork: () => void;
   onDelete: () => void;
   onShowBranchGraph?: () => void;
-  onDragStart?: (thread: ThreadDto) => void;
-  onDragEnd?: () => void;
+  draggable?: boolean;
 }
 
 export function ThreadRow({
@@ -83,8 +82,7 @@ export function ThreadRow({
   onFork,
   onDelete,
   onShowBranchGraph,
-  onDragStart,
-  onDragEnd,
+  draggable = false,
 }: Props) {
   const { t } = useTranslation();
 
@@ -104,22 +102,25 @@ export function ThreadRow({
     pendingApprovalCount > 9 ? '9+' : String(pendingApprovalCount);
 
   return (
-    <div
-      className="group flex items-center gap-0.5 pl-3"
-      draggable={!archived && !destructiveDisabled && Boolean(onDragStart)}
-      onDragStart={(event) => {
-        if (!onDragStart) return;
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('application/x-codex-thread-id', thread.id);
-        onDragStart(thread);
-      }}
-      onDragEnd={onDragEnd}
-    >
+    <div className="group flex items-center gap-0.5 pl-3">
       <button
         type="button"
+        draggable={draggable && !archived && !destructiveDisabled}
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData(
+            'application/x-codex-thread-id',
+            thread.id,
+          );
+          event.dataTransfer.setData('text/plain', thread.id);
+        }}
         onClick={onOpen}
         className={cn(
           'flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
+          draggable &&
+            !archived &&
+            !destructiveDisabled &&
+            'cursor-grab active:cursor-grabbing',
           isActive
             ? 'bg-accent text-accent-foreground'
             : archived

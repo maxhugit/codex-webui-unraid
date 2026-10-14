@@ -53,10 +53,10 @@ interface ThreadDetail {
   messages: ChatMessage[];
 }
 
-function apiHeaders() {
+function apiHeaders(hasBody = false) {
   const authorization = getAuthorizationHeader();
   return {
-    'Content-Type': 'application/json',
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
     ...(authorization ? { Authorization: authorization } : {}),
   };
 }
@@ -64,13 +64,15 @@ function apiHeaders() {
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(withBasePath(`/api/simple-chat${path}`), {
     ...init,
-    headers: { ...apiHeaders(), ...init?.headers },
+    headers: { ...apiHeaders(init?.body !== undefined), ...init?.headers },
   });
   const payload = (await response.json().catch(() => ({}))) as T & {
     message?: string;
   };
   if (!response.ok) {
-    throw new Error(payload.message || `La requête a échoué (HTTP ${response.status}).`);
+    throw new Error(
+      payload.message || `La requête a échoué (HTTP ${response.status}).`,
+    );
   }
   return payload;
 }
@@ -109,17 +111,25 @@ export function SimpleChatRoute() {
         setStatus(nextStatus);
         setModels(modelResult.models);
         setThreads(threadResult.threads);
-        const selected = threadResult.threads.some((thread) => thread.id === requestedThreadId)
+        const selected = threadResult.threads.some(
+          (thread) => thread.id === requestedThreadId,
+        )
           ? requestedThreadId
           : threadResult.threads[0]?.id;
         setActiveThreadId(selected);
         if (selected && selected !== requestedThreadId) {
-          void navigate({ to: '/simple-chat', search: { thread: selected }, replace: true });
+          void navigate({
+            to: '/simple-chat',
+            search: { thread: selected },
+            replace: true,
+          });
         }
       })
       .catch((caught) => {
         if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Chargement impossible.');
+          setError(
+            caught instanceof Error ? caught.message : 'Chargement impossible.',
+          );
         }
       });
     return () => {
@@ -151,7 +161,11 @@ export function SimpleChatRoute() {
       })
       .catch((caught) => {
         if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Conversation inaccessible.');
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : 'Conversation inaccessible.',
+          );
         }
       })
       .finally(() => {
@@ -178,12 +192,15 @@ export function SimpleChatRoute() {
       setMessages([]);
       void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Création impossible.');
+      setError(
+        caught instanceof Error ? caught.message : 'Création impossible.',
+      );
     }
   };
 
   const deleteThread = async (threadId: string) => {
-    if (!window.confirm('Supprimer définitivement cette conversation ?')) return;
+    if (!window.confirm('Supprimer définitivement cette conversation ?'))
+      return;
     try {
       await api(`/threads/${threadId}`, { method: 'DELETE' });
       const remaining = threads.filter((thread) => thread.id !== threadId);
@@ -191,7 +208,9 @@ export function SimpleChatRoute() {
       if (activeThreadId === threadId) selectThread(remaining[0]?.id);
       void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Suppression impossible.');
+      setError(
+        caught instanceof Error ? caught.message : 'Suppression impossible.',
+      );
     }
   };
 
@@ -203,11 +222,17 @@ export function SimpleChatRoute() {
         body: JSON.stringify({ model }),
       });
       setThreads((current) =>
-        current.map((thread) => (thread.id === detail.thread.id ? detail.thread : thread)),
+        current.map((thread) =>
+          thread.id === detail.thread.id ? detail.thread : thread,
+        ),
       );
       void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Changement de modèle impossible.');
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : 'Changement de modèle impossible.',
+      );
     }
   };
 
@@ -251,9 +276,13 @@ export function SimpleChatRoute() {
       ]);
       void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
     } catch (caught) {
-      setMessages((current) => current.filter((message) => message.id !== temporary.id));
+      setMessages((current) =>
+        current.filter((message) => message.id !== temporary.id),
+      );
       setInput(text);
-      setError(caught instanceof Error ? caught.message : 'La requête a échoué.');
+      setError(
+        caught instanceof Error ? caught.message : 'La requête a échoué.',
+      );
     } finally {
       setSending(false);
     }
@@ -279,13 +308,17 @@ export function SimpleChatRoute() {
           <div className="flex items-center gap-2">
             <select
               value={activeThreadId || ''}
-              onChange={(event) => selectThread(event.target.value || undefined)}
+              onChange={(event) =>
+                selectThread(event.target.value || undefined)
+              }
               aria-label="Conversation"
               className="h-8 max-w-40 rounded-lg border border-input bg-background px-2 text-sm md:hidden"
             >
               <option value="">Nouvelle conversation</option>
               {threads.map((thread) => (
-                <option key={thread.id} value={thread.id}>{thread.title}</option>
+                <option key={thread.id} value={thread.id}>
+                  {thread.title}
+                </option>
               ))}
             </select>
             <Button
@@ -314,7 +347,9 @@ export function SimpleChatRoute() {
               className="h-8 max-w-56 rounded-lg border border-input bg-background px-2 text-sm"
             >
               {models.map((model) => (
-                <option key={model} value={model}>{model}</option>
+                <option key={model} value={model}>
+                  {model}
+                </option>
               ))}
             </select>
           </div>
@@ -333,7 +368,9 @@ export function SimpleChatRoute() {
                 Crée une conversation ou envoie directement un message.
               </div>
             )}
-            {loadingThread && <Loader2 className="mx-auto mt-16 h-6 w-6 animate-spin" />}
+            {loadingThread && (
+              <Loader2 className="mx-auto mt-16 h-6 w-6 animate-spin" />
+            )}
             {messages.map((message) => (
               <article
                 key={message.id}
@@ -346,14 +383,18 @@ export function SimpleChatRoute() {
               >
                 {message.role === 'assistant' ? (
                   <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
                   </div>
                 ) : (
                   <p className="whitespace-pre-wrap">{message.content}</p>
                 )}
                 {message.sources?.length > 0 && (
                   <div className="mt-3 border-t pt-2">
-                    <p className="mb-1 text-[11px] font-medium opacity-70">Sources</p>
+                    <p className="mb-1 text-[11px] font-medium opacity-70">
+                      Sources
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
                       {message.sources.map((source) => (
                         <a
@@ -363,7 +404,8 @@ export function SimpleChatRoute() {
                           rel="noreferrer"
                           className="inline-flex max-w-64 items-center gap-1 truncate rounded border px-2 py-1 text-[11px] hover:bg-accent"
                         >
-                          <ExternalLink className="h-3 w-3 shrink-0" /> {source.title}
+                          <ExternalLink className="h-3 w-3 shrink-0" />{' '}
+                          {source.title}
                         </a>
                       ))}
                     </div>
@@ -386,7 +428,10 @@ export function SimpleChatRoute() {
           </div>
         </div>
 
-        <form onSubmit={(event) => void send(event)} className="border-t bg-background p-3">
+        <form
+          onSubmit={(event) => void send(event)}
+          className="border-t bg-background p-3"
+        >
           <div className="mx-auto flex max-w-3xl items-end gap-2">
             <Textarea
               value={input}
@@ -403,7 +448,11 @@ export function SimpleChatRoute() {
               disabled={!input.trim() || sending || !status?.configured}
               aria-label="Envoyer"
             >
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </form>
