@@ -394,17 +394,32 @@ export function ThreadSidebar() {
     (event: {
       canceled: boolean;
       operation: {
-        source: { data?: Record<string, unknown> } | null;
-        target: { data?: Record<string, unknown> } | null;
+        source: { id?: string | number; data?: Record<string, unknown> } | null;
+        target: { id?: string | number; data?: Record<string, unknown> } | null;
       };
     }) => {
       if (event.canceled || moveThread.isPending) return;
       const source = event.operation.source?.data;
       const target = event.operation.target?.data;
-      if (source?.kind !== 'thread' || target?.kind !== 'workspace') return;
-      const threadId = source.threadId as string | undefined;
-      const sourceCwd = source.cwd as string | undefined;
-      const targetCwd = target.cwd as string | undefined;
+      const sourceId = String(event.operation.source?.id ?? '');
+      const targetId = String(event.operation.target?.id ?? '');
+      if (
+        source?.kind !== 'thread' &&
+        !sourceId.startsWith('thread-')
+      )
+        return;
+      if (
+        target?.kind !== 'workspace' &&
+        !targetId.startsWith('workspace-')
+      )
+        return;
+      const threadId =
+        (source?.threadId as string | undefined) ||
+        (sourceId.startsWith('thread-') ? sourceId.slice(7) : undefined);
+      const sourceCwd = source?.cwd as string | undefined;
+      const targetCwd =
+        (target?.cwd as string | undefined) ||
+        (targetId.startsWith('workspace-') ? targetId.slice(10) : undefined);
       if (!threadId || !targetCwd || sourceCwd === targetCwd) return;
       moveThread.mutate({ threadId, cwd: targetCwd });
     },
