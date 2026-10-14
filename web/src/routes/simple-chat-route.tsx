@@ -98,12 +98,14 @@ export function SimpleChatRoute() {
   );
 
   useEffect(() => {
+    let cancelled = false;
     Promise.all([
       api<ChatStatus>('/status'),
       api<{ models: string[] }>('/models'),
       api<{ threads: ChatThread[] }>('/threads'),
     ])
       .then(([nextStatus, modelResult, threadResult]) => {
+        if (cancelled) return;
         setStatus(nextStatus);
         setModels(modelResult.models);
         setThreads(threadResult.threads);
@@ -115,9 +117,14 @@ export function SimpleChatRoute() {
           void navigate({ to: '/simple-chat', search: { thread: selected }, replace: true });
         }
       })
-      .catch((caught) =>
-        setError(caught instanceof Error ? caught.message : 'Chargement impossible.'),
-      );
+      .catch((caught) => {
+        if (!cancelled) {
+          setError(caught instanceof Error ? caught.message : 'Chargement impossible.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [navigate, requestedThreadId]);
 
   useEffect(() => {
@@ -136,13 +143,23 @@ export function SimpleChatRoute() {
       setMessages([]);
       return;
     }
+    let cancelled = false;
     setLoadingThread(true);
     api<ThreadDetail>(`/threads/${activeThreadId}`)
-      .then((detail) => setMessages(detail.messages))
-      .catch((caught) =>
-        setError(caught instanceof Error ? caught.message : 'Conversation inaccessible.'),
-      )
-      .finally(() => setLoadingThread(false));
+      .then((detail) => {
+        if (!cancelled) setMessages(detail.messages);
+      })
+      .catch((caught) => {
+        if (!cancelled) {
+          setError(caught instanceof Error ? caught.message : 'Conversation inaccessible.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingThread(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [activeThreadId]);
 
   useEffect(() => {
