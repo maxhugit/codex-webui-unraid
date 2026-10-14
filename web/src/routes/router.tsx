@@ -24,6 +24,7 @@ import { BASE_PATH } from '@/base-path';
 
 export type LoginSearch = { redirect: string };
 export type IntegrationsSearch = { tab: 'plugins' | 'apps' | 'mcps' };
+export type SimpleChatSearch = { thread?: string };
 
 const INTEGRATION_TABS = ['plugins', 'apps', 'mcps'] as const;
 
@@ -115,9 +116,12 @@ const diagnosticsRoute = createRoute({
 });
 
 /** General-purpose low-cost chat backed directly by the OpenAI API. */
-const simpleChatRoute = createRoute({
+export const simpleChatRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/simple-chat',
+  validateSearch: (search: Record<string, unknown>): SimpleChatSearch => ({
+    thread: typeof search.thread === 'string' && search.thread ? search.thread : undefined,
+  }),
   component: SimpleChatRoute,
 });
 

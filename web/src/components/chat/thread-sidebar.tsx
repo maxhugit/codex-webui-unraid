@@ -4,7 +4,7 @@
  * state, queries, mutations, and view routing.
  */
 import { useMemo, useState } from 'react';
-import { FolderOpen, MessageCircle, Puzzle, Plus, Settings, Terminal } from 'lucide-react';
+import { FolderOpen, MessageCircle, Pencil, Puzzle, Plus, Settings, Terminal } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -49,6 +49,33 @@ import { RenameDialog, ConfirmDialog } from './sidebar/sidebar-dialogs';
 import { DirectoryPickerDialog } from './sidebar/directory-picker-dialog';
 import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
 import { useForkWithGoal } from '@/hooks/use-fork-with-goal';
+import { getAuthorizationHeader } from '@/auth-token';
+import { withBasePath } from '@/base-path';
+
+interface SimpleChatThread {
+  id: string;
+  title: string;
+  model: string;
+  updatedAt: number;
+}
+
+function simpleChatHeaders() {
+  const authorization = getAuthorizationHeader();
+  return {
+    'Content-Type': 'application/json',
+    ...(authorization ? { Authorization: authorization } : {}),
+  };
+}
+
+async function simpleChatApi<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(withBasePath(`/api/simple-chat${path}`), {
+    ...init,
+    headers: { ...simpleChatHeaders(), ...init?.headers },
+  });
+  const payload = (await response.json().catch(() => ({}))) as T & { message?: string };
+  if (!response.ok) throw new Error(payload.message || `HTTP ${response.status}`);
+  return payload;
+}
 
 /** Derives the active "view" from the current route path. */
 function useActiveView(): 'chat' | 'simpleChat' | 'files' | 'terminal' | 'diagnostics' | 'settings' | 'integrations' | 'other' {
@@ -66,6 +93,9 @@ function useActiveView(): 'chat' | 'simpleChat' | 'files' | 'terminal' | 'diagno
 export function ThreadSidebar() {
   const navigate = useNavigate();
   const activeView = useActiveView();
+  const activeSimpleThreadId = useRouterState({
+    select: (state) => (state.location.search as { thread?: string }).thread,
+  });
   const { t } = useTranslation();
   const threadId = useTimelineStore((s) => s.threadId);
   const threadMode = useTimelineStore((s) => s.threadMode);
@@ -98,6 +128,8 @@ export function ThreadSidebar() {
   const [dirPickerOpen, setDirPickerOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [graphTargetId, setGraphTargetId] = useState<string | null>(null);
+  const [renameSimpleThread, setRenameSimpleThread] = useState<SimpleChatThread | null>(null);
+  const [renameSimpleValue, setRenameSimpleValue] = useState('');
 
   // ── Queries ─────────────────────────────────────────────────────────
   // The sidebar reads one server-side projection. It used to join a paginated
@@ -141,6 +173,10 @@ export function ThreadSidebar() {
           : { archived: true, cursor: cursor ?? undefined, limit: 20, sortKey: 'updated_at' },
     }),
     enabled: sidebarView.type !== 'overview',
+  });
+  const simpleChatThreadsQuery = useQuery({
+    queryKey: ['simple-chat-threads'],
+    queryFn: () => simpleChatApi<{ threads: SimpleChatThread[] }>('/threads'),
   });
 
   // ── Deletion ────────────────────────────────────────────────────────
@@ -337,6 +373,31 @@ export function ThreadSidebar() {
       invalidateThreads();
     },
   });
+  const createSimpleChatThread = useMutation({
+    mutationFn: () =>
+      simpleChatApi<{ thread: SimpleChatThread }>('/threads', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
+      void navigate({ to: '/simple-chat', search: { thread: result.thread.id } });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
+  const renameSimpleChat = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      simpleChatApi(`/threads/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title }),
+      }),
+    onSuccess: () => {
+      setRenameSimpleThread(null);
+      setRenameSimpleValue('');
+      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
 
   // ── View navigation helpers ─────────────────────────────────────────
 
@@ -452,19 +513,64 @@ export function ThreadSidebar() {
     <div className="flex h-full flex-col bg-card/80">
       {/* Global actions */}
       <div className="space-y-0.5 px-2 py-2">
-        <button
-          type="button"
-          onClick={() => void navigate({ to: '/simple-chat' })}
-          className={cn(
-            'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
-            activeView === 'simpleChat'
-              ? 'bg-accent text-accent-foreground'
-              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-          )}
-        >
-          <MessageCircle className="h-4 w-4 shrink-0" />
-          Chat simple
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => createSimpleChatThread.mutate()}
+            className={cn(
+              'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
+              activeView === 'simpleChat'
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+            )}
+          >
+            <MessageCircle className="h-4 w-4 shrink-0" />
+            Chat simple
+          </button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            title="Nouvelle discussion simple"
+            aria-label="Nouvelle discussion simple"
+            disabled={createSimpleChatThread.isPending}
+            onClick={() => createSimpleChatThread.mutate()}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="mb-1 ml-3 space-y-0.5 border-l pl-1.5">
+          {simpleChatThreadsQuery.data?.threads.map((thread) => (
+            <div key={thread.id} className="group flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => void navigate({ to: '/simple-chat', search: { thread: thread.id } })}
+                className={cn(
+                  'min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent/50 hover:text-foreground',
+                  activeView === 'simpleChat' && activeSimpleThreadId === thread.id
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground',
+                )}
+                title={thread.title}
+              >
+                {thread.title}
+              </button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                title="Renommer"
+                aria-label={`Renommer ${thread.title}`}
+                onClick={() => {
+                  setRenameSimpleThread(thread);
+                  setRenameSimpleValue(thread.title);
+                }}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
         <button
           type="button"
           onClick={() => void navigate({ to: '/files' })}
@@ -575,6 +681,21 @@ export function ThreadSidebar() {
         onChange={setRenameValue}
         onSave={saveRename}
         onClose={() => setRenameThread(null)}
+      />
+      <RenameDialog
+        open={renameSimpleThread !== null}
+        pending={renameSimpleChat.isPending}
+        value={renameSimpleValue}
+        onChange={setRenameSimpleValue}
+        onSave={() => {
+          if (renameSimpleThread && renameSimpleValue.trim()) {
+            renameSimpleChat.mutate({
+              id: renameSimpleThread.id,
+              title: renameSimpleValue.trim(),
+            });
+          }
+        }}
+        onClose={() => setRenameSimpleThread(null)}
       />
       <ConfirmDialog
         action={confirmAction}

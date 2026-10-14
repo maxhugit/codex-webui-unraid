@@ -10,6 +10,8 @@ import {
   Send,
   Trash2,
 } from 'lucide-react';
+import { useNavigate, useRouterState } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { getAuthorizationHeader } from '@/auth-token';
@@ -74,6 +76,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function SimpleChatRoute() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const requestedThreadId = useRouterState({
+    select: (state) => (state.location.search as { thread?: string }).thread,
+  });
   const [status, setStatus] = useState<ChatStatus | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
@@ -100,12 +107,29 @@ export function SimpleChatRoute() {
         setStatus(nextStatus);
         setModels(modelResult.models);
         setThreads(threadResult.threads);
-        setActiveThreadId(threadResult.threads[0]?.id);
+        const selected = threadResult.threads.some((thread) => thread.id === requestedThreadId)
+          ? requestedThreadId
+          : threadResult.threads[0]?.id;
+        setActiveThreadId(selected);
+        if (selected && selected !== requestedThreadId) {
+          void navigate({ to: '/simple-chat', search: { thread: selected }, replace: true });
+        }
       })
       .catch((caught) =>
         setError(caught instanceof Error ? caught.message : 'Chargement impossible.'),
       );
-  }, []);
+  }, [navigate, requestedThreadId]);
+
+  useEffect(() => {
+    if (requestedThreadId && requestedThreadId !== activeThreadId) {
+      setActiveThreadId(requestedThreadId);
+    }
+  }, [requestedThreadId, activeThreadId]);
+
+  const selectThread = (threadId?: string) => {
+    setActiveThreadId(threadId);
+    void navigate({ to: '/simple-chat', search: { thread: threadId } });
+  };
 
   useEffect(() => {
     if (!activeThreadId) {
@@ -133,8 +157,9 @@ export function SimpleChatRoute() {
         body: JSON.stringify({ model: activeThread?.model || status?.model }),
       });
       setThreads((current) => [detail.thread, ...current]);
-      setActiveThreadId(detail.thread.id);
+      selectThread(detail.thread.id);
       setMessages([]);
+      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Création impossible.');
     }
@@ -146,7 +171,8 @@ export function SimpleChatRoute() {
       await api(`/threads/${threadId}`, { method: 'DELETE' });
       const remaining = threads.filter((thread) => thread.id !== threadId);
       setThreads(remaining);
-      if (activeThreadId === threadId) setActiveThreadId(remaining[0]?.id);
+      if (activeThreadId === threadId) selectThread(remaining[0]?.id);
+      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Suppression impossible.');
     }
@@ -162,6 +188,7 @@ export function SimpleChatRoute() {
       setThreads((current) =>
         current.map((thread) => (thread.id === detail.thread.id ? detail.thread : thread)),
       );
+      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Changement de modèle impossible.');
     }
@@ -179,7 +206,7 @@ export function SimpleChatRoute() {
       });
       threadId = created.thread.id;
       setThreads((current) => [created.thread, ...current]);
-      setActiveThreadId(threadId);
+      selectThread(threadId);
     }
     const temporary: ChatMessage = {
       id: crypto.randomUUID(),
@@ -205,6 +232,7 @@ export function SimpleChatRoute() {
         result.thread,
         ...current.filter((thread) => thread.id !== result.thread.id),
       ]);
+      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
     } catch (caught) {
       setMessages((current) => current.filter((message) => message.id !== temporary.id));
       setInput(text);
@@ -223,44 +251,6 @@ export function SimpleChatRoute() {
 
   return (
     <main className="flex min-h-0 flex-1">
-      <aside className="hidden w-64 shrink-0 flex-col border-r bg-muted/20 md:flex">
-        <div className="p-3">
-          <Button className="w-full justify-start" onClick={() => void createThread()}>
-            <Plus className="h-4 w-4" /> Nouvelle conversation
-          </Button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-          {threads.map((thread) => (
-            <div
-              key={thread.id}
-              className={cn(
-                'group mb-1 flex items-center rounded-lg',
-                activeThreadId === thread.id ? 'bg-accent' : 'hover:bg-accent/50',
-              )}
-            >
-              <button
-                type="button"
-                className="min-w-0 flex-1 px-3 py-2 text-left"
-                onClick={() => setActiveThreadId(thread.id)}
-              >
-                <p className="truncate text-sm">{thread.title}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{thread.model}</p>
-              </button>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="mr-1 h-7 w-7 opacity-0 group-hover:opacity-100"
-                aria-label="Supprimer la conversation"
-                onClick={() => void deleteThread(thread.id)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      </aside>
-
       <section className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <div>
@@ -272,7 +262,7 @@ export function SimpleChatRoute() {
           <div className="flex items-center gap-2">
             <select
               value={activeThreadId || ''}
-              onChange={(event) => setActiveThreadId(event.target.value || undefined)}
+              onChange={(event) => selectThread(event.target.value || undefined)}
               aria-label="Conversation"
               className="h-8 max-w-40 rounded-lg border border-input bg-background px-2 text-sm md:hidden"
             >
@@ -282,13 +272,23 @@ export function SimpleChatRoute() {
               ))}
             </select>
             <Button
-              className="md:hidden"
               size="sm"
               variant="outline"
               onClick={() => void createThread()}
             >
               <Plus className="h-4 w-4" /> Nouveau
             </Button>
+            {activeThreadId && (
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Supprimer la conversation"
+                title="Supprimer la conversation"
+                onClick={() => void deleteThread(activeThreadId)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
             <select
               value={activeThread?.model || status?.model || ''}
               onChange={(event) => void changeModel(event.target.value)}
