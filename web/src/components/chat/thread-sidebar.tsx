@@ -4,7 +4,15 @@
  * state, queries, mutations, and view routing.
  */
 import { useMemo, useState } from 'react';
-import { FolderOpen, MessageCircle, Pencil, Puzzle, Plus, Settings, Terminal } from 'lucide-react';
+import {
+  FolderOpen,
+  MessageCircle,
+  Pencil,
+  Puzzle,
+  Plus,
+  Settings,
+  Terminal,
+} from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -72,13 +80,24 @@ async function simpleChatApi<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { ...simpleChatHeaders(), ...init?.headers },
   });
-  const payload = (await response.json().catch(() => ({}))) as T & { message?: string };
-  if (!response.ok) throw new Error(payload.message || `HTTP ${response.status}`);
+  const payload = (await response.json().catch(() => ({}))) as T & {
+    message?: string;
+  };
+  if (!response.ok)
+    throw new Error(payload.message || `HTTP ${response.status}`);
   return payload;
 }
 
 /** Derives the active "view" from the current route path. */
-function useActiveView(): 'chat' | 'simpleChat' | 'files' | 'terminal' | 'diagnostics' | 'settings' | 'integrations' | 'other' {
+function useActiveView():
+  | 'chat'
+  | 'simpleChat'
+  | 'files'
+  | 'terminal'
+  | 'diagnostics'
+  | 'settings'
+  | 'integrations'
+  | 'other' {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   if (pathname.startsWith('/files')) return 'files';
   if (pathname.startsWith('/terminal')) return 'terminal';
@@ -117,7 +136,10 @@ export function ThreadSidebar() {
   const collapsedGroupKeys = useLayoutStore((s) => s.collapsedGroupKeys);
   const toggleCollapsedGroup = useLayoutStore((s) => s.toggleCollapsedGroup);
   // Derive Set<string> for child components that expect it
-  const collapsedGroups = useMemo(() => new Set(collapsedGroupKeys), [collapsedGroupKeys]);
+  const collapsedGroups = useMemo(
+    () => new Set(collapsedGroupKeys),
+    [collapsedGroupKeys],
+  );
 
   // ── Local UI state (ephemeral) ─────────────────────────────────────
   const [cursor, setCursor] = useState<string | null>(null);
@@ -128,8 +150,10 @@ export function ThreadSidebar() {
   const [dirPickerOpen, setDirPickerOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [graphTargetId, setGraphTargetId] = useState<string | null>(null);
-  const [renameSimpleThread, setRenameSimpleThread] = useState<SimpleChatThread | null>(null);
+  const [renameSimpleThread, setRenameSimpleThread] =
+    useState<SimpleChatThread | null>(null);
   const [renameSimpleValue, setRenameSimpleValue] = useState('');
+  const [draggedThread, setDraggedThread] = useState<ThreadDto | null>(null);
 
   // ── Queries ─────────────────────────────────────────────────────────
   // The sidebar reads one server-side projection. It used to join a paginated
@@ -169,8 +193,19 @@ export function ThreadSidebar() {
     ...threadsListOverviewOptions({
       query:
         sidebarView.type === 'workspaceDetail'
-          ? { archived: false, cwd: sidebarView.cwd, cursor: cursor ?? undefined, limit: 20, sortKey: 'updated_at' }
-          : { archived: true, cursor: cursor ?? undefined, limit: 20, sortKey: 'updated_at' },
+          ? {
+              archived: false,
+              cwd: sidebarView.cwd,
+              cursor: cursor ?? undefined,
+              limit: 20,
+              sortKey: 'updated_at',
+            }
+          : {
+              archived: true,
+              cursor: cursor ?? undefined,
+              limit: 20,
+              sortKey: 'updated_at',
+            },
     }),
     enabled: sidebarView.type !== 'overview',
   });
@@ -213,7 +248,10 @@ export function ThreadSidebar() {
     () => rowsByView.archived.map((row) => row.thread),
     [rowsByView.archived],
   );
-  const workspaceGroups = useMemo(() => groupByWorkspace(activeThreads), [activeThreads]);
+  const workspaceGroups = useMemo(
+    () => groupByWorkspace(activeThreads),
+    [activeThreads],
+  );
   const detailThreads = useMemo(
     () => rowsByView.detail.map((row) => row.thread),
     [rowsByView.detail],
@@ -242,8 +280,13 @@ export function ThreadSidebar() {
    * settings, diagnostics or integrations, so store state alone cannot answer
    * "is a click a no-op" — the chat view has to actually be the one showing.
    */
-  const isThreadOnScreen = (threadIdToCheck: string, mode: 'live' | 'readOnly') =>
-    threadIdToCheck === threadId && threadMode === mode && activeView === 'chat';
+  const isThreadOnScreen = (
+    threadIdToCheck: string,
+    mode: 'live' | 'readOnly',
+  ) =>
+    threadIdToCheck === threadId &&
+    threadMode === mode &&
+    activeView === 'chat';
 
   /**
    * Resolves which member of a collapsed row to actually open.
@@ -276,7 +319,10 @@ export function ThreadSidebar() {
    * "am I on the row that was archived" — the user may be sitting on a branch
    * that has no row of its own.
    */
-  const switchAfterArchive = (archivedId: string, memberThreadIds: readonly string[]) => {
+  const switchAfterArchive = (
+    archivedId: string,
+    memberThreadIds: readonly string[],
+  ) => {
     const current = useTimelineStore.getState();
     const archivedTree = new Set(memberThreadIds);
     if (
@@ -291,7 +337,10 @@ export function ThreadSidebar() {
       visibleThreads.slice(idx + 1).find((th) => !archivedTree.has(th.id)) ??
       visibleThreads.slice(0, idx).find((th) => !archivedTree.has(th.id));
     if (next) openLiveThread(next);
-    else { clearThread(); void navigate({ to: '/' }); }
+    else {
+      clearThread();
+      void navigate({ to: '/' });
+    }
   };
 
   // ── Mutations ───────────────────────────────────────────────────────
@@ -300,9 +349,53 @@ export function ThreadSidebar() {
     onSuccess: (res) => {
       setActiveThread(res.thread.id, res.cwd, threadLabel(res.thread));
       invalidateThreads();
-      void navigate({ to: '/t/$threadId', params: { threadId: res.thread.id } });
+      void navigate({
+        to: '/t/$threadId',
+        params: { threadId: res.thread.id },
+      });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
+
+  const moveThread = useMutation({
+    mutationFn: async ({
+      threadId,
+      cwd,
+    }: {
+      threadId: string;
+      cwd: string;
+    }) => {
+      const response = await fetch(
+        withBasePath(`/api/threads/${threadId}/cwd`),
+        {
+          method: 'PATCH',
+          headers: simpleChatHeaders(),
+          body: JSON.stringify({ cwd }),
+        },
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        message?: string;
+      };
+      if (!response.ok)
+        throw new Error(payload.message || `HTTP ${response.status}`);
+    },
+    onSuccess: (_result, variables) => {
+      const current = useTimelineStore.getState();
+      if (current.threadId === variables.threadId) {
+        const moved = threadsById[variables.threadId];
+        setActiveThread(
+          variables.threadId,
+          variables.cwd,
+          moved?.threadTitle ?? undefined,
+        );
+      }
+      setDraggedThread(null);
+      invalidateThreads();
+    },
+    onError: (err) => {
+      setDraggedThread(null);
+      addSystemError(getApiErrorMessage(err));
+    },
   });
 
   const archiveThread = useMutation({
@@ -311,14 +404,17 @@ export function ThreadSidebar() {
     // refetch can remove the row while the dialog or the HTTP request is open.
     onMutate: (vars) => {
       const pending =
-        confirmAction?.type === 'archive' ? confirmAction.memberThreadIds : null;
+        confirmAction?.type === 'archive'
+          ? confirmAction.memberThreadIds
+          : null;
       const treeIds = [...(pending ?? [vars.path.threadId])];
       setConfirmAction(null);
       return { treeIds };
     },
     onSuccess: (_res, vars, context) => {
       const treeIds = context!.treeIds;
-      for (const id of treeIds) useTimelineStore.getState().unsubscribeThread(id);
+      for (const id of treeIds)
+        useTimelineStore.getState().unsubscribeThread(id);
       switchAfterArchive(vars.path.threadId, treeIds);
     },
     // Whole-tree archival can fail partway through, leaving some members
@@ -330,7 +426,8 @@ export function ThreadSidebar() {
   const unarchiveThread = useMutation({
     ...threadsUnarchiveThreadMutation(),
     onSuccess: (res) => {
-      if (threadId === res.thread.id && threadMode === 'readOnly') openLiveThread(res.thread);
+      if (threadId === res.thread.id && threadMode === 'readOnly')
+        openLiveThread(res.thread);
     },
     onSettled: () => invalidateThreads(),
     onError: (err) => addSystemError(getApiErrorMessage(err)),
@@ -347,10 +444,7 @@ export function ThreadSidebar() {
       const tid = res.thread.id;
       invalidateThreads();
       invalidateBranchTreesSoon(queryClient);
-      invalidateBranchTreeMembersSoon(queryClient, [
-        vars.path.threadId,
-        tid,
-      ]);
+      invalidateBranchTreeMembersSoon(queryClient, [vars.path.threadId, tid]);
       // The fork response is metadata-only. Navigation hands hydration to the
       // canonical opener, which pages history and reads inherited auxiliary
       // data only after the backend has committed the provenance edge.
@@ -367,7 +461,8 @@ export function ThreadSidebar() {
   const updateThreadName = useMutation({
     ...threadsSetThreadNameMutation(),
     onSuccess: (_res, vars) => {
-      if (vars.path.threadId === threadId) setThreadTitle(vars.body.name.trim());
+      if (vars.path.threadId === threadId)
+        setThreadTitle(vars.body.name.trim());
       setRenameThread(null);
       setRenameValue('');
       invalidateThreads();
@@ -381,7 +476,10 @@ export function ThreadSidebar() {
       }),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
-      void navigate({ to: '/simple-chat', search: { thread: result.thread.id } });
+      void navigate({
+        to: '/simple-chat',
+        search: { thread: result.thread.id },
+      });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
@@ -401,10 +499,19 @@ export function ThreadSidebar() {
 
   // ── View navigation helpers ─────────────────────────────────────────
 
-  const resetDetailPagination = () => { setCursor(null); setCursorStack([]); };
+  const resetDetailPagination = () => {
+    setCursor(null);
+    setCursorStack([]);
+  };
 
-  const openWorkspaceDetail = (cwd: string) => { resetDetailPagination(); setSidebarView({ type: 'workspaceDetail', cwd }); };
-  const openArchivedDetail = () => { resetDetailPagination(); setSidebarView({ type: 'archivedDetail' }); };
+  const openWorkspaceDetail = (cwd: string) => {
+    resetDetailPagination();
+    setSidebarView({ type: 'workspaceDetail', cwd });
+  };
+  const openArchivedDetail = () => {
+    resetDetailPagination();
+    setSidebarView({ type: 'archivedDetail' });
+  };
 
   const goNext = () => {
     if (!detailQuery.data?.nextCursor) return;
@@ -412,16 +519,26 @@ export function ThreadSidebar() {
     setCursor(detailQuery.data.nextCursor);
   };
   const goPrevious = () => {
-    setCursorStack((s) => { const ns = s.slice(0, -1); setCursor(s.at(-1) ?? null); return ns; });
+    setCursorStack((s) => {
+      const ns = s.slice(0, -1);
+      setCursor(s.at(-1) ?? null);
+      return ns;
+    });
   };
 
   // ── Rename / Confirm ────────────────────────────────────────────────
-  const startRename = (thread: ThreadDto) => { setRenameThread(thread); setRenameValue(threadLabel(thread)); };
+  const startRename = (thread: ThreadDto) => {
+    setRenameThread(thread);
+    setRenameValue(threadLabel(thread));
+  };
   const saveRename = () => {
     if (!renameThread) return;
     const name = renameValue.trim();
     if (!name) return;
-    updateThreadName.mutate({ path: { threadId: renameThread.id }, body: { name } });
+    updateThreadName.mutate({
+      path: { threadId: renameThread.id },
+      body: { name },
+    });
   };
   const confirmCurrentAction = () => {
     if (!confirmAction) return;
@@ -430,7 +547,8 @@ export function ThreadSidebar() {
       // onMutate transfers the pending action before dismissing its dialog.
       return;
     }
-    if (confirmAction.type === 'compact') compactThread.mutate({ path: { threadId: confirmAction.thread.id } });
+    if (confirmAction.type === 'compact')
+      compactThread.mutate({ path: { threadId: confirmAction.thread.id } });
     setConfirmAction(null);
   };
 
@@ -438,7 +556,9 @@ export function ThreadSidebar() {
   const renderThreadRow = (thread: ThreadDto, archived: boolean) => {
     const row = rowByThreadId.get(thread.id);
     const readRuntime = (id: string) =>
-      id === threadId ? { turnStartPending, activeTurnId, approvals, threadStatus } : threadsById[id];
+      id === threadId
+        ? { turnStartPending, activeTurnId, approvals, threadStatus }
+        : threadsById[id];
 
     // Row flags come from the server, which already lifted them off hidden
     // branch members. Local socket state is layered on top because it is
@@ -453,16 +573,23 @@ export function ThreadSidebar() {
     // Cached lifecycle stops advancing when the transcript leaves its room.
     // It cannot override the backend's current status for a background member.
     const observedRuntimes = (row?.memberThreadIds ?? [thread.id])
-      .filter((id) => subscribedThreadIds.has(id)).map(readRuntime)
+      .filter((id) => subscribedThreadIds.has(id))
+      .map(readRuntime)
       .filter((runtime) => runtime !== undefined);
-    const isRunning = observedRuntimes.some((runtime) => (runtime.turnStartPending || runtime.activeTurnId));
+    const isRunning = observedRuntimes.some(
+      (runtime) => runtime.turnStartPending || runtime.activeTurnId,
+    );
     const activeFlags = observedRuntimes.flatMap((runtime) =>
-      runtime.threadStatus?.type === 'active' ? runtime.threadStatus.activeFlags : [],
+      runtime.threadStatus?.type === 'active'
+        ? runtime.threadStatus.activeFlags
+        : [],
     );
     const localPendingCount = treeRuntimes.reduce(
       (total, runtime) =>
         total +
-        Object.values(runtime.approvals ?? {}).filter((a) => a.status === 'pending').length,
+        Object.values(runtime.approvals ?? {}).filter(
+          (a) => a.status === 'pending',
+        ).length,
       0,
     );
     const pendingApprovalCount = Math.max(
@@ -474,11 +601,14 @@ export function ThreadSidebar() {
       activeFlags.includes('waitingOnApproval') ||
       pendingApprovalCount > 0;
     const waitingOnUserInput =
-      Boolean(row?.waitingOnUserInput) || activeFlags.includes('waitingOnUserInput');
+      Boolean(row?.waitingOnUserInput) ||
+      activeFlags.includes('waitingOnUserInput');
     // "Generating" = thread active but not blocked on any user-facing request.
     const generating =
       (Boolean(row?.running) ||
-        observedRuntimes.some((runtime) => runtime.threadStatus?.type === 'active')) &&
+        observedRuntimes.some(
+          (runtime) => runtime.threadStatus?.type === 'active',
+        )) &&
       !waitingOnApproval &&
       !waitingOnUserInput;
 
@@ -495,15 +625,28 @@ export function ThreadSidebar() {
         pendingApprovalCount={pendingApprovalCount}
         waitingOnUserInput={waitingOnUserInput}
         hasBranchDescendants={Boolean(row?.hasBranchDescendants)}
-        onOpen={() => { if (archived) void openArchivedThread(thread); else openLiveThread(thread); }}
+        onOpen={() => {
+          if (archived) void openArchivedThread(thread);
+          else openLiveThread(thread);
+        }}
         onRename={() => startRename(thread)}
-        onArchive={() => setConfirmAction({ type: 'archive', thread, memberThreadIds: [...(row?.memberThreadIds ?? [thread.id])] })}
-        onUnarchive={() => unarchiveThread.mutate({ path: { threadId: thread.id } })}
+        onArchive={() =>
+          setConfirmAction({
+            type: 'archive',
+            thread,
+            memberThreadIds: [...(row?.memberThreadIds ?? [thread.id])],
+          })
+        }
+        onUnarchive={() =>
+          unarchiveThread.mutate({ path: { threadId: thread.id } })
+        }
         onCompact={() => setConfirmAction({ type: 'compact', thread })}
         onFork={() => void fork.requestFork(thread.id)}
         deleteBlockedReason={deleteBlockedReason}
         onDelete={() => setDeleteTargetId(thread.id)}
         onShowBranchGraph={() => setGraphTargetId(thread.id)}
+        onDragStart={archived ? undefined : setDraggedThread}
+        onDragEnd={() => setDraggedThread(null)}
       />
     );
   };
@@ -541,7 +684,9 @@ export function ThreadSidebar() {
         </button>
         <button
           type="button"
-          onClick={() => void navigate({ to: '/integrations', search: { tab: 'plugins' } })}
+          onClick={() =>
+            void navigate({ to: '/integrations', search: { tab: 'plugins' } })
+          }
           className={cn(
             'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
             activeView === 'integrations'
@@ -602,10 +747,16 @@ export function ThreadSidebar() {
             <div key={thread.id} className="group flex items-center gap-0.5">
               <button
                 type="button"
-                onClick={() => void navigate({ to: '/simple-chat', search: { thread: thread.id } })}
+                onClick={() =>
+                  void navigate({
+                    to: '/simple-chat',
+                    search: { thread: thread.id },
+                  })
+                }
                 className={cn(
                   'min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent/50 hover:text-foreground',
-                  activeView === 'simpleChat' && activeSimpleThreadId === thread.id
+                  activeView === 'simpleChat' &&
+                    activeSimpleThreadId === thread.id
                     ? 'bg-accent text-accent-foreground'
                     : 'text-muted-foreground',
                 )}
@@ -635,7 +786,9 @@ export function ThreadSidebar() {
 
       {/* Thread list header */}
       <div className="flex items-center justify-between px-3 py-2">
-        <span className="text-xs font-medium text-muted-foreground">{t('Threads')}</span>
+        <span className="text-xs font-medium text-muted-foreground">
+          {t('Threads')}
+        </span>
         <Button
           size="icon"
           variant="ghost"
@@ -654,12 +807,21 @@ export function ThreadSidebar() {
             archivedThreads={archivedThreads}
             workspaceGroups={workspaceGroups}
             collapsedGroups={collapsedGroups}
-            isLoading={overviewThreadsQuery.isLoading || overviewArchivedQuery.isLoading}
+            isLoading={
+              overviewThreadsQuery.isLoading || overviewArchivedQuery.isLoading
+            }
             onToggleCollapse={toggleCollapsedGroup}
             onOpenArchivedDetail={openArchivedDetail}
             onOpenWorkspaceDetail={openWorkspaceDetail}
-            onCreateInWorkspace={(cwd) => createThread.mutate({ body: { cwd } })}
+            onCreateInWorkspace={(cwd) =>
+              createThread.mutate({ body: { cwd } })
+            }
             renderThreadRow={renderThreadRow}
+            draggedThread={draggedThread}
+            movingThread={moveThread.isPending}
+            onMoveThread={(thread, cwd) =>
+              moveThread.mutate({ threadId: thread.id, cwd })
+            }
           />
         ) : (
           <WorkspaceDetail

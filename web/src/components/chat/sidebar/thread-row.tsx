@@ -15,7 +15,11 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import type { ThreadDto } from '@/generated/api';
 import { cn } from '@/lib/utils';
 import { threadLabel } from './sidebar-types';
@@ -55,6 +59,8 @@ interface Props {
   onFork: () => void;
   onDelete: () => void;
   onShowBranchGraph?: () => void;
+  onDragStart?: (thread: ThreadDto) => void;
+  onDragEnd?: () => void;
 }
 
 export function ThreadRow({
@@ -77,6 +83,8 @@ export function ThreadRow({
   onFork,
   onDelete,
   onShowBranchGraph,
+  onDragStart,
+  onDragEnd,
 }: Props) {
   const { t } = useTranslation();
 
@@ -92,10 +100,21 @@ export function ThreadRow({
   );
 
   // Badge text: show count only when > 1 (single approval already indicated by icon)
-  const badgeText = pendingApprovalCount > 9 ? '9+' : String(pendingApprovalCount);
+  const badgeText =
+    pendingApprovalCount > 9 ? '9+' : String(pendingApprovalCount);
 
   return (
-    <div className="group flex items-center gap-0.5 pl-3">
+    <div
+      className="group flex items-center gap-0.5 pl-3"
+      draggable={!archived && !destructiveDisabled && Boolean(onDragStart)}
+      onDragStart={(event) => {
+        if (!onDragStart) return;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('application/x-codex-thread-id', thread.id);
+        onDragStart(thread);
+      }}
+      onDragEnd={onDragEnd}
+    >
       <button
         type="button"
         onClick={onOpen}
@@ -128,13 +147,27 @@ export function ThreadRow({
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-44 p-1">
-          <Button variant="ghost" className="h-7 w-full justify-start gap-2 px-2 text-xs" disabled={actionPending} onClick={onRename}>
+          <Button
+            variant="ghost"
+            className="h-7 w-full justify-start gap-2 px-2 text-xs"
+            disabled={actionPending}
+            onClick={onRename}
+          >
             <Pencil className="h-3.5 w-3.5" />
             {t('Rename')}
           </Button>
           {archived ? (
-            <Button variant="ghost" className="h-7 w-full justify-start gap-2 px-2 text-xs" disabled={actionPending} onClick={onUnarchive}>
-              {actionPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArchiveRestore className="h-3.5 w-3.5" />}
+            <Button
+              variant="ghost"
+              className="h-7 w-full justify-start gap-2 px-2 text-xs"
+              disabled={actionPending}
+              onClick={onUnarchive}
+            >
+              {actionPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ArchiveRestore className="h-3.5 w-3.5" />
+              )}
               {t('Unarchive')}
             </Button>
           ) : (
@@ -152,10 +185,14 @@ export function ThreadRow({
             <Button
               variant="ghost"
               className="h-7 w-full justify-start gap-2 px-2 text-xs"
-              disabled={destructiveDisabled || actionPending || hasBranchDescendants}
+              disabled={
+                destructiveDisabled || actionPending || hasBranchDescendants
+              }
               title={
                 hasBranchDescendants
-                  ? t('This conversation has message versions branching from it.')
+                  ? t(
+                      'This conversation has message versions branching from it.',
+                    )
                   : undefined
               }
               onClick={onCompact}
@@ -170,7 +207,11 @@ export function ThreadRow({
             disabled={destructiveDisabled || actionPending}
             onClick={onFork}
           >
-            {actionPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitFork className="h-3.5 w-3.5" />}
+            {actionPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <GitFork className="h-3.5 w-3.5" />
+            )}
             {t('Fork')}
           </Button>
           {hasBranchDescendants && onShowBranchGraph && (

@@ -35,6 +35,9 @@ interface Props {
   onOpenWorkspaceDetail: (cwd: string) => void;
   onCreateInWorkspace: (cwd: string) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
+  draggedThread: ThreadDto | null;
+  movingThread: boolean;
+  onMoveThread: (thread: ThreadDto, cwd: string) => void;
 }
 
 export function WorkspaceOverview({
@@ -47,6 +50,9 @@ export function WorkspaceOverview({
   onOpenWorkspaceDetail,
   onCreateInWorkspace,
   renderThreadRow,
+  draggedThread,
+  movingThread,
+  onMoveThread,
 }: Props) {
   const { t } = useTranslation();
   const archivedCollapsed = collapsedGroups.has('__archived__');
@@ -77,9 +83,11 @@ export function WorkspaceOverview({
             className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-sm font-medium text-foreground/80 hover:text-foreground"
             onClick={() => onToggleCollapse('__archived__')}
           >
-            {archivedCollapsed
-              ? <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform" />
-              : <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform" />}
+            {archivedCollapsed ? (
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform" />
+            )}
             <Archive className="h-3.5 w-3.5 shrink-0" />
             {t('Archived')}
           </button>
@@ -107,7 +115,9 @@ export function WorkspaceOverview({
               <div className="space-y-0.5">
                 {archivedThreads.map((thread) => renderThreadRow(thread, true))}
                 {archivedThreads.length === 0 && (
-                  <p className="py-2 pl-5 text-xs text-muted-foreground">{t('No archived threads')}</p>
+                  <p className="py-2 pl-5 text-xs text-muted-foreground">
+                    {t('No archived threads')}
+                  </p>
                 )}
               </div>
             </motion.div>
@@ -119,16 +129,64 @@ export function WorkspaceOverview({
       {workspaceGroups.map((group) => {
         const collapsed = collapsedGroups.has(group.cwd);
         return (
-          <section key={group.cwd}>
-            <div className="mb-0.5 flex items-center gap-1 px-2" title={group.cwd}>
+          <section
+            key={group.cwd}
+            className="rounded-md transition-colors"
+            onDragOver={(event) => {
+              if (
+                !draggedThread ||
+                draggedThread.cwd === group.cwd ||
+                movingThread
+              )
+                return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+              event.currentTarget.classList.add(
+                'bg-primary/10',
+                'ring-1',
+                'ring-primary/30',
+              );
+            }}
+            onDragLeave={(event) => {
+              if (
+                event.currentTarget.contains(event.relatedTarget as Node | null)
+              )
+                return;
+              event.currentTarget.classList.remove(
+                'bg-primary/10',
+                'ring-1',
+                'ring-primary/30',
+              );
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              event.currentTarget.classList.remove(
+                'bg-primary/10',
+                'ring-1',
+                'ring-primary/30',
+              );
+              if (
+                draggedThread &&
+                draggedThread.cwd !== group.cwd &&
+                !movingThread
+              )
+                onMoveThread(draggedThread, group.cwd);
+            }}
+          >
+            <div
+              className="mb-0.5 flex items-center gap-1 px-2"
+              title={group.cwd}
+            >
               <button
                 type="button"
                 className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-sm font-medium text-foreground/80 hover:text-foreground"
                 onClick={() => onToggleCollapse(group.cwd)}
               >
-                {collapsed
-                  ? <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform" />
-                  : <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform" />}
+                {collapsed ? (
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform" />
+                )}
                 <span className="truncate">{workspaceLabel(group.cwd)}</span>
               </button>
               <div className="flex shrink-0 items-center gap-0.5">
@@ -166,7 +224,9 @@ export function WorkspaceOverview({
                   className="overflow-hidden"
                 >
                   <div className="space-y-0.5">
-                    {group.threads.slice(0, 5).map((thread) => renderThreadRow(thread, false))}
+                    {group.threads
+                      .slice(0, 5)
+                      .map((thread) => renderThreadRow(thread, false))}
                   </div>
                 </motion.div>
               )}

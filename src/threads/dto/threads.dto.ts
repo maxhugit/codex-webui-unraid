@@ -166,6 +166,12 @@ export class ThreadSetNameRequestDto {
   name!: string;
 }
 
+/** Request body for moving a conversation to another working directory. */
+export class ThreadSetCwdRequestDto {
+  @ApiProperty({ minLength: 1 })
+  cwd!: string;
+}
+
 /** Current persisted background goal for a thread. */
 export class ThreadGoalDto {
   @ApiProperty()

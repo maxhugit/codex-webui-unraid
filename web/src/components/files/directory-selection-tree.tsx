@@ -1,6 +1,12 @@
 /** Shared lazy directory selector used by workspace and copy/move dialogs. */
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Folder, FolderOpen, FolderPlus, Loader2 } from 'lucide-react';
+import {
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  Loader2,
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -65,11 +71,21 @@ export function DirectorySelectionTree({
     () => new Set(rootsQuery.data?.roots ?? []),
     [rootsQuery.data],
   );
-  const roots = rootsQuery.data
-    ? (Array.from(
-        new Set([rootsQuery.data.homeDir, ...rootsQuery.data.roots]),
-      ).filter(Boolean) as string[])
-    : [];
+  const roots = useMemo(() => {
+    if (!rootsQuery.data) return [];
+    const candidates = Array.from(
+      new Set([rootsQuery.data.homeDir, ...rootsQuery.data.roots]),
+    ).filter(Boolean) as string[];
+    // A thread cwd is dynamically registered as a root. When its parent is
+    // already visible (for example /workspaces/Unraid below /workspaces),
+    // rendering it again at depth zero creates a misleading duplicate.
+    return candidates.filter(
+      (candidate) =>
+        !candidates.some(
+          (parent) => parent !== candidate && pathIsWithin(candidate, parent),
+        ),
+    );
+  }, [rootsQuery.data]);
 
   const toggle = (path: string) => {
     const collapsing = expanded.has(path);
@@ -250,7 +266,12 @@ interface DirectoryNodeProps {
 }
 
 /** Renders one selectable directory and leases children only while expanded and mounted. */
-function DirectoryNode({ path, name, depth, ...childProps }: DirectoryNodeProps) {
+function DirectoryNode({
+  path,
+  name,
+  depth,
+  ...childProps
+}: DirectoryNodeProps) {
   // `path`/`name`/`depth` are deliberately destructured away rather than kept in
   // a spreadable bag: forwarding them into a child row would override the entry
   // being rendered with this row's own identity, and a node whose path equals its

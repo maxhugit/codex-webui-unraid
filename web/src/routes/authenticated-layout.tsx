@@ -7,11 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { DetachedDocumentRecovery } from '@/components/files/detached-document-recovery';
 import { TerminalHost } from '@/components/terminal/terminal-host';
 import { ChatHeader } from '@/components/chat/chat-header';
@@ -58,10 +54,14 @@ function readMaxIdleSubscriptions(
 export function AuthenticatedLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [homeDir, setHomeDir] = useState<string | null>(null);
+  const [filesDefaultRoot, setFilesDefaultRoot] = useState<string | null>(null);
 
-  const setMaxIdleSubscriptions = useTimelineStore((s) => s.setMaxIdleSubscriptions);
-  const cleanupIdleThreadSubscriptions = useTimelineStore((s) => s.cleanupIdleThreadSubscriptions);
+  const setMaxIdleSubscriptions = useTimelineStore(
+    (s) => s.setMaxIdleSubscriptions,
+  );
+  const cleanupIdleThreadSubscriptions = useTimelineStore(
+    (s) => s.cleanupIdleThreadSubscriptions,
+  );
   const setRootDir = useFilesStore((s) => s.setRootDir);
   const dark = useThemeStore((s) => s.dark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
@@ -96,22 +96,31 @@ export function AuthenticatedLayout() {
     return () => window.clearInterval(timer);
   }, [cleanupIdleThreadSubscriptions, maxIdleSubscriptions]);
 
-  // Fetch home dir on mount
+  // Prefer the configured workspace tree for the standalone browser. Falling
+  // back to home made /files briefly show the previous workspace and then jump
+  // to the container's private home directory.
   useEffect(() => {
     filesGetRoots({ throwOnError: true })
-      .then(({ data }) => setHomeDir(data.homeDir))
+      .then(({ data }) => {
+        const workspaceRoot = data.roots.find(
+          (root) => root === '/workspaces' || root.endsWith('/workspaces'),
+        );
+        setFilesDefaultRoot(workspaceRoot ?? data.roots[0] ?? data.homeDir);
+      })
       .catch(() => undefined);
   }, []);
 
   // Handle snackbar jump-to-thread actions.
   useEffect(() => {
     const handleJump = (event: Event) => {
-      const threadId = (event as CustomEvent<{ threadId?: string }>).detail?.threadId;
+      const threadId = (event as CustomEvent<{ threadId?: string }>).detail
+        ?.threadId;
       if (!threadId) return;
       void navigate({ to: '/t/$threadId', params: { threadId } });
     };
     window.addEventListener('codex-webui:jump-thread', handleJump);
-    return () => window.removeEventListener('codex-webui:jump-thread', handleJump);
+    return () =>
+      window.removeEventListener('codex-webui:jump-thread', handleJump);
   }, [navigate]);
 
   // Handle auth expiry → redirect to /login
@@ -122,16 +131,15 @@ export function AuthenticatedLayout() {
       void navigate({ to: '/login', search: { redirect: '/' } });
     };
     window.addEventListener('codex-webui:auth-expired', handleAuthExpired);
-    return () => window.removeEventListener('codex-webui:auth-expired', handleAuthExpired);
+    return () =>
+      window.removeEventListener('codex-webui:auth-expired', handleAuthExpired);
   }, [navigate]);
 
   // Conversation roots are adopted by their keyed WorkspaceTree. This owner
   // handles the standalone browser only, so late metadata cannot reset browsing.
   useEffect(() => {
     let cancelled = false;
-    const dir = pathname.startsWith('/files')
-      ? homeDir
-      : null;
+    const dir = pathname.startsWith('/files') ? filesDefaultRoot : null;
     // `setRootDir` resets the expansion set and the selection, so it must only
     // be reached when the root genuinely changes — navigating between two
     // conversations that share a working directory would otherwise collapse
@@ -140,16 +148,26 @@ export function AuthenticatedLayout() {
     if (dir) {
       // A rejected root is still shown: the tree reports the directory it
       // cannot read, instead of silently leaving the previous one on screen.
-      void filesAddRoot({ body: { root: dir }, throwOnError: true, meta: { silent: true } })
-        .then(() => { if (!cancelled) setRootDir(dir); })
-        .catch(() => { if (!cancelled) setRootDir(dir); });
+      void filesAddRoot({
+        body: { root: dir },
+        throwOnError: true,
+        meta: { silent: true },
+      })
+        .then(() => {
+          if (!cancelled) setRootDir(dir);
+        })
+        .catch(() => {
+          if (!cancelled) setRootDir(dir);
+        });
     } else if (!pathname.startsWith('/t/')) {
       setRootDir(null);
     }
     // Retain the tree cache when entering a conversation; its keyed explorer
     // withholds presentation until its own cwd adoption completes.
-    return () => { cancelled = true; };
-  }, [pathname, homeDir, setRootDir]);
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, filesDefaultRoot, setRootDir]);
 
   const { t } = useTranslation();
   const handleToggleDiagnostics = useCallback(() => {
@@ -161,7 +179,9 @@ export function AuthenticatedLayout() {
   const isDesktop = breakpoint === 'desktop';
   const sidebarOpen = useLayoutStore((s) => s.sidebarOpen);
   const setSidebarOpen = useLayoutStore((s) => s.setSidebarOpen);
-  const desktopSidebarCollapsed = useLayoutStore((s) => s.desktopSidebarCollapsed);
+  const desktopSidebarCollapsed = useLayoutStore(
+    (s) => s.desktopSidebarCollapsed,
+  );
 
   // Auto-close sidebar sheet on route change
   useEffect(() => {
@@ -194,7 +214,11 @@ export function AuthenticatedLayout() {
         {/* Mobile/Tablet: sidebar as Sheet overlay */}
         {!isDesktop && (
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetContent side="left" className="!w-[280px] p-0 sm:!max-w-[320px]" showCloseButton={false}>
+            <SheetContent
+              side="left"
+              className="!w-[280px] p-0 sm:!max-w-[320px]"
+              showCloseButton={false}
+            >
               <SheetTitle className="sr-only">{t('Navigation')}</SheetTitle>
               <ThreadSidebar />
             </SheetContent>
@@ -208,11 +232,13 @@ export function AuthenticatedLayout() {
             composer is an opaque surface rather than a glass one; the
             transcript fades out under it instead. See chat-input.tsx. */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col isolate">
-          {!pathname.startsWith('/t/') && <ChatHeader
-            dark={dark}
-            onToggleDark={toggleDark}
-            onToggleDiagnostics={handleToggleDiagnostics}
-          />}
+          {!pathname.startsWith('/t/') && (
+            <ChatHeader
+              dark={dark}
+              onToggleDark={toggleDark}
+              onToggleDiagnostics={handleToggleDiagnostics}
+            />
+          )}
           <CodexStatusBanner />
           <DetachedDocumentRecovery />
           <Outlet />

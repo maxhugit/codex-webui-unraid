@@ -112,6 +112,27 @@ export class ThreadsService {
     return response;
   }
 
+  /** Changes the persisted cwd used by subsequent turns in a conversation. */
+  async setThreadCwd(threadId: string, cwd: string): Promise<void> {
+    this.deletionRegistry.assertMutable(threadId);
+    const opened = await this.resumeRegistry.ensureOpened(
+      threadId,
+      1,
+      'summary',
+    );
+    if (opened.mode !== 'writable') {
+      throw BusinessException.conflict(
+        ErrorCode.threads.threadNotLoaded,
+        'The conversation is currently owned by another client',
+      );
+    }
+    this.deletionRegistry.assertMutable(threadId);
+    await this.codex.request<Record<string, never>>('thread/settings/update', {
+      threadId,
+      cwd,
+    });
+  }
+
   /**
    * Lists threads with optional filtering and pagination.
    *
