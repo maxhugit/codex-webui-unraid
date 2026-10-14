@@ -36,3 +36,16 @@ Change `CODEX_CLI_VERSION` in
 `.github/workflows/docker-publish.yml`, commit the change, and let GitHub
 Actions publish a new immutable image. Test the `sha-<commit>` tag on Unraid
 before promoting or relying on `latest`.
+
+## Updating from the original project
+
+`Check for upstream updates` runs every Monday and can also be started
+manually from GitHub Actions. It fetches `LimLLL/codex-webui` and opens a pull
+request when upstream changed.
+
+Upstream changes are never deployed automatically. Review and merge the pull
+request first. Merging into `main` then triggers the image workflow, which
+publishes a new `sha-<commit>` image and refreshes `latest`.
+
+If upstream changed a file that this deployment also customizes, the sync job
+stops on a merge conflict instead of overwriting the local security changes.
