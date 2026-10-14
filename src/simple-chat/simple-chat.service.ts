@@ -15,7 +15,7 @@ import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import { simpleChatMessages, simpleChatThreads } from '../database/schema';
 
 const DEFAULT_MODEL = 'gpt-5-mini';
-const DEFAULT_MAX_OUTPUT_TOKENS = 1_200;
+const DEFAULT_MAX_OUTPUT_TOKENS = 2_400;
 const MAX_MESSAGE_LENGTH = 6_000;
 const MAX_CONTEXT_MESSAGES = 30;
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -42,6 +42,9 @@ interface OpenAiResponse {
   error?: { message?: string };
   output?: Array<{
     type?: string;
+    action?: {
+      sources?: Array<{ url?: string; title?: string }>;
+    };
     content?: Array<{
       type?: string;
       text?: string;
@@ -295,6 +298,9 @@ export class SimpleChatService {
         tools: [{ type: 'web_search', search_context_size: 'low' }],
         tool_choice: 'auto',
         include: ['web_search_call.action.sources'],
+        ...(/^(gpt-[56]|o[1-9](?:-|$))/.test(model)
+          ? { reasoning: { effort: 'low' } }
+          : {}),
         max_output_tokens: this.getMaxOutputTokens(),
         store: false,
       }),
@@ -405,6 +411,14 @@ export class SimpleChatService {
       seen.add(url);
       sources.push({ title: title || url, url });
     }
+    for (const source of (payload.output ?? []).flatMap(
+      (item) => item.action?.sources ?? [],
+    )) {
+      const url = source.url;
+      if (!url || !/^https?:\/\//i.test(url) || seen.has(url)) continue;
+      seen.add(url);
+      sources.push({ title: source.title || url, url });
+    }
     return sources;
   }
 
@@ -417,6 +431,7 @@ export class SimpleChatService {
   private isChatModel(id: string): boolean {
     return (
       /^(gpt-|o[1-9](?:-|$))/.test(id) &&
+      !/^gpt-3\.5/i.test(id) &&
       !/(audio|realtime|transcribe|tts|image|search|codex|instruct|embedding|moderation)/i.test(
         id,
       )

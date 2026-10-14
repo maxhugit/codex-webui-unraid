@@ -42,7 +42,7 @@ browser. The Unraid deployment mounts it as a read-only secret file and uses:
 ```text
 OPENAI_API_KEY_FILE=/run/secrets/openai_api_key
 OPENAI_CHAT_MODEL=gpt-5-mini
-OPENAI_CHAT_MAX_OUTPUT_TOKENS=1200
+OPENAI_CHAT_MAX_OUTPUT_TOKENS=2400
 ```
 
 The host-side secret is stored at
