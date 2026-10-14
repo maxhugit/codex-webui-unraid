@@ -17,6 +17,7 @@ import { ThreadView } from './thread-view';
 import { FilesRoute } from './files-route';
 import { TerminalRoute } from './terminal-route';
 import { DiagnosticsRoute } from './diagnostics-route';
+import { SimpleChatRoute } from './simple-chat-route';
 import { SettingsPage } from '@/components/settings/settings-page';
 import { IntegrationsPage } from '@/components/integrations/integrations-page';
 import { BASE_PATH } from '@/base-path';
@@ -113,6 +114,13 @@ const diagnosticsRoute = createRoute({
   component: DiagnosticsRoute,
 });
 
+/** General-purpose low-cost chat backed directly by the OpenAI API. */
+const simpleChatRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/simple-chat',
+  component: SimpleChatRoute,
+});
+
 /** Settings page. */
 const settingsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
@@ -136,6 +144,7 @@ const routeTree = rootRoute.addChildren([
     filesRoute,
     terminalRoute,
     diagnosticsRoute,
+    simpleChatRoute,
     settingsRoute,
     integrationsRoute,
   ]),

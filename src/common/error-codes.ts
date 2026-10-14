@@ -228,6 +228,14 @@ export const ErrorCode = {
     fileInvalid: 'chat.file_invalid',
   },
 
+  simpleChat: {
+    notConfigured: 'simple_chat.not_configured',
+    messageRequired: 'simple_chat.message_required',
+    messageTooLong: 'simple_chat.message_too_long',
+    upstreamFailed: 'simple_chat.upstream_failed',
+    invalidResponse: 'simple_chat.invalid_response',
+  },
+
   // ── Codex Config ───────────────────────────────────────────────────
   codex: {
     rpcError: 'codex.rpc_error',

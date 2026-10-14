@@ -24,6 +24,7 @@ import { PendingApprovalsModule } from './pending-approvals/pending-approvals.mo
 import { PluginsModule } from './plugins/plugins.module';
 import { SettingsModule } from './settings/settings.module';
 import { SkillsModule } from './skills/skills.module';
+import { SimpleChatModule } from './simple-chat/simple-chat.module';
 import { TerminalModule } from './terminal/terminal.module';
 import { ThreadsModule } from './threads/threads.module';
 import { TokenUsageModule } from './token-usage/token-usage.module';
@@ -121,6 +122,7 @@ const PINO_REDACT = {
     FilesModule,
     SettingsModule,
     SkillsModule,
+    SimpleChatModule,
     TerminalModule,
     ThreadsModule,
     PendingApprovalsModule,
