@@ -43,7 +43,6 @@ interface ChatThread {
 interface ChatStatus {
   configured: boolean;
   model: string;
-  maxOutputTokens: number;
   webSearch: boolean;
 }
 

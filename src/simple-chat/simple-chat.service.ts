@@ -15,7 +15,6 @@ import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import { simpleChatMessages, simpleChatThreads } from '../database/schema';
 
 const DEFAULT_MODEL = 'gpt-5-mini';
-const DEFAULT_MAX_OUTPUT_TOKENS = 2_400;
 const MAX_MESSAGE_LENGTH = 6_000;
 const MAX_CONTEXT_MESSAGES = 30;
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -83,7 +82,6 @@ export class SimpleChatService {
     return {
       configured: this.hasApiKey(),
       model: this.defaultModel,
-      maxOutputTokens: this.getMaxOutputTokens(),
       webSearch: true,
     };
   }
@@ -301,7 +299,6 @@ export class SimpleChatService {
         ...(/^(gpt-[56]|o[1-9](?:-|$))/.test(model)
           ? { reasoning: { effort: 'low' } }
           : {}),
-        max_output_tokens: this.getMaxOutputTokens(),
         store: false,
       }),
     });
@@ -380,14 +377,6 @@ export class SimpleChatService {
     } catch {
       return undefined;
     }
-  }
-
-  private getMaxOutputTokens(): number {
-    const configured = Number(process.env.OPENAI_CHAT_MAX_OUTPUT_TOKENS);
-    if (!Number.isInteger(configured) || configured < 256 || configured > 8_192) {
-      return DEFAULT_MAX_OUTPUT_TOKENS;
-    }
-    return configured;
   }
 
   private extractText(payload: OpenAiResponse): string {

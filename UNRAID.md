@@ -33,8 +33,8 @@ The active Unraid deployment stores these under
 ## Simple Chat through the OpenAI API
 
 The **Simple Chat** entry is separate from Codex work sessions. It calls the
-OpenAI Responses API without tools, SSH, MCP, or filesystem access and uses a
-small default model with a bounded response size.
+OpenAI Responses API without SSH, MCP, or filesystem access and uses a small
+default model. Web search is the only tool available to this chat.
 
 The API key must never be committed to this repository or passed to the web
 browser. The Unraid deployment mounts it as a read-only secret file and uses:
@@ -42,8 +42,10 @@ browser. The Unraid deployment mounts it as a read-only secret file and uses:
 ```text
 OPENAI_API_KEY_FILE=/run/secrets/openai_api_key
 OPENAI_CHAT_MODEL=gpt-5-mini
-OPENAI_CHAT_MAX_OUTPUT_TOKENS=2400
 ```
+
+The application does not impose a fixed output-token limit. The selected
+model, its context window, and the OpenAI API limits still apply.
 
 The host-side secret is stored at
 `/mnt/pool/appdata/codex-webui-limlll/state/openai-api-key.txt`, owned by root
