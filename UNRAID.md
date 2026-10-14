@@ -59,6 +59,20 @@ Codex home and takes precedence over the read-only bootstrap secret. The key
 value is never returned by the API. Chat history, selected models, token usage,
 and source links are stored in the existing WebUI SQLite database.
 
+## Workspace files and OnlyOffice
+
+The file manager is restricted to the mounted workspace roots. It supports
+creating files and nested directories, uploads, downloads, rename, copy, move,
+and deletion. Clicking a file opens the matching built-in viewer; DOCX, XLSX,
+and PPTX files use OnlyOffice Document Server.
+
+The active deployment uses `https://office.hugotlab.fr` and the matching
+OnlyOffice JWT secret stored in the WebUI settings database. The public callback
+base is `https://codex.hugotlab.fr`. The secret must remain identical to the
+`JWT_SECRET` configured on the OnlyOffice container and must never be committed
+to Git. The restricted egress proxy permits only `office.hugotlab.fr` for this
+integration; no Docker socket or additional host directory is exposed.
+
 ## Updating Codex CLI
 
 Change `CODEX_CLI_VERSION` in

@@ -167,7 +167,11 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
 
   return (
     <>
-      <FileToolbar onUpload={handleUpload} />
+      <FileToolbar
+        onUpload={handleUpload}
+        onNewFile={() => startBackgroundCreate('newFile')}
+        onNewFolder={() => startBackgroundCreate('newFolder')}
+      />
       <FileListingContextMenu
         actions={{
           onNewFile: () => startBackgroundCreate('newFile'),

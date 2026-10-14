@@ -24,7 +24,11 @@ export function DirectoryPickerDialog({ open, onClose, onSelect }: Props) {
   return <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
     {open && <DialogContent className="max-w-md">
       <DialogHeader><DialogTitle>{t('Select workspace directory')}</DialogTitle></DialogHeader>
-      <DirectorySelectionTree selectedPath={selectedPath} onSelectedPathChange={setSelectedPath} />
+      <DirectorySelectionTree
+        selectedPath={selectedPath}
+        onSelectedPathChange={setSelectedPath}
+        showCreateButton
+      />
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={onClose}>{t('Cancel')}</Button>
         <Button size="sm" disabled={!selectedPath} onClick={() => { if (selectedPath) { onSelect(selectedPath); onClose(); } }}>{t('Confirm')}</Button>

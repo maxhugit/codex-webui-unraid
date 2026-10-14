@@ -1,9 +1,10 @@
 /** Shared lazy directory selector used by workspace and copy/move dialogs. */
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Folder, FolderOpen, Loader2 } from 'lucide-react';
+import { ChevronRight, Folder, FolderOpen, FolderPlus, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +41,7 @@ export interface DirectorySelectionTreeProps {
   onSelectedPathChange: (path: string | null) => void;
   className?: string;
   showSelectedPath?: boolean;
+  showCreateButton?: boolean;
 }
 
 /** Owns expansion and lazy queries while the caller owns semantic selection. */
@@ -48,6 +50,7 @@ export function DirectorySelectionTree({
   onSelectedPathChange,
   className,
   showSelectedPath = false,
+  showCreateButton = false,
 }: DirectorySelectionTreeProps) {
   const { t } = useTranslation();
   const inline = useInlineFileEdit(onSelectedPathChange);
@@ -139,6 +142,21 @@ export function DirectorySelectionTree({
 
   return (
     <>
+      {showCreateButton && (
+        <div className="mb-2 flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1.5"
+            disabled={!selectedPath}
+            onClick={() => selectedPath && startCreate(selectedPath)}
+          >
+            <FolderPlus className="h-3.5 w-3.5" />
+            {t('New Folder')}
+          </Button>
+        </div>
+      )}
       <ScrollArea className={cn('h-64 rounded-md border', className)}>
         <div className="py-1">
           {rootsQuery.isLoading ? (

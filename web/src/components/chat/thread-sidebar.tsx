@@ -513,64 +513,6 @@ export function ThreadSidebar() {
     <div className="flex h-full flex-col bg-card/80">
       {/* Global actions */}
       <div className="space-y-0.5 px-2 py-2">
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() => createSimpleChatThread.mutate()}
-            className={cn(
-              'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
-              activeView === 'simpleChat'
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-            )}
-          >
-            <MessageCircle className="h-4 w-4 shrink-0" />
-            Chat simple
-          </button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            title="Nouvelle discussion simple"
-            aria-label="Nouvelle discussion simple"
-            disabled={createSimpleChatThread.isPending}
-            onClick={() => createSimpleChatThread.mutate()}
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-        <div className="mb-1 ml-3 space-y-0.5 border-l pl-1.5">
-          {simpleChatThreadsQuery.data?.threads.map((thread) => (
-            <div key={thread.id} className="group flex items-center gap-0.5">
-              <button
-                type="button"
-                onClick={() => void navigate({ to: '/simple-chat', search: { thread: thread.id } })}
-                className={cn(
-                  'min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent/50 hover:text-foreground',
-                  activeView === 'simpleChat' && activeSimpleThreadId === thread.id
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground',
-                )}
-                title={thread.title}
-              >
-                {thread.title}
-              </button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-                title="Renommer"
-                aria-label={`Renommer ${thread.title}`}
-                onClick={() => {
-                  setRenameSimpleThread(thread);
-                  setRenameSimpleValue(thread.title);
-                }}
-              >
-                <Pencil className="h-3 w-3" />
-              </Button>
-            </div>
-          ))}
-        </div>
         <button
           type="button"
           onClick={() => void navigate({ to: '/files' })}
@@ -623,6 +565,70 @@ export function ThreadSidebar() {
           <Settings className="h-4 w-4 shrink-0" />
           {t('Settings')}
         </button>
+      </div>
+
+      <Separator />
+
+      {/* Simple Chat conversations */}
+      <div className="space-y-0.5 px-2 py-2">
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => createSimpleChatThread.mutate()}
+            className={cn(
+              'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
+              activeView === 'simpleChat'
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+            )}
+          >
+            <MessageCircle className="h-4 w-4 shrink-0" />
+            Chat simple
+          </button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            title="Nouvelle discussion simple"
+            aria-label="Nouvelle discussion simple"
+            disabled={createSimpleChatThread.isPending}
+            onClick={() => createSimpleChatThread.mutate()}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="ml-3 space-y-0.5 border-l pl-1.5">
+          {simpleChatThreadsQuery.data?.threads.map((thread) => (
+            <div key={thread.id} className="group flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => void navigate({ to: '/simple-chat', search: { thread: thread.id } })}
+                className={cn(
+                  'min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent/50 hover:text-foreground',
+                  activeView === 'simpleChat' && activeSimpleThreadId === thread.id
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground',
+                )}
+                title={thread.title}
+              >
+                {thread.title}
+              </button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                title="Renommer"
+                aria-label={`Renommer ${thread.title}`}
+                onClick={() => {
+                  setRenameSimpleThread(thread);
+                  setRenameSimpleValue(thread.title);
+                }}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
 
       <Separator />

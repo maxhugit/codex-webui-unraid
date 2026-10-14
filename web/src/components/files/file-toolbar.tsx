@@ -2,7 +2,7 @@
  * File tree toolbar: breadcrumb (up + dir name), refresh all, upload buttons.
  */
 import { useRef } from 'react';
-import { ChevronUp, FolderUp, RefreshCw, Upload } from 'lucide-react';
+import { ChevronUp, FilePlus, FolderPlus, FolderUp, RefreshCw, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useFilesStore } from '@/stores/files-store';
@@ -10,9 +10,11 @@ import { useFilesStore } from '@/stores/files-store';
 interface FileToolbarProps {
   /** Called when user selects files or folder to upload into current root. */
   onUpload: (files: FileList, destinationPath: string) => void;
+  onNewFile: () => void;
+  onNewFolder: () => void;
 }
 
-export function FileToolbar({ onUpload }: FileToolbarProps) {
+export function FileToolbar({ onUpload, onNewFile, onNewFolder }: FileToolbarProps) {
   const { t } = useTranslation();
   const rootDir = useFilesStore((s) => s.rootDir);
   const navigateUp = useFilesStore((s) => s.navigateUp);
@@ -68,6 +70,22 @@ export function FileToolbar({ onUpload }: FileToolbarProps) {
       </span>
 
       <div className="ml-auto flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={onNewFile}
+          className="rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+          title={t('New File')}
+        >
+          <FilePlus className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          onClick={onNewFolder}
+          className="rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+          title={t('New Folder')}
+        >
+          <FolderPlus className="h-3 w-3" />
+        </button>
         <button
           type="button"
           onClick={handleFileUpload}
