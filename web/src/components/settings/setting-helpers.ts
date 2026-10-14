@@ -52,6 +52,7 @@ export function formatSettingValue(value: SettingValue): string {
 }
 
 export function sectionLabel(section: string): string {
+  if (section === 'simpleChat') return 'Chat simple';
   const labels: Record<string, string> = {
     general: 'General',
     account: 'Account',

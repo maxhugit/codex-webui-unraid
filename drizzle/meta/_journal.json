@@ -92,6 +92,13 @@
       "when": 1789351042180,
       "tag": "0012_terminal_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1791954000000,
+      "tag": "0013_simple_chat_history",
+      "breakpoints": true
     }
   ]
 }

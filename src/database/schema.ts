@@ -301,3 +301,43 @@ export type ConversationBranchActiveMember =
   typeof conversationBranchActiveMembers.$inferSelect;
 export type InsertConversationBranchActiveMember =
   typeof conversationBranchActiveMembers.$inferInsert;
+
+/** Lightweight OpenAI API conversations, separate from Codex work threads. */
+export const simpleChatThreads = sqliteTable(
+  'simple_chat_threads',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    model: text('model').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [index('idx_simple_chat_threads_updated').on(table.updatedAt)],
+);
+
+export const simpleChatMessages = sqliteTable(
+  'simple_chat_messages',
+  {
+    id: text('id').primaryKey(),
+    threadId: text('thread_id')
+      .notNull()
+      .references(() => simpleChatThreads.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(),
+    content: text('content').notNull(),
+    model: text('model'),
+    sources: text('sources', { mode: 'json' })
+      .$type<Array<{ title: string; url: string }>>()
+      .notNull()
+      .default([]),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    totalTokens: integer('total_tokens').notNull().default(0),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    index('idx_simple_chat_messages_thread_created').on(
+      table.threadId,
+      table.createdAt,
+    ),
+  ],
+);

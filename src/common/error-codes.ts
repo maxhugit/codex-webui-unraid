@@ -234,6 +234,10 @@ export const ErrorCode = {
     messageTooLong: 'simple_chat.message_too_long',
     upstreamFailed: 'simple_chat.upstream_failed',
     invalidResponse: 'simple_chat.invalid_response',
+    threadNotFound: 'simple_chat.thread_not_found',
+    titleInvalid: 'simple_chat.title_invalid',
+    modelInvalid: 'simple_chat.model_invalid',
+    apiKeyInvalid: 'simple_chat.api_key_invalid',
   },
 
   // ── Codex Config ───────────────────────────────────────────────────

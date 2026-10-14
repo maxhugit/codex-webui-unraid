@@ -42,7 +42,7 @@ browser. The Unraid deployment mounts it as a read-only secret file and uses:
 ```text
 OPENAI_API_KEY_FILE=/run/secrets/openai_api_key
 OPENAI_CHAT_MODEL=gpt-5-mini
-OPENAI_CHAT_MAX_OUTPUT_TOKENS=700
+OPENAI_CHAT_MAX_OUTPUT_TOKENS=1200
 ```
 
 The host-side secret is stored at
@@ -50,6 +50,12 @@ The host-side secret is stored at
 and readable only by the container's restricted group. Starting a new chat
 clears the browser-side conversation identifier. OpenAI API usage is billed
 separately from the ChatGPT/Codex subscription.
+
+The application can also replace the key from **Settings → Chat simple**. A
+key entered there is written atomically with mode `0600` below the persistent
+Codex home and takes precedence over the read-only bootstrap secret. The key
+value is never returned by the API. Chat history, selected models, token usage,
+and source links are stored in the existing WebUI SQLite database.
 
 ## Updating Codex CLI
 

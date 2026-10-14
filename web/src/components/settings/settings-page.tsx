@@ -19,11 +19,13 @@ import { CatalogSettings } from './catalog/catalog-settings';
 import { TerminalSettings } from './terminal-settings';
 import { FilesSettings } from './files-settings';
 import { SecuritySettings } from './security-settings';
+import { SimpleChatSettings } from './simple-chat-settings';
 
 const SECTIONS = [
   'general',
   'account',
   'codex',
+  'simpleChat',
   'terminal',
   'files',
   'security',
@@ -100,6 +102,7 @@ export function SettingsPage() {
             <CatalogSettings />
           </>
         )}
+        {section === 'simpleChat' && <SimpleChatSettings />}
         {section === 'terminal' && <TerminalSettings />}
         {section === 'files' && <FilesSettings />}
         {section === 'security' && <SecuritySettings />}
