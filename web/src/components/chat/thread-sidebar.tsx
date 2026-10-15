@@ -28,6 +28,7 @@ import {
   threadsSetThreadNameMutation,
   threadsStartThreadMutation,
   threadsUnarchiveThreadMutation,
+  filesReadTreeOptions,
 } from '@/generated/api/@tanstack/react-query.gen';
 import type { ThreadDto } from '@/generated/api';
 import { selectSidebarRows } from '@/lib/sidebar-rows';
@@ -213,6 +214,10 @@ export function ThreadSidebar() {
     queryKey: ['simple-chat-threads'],
     queryFn: () => simpleChatApi<{ threads: SimpleChatThread[] }>('/threads'),
   });
+  const workspaceDirectoriesQuery = useQuery({
+    ...filesReadTreeOptions({ query: { root: '/workspaces' } }),
+    enabled: isHomeView,
+  });
 
   // ── Deletion ────────────────────────────────────────────────────────
   const adoptionStatus = useBranchAdoptionStatus();
@@ -248,10 +253,16 @@ export function ThreadSidebar() {
     () => rowsByView.archived.map((row) => row.thread),
     [rowsByView.archived],
   );
-  const workspaceGroups = useMemo(
-    () => groupByWorkspace(activeThreads),
-    [activeThreads],
-  );
+  const workspaceGroups = useMemo(() => {
+    const groups = groupByWorkspace(activeThreads);
+    const known = new Set(groups.map((group) => group.cwd));
+    for (const entry of workspaceDirectoriesQuery.data ?? []) {
+      if (entry.type !== 'directory' || known.has(entry.path)) continue;
+      groups.push({ cwd: entry.path, threads: [] });
+      known.add(entry.path);
+    }
+    return groups;
+  }, [activeThreads, workspaceDirectoriesQuery.data]);
   const detailThreads = useMemo(
     () => rowsByView.detail.map((row) => row.thread),
     [rowsByView.detail],
@@ -403,15 +414,8 @@ export function ThreadSidebar() {
       const target = event.operation.target?.data;
       const sourceId = String(event.operation.source?.id ?? '');
       const targetId = String(event.operation.target?.id ?? '');
-      if (
-        source?.kind !== 'thread' &&
-        !sourceId.startsWith('thread-')
-      )
-        return;
-      if (
-        target?.kind !== 'workspace' &&
-        !targetId.startsWith('workspace-')
-      )
+      if (source?.kind !== 'thread' && !sourceId.startsWith('thread-')) return;
+      if (target?.kind !== 'workspace' && !targetId.startsWith('workspace-'))
         return;
       const threadId =
         (source?.threadId as string | undefined) ||
