@@ -61,9 +61,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \
     python3 \
+    python3-pip \
     python3-docx \
     python3-openpyxl \
-    python3-pptx \
     python3-pypdf \
     python3-reportlab \
     make \
@@ -79,6 +79,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     uuid-dev \
     xz-utils \
  && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --no-cache-dir --break-system-packages python-pptx
 
 RUN command -v 7za >/dev/null
 
