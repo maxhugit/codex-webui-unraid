@@ -1,6 +1,7 @@
 /** PDF viewer using react-pdf with a locally bundled pdf.js worker. */
 import { useEffect, useMemo, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { ChevronLeft, ChevronRight, FileText, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
@@ -8,10 +9,10 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { buildPreviewUrl, fetchPreviewBlob, type PreviewSource } from './preview-source';
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+// Importing the worker as an explicit Vite asset ensures it is copied into the
+// production image. Resolving it with `new URL(..., import.meta.url)` can leave
+// the transitive pdfjs-dist worker out of the final bundle.
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface Props {
   source: PreviewSource;
