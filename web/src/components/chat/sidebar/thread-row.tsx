@@ -3,6 +3,7 @@ import {
   Archive,
   ArchiveRestore,
   GitFork,
+  GripVertical,
   Loader2,
   MessageCircleQuestion,
   MessageSquare,
@@ -118,13 +119,22 @@ export function ThreadRow({
         isDragging && 'opacity-40',
       )}
     >
+      {dragEnabled && (
+        <button
+          ref={dragHandleRef}
+          type="button"
+          className="touch-none cursor-grab rounded p-0.5 text-muted-foreground/50 hover:bg-accent/50 hover:text-foreground active:cursor-grabbing"
+          aria-label={t('Move conversation')}
+          title={t('Move conversation')}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      )}
       <button
-        ref={dragHandleRef}
         type="button"
         onClick={onOpen}
         className={cn(
           'flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
-          dragEnabled && 'touch-none cursor-grab active:cursor-grabbing',
           isActive
             ? 'bg-accent text-accent-foreground'
             : archived

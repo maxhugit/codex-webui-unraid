@@ -127,10 +127,20 @@ export class ThreadsService {
       );
     }
     this.deletionRegistry.assertMutable(threadId);
-    await this.codex.request<Record<string, never>>('thread/settings/update', {
-      threadId,
-      cwd,
-    });
+    // `cwd` is a resume override in the app-server protocol. Sending it to
+    // thread/settings/update is accepted by TypeScript but ignored/rejected by
+    // current Codex builds, leaving the sidebar move purely cosmetic. Rejoin
+    // the already-owned thread with the new cwd so subsequent turns and file
+    // operations execute in the destination workspace.
+    const response = await this.codex.request<v2.ThreadResumeResponse>(
+      'thread/resume',
+      {
+        threadId,
+        cwd,
+        excludeTurns: true,
+      } satisfies v2.ThreadResumeParams,
+    );
+    this.resumeRegistry.cacheResponse(threadId, response);
   }
 
   /**
