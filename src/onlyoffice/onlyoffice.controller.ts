@@ -6,6 +6,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Logger,
   Post,
   Query,
@@ -196,6 +197,7 @@ export class OnlyOfficeController {
    * 7. Download size limit + timeout
    */
   @Post('callback')
+  @HttpCode(200)
   @Public()
   @ApiOperation({ summary: 'OnlyOffice document save callback' })
   @ApiQuery({
