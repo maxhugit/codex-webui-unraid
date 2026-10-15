@@ -92,7 +92,7 @@ RUN grep -q 'mise activate bash' /home/codex/.bashrc 2>/dev/null || \
 RUN mise use -g node@22 uv@latest python@3.14
 
 # Libraries used by the persistent Office skill.
-RUN uv pip install --python python \
+RUN uv pip install --system \
     python-docx \
     openpyxl \
     python-pptx \
