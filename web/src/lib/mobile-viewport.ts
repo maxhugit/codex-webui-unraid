@@ -24,6 +24,17 @@ const QQ_BROWSER_UA = /MQQBrowser|QQBrowser|QQ\//i;
  */
 const WECHAT_UA = /MicroMessenger/i;
 
+/** Whether focus can currently summon an on-screen keyboard. */
+function hasKeyboardFocus(): boolean {
+  const active = document.activeElement;
+  return (
+    active instanceof HTMLInputElement ||
+    active instanceof HTMLTextAreaElement ||
+    active instanceof HTMLSelectElement ||
+    (active instanceof HTMLElement && active.isContentEditable)
+  );
+}
+
 /** Marks QQ Browser so CSS can reserve space for its overlay toolbar. */
 function markQqBrowser(): void {
   const ua = navigator.userAgent;
@@ -62,9 +73,17 @@ export function installMobileViewportFixes(): () => void {
     // offset as well as its height or the composer appears at the top of the
     // screen, outside the portion left visible above the keyboard.
     if (viewport && viewport.scale !== 1) return;
-    const height = viewport?.height || window.innerHeight || 0;
+    // Some iOS standalone builds leave visualViewport.height at its keyboard
+    // value after the field loses focus and emit no final resize. Outside an
+    // editable control, innerHeight is therefore the reliable full-height
+    // fallback. While editing, the smaller visual viewport remains mandatory.
+    const keyboardFocused = hasKeyboardFocus();
+    const visualHeight = viewport?.height || 0;
+    const height = keyboardFocused
+      ? visualHeight || window.innerHeight || 0
+      : Math.max(visualHeight, window.innerHeight || 0);
     if (height <= 0) return;
-    const top = Math.max(0, viewport?.offsetTop || 0);
+    const top = keyboardFocused ? Math.max(0, viewport?.offsetTop || 0) : 0;
     const nextHeight = `${height}px`;
     const nextTop = `${top}px`;
     // `scroll` fires far more often than either reading changes; writing an
@@ -82,12 +101,16 @@ export function installMobileViewportFixes(): () => void {
   sync();
   window.addEventListener('resize', sync, { passive: true });
   window.addEventListener('orientationchange', sync, { passive: true });
+  document.addEventListener('focusin', sync);
+  document.addEventListener('focusout', sync);
   window.visualViewport?.addEventListener('resize', sync, { passive: true });
   window.visualViewport?.addEventListener('scroll', sync, { passive: true });
 
   return () => {
     window.removeEventListener('resize', sync);
     window.removeEventListener('orientationchange', sync);
+    document.removeEventListener('focusin', sync);
+    document.removeEventListener('focusout', sync);
     window.visualViewport?.removeEventListener('resize', sync);
     window.visualViewport?.removeEventListener('scroll', sync);
   };

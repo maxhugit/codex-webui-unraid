@@ -96,6 +96,9 @@ describe('installMobileViewportFixes', () => {
       '0px',
     );
 
+    const textarea = document.createElement('textarea');
+    document.body.append(textarea);
+    textarea.focus();
     viewport.height = 500;
     viewport.offsetTop = 260;
     viewport.emit('scroll');
@@ -105,6 +108,35 @@ describe('installMobileViewportFixes', () => {
     expect(document.documentElement.style.getPropertyValue('--app-vtop')).toBe(
       '260px',
     );
+    textarea.remove();
+  });
+
+  it('restores full height when iOS keeps a stale viewport after blur', () => {
+    const viewport = useViewport(800);
+    const innerHeight = vi
+      .spyOn(window, 'innerHeight', 'get')
+      .mockReturnValue(800);
+    const textarea = document.createElement('textarea');
+    document.body.append(textarea);
+    textarea.focus();
+    install();
+
+    viewport.height = 500;
+    viewport.emit('resize');
+    expect(document.documentElement.style.getPropertyValue('--app-vh')).toBe(
+      '500px',
+    );
+
+    // Standalone iOS occasionally does not restore visualViewport.height.
+    textarea.blur();
+    expect(document.documentElement.style.getPropertyValue('--app-vh')).toBe(
+      '800px',
+    );
+    expect(document.documentElement.style.getPropertyValue('--app-vtop')).toBe(
+      '0px',
+    );
+    textarea.remove();
+    innerHeight.mockRestore();
   });
 
   it('holds the last height while the page is pinch-zoomed', () => {
