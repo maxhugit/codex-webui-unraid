@@ -61,6 +61,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \
     python3 \
+    python3-docx \
+    python3-openpyxl \
+    python3-pptx \
+    python3-pypdf \
+    python3-reportlab \
     make \
     g++ \
     libssl-dev \
@@ -92,13 +97,6 @@ RUN grep -q 'mise activate bash' /home/codex/.bashrc 2>/dev/null || \
 RUN mise use -g node@22 uv@latest python@3.14
 
 # Libraries used by the persistent Office skill.
-RUN uv pip install --system \
-    python-docx \
-    openpyxl \
-    python-pptx \
-    pypdf \
-    reportlab
-
 RUN node --version \
  && npm --version \
  && uv --version \

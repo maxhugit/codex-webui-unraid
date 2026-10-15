@@ -16,7 +16,7 @@ Preserve the original file unless the user explicitly asks to replace it.
 - PDF inspection or assembly: use `pypdf` and `reportlab` when appropriate.
 - Rendering and conversion: use LibreOffice in headless mode, writing results to a temporary or user-authorized output directory.
 
-Use the Python selected by `python` in the container because the Office libraries are installed in that managed runtime.
+Use `python3` because the Office libraries are installed in the image's system runtime.
 
 ## Workflow
 
