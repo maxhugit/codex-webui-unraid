@@ -13,6 +13,18 @@ import './index.css';
 configureApiClient();
 installMobileViewportFixes();
 
+// Install only the static-asset service worker. API responses, conversations,
+// files and authentication pages deliberately remain network-only.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const serviceWorkerUrl = new URL('sw.js', document.baseURI);
+    void navigator.serviceWorker.register(serviceWorkerUrl.pathname).catch(() => {
+      // PWA support is progressive: a registration failure must not prevent
+      // the authenticated application from starting.
+    });
+  });
+}
+
 // Apply persisted theme before first render to avoid flash
 document.documentElement.classList.toggle('dark', useThemeStore.getState().dark);
 

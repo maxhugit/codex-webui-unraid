@@ -1,0 +1,53 @@
+const STATIC_CACHE = 'codex-hugotlab-static-v1';
+const STATIC_FILES = [
+  './manifest.webmanifest',
+  './favicon.svg',
+  './pwa-icon-180.png',
+  './pwa-icon-192.png',
+  './pwa-icon-512.png',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_FILES)),
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== STATIC_CACHE).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Never cache authentication, API, WebSocket, navigation, conversation or
+  // file responses. Only immutable frontend assets and public PWA artwork are
+  // eligible for caching.
+  const isStaticAsset =
+    url.pathname.includes('/assets/') ||
+    /\/(?:favicon\.svg|manifest\.webmanifest|pwa-icon-(?:180|192|512)\.png)$/.test(url.pathname);
+  if (!isStaticAsset) return;
+
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+      return fetch(request).then((response) => {
+        if (response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          void caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      });
+    }),
+  );
+});
