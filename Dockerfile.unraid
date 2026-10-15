@@ -52,6 +52,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
     procps \
     p7zip-full \
+    libreoffice-writer \
+    libreoffice-calc \
+    libreoffice-impress \
+    fonts-dejavu \
+    fonts-liberation \
     bubblewrap \
     build-essential \
     pkg-config \
@@ -85,6 +90,14 @@ RUN grep -q 'mise activate bash' /home/codex/.bashrc 2>/dev/null || \
     printf '\n# mise\nexport PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"\neval "$(mise activate bash)"\n' >> /home/codex/.bashrc
 
 RUN mise use -g node@22 uv@latest python@3.14
+
+# Libraries used by the persistent Office skill.
+RUN uv pip install --python python \
+    python-docx \
+    openpyxl \
+    python-pptx \
+    pypdf \
+    reportlab
 
 RUN node --version \
  && npm --version \
@@ -141,6 +154,7 @@ COPY package.json pnpm-lock.yaml* ./
 COPY --from=backend-builder /app/dist ./dist/
 COPY --from=backend-builder /app/public ./public/
 COPY drizzle/ ./drizzle/
+COPY skills/office-files/ /opt/codex-skills/office-files/
 
 # ── Entrypoint ───────────────────────────────────────────────────────
 RUN cat > /usr/local/bin/entrypoint.sh <<'ENTRYPOINT_EOF'
@@ -216,6 +230,12 @@ rebuild_codex_arg0_symlinks
 
 # Ensure directories exist (in case volume is pre-populated but partial)
 mkdir -p /home/codex/.codex /workspaces /app/logs
+
+# Skills live in the persistent home volume. Refresh the image-managed Office
+# skill on every start so image updates also update its instructions.
+mkdir -p /home/codex/.codex/skills
+rm -rf /home/codex/.codex/skills/office-files
+cp -a /opt/codex-skills/office-files /home/codex/.codex/skills/office-files
 
 exec "$@"
 ENTRYPOINT_EOF
