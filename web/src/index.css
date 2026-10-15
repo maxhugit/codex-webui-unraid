@@ -35,9 +35,9 @@ body {
   left: 0;
   height: var(--app-vh, 100dvh);
   overflow: hidden;
-  /* Safe-area insets for notch/home-bar devices */
+  /* The composer owns the bottom safe area. Keeping it here too reserves the
+     iPhone home-indicator inset twice and leaves a visible empty band. */
   padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
@@ -49,9 +49,7 @@ body {
  */
 @media (max-width: 1023.98px) {
   html.qq-browser #root {
-    padding-bottom: calc(
-      env(safe-area-inset-bottom, 0px) + var(--qq-bottom-gap, 56px)
-    );
+    padding-bottom: var(--qq-bottom-gap, 56px);
   }
 }
 

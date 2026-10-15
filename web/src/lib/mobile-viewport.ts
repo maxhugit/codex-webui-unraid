@@ -35,6 +35,15 @@ function hasKeyboardFocus(): boolean {
   );
 }
 
+/** Whether the page is running as an installed, browser-chrome-free PWA. */
+function isStandalone(): boolean {
+  const iosNavigator = navigator as Navigator & { standalone?: boolean };
+  return (
+    iosNavigator.standalone === true ||
+    window.matchMedia?.('(display-mode: standalone)').matches === true
+  );
+}
+
 /** Marks QQ Browser so CSS can reserve space for its overlay toolbar. */
 function markQqBrowser(): void {
   const ua = navigator.userAgent;
@@ -79,9 +88,16 @@ export function installMobileViewportFixes(): () => void {
     // fallback. While editing, the smaller visual viewport remains mandatory.
     const keyboardFocused = hasKeyboardFocus();
     const visualHeight = viewport?.height || 0;
+    const standaloneHeight =
+      !keyboardFocused && isStandalone() ? window.screen.height : 0;
     const height = keyboardFocused
       ? visualHeight || window.innerHeight || 0
-      : Math.max(visualHeight, window.innerHeight || 0);
+      : Math.max(
+          visualHeight,
+          window.innerHeight || 0,
+          document.documentElement.clientHeight || 0,
+          standaloneHeight,
+        );
     if (height <= 0) return;
     const top = keyboardFocused ? Math.max(0, viewport?.offsetTop || 0) : 0;
     const nextHeight = `${height}px`;
