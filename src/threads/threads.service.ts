@@ -45,6 +45,7 @@ import {
   projectThreadReadForClient,
   type ClientThreadReadResponse,
 } from '../turn-errors/turn-error-projection';
+import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 
 /** Maximum ancestors walked when a fork chain is not locally tracked. */
 const MAX_FORK_CHAIN_WALK = 32;
@@ -71,6 +72,7 @@ export class ThreadsService {
     private readonly deletionRegistry: ThreadDeletionRegistryService,
     private readonly history: ThreadHistoryService,
     private readonly overview: ThreadsOverviewService,
+    private readonly workspaceOverrides: ThreadWorkspaceOverridesService,
   ) {}
 
   /**
@@ -114,33 +116,12 @@ export class ThreadsService {
 
   /** Changes the persisted cwd used by subsequent turns in a conversation. */
   async setThreadCwd(threadId: string, cwd: string): Promise<void> {
-    this.deletionRegistry.assertMutable(threadId);
-    const opened = await this.resumeRegistry.ensureOpened(
-      threadId,
-      1,
-      'summary',
-    );
-    if (opened.mode !== 'writable') {
-      throw BusinessException.conflict(
-        ErrorCode.threads.threadNotLoaded,
-        'The conversation is currently owned by another client',
-      );
+    const memberIds = this.branches.listKnownTreeThreadIds(threadId);
+    for (const memberId of memberIds) {
+      this.deletionRegistry.assertMutable(memberId);
+      await this.resumeAtCwd(memberId, cwd);
     }
-    this.deletionRegistry.assertMutable(threadId);
-    // `cwd` is a resume override in the app-server protocol. Sending it to
-    // thread/settings/update is accepted by TypeScript but ignored/rejected by
-    // current Codex builds, leaving the sidebar move purely cosmetic. Rejoin
-    // the already-owned thread with the new cwd so subsequent turns and file
-    // operations execute in the destination workspace.
-    const response = await this.codex.request<v2.ThreadResumeResponse>(
-      'thread/resume',
-      {
-        threadId,
-        cwd,
-        excludeTurns: true,
-      } satisfies v2.ThreadResumeParams,
-    );
-    this.resumeRegistry.cacheResponse(threadId, response);
+    this.workspaceOverrides.setMany(memberIds, cwd);
   }
 
   /**
@@ -206,9 +187,18 @@ export class ThreadsService {
     options: { recordActive?: boolean; fullHistory?: boolean } = {},
   ): Promise<ThreadOpenResponseDto> {
     this.deletionRegistry.assertMutable(threadId);
-    const response = options.fullHistory
+    let response = options.fullHistory
       ? await this.resumeRegistry.ensureOpened(threadId, 20, 'full')
       : await this.resumeRegistry.ensureOpened(threadId);
+    const override = this.workspaceOverrides.get(threadId);
+    if (override && response.mode === 'writable' && response.cwd !== override) {
+      await this.resumeAtCwd(threadId, override);
+      response = {
+        ...response,
+        cwd: override,
+        thread: { ...response.thread, cwd: override },
+      };
+    }
     // The pointer means "the branch a person last looked at", so only a
     // deliberate open may move it. Background reopens — app-server auto-resume,
     // and the client restoring its loaded threads after a refresh or a socket
@@ -232,6 +222,25 @@ export class ThreadsService {
       );
     }
     return response;
+  }
+
+  private async resumeAtCwd(threadId: string, cwd: string): Promise<void> {
+    const opened = await this.resumeRegistry.ensureOpened(
+      threadId,
+      1,
+      'summary',
+    );
+    if (opened.mode !== 'writable') {
+      throw BusinessException.conflict(
+        ErrorCode.threads.threadNotLoaded,
+        'The conversation is currently owned by another client',
+      );
+    }
+    const response = await this.codex.request<v2.ThreadResumeResponse>(
+      'thread/resume',
+      { threadId, cwd, excludeTurns: true } satisfies v2.ThreadResumeParams,
+    );
+    this.resumeRegistry.cacheResponse(threadId, response);
   }
 
   /** Pages turn history without acquiring writer ownership. */

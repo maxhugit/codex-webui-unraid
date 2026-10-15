@@ -13,6 +13,7 @@ import type {
   ThreadOverviewResponseDto,
   ThreadOverviewRowDto,
 } from './dto/threads.dto';
+import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 
 export interface ThreadOverviewParams {
   cursor?: string;
@@ -38,6 +39,7 @@ export class ThreadsOverviewService {
     private readonly branchMutations: ConversationBranchMutationsService,
     private readonly branches: ConversationBranchesService,
     private readonly pendingApprovals: PendingApprovalsService,
+    private readonly workspaceOverrides: ThreadWorkspaceOverridesService,
   ) {}
 
   /**
@@ -54,7 +56,14 @@ export class ThreadsOverviewService {
     const limit = params.limit ?? 100;
     const offset = this.parseCursor(params.cursor);
     const archived = params.archived ?? false;
-    const { entries, freshness } = await this.metadata.read();
+    const { entries: storedEntries, freshness } = await this.metadata.read();
+    const effectiveThreads = this.workspaceOverrides.applyToThreads(
+      storedEntries.map((entry) => entry.thread),
+    );
+    const entries = storedEntries.map((entry, index) => ({
+      ...entry,
+      thread: effectiveThreads[index],
+    }));
     const cwd = params.cwd !== undefined ? resolve(params.cwd) : null;
     // Measured against 0.153.2: search is a literal, case-sensitive substring
     // match against either the explicit name or the first-message preview.

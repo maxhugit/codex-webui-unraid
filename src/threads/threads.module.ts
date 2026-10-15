@@ -24,6 +24,7 @@ import { ThreadExecutionInventoryService } from './thread-execution-inventory.se
 import { ThreadMetadataService } from './thread-metadata.service';
 import { ThreadsOverviewService } from './threads-overview.service';
 import { ThreadsService } from './threads.service';
+import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { ThreadsService } from './threads.service';
     ThreadsOverviewService,
     ThreadMetadataService,
     ThreadExecutionInventoryService,
+    ThreadWorkspaceOverridesService,
     AutoResumeService,
   ],
   exports: [
@@ -69,6 +71,7 @@ import { ThreadsService } from './threads.service';
     ThreadsOverviewService,
     ThreadMetadataService,
     ThreadExecutionInventoryService,
+    ThreadWorkspaceOverridesService,
   ],
 })
 export class ThreadsModule {}
