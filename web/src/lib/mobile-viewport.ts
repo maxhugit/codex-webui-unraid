@@ -1,6 +1,6 @@
 /**
- * Mirrors the visual viewport into `--app-vh`, the height every full-height
- * surface in the app is sized from.
+ * Mirrors the visual viewport into `--app-vh` and `--app-vtop`, the size and
+ * position every full-height surface in the app is anchored to.
  *
  * `100dvh` tracks retractable browser chrome but not the software keyboard on
  * iOS, where the keyboard neither resizes the layout viewport nor honours
@@ -47,7 +47,8 @@ export function installMobileViewportFixes(): () => void {
   markQqBrowser();
 
   const root = document.documentElement;
-  let applied: string | null = null;
+  let appliedHeight: string | null = null;
+  let appliedTop: string | null = null;
 
   const sync = () => {
     const viewport = window.visualViewport;
@@ -56,18 +57,26 @@ export function installMobileViewportFixes(): () => void {
     // collapses the whole app to the magnified region — and because the visual
     // viewport also emits `scroll` while zoomed, it would do so on every pan.
     // The layout is already correct at scale 1, so zoom simply holds the last
-    // reading. `offsetTop` needs no separate handling for the same reason: it
-    // is only non-zero while zoomed or mid-keyboard-transition, and the shell
-    // shrinking to the viewport height is what lets the browser settle it back.
+    // reading. At scale 1, however, iOS can move the visual viewport away from
+    // the document origin while focusing a textarea. The shell must follow that
+    // offset as well as its height or the composer appears at the top of the
+    // screen, outside the portion left visible above the keyboard.
     if (viewport && viewport.scale !== 1) return;
     const height = viewport?.height || window.innerHeight || 0;
     if (height <= 0) return;
-    const next = `${height}px`;
-    // `scroll` fires far more often than the height changes; writing an
+    const top = Math.max(0, viewport?.offsetTop || 0);
+    const nextHeight = `${height}px`;
+    const nextTop = `${top}px`;
+    // `scroll` fires far more often than either reading changes; writing an
     // identical value still dirties style on every one of them.
-    if (next === applied) return;
-    applied = next;
-    root.style.setProperty('--app-vh', next);
+    if (nextHeight !== appliedHeight) {
+      appliedHeight = nextHeight;
+      root.style.setProperty('--app-vh', nextHeight);
+    }
+    if (nextTop !== appliedTop) {
+      appliedTop = nextTop;
+      root.style.setProperty('--app-vtop', nextTop);
+    }
   };
 
   sync();

@@ -15,16 +15,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /*
- * `--app-vh` is mirrored from `visualViewport.height` by
- * installMobileViewportFixes(); `100dvh` is the value before the first sync and
- * on any browser without a visual viewport. Every full-height surface in the
- * app sizes from this variable rather than from a viewport unit, because a
- * viewport unit does not shrink for the iOS software keyboard and does not
- * account for browser chrome that overlays the page without reporting itself.
+ * `--app-vh` and `--app-vtop` mirror the visual viewport. Fixed positioning
+ * keeps iOS from scrolling the document itself when a textarea receives focus;
+ * all intentional scrolling remains inside the application's own panes.
  */
 #root {
+  position: fixed;
+  top: var(--app-vtop, 0px);
+  right: 0;
+  left: 0;
   height: var(--app-vh, 100dvh);
+  overflow: hidden;
   /* Safe-area insets for notch/home-bar devices */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);

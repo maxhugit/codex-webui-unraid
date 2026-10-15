@@ -4,6 +4,7 @@ import { installMobileViewportFixes } from './mobile-viewport';
 
 interface FakeViewport {
   height: number;
+  offsetTop: number;
   scale: number;
   addEventListener: (type: string, listener: () => void) => void;
   removeEventListener: (type: string, listener: () => void) => void;
@@ -11,10 +12,15 @@ interface FakeViewport {
 }
 
 /** Stands in for `window.visualViewport`, which jsdom does not implement. */
-function fakeVisualViewport(height: number, scale = 1): FakeViewport {
+function fakeVisualViewport(
+  height: number,
+  scale = 1,
+  offsetTop = 0,
+): FakeViewport {
   const listeners = new Map<string, Set<() => void>>();
   return {
     height,
+    offsetTop,
     scale,
     addEventListener: (type, listener) => {
       const set = listeners.get(type) ?? new Set();
@@ -83,6 +89,24 @@ describe('installMobileViewportFixes', () => {
     );
   });
 
+  it('anchors the shell to the visual viewport when iOS pans for the keyboard', () => {
+    const viewport = useViewport(800);
+    install();
+    expect(document.documentElement.style.getPropertyValue('--app-vtop')).toBe(
+      '0px',
+    );
+
+    viewport.height = 500;
+    viewport.offsetTop = 260;
+    viewport.emit('scroll');
+    expect(document.documentElement.style.getPropertyValue('--app-vh')).toBe(
+      '500px',
+    );
+    expect(document.documentElement.style.getPropertyValue('--app-vtop')).toBe(
+      '260px',
+    );
+  });
+
   it('holds the last height while the page is pinch-zoomed', () => {
     const viewport = useViewport(800);
     install();
@@ -105,7 +129,7 @@ describe('installMobileViewportFixes', () => {
     );
   });
 
-  it('does not rewrite the property when the height is unchanged', () => {
+  it('does not rewrite the properties when the viewport is unchanged', () => {
     const viewport = useViewport(800);
     install();
     const setProperty = vi.spyOn(document.documentElement.style, 'setProperty');
