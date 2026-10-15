@@ -19,6 +19,8 @@ const MAX_MESSAGE_LENGTH = 6_000;
 const MAX_CONTEXT_MESSAGES = 30;
 const REQUEST_TIMEOUT_MS = 120_000;
 const MODEL_CACHE_MS = 10 * 60_000;
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+const TRANSCRIPTION_MODEL = 'gpt-4o-mini-transcribe';
 
 interface OpenAiUsage {
   input_tokens?: number;
@@ -64,6 +66,7 @@ export interface SimpleChatSource {
 
 @Injectable()
 export class SimpleChatService {
+  readonly maxAudioBytes = MAX_AUDIO_BYTES;
   private readonly defaultModel =
     process.env.OPENAI_CHAT_MODEL?.trim() || DEFAULT_MODEL;
   private readonly externalKeyFile = process.env.OPENAI_API_KEY_FILE?.trim();
@@ -109,12 +112,77 @@ export class SimpleChatService {
     return this.getKeyStatus();
   }
 
+  async transcribeAudio(input: {
+    bytes: Buffer;
+    filename: string;
+    mimeType?: string;
+  }): Promise<{ text: string }> {
+    if (!input.bytes.length) {
+      throw BusinessException.badRequest(
+        ErrorCode.simpleChat.audioRequired,
+        'Voice recording is empty',
+      );
+    }
+    if (input.bytes.length > MAX_AUDIO_BYTES) {
+      throw BusinessException.payloadTooLarge(
+        ErrorCode.simpleChat.audioTooLarge,
+        'Voice recording is too large',
+      );
+    }
+    const mimeType = input.mimeType?.split(';', 1)[0] || 'audio/webm';
+    if (
+      !/^(audio\/(webm|mp4|mpeg|mp3|wav|ogg|m4a|x-m4a)|video\/(webm|mp4))$/i.test(
+        mimeType,
+      )
+    ) {
+      throw BusinessException.badRequest(
+        ErrorCode.simpleChat.audioInvalid,
+        'Unsupported audio format',
+      );
+    }
+    const form = new FormData();
+    form.append('model', TRANSCRIPTION_MODEL);
+    form.append('language', 'fr');
+    form.append(
+      'file',
+      new Blob([new Uint8Array(input.bytes)], { type: mimeType }),
+      input.filename || 'dictation.webm',
+    );
+    const response = await this.openAiRequest('/v1/audio/transcriptions', {
+      method: 'POST',
+      body: form,
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      text?: string;
+      error?: { message?: string };
+    };
+    if (!response.ok) {
+      throw BusinessException.internal(
+        ErrorCode.simpleChat.upstreamFailed,
+        payload.error?.message || `OpenAI API returned HTTP ${response.status}`,
+      );
+    }
+    const text = payload.text?.trim();
+    if (!text) {
+      throw BusinessException.internal(
+        ErrorCode.simpleChat.invalidResponse,
+        'OpenAI returned an empty transcription',
+      );
+    }
+    return { text };
+  }
+
   async listModels(): Promise<{ models: string[]; defaultModel: string }> {
     if (this.modelCache && this.modelCache.expiresAt > Date.now()) {
-      return { models: this.modelCache.models, defaultModel: this.defaultModel };
+      return {
+        models: this.modelCache.models,
+        defaultModel: this.defaultModel,
+      };
     }
     const response = await this.openAiRequest('/v1/models', { method: 'GET' });
-    const payload = (await response.json().catch(() => ({}))) as OpenAiModelList;
+    const payload = (await response
+      .json()
+      .catch(() => ({}))) as OpenAiModelList;
     if (!response.ok) {
       throw BusinessException.internal(
         ErrorCode.simpleChat.upstreamFailed,
@@ -127,7 +195,9 @@ export class SimpleChatService {
           .map((item) => item.id)
           .filter((id): id is string => Boolean(id) && this.isChatModel(id!)),
       ),
-    ].sort((a, b) => this.modelRank(a) - this.modelRank(b) || a.localeCompare(b));
+    ].sort(
+      (a, b) => this.modelRank(a) - this.modelRank(b) || a.localeCompare(b),
+    );
     if (!models.includes(this.defaultModel)) models.unshift(this.defaultModel);
     this.modelCache = { expiresAt: Date.now() + MODEL_CACHE_MS, models };
     return { models, defaultModel: this.defaultModel };
@@ -202,12 +272,16 @@ export class SimpleChatService {
 
   deleteThread(threadId: string) {
     this.requireThread(threadId);
-    this.db.delete(simpleChatThreads).where(eq(simpleChatThreads.id, threadId)).run();
+    this.db
+      .delete(simpleChatThreads)
+      .where(eq(simpleChatThreads.id, threadId))
+      .run();
     return { deleted: true };
   }
 
   async respond(threadId: string, input: { message?: unknown }) {
-    const message = typeof input?.message === 'string' ? input.message.trim() : '';
+    const message =
+      typeof input?.message === 'string' ? input.message.trim() : '';
     if (!message) {
       throw BusinessException.badRequest(
         ErrorCode.simpleChat.messageRequired,
@@ -223,7 +297,10 @@ export class SimpleChatService {
 
     const thread = this.requireThread(threadId);
     const previousMessages = this.db
-      .select({ role: simpleChatMessages.role, content: simpleChatMessages.content })
+      .select({
+        role: simpleChatMessages.role,
+        content: simpleChatMessages.content,
+      })
       .from(simpleChatMessages)
       .where(eq(simpleChatMessages.threadId, threadId))
       .orderBy(desc(simpleChatMessages.createdAt))
@@ -239,7 +316,10 @@ export class SimpleChatService {
       const detail = response.incomplete_details?.reason
         ? `OpenAI stopped before producing text (${response.incomplete_details.reason})`
         : 'OpenAI returned an empty response';
-      throw BusinessException.internal(ErrorCode.simpleChat.invalidResponse, detail);
+      throw BusinessException.internal(
+        ErrorCode.simpleChat.invalidResponse,
+        detail,
+      );
     }
 
     const now = Date.now();
@@ -270,7 +350,9 @@ export class SimpleChatService {
     };
     const isFirstMessage = previousMessages.length === 0;
     this.db.transaction((tx) => {
-      tx.insert(simpleChatMessages).values([userMessage, assistantMessage]).run();
+      tx.insert(simpleChatMessages)
+        .values([userMessage, assistantMessage])
+        .run();
       tx.update(simpleChatThreads)
         .set({
           title: isFirstMessage ? this.makeTitle(message) : thread.title,
@@ -290,7 +372,10 @@ export class SimpleChatService {
       method: 'POST',
       body: JSON.stringify({
         model,
-        input: messages.map((item) => ({ role: item.role, content: item.content })),
+        input: messages.map((item) => ({
+          role: item.role,
+          content: item.content,
+        })),
         instructions:
           'You are a concise, helpful general-purpose assistant. Answer in the language used by the user. Use web search for current or time-sensitive information and cite sources. Do not claim access to files, terminals, Home Assistant, SSH, or external tools other than web search.',
         tools: [{ type: 'web_search', search_context_size: 'low' }],
@@ -312,7 +397,10 @@ export class SimpleChatService {
     return payload;
   }
 
-  private async openAiRequest(path: string, init: RequestInit): Promise<Response> {
+  private async openAiRequest(
+    path: string,
+    init: RequestInit,
+  ): Promise<Response> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
@@ -320,7 +408,9 @@ export class SimpleChatService {
         ...init,
         headers: {
           Authorization: `Bearer ${this.readApiKey()}`,
-          ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+          ...(init.body && !(init.body instanceof FormData)
+            ? { 'Content-Type': 'application/json' }
+            : {}),
           ...init.headers,
         },
         signal: controller.signal,
@@ -330,7 +420,10 @@ export class SimpleChatService {
         error instanceof Error && error.name === 'AbortError'
           ? 'OpenAI API request timed out'
           : 'Unable to contact the OpenAI API';
-      throw BusinessException.internal(ErrorCode.simpleChat.upstreamFailed, message);
+      throw BusinessException.internal(
+        ErrorCode.simpleChat.upstreamFailed,
+        message,
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -354,7 +447,9 @@ export class SimpleChatService {
   private readApiKey(): string {
     const key =
       this.readKeyFile(this.managedKeyFile) ||
-      (this.externalKeyFile ? this.readKeyFile(this.externalKeyFile) : undefined);
+      (this.externalKeyFile
+        ? this.readKeyFile(this.externalKeyFile)
+        : undefined);
     if (!key) {
       throw BusinessException.internal(
         ErrorCode.simpleChat.notConfigured,
@@ -367,7 +462,9 @@ export class SimpleChatService {
   private hasApiKey(): boolean {
     return Boolean(
       this.readKeyFile(this.managedKeyFile) ||
-        (this.externalKeyFile ? this.readKeyFile(this.externalKeyFile) : undefined),
+      (this.externalKeyFile
+        ? this.readKeyFile(this.externalKeyFile)
+        : undefined),
     );
   }
 
@@ -382,7 +479,9 @@ export class SimpleChatService {
   private extractText(payload: OpenAiResponse): string {
     return (payload.output ?? [])
       .flatMap((item) => item.content ?? [])
-      .filter((part) => part.type === 'output_text' && typeof part.text === 'string')
+      .filter(
+        (part) => part.type === 'output_text' && typeof part.text === 'string',
+      )
       .map((part) => part.text!.trim())
       .filter(Boolean)
       .join('\n\n');

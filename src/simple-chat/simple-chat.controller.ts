@@ -7,9 +7,32 @@ import {
   Patch,
   Post,
   Put,
+  Req,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import type { FastifyRequest } from 'fastify';
+import type { Readable } from 'node:stream';
+import { BusinessException } from '../common/business.exception';
+import { ErrorCode } from '../common/error-codes';
 import { SimpleChatService } from './simple-chat.service';
+
+interface MultipartAudioPart {
+  filename: string;
+  mimetype?: string;
+  file: Readable & { truncated?: boolean };
+}
+
+interface MultipartAudioRequest {
+  file: (options?: {
+    limits?: { files?: number; fileSize?: number };
+  }) => Promise<MultipartAudioPart | undefined>;
+}
 
 @ApiTags('simple-chat')
 @ApiBearerAuth()
@@ -39,6 +62,68 @@ export class SimpleChatController {
   @ApiOperation({ summary: 'Securely replace the managed OpenAI API key' })
   saveApiKey(@Body() body: { apiKey?: unknown }) {
     return this.simpleChatService.saveApiKey(body.apiKey);
+  }
+
+  @Post('transcriptions')
+  @ApiOperation({ summary: 'Transcribe one voice recording with OpenAI' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  async transcribe(@Req() request: FastifyRequest) {
+    const multipart = request as MultipartAudioRequest;
+    if (typeof multipart.file !== 'function') {
+      throw BusinessException.badRequest(
+        ErrorCode.simpleChat.audioInvalid,
+        'Audio upload is unavailable',
+      );
+    }
+    let part: MultipartAudioPart | undefined;
+    try {
+      part = await multipart.file({
+        limits: { files: 1, fileSize: this.simpleChatService.maxAudioBytes },
+      });
+    } catch (error) {
+      const code =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? (error as { code?: unknown }).code
+          : undefined;
+      if (code === 'FST_REQ_FILE_TOO_LARGE') {
+        throw BusinessException.payloadTooLarge(
+          ErrorCode.simpleChat.audioTooLarge,
+          'Voice recording is too large',
+        );
+      }
+      throw BusinessException.badRequest(
+        ErrorCode.simpleChat.audioInvalid,
+        'Invalid voice recording',
+      );
+    }
+    if (!part) {
+      throw BusinessException.badRequest(
+        ErrorCode.simpleChat.audioRequired,
+        'Voice recording is required',
+      );
+    }
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of part.file as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+    if (part.file.truncated) {
+      throw BusinessException.payloadTooLarge(
+        ErrorCode.simpleChat.audioTooLarge,
+        'Voice recording is too large',
+      );
+    }
+    return this.simpleChatService.transcribeAudio({
+      bytes: Buffer.concat(chunks),
+      filename: part.filename,
+      mimeType: part.mimetype,
+    });
   }
 
   @Get('threads')

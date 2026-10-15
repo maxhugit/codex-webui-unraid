@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
 import { cn } from '@/lib/utils';
+import { VoiceDictationButton } from '@/components/chat/voice-dictation-button';
 
 interface ChatSource {
   title: string;
@@ -441,6 +442,16 @@ export function SimpleChatRoute() {
               className="max-h-40 min-h-11 resize-none"
               maxLength={6_000}
               disabled={sending || status?.configured === false}
+            />
+            <VoiceDictationButton
+              disabled={sending || status?.configured === false}
+              onTranscript={(text) =>
+                setInput((current) =>
+                  current.trimEnd()
+                    ? `${current.trimEnd()} ${text.trim()}`
+                    : text.trim(),
+                )
+              }
             />
             <Button
               type="submit"

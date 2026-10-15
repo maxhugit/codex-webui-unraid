@@ -50,6 +50,7 @@ import { McpStatusBadge } from './mcp-status-badge';
 import { SkillSelector } from './skill-selector';
 import { AttachmentChips } from './attachment-chips';
 import { MentionPopover } from './mention-popover';
+import { VoiceDictationButton } from './voice-dictation-button';
 
 /** Imperative handle exposed via ref for external input manipulation. */
 export interface ChatInputHandle {
@@ -376,6 +377,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
     [detectSlash, detectMention],
   );
 
+  const handleTranscript = useCallback(
+    (transcript: string) => {
+      const current = valueRef.current.trimEnd();
+      handleChange(
+        current ? `${current} ${transcript.trim()}` : transcript.trim(),
+      );
+      window.requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [handleChange],
+  );
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       // Slash palette first: while it is open the draft is a command, not prose,
@@ -500,6 +512,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             <div className="flex items-center gap-2">
               <ServiceTierSelector />
               <TokenUsageRing />
+              <VoiceDictationButton
+                disabled={!threadId || readOnly || policySettling}
+                onTranscript={handleTranscript}
+              />
               {hasActiveTurn ? (
                 <>
                   <Button
