@@ -27,7 +27,8 @@ function fakeVisualViewport(
       set.add(listener);
       listeners.set(type, set);
     },
-    removeEventListener: (type, listener) => listeners.get(type)?.delete(listener),
+    removeEventListener: (type, listener) =>
+      listeners.get(type)?.delete(listener),
     emit: (type) => listeners.get(type)?.forEach((listener) => listener()),
   };
 }
@@ -64,6 +65,7 @@ describe('installMobileViewportFixes', () => {
   afterEach(() => {
     cleanups.splice(0).forEach((cleanup) => cleanup());
     document.documentElement.classList.remove('qq-browser');
+    document.documentElement.classList.remove('keyboard-open');
     document.documentElement.removeAttribute('style');
     useUserAgent(CHROME_ANDROID);
     vi.restoreAllMocks();
@@ -108,6 +110,9 @@ describe('installMobileViewportFixes', () => {
     expect(document.documentElement.style.getPropertyValue('--app-vtop')).toBe(
       '260px',
     );
+    expect(document.documentElement.classList.contains('keyboard-open')).toBe(
+      true,
+    );
     textarea.remove();
   });
 
@@ -134,6 +139,9 @@ describe('installMobileViewportFixes', () => {
     );
     expect(document.documentElement.style.getPropertyValue('--app-vtop')).toBe(
       '0px',
+    );
+    expect(document.documentElement.classList.contains('keyboard-open')).toBe(
+      false,
     );
     textarea.remove();
     innerHeight.mockRestore();
@@ -188,13 +196,17 @@ describe('installMobileViewportFixes', () => {
     useViewport(800);
     useUserAgent(QQ_BROWSER);
     install();
-    expect(document.documentElement.classList.contains('qq-browser')).toBe(true);
+    expect(document.documentElement.classList.contains('qq-browser')).toBe(
+      true,
+    );
 
     document.documentElement.classList.remove('qq-browser');
     // WeChat's older Android webview shares the X5 engine and reports
     // `MQQBrowser`, but draws no bottom toolbar.
     useUserAgent(WECHAT_X5);
     install();
-    expect(document.documentElement.classList.contains('qq-browser')).toBe(false);
+    expect(document.documentElement.classList.contains('qq-browser')).toBe(
+      false,
+    );
   });
 });

@@ -35,15 +35,6 @@ function hasKeyboardFocus(): boolean {
   );
 }
 
-/** Whether the page is running as an installed, browser-chrome-free PWA. */
-function isStandalone(): boolean {
-  const iosNavigator = navigator as Navigator & { standalone?: boolean };
-  return (
-    iosNavigator.standalone === true ||
-    window.matchMedia?.('(display-mode: standalone)').matches === true
-  );
-}
-
 /** Marks QQ Browser so CSS can reserve space for its overlay toolbar. */
 function markQqBrowser(): void {
   const ua = navigator.userAgent;
@@ -85,18 +76,18 @@ export function installMobileViewportFixes(): () => void {
     // Some iOS standalone builds leave visualViewport.height at its keyboard
     // value after the field loses focus and emit no final resize. Outside an
     // editable control, innerHeight is therefore the reliable full-height
-    // fallback. While editing, the smaller visual viewport remains mandatory.
+    // fallback. CSS fills the fixed viewport directly while the keyboard is
+    // closed; these full-height readings are retained only as a fallback for
+    // browsers that do not support the class-based rule.
     const keyboardFocused = hasKeyboardFocus();
+    root.classList.toggle('keyboard-open', keyboardFocused);
     const visualHeight = viewport?.height || 0;
-    const standaloneHeight =
-      !keyboardFocused && isStandalone() ? window.screen.height : 0;
     const height = keyboardFocused
       ? visualHeight || window.innerHeight || 0
       : Math.max(
           visualHeight,
           window.innerHeight || 0,
           document.documentElement.clientHeight || 0,
-          standaloneHeight,
         );
     if (height <= 0) return;
     const top = keyboardFocused ? Math.max(0, viewport?.offsetTop || 0) : 0;
@@ -129,5 +120,6 @@ export function installMobileViewportFixes(): () => void {
     document.removeEventListener('focusout', sync);
     window.visualViewport?.removeEventListener('resize', sync);
     window.visualViewport?.removeEventListener('scroll', sync);
+    root.classList.remove('keyboard-open');
   };
 }

@@ -1,7 +1,7 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -30,16 +30,22 @@ body {
  */
 #root {
   position: fixed;
-  top: var(--app-vtop, 0px);
-  right: 0;
-  left: 0;
-  height: var(--app-vh, 100dvh);
+  inset: 0;
   overflow: hidden;
   /* The composer owns the bottom safe area. Keeping it here too reserves the
      iPhone home-indicator inset twice and leaves a visible empty band. */
   padding-top: env(safe-area-inset-top);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+}
+
+/* Only the software keyboard needs the visual viewport's measured rectangle.
+ * Without a keyboard, `inset: 0` is more reliable in an installed iOS PWA than
+ * any reported pixel height and cannot leave an uncovered band at the bottom. */
+html.keyboard-open #root {
+  top: var(--app-vtop, 0px);
+  bottom: auto;
+  height: var(--app-vh, 100dvh);
 }
 
 /*
@@ -132,9 +138,9 @@ body {
   --accent: oklch(0.96 0.004 245);
   --accent-foreground: oklch(0.22 0.01 248);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.90 0.008 246);
-  --input: oklch(0.90 0.008 246);
-  --ring: oklch(0.60 0.04 255);
+  --border: oklch(0.9 0.008 246);
+  --input: oklch(0.9 0.008 246);
+  --ring: oklch(0.6 0.04 255);
   --chart-1: oklch(0.87 0.01 245);
   --chart-2: oklch(0.556 0.01 248);
   --chart-3: oklch(0.439 0.01 250);
@@ -147,8 +153,8 @@ body {
   --sidebar-primary-foreground: oklch(0.985 0.002 240);
   --sidebar-accent: oklch(0.96 0.004 245);
   --sidebar-accent-foreground: oklch(0.22 0.01 248);
-  --sidebar-border: oklch(0.90 0.008 246);
-  --sidebar-ring: oklch(0.60 0.04 255);
+  --sidebar-border: oklch(0.9 0.008 246);
+  --sidebar-ring: oklch(0.6 0.04 255);
 
   /* ── Glass tokens (light) ─────────────────────────── */
   /* A white tint reads as "glass" only over a darker or coloured backdrop. This
@@ -156,15 +162,15 @@ body {
      is indistinguishable from the page behind it and the surfaces below are
      opaque enough to separate a panel from what it covers. The border does the
      rest of the work — see --glass-border. */
-  --glass-1-surface: rgba(255, 255, 255, 0.40);
+  --glass-1-surface: rgba(255, 255, 255, 0.4);
   --glass-1-blur: 8px;
-  --glass-2-surface: rgba(255, 255, 255, 0.50);
+  --glass-2-surface: rgba(255, 255, 255, 0.5);
   --glass-2-blur: 12px;
-  --glass-3-surface: rgba(255, 255, 255, 0.60);
+  --glass-3-surface: rgba(255, 255, 255, 0.6);
   --glass-3-blur: 16px;
-  --glass-4-surface: rgba(255, 255, 255, 0.70);
+  --glass-4-surface: rgba(255, 255, 255, 0.7);
   --glass-4-blur: 24px;
-  --glass-5-surface: rgba(255, 255, 255, 0.80);
+  --glass-5-surface: rgba(255, 255, 255, 0.8);
   --glass-5-blur: 40px;
   /* Modal surfaces sit on the black scrim, which darkens whatever shows through
      the panel, so they stay a step more opaque than `glass-5` even now that the
@@ -176,9 +182,12 @@ body {
   --glass-border: rgba(23, 27, 38, 0.14);
   --glass-border-subtle: rgba(23, 27, 38, 0.08);
   --glass-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --glass-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
-  --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
-  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+  --glass-shadow-md:
+    0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --glass-shadow-lg:
+    0 16px 48px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+  --glass-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
   --glass-saturate: 180%;
 }
 
@@ -188,11 +197,11 @@ body {
 .dark {
   --background: oklch(0.14 0.01 250);
   --foreground: oklch(0.95 0.01 247);
-  --card: oklch(0.20 0.012 250);
+  --card: oklch(0.2 0.012 250);
   --card-foreground: oklch(0.95 0.01 247);
-  --popover: oklch(0.20 0.012 250);
+  --popover: oklch(0.2 0.012 250);
   --popover-foreground: oklch(0.95 0.01 247);
-  --primary: oklch(0.80 0.06 255);
+  --primary: oklch(0.8 0.06 255);
   --primary-foreground: oklch(0.14 0.01 250);
   --secondary: oklch(0.26 0.012 250);
   --secondary-foreground: oklch(0.95 0.01 247);
@@ -203,7 +212,7 @@ body {
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.60 0.06 255);
+  --ring: oklch(0.6 0.06 255);
   --chart-1: oklch(0.87 0.01 250);
   --chart-2: oklch(0.556 0.015 250);
   --chart-3: oklch(0.439 0.015 250);
@@ -211,12 +220,12 @@ body {
   --chart-5: oklch(0.269 0.015 250);
   --sidebar: oklch(0.18 0.012 250);
   --sidebar-foreground: oklch(0.95 0.01 247);
-  --sidebar-primary: oklch(0.70 0.12 260);
+  --sidebar-primary: oklch(0.7 0.12 260);
   --sidebar-primary-foreground: oklch(0.95 0.01 247);
   --sidebar-accent: oklch(0.26 0.012 250);
   --sidebar-accent-foreground: oklch(0.95 0.01 247);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.60 0.06 255);
+  --sidebar-ring: oklch(0.6 0.06 255);
 
   /* ── Glass tokens (dark) ──────────────────────────── */
   --glass-1-surface: rgba(255, 255, 255, 0.04);
@@ -234,11 +243,19 @@ body {
   --glass-modal-surface: var(--glass-5-surface);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-border-subtle: rgba(255, 255, 255, 0.06);
-  --glass-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.20);
-  --glass-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.28), 0 2px 4px rgba(0, 0, 0, 0.16);
-  --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.36), 0 4px 8px rgba(0, 0, 0, 0.20);
-  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.10), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
-  --glass-refraction-top: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.20), transparent);
+  --glass-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --glass-shadow-md:
+    0 8px 24px rgba(0, 0, 0, 0.28), 0 2px 4px rgba(0, 0, 0, 0.16);
+  --glass-shadow-lg:
+    0 16px 48px rgba(0, 0, 0, 0.36), 0 4px 8px rgba(0, 0, 0, 0.2);
+  --glass-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  --glass-refraction-top: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
   --glass-saturate: 200%;
 }
 
@@ -267,7 +284,8 @@ body {
 /* Level 2 — sidebar, subtle panels */
 .glass {
   background: var(--glass-3-surface);
-  -webkit-backdrop-filter: blur(var(--glass-3-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-3-blur))
+    saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-3-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-sm), var(--glass-inset);
@@ -275,7 +293,8 @@ body {
 
 .glass-1 {
   background: var(--glass-1-surface);
-  -webkit-backdrop-filter: blur(var(--glass-1-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-1-blur))
+    saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-1-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--glass-border-subtle);
   box-shadow: var(--glass-shadow-sm);
@@ -283,7 +302,8 @@ body {
 
 .glass-2 {
   background: var(--glass-2-surface);
-  -webkit-backdrop-filter: blur(var(--glass-2-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-2-blur))
+    saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-2-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--glass-border-subtle);
   box-shadow: var(--glass-shadow-sm), var(--glass-inset);
@@ -291,7 +311,8 @@ body {
 
 .glass-3 {
   background: var(--glass-3-surface);
-  -webkit-backdrop-filter: blur(var(--glass-3-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-3-blur))
+    saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-3-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-md), var(--glass-inset);
@@ -299,7 +320,8 @@ body {
 
 .glass-4 {
   background: var(--glass-4-surface);
-  -webkit-backdrop-filter: blur(var(--glass-4-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-4-blur))
+    saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-4-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-md), var(--glass-inset);
@@ -307,7 +329,8 @@ body {
 
 .glass-5 {
   background: var(--glass-5-surface);
-  -webkit-backdrop-filter: blur(var(--glass-5-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-5-blur))
+    saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-5-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-lg), var(--glass-inset);
@@ -321,7 +344,8 @@ body {
    shadow to separate it from content scrolling underneath. */
 .glass-bar {
   background: var(--glass-4-surface);
-  -webkit-backdrop-filter: blur(var(--glass-4-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-4-blur))
+    saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-4-blur)) saturate(var(--glass-saturate));
   border: none;
   border-bottom: 1px solid var(--glass-border-subtle);
@@ -332,17 +356,22 @@ body {
    except for the surface tint, which the scrim would otherwise wash out. */
 .glass-modal {
   background: var(--glass-modal-surface);
-  -webkit-backdrop-filter: blur(var(--glass-5-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-5-blur))
+    saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-5-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-lg), var(--glass-inset);
 }
 
-
 /* ── Glass divider ───────────────────────────────────── */
 .glass-divider {
   height: 1px;
-  background: linear-gradient(to right, transparent, var(--glass-border), transparent);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--glass-border),
+    transparent
+  );
   border: none;
 }
 
