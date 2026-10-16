@@ -73,6 +73,7 @@ interface Props {
 export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const connected = useConnectionStore((s) => s.connected);
   const threadId = useTimelineStore((s) => s.threadId);
   const threadTitle = useTimelineStore((s) => s.threadTitle);
@@ -97,6 +98,10 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
   const isDiagnostics = useRouterState({
     select: (s) => s.location.pathname.startsWith('/diagnostics'),
   });
+  // The timeline store deliberately keeps the last opened Codex thread warm
+  // while the user visits another screen.  That cached identity must not leak
+  // into global pages such as Simple Chat, Files or Settings.
+  const visibleThreadId = pathname.startsWith('/t/') ? threadId : null;
 
   const renameThread = useMutation({
     ...threadsSetThreadNameMutation(),
@@ -180,7 +185,7 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
         )}
 
         <div className="min-w-0 flex-1">
-          {threadId ? (
+          {visibleThreadId ? (
             <div className="flex min-w-0 items-center gap-2">
               {editing ? (
                 <>
@@ -207,9 +212,9 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
                     type="button"
                     className="truncate text-left text-sm font-semibold tracking-tight hover:underline"
                     onClick={startEditing}
-                    title={threadTitle ?? threadId}
+                    title={threadTitle ?? visibleThreadId}
                   >
-                    {threadTitle || threadId.slice(0, 8)}
+                    {threadTitle || visibleThreadId.slice(0, 8)}
                   </button>
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={startEditing} title={t('Rename')}>
                     <Edit3 className="h-3.5 w-3.5" />
