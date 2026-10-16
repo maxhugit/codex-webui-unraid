@@ -30,7 +30,8 @@ body {
  */
 #root {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  height: 100dvh;
   overflow: hidden;
   /* The composer owns the bottom safe area. Keeping it here too reserves the
      iPhone home-indicator inset twice and leaves a visible empty band. */
@@ -39,20 +40,9 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
-/* In an installed iOS PWA the layout viewport stops above the home gesture
- * area. Keep controls inside that visible viewport, but paint the composer's
- * surface into the reserved strip without changing flex layout or moving any
- * buttons below the viewport. */
-@media (max-width: 767.98px) {
-  html:not(.keyboard-open),
-  html:not(.keyboard-open) body {
-    background: var(--card);
-  }
-}
-
 /* Only the software keyboard needs the visual viewport's measured rectangle.
- * Without a keyboard, `inset: 0` is more reliable in an installed iOS PWA than
- * any reported pixel height and cannot leave an uncovered band at the bottom. */
+ * Without a keyboard, `100dvh` includes the installed PWA's bottom safe area;
+ * the fixed containing block used by `bottom: 0` can stop above that area. */
 html.keyboard-open #root {
   top: var(--app-vtop, 0px);
   bottom: auto;
