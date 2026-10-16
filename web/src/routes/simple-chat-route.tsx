@@ -435,7 +435,7 @@ export function SimpleChatRoute() {
 
         <form
           onSubmit={(event) => void send(event)}
-          className="shrink-0 border-t bg-background p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+          className="shrink-0 border-t bg-background px-3 pt-3 pb-0 sm:pb-3"
         >
           <div className="mx-auto flex max-w-3xl items-end gap-2">
             <Textarea
