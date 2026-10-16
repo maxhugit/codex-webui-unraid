@@ -293,9 +293,15 @@ export class ThreadsService {
    */
   async startTurn(params: v2.TurnStartParams): Promise<v2.TurnStartResponse> {
     this.deletionRegistry.assertMutable(params.threadId);
+    // `thread/resume` does not reliably replace the cwd of an app-server
+    // session that is already loaded. A sidebar workspace move is persisted
+    // independently, so make that persisted choice authoritative for every
+    // subsequent turn as well. This keeps Codex tool execution aligned with
+    // the Explorer and conversation terminals across tabs and reconnects.
+    const workspaceCwd = this.workspaceOverrides.get(params.threadId);
     const response = await this.codex.request<v2.TurnStartResponse>(
       'turn/start',
-      params,
+      workspaceCwd ? { ...params, cwd: workspaceCwd } : params,
     );
     this.branches.attachPendingVersionTurn(
       params.threadId,
