@@ -55,6 +55,7 @@ import {
   SteerTurnDto,
   ThreadSetNameRequestDto,
   ThreadSetCwdRequestDto,
+  ThreadSetCwdResponseDto,
   ThreadStartResponseDto,
   ThreadTurnCountsRequestDto,
   ThreadTurnCountsResponseDto,
@@ -240,15 +241,15 @@ export class ThreadsController {
   @Patch(':threadId/cwd')
   @ApiOperation({ summary: 'Move a thread to another working directory' })
   @ApiBody({ type: ThreadSetCwdRequestDto })
-  @ApiOkResponse({ type: OkResponseDto })
+  @ApiOkResponse({ type: ThreadSetCwdResponseDto })
   async setThreadCwd(
     @Param('threadId') threadId: string,
     @Body() body: ThreadSetCwdRequestDto,
   ) {
     // This validates existence, directory type and workspace containment.
     this.filesService.addWorkspaceRoot(body.cwd);
-    await this.threadsService.setThreadCwd(threadId, body.cwd);
-    return { ok: true };
+    const threadIds = await this.threadsService.setThreadCwd(threadId, body.cwd);
+    return { ok: true, cwd: body.cwd, threadIds };
   }
 
   @Get(':threadId/branch-state')

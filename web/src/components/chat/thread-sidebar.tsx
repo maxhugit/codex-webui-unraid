@@ -386,14 +386,16 @@ export function ThreadSidebar() {
       );
       const payload = (await response.json().catch(() => ({}))) as {
         message?: string;
+        threadIds?: string[];
       };
       if (!response.ok)
         throw new Error(payload.message || `HTTP ${response.status}`);
+      return payload.threadIds?.length ? payload.threadIds : [threadId];
     },
-    onSuccess: (_result, variables) => {
-      useTimelineStore
-        .getState()
-        .setThreadCwdForThread(variables.threadId, variables.cwd);
+    onSuccess: (threadIds, variables) => {
+      const timeline = useTimelineStore.getState();
+      for (const threadId of threadIds)
+        timeline.setThreadCwdForThread(threadId, variables.cwd);
       invalidateThreads();
     },
     onError: (err) => {

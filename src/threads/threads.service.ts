@@ -115,13 +115,14 @@ export class ThreadsService {
   }
 
   /** Changes the persisted cwd used by subsequent turns in a conversation. */
-  async setThreadCwd(threadId: string, cwd: string): Promise<void> {
+  async setThreadCwd(threadId: string, cwd: string): Promise<string[]> {
     const memberIds = this.branches.listKnownTreeThreadIds(threadId);
     for (const memberId of memberIds) {
       this.deletionRegistry.assertMutable(memberId);
       await this.resumeAtCwd(memberId, cwd);
     }
     this.workspaceOverrides.setMany(memberIds, cwd);
+    return memberIds;
   }
 
   /**

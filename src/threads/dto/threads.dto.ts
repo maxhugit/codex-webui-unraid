@@ -172,6 +172,18 @@ export class ThreadSetCwdRequestDto {
   cwd!: string;
 }
 
+/** Threads whose persisted working directory changed after a workspace move. */
+export class ThreadSetCwdResponseDto {
+  @ApiProperty()
+  ok!: boolean;
+
+  @ApiProperty()
+  cwd!: string;
+
+  @ApiProperty({ type: [String] })
+  threadIds!: string[];
+}
+
 /** Current persisted background goal for a thread. */
 export class ThreadGoalDto {
   @ApiProperty()
