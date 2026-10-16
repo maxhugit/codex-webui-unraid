@@ -46,9 +46,10 @@ des réseaux et des protections sont documentés dans
 
 ## Reconstruire la plateforme
 
-La procédure de restauration est décrite pas à pas dans
-[`docs/installation-unraid.md`](docs/installation-unraid.md). Elle couvre la
-préparation des secrets, les réseaux, Traefik, Authentik, OnlyOffice, SSH et MCP.
+Le [sommaire de la documentation](docs/README.md) permet de comprendre le dépôt
+et de reconstruire toute la plateforme. La
+[procédure d’installation](docs/installation-unraid.md) couvre la préparation
+des secrets, les réseaux, Traefik, Authentik, OnlyOffice, SSH et MCP.
 
 ## Construction de l’image
 

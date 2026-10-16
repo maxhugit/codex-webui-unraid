@@ -1,7 +1,24 @@
 # Installation et reconstruction sur Unraid
 
 Ce guide permet de reconstruire les trois conteneurs sans placer de secret dans
-Git. Il suppose que Docker, Traefik et Authentik fonctionnent déjà sur Unraid.
+Git. Il part d’un Unraid sur lequel Docker fonctionne. Traefik, Authentik,
+OnlyOffice et HA-MCP sont des services externes : les étapes ci-dessous indiquent
+comment raccorder Codex à chacun d’eux.
+
+## 0. Prérequis et informations à réunir
+
+Préparer avant de commencer :
+
+- un accès administrateur à Unraid ;
+- le domaine `codex.hugotlab.fr` dirigé vers l’entrée HTTPS du homelab ;
+- Traefik avec un résolveur de certificats valide ;
+- Authentik et son outpost Traefik ;
+- une clé API OpenAI si le chat simple est utilisé ;
+- les clés SSH dédiées à Unraid et au VPS ;
+- les URL et identifiants de HA-MCP et OnlyOffice, si utilisés.
+
+Vérifier également que les chemins choisis se trouvent sur le pool protégé et
+qu’ils sont inclus dans la sauvegarde Appdata quotidienne.
 
 ## 1. Récupérer le dépôt
 
@@ -18,7 +35,18 @@ cd /mnt/pool/appdata/codex-web/deployment
 cp .env.example .env
 ```
 
-Adapter les chemins et, si possible, remplacer `latest` par un tag `sha-...`.
+Éditer `.env`, adapter les trois chemins et remplacer si possible `latest` par
+un tag `sha-...`. Le fichier `.env` de production ne doit jamais être envoyé
+sur GitHub.
+
+Vérifier que les fichiers de configuration sont présents :
+
+```bash
+test -f compose.unraid.yml
+test -f config/nginx.conf.template
+test -f config/squid.conf
+test -f config/seccomp-bwrap.json
+```
 
 ## 2. Préparer l’état persistant
 
@@ -56,6 +84,17 @@ chmod 644 "$STATE/ssh"/*.pub "$STATE/ssh"/known_hosts 2>/dev/null || true
 
 Ne jamais copier ces fichiers dans le dépôt Git.
 
+Donner les droits à l’identité utilisée par le conteneur, puis resserrer ceux
+des secrets :
+
+```bash
+chown -R 11002:11002 "$STATE/home" "$STATE/workspace" "$STATE/logs"
+chown -R 11002:11002 "$STATE/ssh"
+chmod 700 "$STATE/ssh"
+chmod 400 "$STATE/backend-token.txt" "$STATE/backend-token-nginx.txt"
+chmod 440 "$STATE/openai-api-key.txt"
+```
+
 ## 3. Vérifier le réseau partagé
 
 Traefik et Authentik doivent être présents sur `net_standard` :
@@ -67,11 +106,21 @@ docker network inspect net_standard
 Si ce réseau n’existe pas, le créer et y rattacher Traefik et Authentik avant de
 démarrer Codex. Les trois réseaux propres à Codex seront créés par Compose.
 
+```bash
+docker network create net_standard
+docker network connect net_standard <nom-du-conteneur-traefik>
+docker network connect net_standard <nom-du-conteneur-authentik>
+```
+
+Ne pas répéter les commandes `connect` si les conteneurs appartiennent déjà au
+réseau.
+
 ## 4. Démarrer les conteneurs
 
 Depuis le dossier `deployment` :
 
 ```bash
+docker compose --env-file .env -f compose.unraid.yml config >/dev/null
 docker compose --env-file .env -f compose.unraid.yml pull
 docker compose --env-file .env -f compose.unraid.yml up -d
 docker compose --env-file .env -f compose.unraid.yml ps
@@ -87,6 +136,9 @@ middleware nommé `authentik` doit déjà exister.
 Vérifier que Traefik est attaché à `net_standard` et peut résoudre
 `codex-web-ingress`.
 
+Recharger Traefik et vérifier dans son tableau de bord que le routeur Codex est
+actif, utilise TLS et pointe vers le port `8080` de `codex-web-ingress`.
+
 ## 6. Configurer Authentik
 
 Créer une application Proxy Provider pour `https://codex.hugotlab.fr`, puis
@@ -99,6 +151,10 @@ http://authentik:9000/outpost.goauthentik.io/auth/nginx
 ```
 
 Le nom Docker `authentik` doit donc être résolvable depuis `net_standard`.
+
+Ne pas activer un second mot de passe applicatif : Authentik constitue la porte
+d’entrée. Conserver néanmoins un accès local de récupération documenté pour ne
+pas dépendre d’un Authentik en panne.
 
 ## 7. Restaurer les données
 
@@ -147,6 +203,20 @@ docker logs --tail 100 codex-web-egress-proxy
 Tester ensuite : connexion Authentik, création d’une conversation, terminal,
 lecture/écriture d’un fichier de test, chat simple, MCP Home Assistant,
 OnlyOffice et SSH.
+
+Liste de validation finale :
+
+- [ ] un utilisateur non authentifié est redirigé vers Authentik ;
+- [ ] aucun port du backend Codex n’est publié directement sur Unraid ;
+- [ ] les trois conteneurs sont sains ;
+- [ ] une conversation et son espace de travail persistent après redémarrage ;
+- [ ] `/appdata` est visible et modifiable uniquement après authentification ;
+- [ ] le chat simple fonctionne sans révéler la clé OpenAI ;
+- [ ] MCP Home Assistant se reconnecte après redémarrage ;
+- [ ] les deux accès SSH utilisent les clés attendues ;
+- [ ] un document Office peut être ouvert puis enregistré ;
+- [ ] un PDF s’ouvre dans la visionneuse ;
+- [ ] la sauvegarde quotidienne inclut les répertoires persistants.
 
 ## 10. Mise à jour et retour arrière
 
