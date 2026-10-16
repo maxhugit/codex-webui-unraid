@@ -128,6 +128,37 @@ docker compose --env-file .env -f compose.unraid.yml ps
 
 Le conteneur principal peut prendre plus d’une minute avant d’être déclaré sain.
 
+### Enregistrer la stack dans Compose Manager
+
+Sur Unraid, installer le plugin **Compose Manager** s’il n’est pas déjà présent.
+Dans sa page, choisir **Add New Stack**, donner un nom à la stack et sélectionner
+le dossier contenant le fichier Compose. Configurer ensuite le chemin du fichier
+d’environnement dans **Stack Settings**.
+
+Le fichier utilisé par l’interface doit s’appeler `docker-compose.yml`. On peut
+copier `deployment/compose.unraid.yml` sous ce nom lors de l’installation :
+
+```bash
+cp compose.unraid.yml docker-compose.yml
+```
+
+Compose Manager affiche alors les trois services et fournit les actions **Up**,
+**Down**, **Logs** et **Update Stack**.
+
+### Déploiement manuel d’une nouvelle version
+
+1. ouvrir **Docker > Compose** dans Unraid ;
+2. ouvrir l’éditeur du fichier d’environnement ;
+3. définir `CODEX_APP_IMAGE` avec `latest` ou, de préférence, un tag
+   `sha-<commit>` ;
+4. enregistrer ;
+5. cliquer sur **Update Stack** ;
+6. attendre que l’application principale soit saine, puis tester l’interface.
+
+L’action met à jour automatiquement l’application, Nginx et Squid. Compose
+respecte les contrôles de santé et ne démarre l’entrée Nginx qu’après
+l’application principale.
+
 ## 5. Configurer Traefik
 
 Copier `deployment/traefik/codex.yml` dans le dossier dynamique de Traefik. Le

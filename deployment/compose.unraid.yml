@@ -3,6 +3,11 @@ services:
     image: ${CODEX_APP_IMAGE:-ghcr.io/maxhugit/codex-webui-unraid:latest}
     container_name: codex-webui-limlll
     restart: unless-stopped
+    labels:
+      net.unraid.docker.managed: composeman
+      net.unraid.docker.icon: ${CODEX_ICON_URL:-https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/web/public/pwa-icon-192.png}
+      net.unraid.docker.webui: ${CODEX_WEBUI_URL:-https://codex.example.com}
+      net.unraid.docker.shell: /bin/bash
     init: true
     user: "11002:11002"
     working_dir: /app
@@ -78,6 +83,10 @@ services:
     image: ${CODEX_INGRESS_IMAGE:-nginx:stable}
     container_name: codex-web-ingress
     restart: unless-stopped
+    labels:
+      net.unraid.docker.managed: composeman
+      net.unraid.docker.icon: ${CODEX_ICON_URL:-https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/web/public/pwa-icon-192.png}
+      net.unraid.docker.shell: /bin/sh
     depends_on:
       app-v4:
         condition: service_healthy
@@ -122,6 +131,10 @@ services:
     image: ${CODEX_EGRESS_IMAGE:-ubuntu/squid:latest}
     container_name: codex-web-egress-proxy
     restart: unless-stopped
+    labels:
+      net.unraid.docker.managed: composeman
+      net.unraid.docker.icon: ${CODEX_ICON_URL:-https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/web/public/pwa-icon-192.png}
+      net.unraid.docker.shell: /bin/bash
     volumes:
       - ${DEPLOY_ROOT}/config/squid.conf:/etc/squid/squid.conf:ro
     networks:
