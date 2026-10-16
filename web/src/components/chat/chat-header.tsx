@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Activity, Check, Edit3, EllipsisVertical, Menu, Moon, Network, PanelLeftClose, PanelLeftOpen, Settings, Sun, X } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,10 @@ import { useConnectionStore } from '@/stores/connection-store';
 import { SIDEBAR_REGION_ID, useLayoutStore } from '@/stores/layout-store';
 import { useTimelineStore } from '@/stores/timeline-store';
 import { useMessageVersions } from '@/hooks/use-message-branches';
+import {
+  listSimpleChatThreads,
+  simpleChatThreadsQueryKey,
+} from '@/lib/simple-chat-api';
 import { BranchGraphDialog } from '@/components/branches/branch-graph-dialog';
 import { AccountRateLimitBadge } from './account-rate-limit-badge';
 import { McpStatusBadge } from './mcp-status-badge';
@@ -74,6 +78,12 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const simpleChatThreadId = useRouterState({
+    select: (s) =>
+      s.location.pathname.startsWith('/simple-chat')
+        ? (s.location.search as { thread?: string } | undefined)?.thread
+        : undefined,
+  });
   const connected = useConnectionStore((s) => s.connected);
   const threadId = useTimelineStore((s) => s.threadId);
   const threadTitle = useTimelineStore((s) => s.threadTitle);
@@ -102,6 +112,14 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
   // while the user visits another screen.  That cached identity must not leak
   // into global pages such as Simple Chat, Files or Settings.
   const visibleThreadId = pathname.startsWith('/t/') ? threadId : null;
+  const simpleChatThreads = useQuery({
+    queryKey: simpleChatThreadsQueryKey,
+    queryFn: listSimpleChatThreads,
+    enabled: pathname.startsWith('/simple-chat'),
+  });
+  const simpleChatTitle = simpleChatThreads.data?.threads.find(
+    (thread) => thread.id === simpleChatThreadId,
+  )?.title;
 
   const renameThread = useMutation({
     ...threadsSetThreadNameMutation(),
@@ -243,6 +261,13 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
                 </>
               )}
             </div>
+          ) : simpleChatTitle ? (
+            <h1
+              className="truncate text-sm font-semibold tracking-tight"
+              title={simpleChatTitle}
+            >
+              {simpleChatTitle}
+            </h1>
           ) : (
             <h1 className="text-lg font-semibold tracking-tight">Codex WebUI</h1>
           )}

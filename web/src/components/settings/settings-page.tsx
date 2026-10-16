@@ -34,7 +34,7 @@ const SECTIONS = [
 type SettingsSection = (typeof SECTIONS)[number];
 
 export function SettingsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const dark = useThemeStore((s) => s.dark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
@@ -90,6 +90,8 @@ export function SettingsPage() {
           <GeneralSettings
             dark={dark}
             toggleDark={toggleDark}
+            language={i18n.resolvedLanguage ?? i18n.language}
+            changeLanguage={(language) => void i18n.changeLanguage(language)}
             onLogout={handleLogout}
           />
         )}

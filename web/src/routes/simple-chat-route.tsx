@@ -18,6 +18,7 @@ import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
 import { cn } from '@/lib/utils';
 import { VoiceDictationButton } from '@/components/chat/voice-dictation-button';
+import { SimpleChatModelSelector } from '@/components/chat/simple-chat-model-selector';
 
 interface ChatSource {
   title: string;
@@ -370,20 +371,12 @@ export function SimpleChatRoute() {
             />
             <div className="flex items-center justify-between gap-2 px-2 pb-2">
               <div className="flex min-w-0 items-center gap-1">
-                <select
+                <SimpleChatModelSelector
                   value={activeThread?.model || status?.model || ''}
-                  onChange={(event) => void changeModel(event.target.value)}
+                  onChange={(model) => void changeModel(model)}
                   disabled={!activeThread || sending}
-                  aria-label="Modèle OpenAI"
-                  title="Modèle OpenAI"
-                  className="h-7 max-w-44 truncate rounded-lg border border-input bg-background px-2 text-xs"
-                >
-                  {models.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
+                  models={models}
+                />
                 <span
                   className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground"
                   title="Recherche Web disponible"

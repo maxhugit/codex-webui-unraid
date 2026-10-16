@@ -1,5 +1,5 @@
 /** General settings: appearance, language, WebUI session logout. */
-import { LogOut, Moon, Sun } from 'lucide-react';
+import { Globe, LogOut, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -9,12 +9,16 @@ import { useCategorySettings } from './use-category-settings';
 interface Props {
   dark: boolean;
   toggleDark: () => void;
+  language: string;
+  changeLanguage: (language: string) => void;
   onLogout: () => void;
 }
 
 export function GeneralSettings({
   dark,
   toggleDark,
+  language,
+  changeLanguage,
   onLogout,
 }: Props) {
   const { t } = useTranslation();
@@ -43,6 +47,31 @@ export function GeneralSettings({
           >
             {dark ? t('Light mode') : t('Dark mode')}
           </Button>
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg border border-border bg-card/50 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Globe className="h-4 w-4" />
+            <span className="text-sm">{t('Language')}</span>
+          </div>
+          <div className="flex gap-1">
+            <Button
+              variant={language.startsWith('en') ? 'default' : 'outline'}
+              size="sm"
+              className="h-8"
+              onClick={() => changeLanguage('en')}
+            >
+              English
+            </Button>
+            <Button
+              variant={language.startsWith('fr') ? 'default' : 'outline'}
+              size="sm"
+              className="h-8"
+              onClick={() => changeLanguage('fr')}
+            >
+              Français
+            </Button>
+          </div>
         </div>
 
       </section>

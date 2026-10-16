@@ -4,13 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatHeader } from './chat-header';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useTimelineStore } from '@/stores/timeline-store';
+import { simpleChatThreadsQueryKey } from '@/lib/simple-chat-api';
 
 let pathname = '/simple-chat';
+let search: { thread?: string } = {};
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
   useRouterState: ({ select }: { select: (state: unknown) => unknown }) =>
-    select({ location: { pathname } }),
+    select({ location: { pathname, search } }),
 }));
 
 vi.mock('@/hooks/use-breakpoint', () => ({
@@ -30,9 +32,23 @@ vi.mock('./mcp-status-badge', () => ({
   McpStatusBadge: () => null,
 }));
 
-function renderHeader() {
+function renderHeader(simpleChatTitle?: string) {
+  const client = new QueryClient();
+  if (simpleChatTitle) {
+    client.setQueryData(simpleChatThreadsQueryKey, {
+      threads: [
+        {
+          id: 'simple-123',
+          title: simpleChatTitle,
+          model: 'gpt-5-mini',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+  }
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={client}>
       <TooltipProvider>
         <ChatHeader
           dark={false}
@@ -47,7 +63,20 @@ function renderHeader() {
 describe('ChatHeader', () => {
   beforeEach(() => {
     pathname = '/simple-chat';
+    search = {};
     useTimelineStore.getState().setActiveThread('thread-123', '/workspaces/demo', 'Titre conservé');
+  });
+
+  it('shows the selected Simple Chat title in the global header', () => {
+    search = { thread: 'simple-123' };
+    renderHeader('Actualités tech');
+
+    expect(
+      screen.getByRole('heading', { name: 'Actualités tech' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Codex WebUI' }),
+    ).not.toBeInTheDocument();
   });
 
   it('does not leak the cached Codex thread title into Simple Chat', () => {
