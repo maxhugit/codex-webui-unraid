@@ -22,27 +22,29 @@ qu’ils sont inclus dans la sauvegarde Appdata quotidienne.
 
 ## 1. Récupérer le dépôt
 
-Choisir un emplacement persistant, par exemple :
+Récupérer temporairement le dépôt, puis installer les fichiers dans le dossier
+Appdata unique :
 
 ```bash
-mkdir -p /mnt/pool/appdata/codex-web
-git clone https://github.com/maxhugit/codex-webui-unraid.git \
-  /mnt/pool/appdata/codex-web/source
-mkdir -p /mnt/pool/appdata/codex-web/deployment
-cp -a /mnt/pool/appdata/codex-web/source/deployment/. \
-  /mnt/pool/appdata/codex-web/deployment/
-cd /mnt/pool/appdata/codex-web/deployment
-cp .env.example .env
+git clone https://github.com/maxhugit/codex-webui-unraid.git /tmp/codex-webui-install
+mkdir -p /mnt/pool/appdata/codex-web/config
+cp /tmp/codex-webui-install/deployment/compose.unraid.yml \
+  /mnt/pool/appdata/codex-web/docker-compose.yml
+cp -a /tmp/codex-webui-install/deployment/config/. \
+  /mnt/pool/appdata/codex-web/config/
+cp /tmp/codex-webui-install/deployment/.env.example \
+  /mnt/pool/appdata/codex-web/images.env
+cd /mnt/pool/appdata/codex-web
 ```
 
-Éditer `.env`, adapter les trois chemins et remplacer si possible `latest` par
+Éditer `images.env`, adapter les trois chemins et remplacer si possible `latest` par
 un tag `sha-...`. Le fichier `.env` de production ne doit jamais être envoyé
 sur GitHub.
 
 Vérifier que les fichiers de configuration sont présents :
 
 ```bash
-test -f compose.unraid.yml
+test -f docker-compose.yml
 test -f config/nginx.conf.template
 test -f config/squid.conf
 test -f config/seccomp-bwrap.json
@@ -51,7 +53,7 @@ test -f config/seccomp-bwrap.json
 ## 2. Préparer l’état persistant
 
 ```bash
-STATE=/mnt/pool/appdata/codex-webui-limlll/state
+STATE=/mnt/pool/appdata/codex-web/state
 mkdir -p "$STATE"/{home,workspace,logs,ssh}
 ```
 
@@ -117,13 +119,13 @@ réseau.
 
 ## 4. Démarrer les conteneurs
 
-Depuis le dossier `deployment` :
+Depuis le dossier Appdata unique :
 
 ```bash
-docker compose --env-file .env -f compose.unraid.yml config >/dev/null
-docker compose --env-file .env -f compose.unraid.yml pull
-docker compose --env-file .env -f compose.unraid.yml up -d
-docker compose --env-file .env -f compose.unraid.yml ps
+docker compose --env-file images.env -f docker-compose.yml config >/dev/null
+docker compose --env-file images.env -f docker-compose.yml pull
+docker compose --env-file images.env -f docker-compose.yml up -d
+docker compose --env-file images.env -f docker-compose.yml ps
 ```
 
 Le conteneur principal peut prendre plus d’une minute avant d’être déclaré sain.
@@ -134,13 +136,6 @@ Sur Unraid, installer le plugin **Compose Manager** s’il n’est pas déjà pr
 Dans sa page, choisir **Add New Stack**, donner un nom à la stack et sélectionner
 le dossier contenant le fichier Compose. Configurer ensuite le chemin du fichier
 d’environnement dans **Stack Settings**.
-
-Le fichier utilisé par l’interface doit s’appeler `docker-compose.yml`. On peut
-copier `deployment/compose.unraid.yml` sous ce nom lors de l’installation :
-
-```bash
-cp compose.unraid.yml docker-compose.yml
-```
 
 Compose Manager affiche alors les trois services et fournit les actions **Up**,
 **Down**, **Logs** et **Update Stack**.

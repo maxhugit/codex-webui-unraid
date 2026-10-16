@@ -24,16 +24,16 @@ Une copie brute pendant une écriture peut être incohérente.
 Procédure prudente :
 
 ```bash
-cd /mnt/pool/appdata/codex-web/deployment
-docker compose --env-file .env -f compose.unraid.yml stop app-v4
+cd /mnt/pool/appdata/codex-web
+docker compose --env-file images.env -f docker-compose.yml stop app-v4
 # lancer ici la sauvegarde de STATE_ROOT
-docker compose --env-file .env -f compose.unraid.yml start app-v4
+docker compose --env-file images.env -f docker-compose.yml start app-v4
 ```
 
 ## Restauration après perte du serveur
 
 1. réinstaller Docker, Traefik et Authentik ;
-2. cloner ce dépôt et préparer `deployment/.env` ;
+2. cloner ce dépôt et préparer `codex-web/images.env` ;
 3. restaurer `STATE_ROOT` aux chemins indiqués dans `.env` ;
 4. restaurer les permissions des secrets et des clés SSH ;
 5. recréer `net_standard` et la route Traefik ;
@@ -50,4 +50,3 @@ Une sauvegarde n’est fiable qu’après un test. Au minimum une fois par trime
 restaurer dans un dossier temporaire isolé, démarrer avec un nom de projet et des
 réseaux différents, puis vérifier la base SQLite et les espaces de travail sans
 publier le service sur Internet.
-
