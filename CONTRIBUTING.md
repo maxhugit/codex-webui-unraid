@@ -42,3 +42,6 @@ immuable `sha-<commit>` avant de modifier l’image utilisée sur Unraid.
 
 Toute modification de `deployment/` doit être répercutée dans
 `docs/installation-unraid.md`.
+
+Ne pas fusionner automatiquement la branche du projet d’origine. Reprendre
+manuellement les corrections pertinentes après étude de leur impact.

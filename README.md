@@ -61,11 +61,15 @@ ghcr.io/maxhugit/codex-webui-unraid:sha-<commit>
 
 Pour la production, un tag immuable `sha-...` est préférable à `latest`.
 
-## Mise à jour depuis le projet d’origine
+## Évolutions du projet d’origine
 
-Le workflow `Check for upstream updates` recherche les changements du projet
-d’origine. Une mise à jour doit être relue avant fusion afin de préserver les
-adaptations Unraid, la sécurité réseau et la documentation française.
+La synchronisation automatique avec le projet d’origine est désactivée. Ce fork
+contient désormais des adaptations importantes pour Unraid, le mobile, les
+fichiers, OnlyOffice, Authentik et la sécurité réseau. Une fusion globale de
+l’amont présenterait trop de risques de régression.
+
+Une évolution utile doit être reprise manuellement dans une branche dédiée,
+avec lecture du diff, tests et validation avant intégration.
 
 ## Données exclues du dépôt
 
