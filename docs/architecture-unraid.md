@@ -74,7 +74,7 @@ de domaines Internet.
 
 ## Flux entrant
 
-1. Traefik termine TLS pour `codex.hugotlab.fr`.
+1. Traefik termine TLS pour le domaine public choisi par l’administrateur.
 2. Le middleware Authentik valide la session.
 3. Traefik transmet à `codex-web-ingress:8080`.
 4. Nginx contrôle à nouveau Authentik.

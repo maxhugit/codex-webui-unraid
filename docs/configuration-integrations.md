@@ -2,8 +2,8 @@
 
 ## Authentik
 
-Créer une application et un fournisseur proxy pour
-`https://codex.hugotlab.fr`. Associer le fournisseur à l’outpost utilisé par
+Créer une application et un fournisseur proxy pour l’URL publique de Codex, par
+exemple `https://codex.example.com`. Associer le fournisseur à l’outpost utilisé par
 Traefik. Le middleware Traefik doit protéger toutes les routes publiques.
 
 Nginx réalise aussi une vérification interne auprès de :
@@ -30,7 +30,7 @@ le chat simple retourne une réponse.
 Configurer l’URL :
 
 ```text
-https://ha-mcp.hugotlab.fr/mcp
+https://ha-mcp.example.com/mcp
 ```
 
 Effectuer OAuth depuis l’interface. Pour une session durable, le fournisseur
@@ -60,12 +60,12 @@ publiques dans les comptes distants concernés et enregistrer les empreintes dan
 Renseigner l’adresse publique du Document Server :
 
 ```text
-https://office.hugotlab.fr
+https://office.example.com
 ```
 
 Le secret JWT doit être identique dans OnlyOffice et dans Codex WebUI. Le serveur
-OnlyOffice doit pouvoir rappeler les routes de document autorisées sur
-`codex.hugotlab.fr`. Tester l’ouverture puis l’enregistrement d’un document de
+OnlyOffice doit pouvoir rappeler les routes de document autorisées sur le
+domaine public de Codex. Tester l’ouverture puis l’enregistrement d’un document de
 test avant d’utiliser un fichier important.
 
 ## PDF et fichiers
@@ -73,4 +73,3 @@ test avant d’utiliser un fichier important.
 Les fichiers sous `/workspaces` et `/appdata` sont visibles dans l’explorateur.
 Les PDF s’ouvrent dans la visionneuse intégrée. Les fichiers Office utilisent
 OnlyOffice. Les autres formats sont téléchargés ou ouverts selon leur type.
-

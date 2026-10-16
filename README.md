@@ -1,8 +1,7 @@
 # Codex WebUI pour le homelab Unraid
 
-Ce dépôt contient le code et le déploiement de l’interface Codex accessible sur
-`https://codex.hugotlab.fr`. Le moteur Codex s’exécute sur Unraid ; le navigateur
-sert uniquement d’interface.
+Ce dépôt contient le code et le déploiement d’une interface Codex auto-hébergée.
+Le moteur Codex s’exécute sur Unraid ; le navigateur sert uniquement d’interface.
 
 Il s’agit d’une adaptation du projet
 [`LimLLL/codex-webui`](https://github.com/LimLLL/codex-webui), publiée sous

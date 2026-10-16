@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Codex HugotLab",
+  "name": "Codex WebUI",
   "short_name": "Codex",
-  "description": "Accès sécurisé à Codex sur HugotLab",
+  "description": "Accès sécurisé à une instance Codex auto-hébergée",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'codex-hugotlab-static-v1';
+const STATIC_CACHE = 'codex-webui-static-v2';
 const STATIC_FILES = [
   './manifest.webmanifest',
   './favicon.svg',

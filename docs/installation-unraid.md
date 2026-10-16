@@ -10,7 +10,7 @@ comment raccorder Codex à chacun d’eux.
 Préparer avant de commencer :
 
 - un accès administrateur à Unraid ;
-- le domaine `codex.hugotlab.fr` dirigé vers l’entrée HTTPS du homelab ;
+- un domaine public dirigé vers l’entrée HTTPS du homelab ;
 - Traefik avec un résolveur de certificats valide ;
 - Authentik et son outpost Traefik ;
 - une clé API OpenAI si le chat simple est utilisé ;
@@ -141,7 +141,7 @@ actif, utilise TLS et pointe vers le port `8080` de `codex-web-ingress`.
 
 ## 6. Configurer Authentik
 
-Créer une application Proxy Provider pour `https://codex.hugotlab.fr`, puis
+Créer une application Proxy Provider pour le domaine public choisi, puis
 associer son outpost au middleware Traefik `authentik`.
 
 Nginx réalise une seconde vérification sur :
@@ -177,12 +177,12 @@ simple. Ne jamais mettre la clé dans `.env` versionné.
 
 ### OnlyOffice
 
-Dans les paramètres Codex, renseigner l’URL publique
-`https://office.hugotlab.fr` et le même secret JWT que le Document Server.
+Dans les paramètres Codex, renseigner l’URL publique du Document Server, par
+exemple `https://office.example.com`, et le même secret JWT des deux côtés.
 
 ### MCP Home Assistant
 
-Ajouter `https://ha-mcp.hugotlab.fr/mcp`, lancer OAuth puis vérifier que le
+Ajouter l’URL du serveur MCP, par exemple `https://ha-mcp.example.com/mcp`, lancer OAuth puis vérifier que le
 fichier d’identifiants persistant contient un jeton de renouvellement. Le serveur
 HA-MCP doit annoncer les portées `openid` et `offline_access`.
 
@@ -195,7 +195,7 @@ depuis le conteneur sans donner de clé privée en écriture à Codex.
 
 ```bash
 docker inspect codex-webui-limlll --format '{{.State.Health.Status}}'
-curl -I https://codex.hugotlab.fr
+curl -I https://codex.example.com
 docker logs --tail 100 codex-web-ingress
 docker logs --tail 100 codex-web-egress-proxy
 ```

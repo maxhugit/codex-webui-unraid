@@ -13,7 +13,7 @@ http:
     # login. These two machine-to-machine endpoints remain protected by the
     # Codex ingress credential plus the signed OnlyOffice callback JWT/state.
     codex-onlyoffice:
-      rule: "Host(`codex.hugotlab.fr`) && (Path(`/api/files/serve`) || Path(`/api/onlyoffice/callback`))"
+      rule: "Host(`codex.example.com`) && (Path(`/api/files/serve`) || Path(`/api/onlyoffice/callback`))"
       entryPoints:
         - websecure
       priority: 200
@@ -24,7 +24,7 @@ http:
         certResolver: tls
 
     codex-web:
-      rule: "Host(`codex.hugotlab.fr`)"
+      rule: "Host(`codex.example.com`)"
       entryPoints:
         - websecure
       priority: 100
