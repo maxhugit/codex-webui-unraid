@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Check, Edit3, EllipsisVertical, Menu, Moon, Network, PanelLeftClose, PanelLeftOpen, Settings, Sun, X } from 'lucide-react';
+import { Activity, Check, Edit3, EllipsisVertical, Languages, Menu, Moon, Network, PanelLeftClose, PanelLeftOpen, Settings, Sun, X } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -38,11 +38,15 @@ import { McpStatusBadge } from './mcp-status-badge';
 function MobileOverflowMenu({
   onDiagnostics,
   onToggleDark,
+  onToggleLanguage,
+  languageLabel,
   dark,
   t,
 }: {
   onDiagnostics: () => void;
   onToggleDark: () => void;
+  onToggleLanguage: () => void;
+  languageLabel: string;
   dark: boolean;
   t: (key: string) => string;
 }) {
@@ -63,6 +67,9 @@ function MobileOverflowMenu({
           {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           {dark ? t('Light mode') : t('Dark mode')}
         </button>
+        <button type="button" onClick={() => act(onToggleLanguage)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
+          <Languages className="h-4 w-4" /> {languageLabel}
+        </button>
       </PopoverContent>
     </Popover>
   );
@@ -75,7 +82,7 @@ interface Props {
 }
 
 export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const simpleChatThreadId = useRouterState({
@@ -158,6 +165,12 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
     } else {
       onToggleDiagnostics();
     }
+  };
+
+  const isFrench = (i18n.resolvedLanguage ?? i18n.language).startsWith('fr');
+  const languageLabel = isFrench ? 'English' : 'Français';
+  const toggleLanguage = () => {
+    void i18n.changeLanguage(isFrench ? 'en' : 'fr');
   };
 
   return (
@@ -304,6 +317,20 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={toggleLanguage}
+                  aria-label={`${t('Language')}: ${languageLabel}`}
+                >
+                  <Languages className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{languageLabel}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => void navigate({ to: '/settings' })}>
                   <Settings className="h-4 w-4" />
                 </Button>
@@ -324,6 +351,8 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
           <MobileOverflowMenu
             onDiagnostics={handleDiagnosticsToggle}
             onToggleDark={onToggleDark}
+            onToggleLanguage={toggleLanguage}
+            languageLabel={languageLabel}
             dark={dark}
             t={t}
           />
