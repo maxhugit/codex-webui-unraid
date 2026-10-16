@@ -40,12 +40,12 @@ type SandboxPatch = NonNullable<PatchThreadSecurityPolicyDto['sandboxPolicy']>;
  * Builds the sandbox variants this picker offers.
  *
  * The endpoint deliberately does not synthesize roots or network access, so
- * every field has to mean something here. In particular an empty
- * `writableRoots` is a valid payload meaning "nothing is writable" — sending it
- * would turn a workspace-write selection into something stricter than
- * read-only while the badge cheerfully reported workspace-write. The
- * conversation's own directory is the root, and without one that option is not
- * offered at all rather than guessed.
+ * every field has to mean something here. `writableRoots` contains additional
+ * roots: the conversation cwd is already writable implicitly in
+ * `workspaceWrite`. Repeating the cwd here makes the request differ from the
+ * canonical policy reported back by app-server (`writableRoots: []`) and used
+ * to produce a false "did not take effect" error. We still require a known cwd
+ * before offering workspace-write, because it is the implicit writable root.
  *
  * Network access carries over from whatever is currently in force, because this
  * control is about the sandbox mode; silently flipping the network alongside it
@@ -71,7 +71,7 @@ function sandboxOptions(
                   label: 'workspace-write',
                   value: {
                     type: 'workspaceWrite' as const,
-                    writableRoots: [cwd],
+                    writableRoots: [],
                     networkAccess,
                     excludeTmpdirEnvVar: false,
                     excludeSlashTmp: false,

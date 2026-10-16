@@ -341,6 +341,15 @@ describe('policySatisfies', () => {
     ).toBe(true);
   });
 
+  it('confirms the canonical workspace-write policy with an implicit cwd', () => {
+    expect(
+      policySatisfies(
+        observed({ sandboxPolicy: workspaceWrite([]) }),
+        { sandboxPolicy: workspaceWrite([]) },
+      ),
+    ).toBe(true);
+  });
+
   it('compares read-only network access too', () => {
     const readOnly = (networkAccess: boolean) =>
       ({ type: 'readOnly', networkAccess }) as const;
