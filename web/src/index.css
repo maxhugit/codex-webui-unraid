@@ -31,6 +31,10 @@ body {
 #root {
   position: fixed;
   inset: 0;
+  /* iOS standalone positions the fixed viewport above the home-indicator
+     inset even with viewport-fit=cover. Extend the application through that
+     reserved strip; the keyboard rule below replaces this bottom edge. */
+  bottom: calc(-1 * env(safe-area-inset-bottom));
   overflow: hidden;
   /* The composer owns the bottom safe area. Keeping it here too reserves the
      iPhone home-indicator inset twice and leaves a visible empty band. */
