@@ -13,12 +13,6 @@ import {
   accountReadRateLimitsQueryKey,
 } from '@/generated/api/@tanstack/react-query.gen';
 import { useAccountStore } from '@/stores/account-store';
-import type {
-  AccountRateLimitsResponseDto,
-  RateLimitWindowDto,
-} from '@/generated/api/types.gen';
-
-const MONTH_MINUTES = 28 * 24 * 60;
 
 function formatReset(value: number | null): string | null {
   if (!value) return null;
@@ -29,26 +23,10 @@ function formatReset(value: number | null): string | null {
   });
 }
 
-function monthlyWindow(
-  response: AccountRateLimitsResponseDto | null | undefined,
-): RateLimitWindowDto | null {
-  if (!response) return null;
-  const snapshots = [
-    response.rateLimits,
-    ...Object.values(response.rateLimitsByLimitId ?? {}),
-  ];
-  const candidates = snapshots
-    .flatMap((snapshot) => [snapshot.primary, snapshot.secondary])
-    .filter(
-      (window): window is RateLimitWindowDto =>
-        Boolean(window && (window.windowDurationMins ?? 0) >= MONTH_MINUTES),
-    )
-    .sort(
-      (left, right) =>
-        (left.windowDurationMins ?? Infinity) -
-        (right.windowDurationMins ?? Infinity),
-    );
-  return candidates[0] ?? null;
+function periodLabel(windowDurationMins: number | null): string {
+  if (windowDurationMins === 7 * 24 * 60) return 'Limite hebdomadaire';
+  if ((windowDurationMins ?? 0) >= 28 * 24 * 60) return 'Limite mensuelle';
+  return 'Limite longue durée';
 }
 
 export function AccountRateLimitBadge() {
@@ -94,25 +72,29 @@ export function AccountRateLimitBadge() {
   const response = storedRateLimits ?? rateLimitsQuery.data;
   const snapshot = response?.rateLimits;
   const primary = snapshot?.primary;
-  const monthly = monthlyWindow(response);
+  const secondary = snapshot?.secondary;
   const credits = snapshot?.credits;
-  if (!primary && !monthly && !credits) return null;
+  if (!primary && !secondary && !credits?.hasCredits && !credits?.unlimited)
+    return null;
 
   const used = primary ? Math.round(primary.usedPercent) : null;
   const variant = used !== null && used >= 90 ? 'destructive' : 'secondary';
   const creditLabel = credits
     ? credits.unlimited
       ? t('unlimited')
-      : credits.balance ?? (credits.hasCredits ? t('credits') : t('no credits'))
+      : credits.hasCredits
+        ? credits.balance ?? t('credits')
+        : null
     : null;
   const primaryReset = formatReset(primary?.resetsAt ?? null);
-  const monthlyReset = formatReset(monthly?.resetsAt ?? null);
+  const secondaryReset = formatReset(secondary?.resetsAt ?? null);
+  const secondaryLabel = periodLabel(secondary?.windowDurationMins ?? null);
   const primaryTitle = primaryReset
     ? `Limite du compte · réinitialisation : ${primaryReset}`
     : t('Account rate limits');
-  const monthlyTitle = monthlyReset
-    ? `Limite mensuelle · réinitialisation : ${monthlyReset}`
-    : 'Limite mensuelle';
+  const secondaryTitle = secondaryReset
+    ? `${secondaryLabel} · réinitialisation : ${secondaryReset}`
+    : secondaryLabel;
 
   return (
     <div className="flex items-center gap-1">
@@ -125,14 +107,14 @@ export function AccountRateLimitBadge() {
           </span>
         )}
       </Badge>
-      {monthly && (
+      {secondary && (
         <Badge
-          variant={monthly.usedPercent >= 90 ? 'destructive' : 'secondary'}
+          variant={secondary.usedPercent >= 90 ? 'destructive' : 'secondary'}
           className="text-xs"
-          title={monthlyTitle}
+          title={secondaryTitle}
         >
           <CalendarDays className="h-3 w-3" />
-          <span>{Math.round(monthly.usedPercent)}%</span>
+          <span>{Math.round(secondary.usedPercent)}%</span>
         </Badge>
       )}
     </div>
