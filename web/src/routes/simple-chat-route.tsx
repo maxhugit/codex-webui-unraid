@@ -4,11 +4,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   ExternalLink,
+  Globe2,
   Loader2,
   MessageCircle,
-  Plus,
   Send,
-  Trash2,
+  ShieldCheck,
 } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -139,9 +139,14 @@ export function SimpleChatRoute() {
   }, [navigate, requestedThreadId]);
 
   useEffect(() => {
-    if (requestedThreadId && requestedThreadId !== activeThreadId) {
-      setActiveThreadId(requestedThreadId);
-    }
+    if (!requestedThreadId || requestedThreadId === activeThreadId) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setActiveThreadId(requestedThreadId);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [requestedThreadId, activeThreadId]);
 
   const selectThread = (threadId?: string) => {
@@ -151,11 +156,18 @@ export function SimpleChatRoute() {
 
   useEffect(() => {
     if (!activeThreadId) {
-      setMessages([]);
-      return;
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) setMessages([]);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     let cancelled = false;
-    setLoadingThread(true);
+    queueMicrotask(() => {
+      if (!cancelled) setLoadingThread(true);
+    });
     api<ThreadDetail>(`/threads/${activeThreadId}`)
       .then((detail) => {
         if (!cancelled) setMessages(detail.messages);
@@ -182,40 +194,6 @@ export function SimpleChatRoute() {
     if (!scroller) return;
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
   }, [messages, sending]);
-
-  const createThread = async () => {
-    setError(undefined);
-    try {
-      const detail = await api<ThreadDetail>('/threads', {
-        method: 'POST',
-        body: JSON.stringify({ model: activeThread?.model || status?.model }),
-      });
-      setThreads((current) => [detail.thread, ...current]);
-      selectThread(detail.thread.id);
-      setMessages([]);
-      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : 'Création impossible.',
-      );
-    }
-  };
-
-  const deleteThread = async (threadId: string) => {
-    if (!window.confirm('Supprimer définitivement cette conversation ?'))
-      return;
-    try {
-      await api(`/threads/${threadId}`, { method: 'DELETE' });
-      const remaining = threads.filter((thread) => thread.id !== threadId);
-      setThreads(remaining);
-      if (activeThreadId === threadId) selectThread(remaining[0]?.id);
-      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : 'Suppression impossible.',
-      );
-    }
-  };
 
   const changeModel = async (model: string) => {
     if (!activeThreadId) return;
@@ -301,63 +279,6 @@ export function SimpleChatRoute() {
   return (
     <main className="flex min-h-0 flex-1 overflow-hidden">
       <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-          <div>
-            <h1 className="text-base font-semibold">Chat simple</h1>
-            <p className="text-xs text-muted-foreground">
-              API OpenAI · recherche Web disponible · aucun accès au serveur
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={activeThreadId || ''}
-              onChange={(event) =>
-                selectThread(event.target.value || undefined)
-              }
-              aria-label="Conversation"
-              className="h-8 max-w-40 rounded-lg border border-input bg-background px-2 text-sm md:hidden"
-            >
-              <option value="">Nouvelle conversation</option>
-              {threads.map((thread) => (
-                <option key={thread.id} value={thread.id}>
-                  {thread.title}
-                </option>
-              ))}
-            </select>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void createThread()}
-            >
-              <Plus className="h-4 w-4" /> Nouveau
-            </Button>
-            {activeThreadId && (
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label="Supprimer la conversation"
-                title="Supprimer la conversation"
-                onClick={() => void deleteThread(activeThreadId)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-            <select
-              value={activeThread?.model || status?.model || ''}
-              onChange={(event) => void changeModel(event.target.value)}
-              disabled={!activeThread || sending}
-              aria-label="Modèle OpenAI"
-              className="h-8 max-w-56 rounded-lg border border-input bg-background px-2 text-sm"
-            >
-              {models.map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          </div>
-        </header>
-
         <div
           ref={messagesRef}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5"
@@ -435,40 +356,77 @@ export function SimpleChatRoute() {
 
         <form
           onSubmit={(event) => void send(event)}
-          className="shrink-0 border-t bg-background px-3 pt-3 pb-0 sm:pb-3"
+          className="shrink-0 bg-background px-3 pt-3 pb-0 sm:pb-3"
         >
-          <div className="mx-auto flex max-w-3xl items-end gap-2">
+          <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-lg transition-all duration-200 focus-within:outline-2 focus-within:outline-primary/40">
             <Textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Écris ton message…"
-              className="max-h-40 min-h-11 resize-none"
+              className="max-h-40 min-h-20 resize-none border-none bg-transparent px-4 pt-3 shadow-none focus-visible:ring-0"
               maxLength={6_000}
               disabled={sending || status?.configured === false}
             />
-            <VoiceDictationButton
-              disabled={sending || status?.configured === false}
-              onTranscript={(text) =>
-                setInput((current) =>
-                  current.trimEnd()
-                    ? `${current.trimEnd()} ${text.trim()}`
-                    : text.trim(),
-                )
-              }
-            />
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!input.trim() || sending || !status?.configured}
-              aria-label="Envoyer"
-            >
-              {sending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
+            <div className="flex items-center justify-between gap-2 px-2 pb-2">
+              <div className="flex min-w-0 items-center gap-1">
+                <select
+                  value={activeThread?.model || status?.model || ''}
+                  onChange={(event) => void changeModel(event.target.value)}
+                  disabled={!activeThread || sending}
+                  aria-label="Modèle OpenAI"
+                  title="Modèle OpenAI"
+                  className="h-7 max-w-44 truncate rounded-lg border border-input bg-background px-2 text-xs"
+                >
+                  {models.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground"
+                  title="Recherche Web disponible"
+                  aria-label="Recherche Web disponible"
+                >
+                  <Globe2 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Web</span>
+                </span>
+                <span
+                  className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground"
+                  title="Aucun accès au serveur"
+                  aria-label="Aucun accès au serveur"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Isolé</span>
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <VoiceDictationButton
+                  disabled={sending || status?.configured === false}
+                  onTranscript={(text) =>
+                    setInput((current) =>
+                      current.trimEnd()
+                        ? `${current.trimEnd()} ${text.trim()}`
+                        : text.trim(),
+                    )
+                  }
+                />
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-7 w-7 rounded-lg"
+                  disabled={!input.trim() || sending || !status?.configured}
+                  aria-label="Envoyer"
+                >
+                  {sending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </form>
       </section>

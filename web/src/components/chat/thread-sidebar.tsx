@@ -8,11 +8,13 @@ import { DragDropProvider } from '@dnd-kit/react';
 import {
   FolderOpen,
   MessageCircle,
+  MoreHorizontal,
   Pencil,
   Puzzle,
   Plus,
   Settings,
   Terminal,
+  Trash2,
 } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +22,21 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   threadsArchiveThreadMutation,
   threadsCompactThreadMutation,
@@ -69,10 +86,10 @@ interface SimpleChatThread {
   updatedAt: number;
 }
 
-function simpleChatHeaders() {
+function simpleChatHeaders(hasBody = false) {
   const authorization = getAuthorizationHeader();
   return {
-    'Content-Type': 'application/json',
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
     ...(authorization ? { Authorization: authorization } : {}),
   };
 }
@@ -80,7 +97,10 @@ function simpleChatHeaders() {
 async function simpleChatApi<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(withBasePath(`/api/simple-chat${path}`), {
     ...init,
-    headers: { ...simpleChatHeaders(), ...init?.headers },
+    headers: {
+      ...simpleChatHeaders(init?.body !== undefined),
+      ...init?.headers,
+    },
   });
   const payload = (await response.json().catch(() => ({}))) as T & {
     message?: string;
@@ -155,6 +175,8 @@ export function ThreadSidebar() {
   const [renameSimpleThread, setRenameSimpleThread] =
     useState<SimpleChatThread | null>(null);
   const [renameSimpleValue, setRenameSimpleValue] = useState('');
+  const [deleteSimpleThread, setDeleteSimpleThread] =
+    useState<SimpleChatThread | null>(null);
 
   // ── Queries ─────────────────────────────────────────────────────────
   // The sidebar reads one server-side projection. It used to join a paginated
@@ -380,7 +402,7 @@ export function ThreadSidebar() {
         withBasePath(`/api/threads/${threadId}/cwd`),
         {
           method: 'PATCH',
-          headers: simpleChatHeaders(),
+          headers: simpleChatHeaders(true),
           body: JSON.stringify({ cwd }),
         },
       );
@@ -527,6 +549,18 @@ export function ThreadSidebar() {
       setRenameSimpleThread(null);
       setRenameSimpleValue('');
       void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
+  const deleteSimpleChat = useMutation({
+    mutationFn: (id: string) =>
+      simpleChatApi(`/threads/${id}`, { method: 'DELETE' }),
+    onSuccess: (_result, deletedId) => {
+      setDeleteSimpleThread(null);
+      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
+      if (activeView === 'simpleChat' && activeSimpleThreadId === deletedId) {
+        void navigate({ to: '/simple-chat', search: { thread: undefined } });
+      }
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
@@ -797,19 +831,39 @@ export function ThreadSidebar() {
               >
                 {thread.title}
               </button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-                title="Renommer"
-                aria-label={`Renommer ${thread.title}`}
-                onClick={() => {
-                  setRenameSimpleThread(thread);
-                  setRenameSimpleValue(thread.title);
-                }}
-              >
-                <Pencil className="h-3 w-3" />
-              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="hover-reveal h-6 w-6 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                    aria-label={`Actions pour ${thread.title}`}
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-44 p-1">
+                  <Button
+                    variant="ghost"
+                    className="h-7 w-full justify-start gap-2 px-2 text-xs"
+                    onClick={() => {
+                      setRenameSimpleThread(thread);
+                      setRenameSimpleValue(thread.title);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Renommer
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="h-7 w-full justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setDeleteSimpleThread(thread)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Supprimer
+                  </Button>
+                </PopoverContent>
+              </Popover>
             </div>
           ))}
         </div>
@@ -897,6 +951,35 @@ export function ThreadSidebar() {
         }}
         onClose={() => setRenameSimpleThread(null)}
       />
+      <AlertDialog
+        open={deleteSimpleThread !== null}
+        onOpenChange={(open) =>
+          !open && !deleteSimpleChat.isPending && setDeleteSimpleThread(null)
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette conversation ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              « {deleteSimpleThread?.title} » sera supprimée définitivement.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteSimpleChat.isPending}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!deleteSimpleThread || deleteSimpleChat.isPending}
+              onClick={() =>
+                deleteSimpleThread &&
+                deleteSimpleChat.mutate(deleteSimpleThread.id)
+              }
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <ConfirmDialog
         action={confirmAction}
         pending={archiveThread.isPending || compactThread.isPending}
