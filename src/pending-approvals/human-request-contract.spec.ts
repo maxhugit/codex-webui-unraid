@@ -140,7 +140,7 @@ describe('MCP elicitation semantics', () => {
     },
   };
   const content = {
-    name: '名',
+    name: 'nom',
     enabled: false,
     count: 0,
     choice: 'b',

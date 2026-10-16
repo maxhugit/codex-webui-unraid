@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Check, Edit3, EllipsisVertical, Globe, Menu, Moon, Network, PanelLeftClose, PanelLeftOpen, Settings, Sun, X } from 'lucide-react';
+import { Activity, Check, Edit3, EllipsisVertical, Menu, Moon, Network, PanelLeftClose, PanelLeftOpen, Settings, Sun, X } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -33,17 +33,13 @@ import { McpStatusBadge } from './mcp-status-badge';
 /** Mobile overflow menu — closes after each action. */
 function MobileOverflowMenu({
   onDiagnostics,
-  onToggleLanguage,
   onToggleDark,
   dark,
-  languageLabel,
   t,
 }: {
   onDiagnostics: () => void;
-  onToggleLanguage: () => void;
   onToggleDark: () => void;
   dark: boolean;
-  languageLabel: string;
   t: (key: string) => string;
 }) {
   const [open, setOpen] = useState(false);
@@ -58,9 +54,6 @@ function MobileOverflowMenu({
       <PopoverContent align="end" side="bottom" className="w-48 p-1">
         <button type="button" onClick={() => act(onDiagnostics)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
           <Activity className="h-4 w-4" /> {t('Diagnostics')}
-        </button>
-        <button type="button" onClick={() => act(onToggleLanguage)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
-          <Globe className="h-4 w-4" /> {languageLabel}
         </button>
         <button type="button" onClick={() => act(onToggleDark)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
           {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -78,7 +71,7 @@ interface Props {
 }
 
 export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const connected = useConnectionStore((s) => s.connected);
   const threadId = useTimelineStore((s) => s.threadId);
@@ -113,11 +106,6 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
       void queryClient.invalidateQueries({ queryKey: threadsListThreadsQueryKey() });
     },
   });
-
-  const toggleLanguage = () => {
-    const next = i18n.language.startsWith('zh') ? 'en' : 'zh-CN';
-    void i18n.changeLanguage(next);
-  };
 
   const startEditing = () => {
     setDraftName(threadTitle ?? '');
@@ -294,14 +282,6 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={toggleLanguage}>
-                  <Globe className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{i18n.language.startsWith('zh') ? 'English' : '简体中文'}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
                 <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onToggleDark}>
                   {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </Button>
@@ -313,10 +293,8 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
           /* Mobile/Tablet: overflow menu popover */
           <MobileOverflowMenu
             onDiagnostics={handleDiagnosticsToggle}
-            onToggleLanguage={toggleLanguage}
             onToggleDark={onToggleDark}
             dark={dark}
-            languageLabel={i18n.language.startsWith('zh') ? 'English' : '简体中文'}
             t={t}
           />
         )}

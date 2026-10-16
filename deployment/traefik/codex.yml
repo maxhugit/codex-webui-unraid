@@ -1,0 +1,42 @@
+http:
+  middlewares:
+    codex-security-headers:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "no-referrer"
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+
+  routers:
+    # OnlyOffice Document Server cannot complete an interactive Authentik
+    # login. These two machine-to-machine endpoints remain protected by the
+    # Codex ingress credential plus the signed OnlyOffice callback JWT/state.
+    codex-onlyoffice:
+      rule: "Host(`codex.hugotlab.fr`) && (Path(`/api/files/serve`) || Path(`/api/onlyoffice/callback`))"
+      entryPoints:
+        - websecure
+      priority: 200
+      middlewares:
+        - codex-security-headers
+      service: codex-web
+      tls:
+        certResolver: tls
+
+    codex-web:
+      rule: "Host(`codex.hugotlab.fr`)"
+      entryPoints:
+        - websecure
+      priority: 100
+      middlewares:
+        - authentik
+        - codex-security-headers
+      service: codex-web
+      tls:
+        certResolver: tls
+
+  services:
+    codex-web:
+      loadBalancer:
+        servers:
+          - url: "http://codex-web-ingress:8080"

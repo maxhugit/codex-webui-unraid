@@ -1,0 +1,114 @@
+user nginx;
+worker_processes 1;
+pid /var/run/nginx.pid;
+
+events { worker_connections 512; }
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    access_log /dev/stdout;
+    error_log /dev/stderr warn;
+    server_tokens off;
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+
+    server {
+        listen 8080;
+        client_max_body_size 100m;
+        set $codex_backend http://codex-webui-limlll:8172;
+        set $codex_oauth_callback http://codex-webui-limlll:12345;
+        set $authentik_backend http://authentik:9000;
+
+        # This endpoint is used only by Docker's local healthcheck. It cannot
+        # be reached from another container or through Traefik.
+        location = /_health {
+            allow 127.0.0.1;
+            deny all;
+            proxy_pass $codex_backend/api/status;
+            proxy_set_header Authorization "Bearer ${CODEX_BACKEND_TOKEN}";
+        }
+
+        # Defense in depth: Traefik already checks Authentik, but this second
+        # check prevents another container on net_standard from bypassing it.
+        location = /_authentik_check {
+            internal;
+            proxy_pass $authentik_backend/outpost.goauthentik.io/auth/nginx;
+            proxy_pass_request_body off;
+            proxy_set_header Content-Length "";
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Forwarded-Host $http_host;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-Method $request_method;
+            proxy_set_header X-Original-URI $request_uri;
+            proxy_set_header X-Original-URL https://$http_host$request_uri;
+            proxy_set_header Cookie $http_cookie;
+        }
+
+        # Public OAuth return endpoint used only while `codex mcp login` is
+        # running. OAuth state validation is performed by Codex itself.
+        location = /mcp/oauth/callback {
+            proxy_pass $codex_oauth_callback;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_read_timeout 300s;
+        }
+
+        # OnlyOffice server-to-server download. Traefik routes this exact path
+        # around interactive Authentik; the backend credential stays internal.
+        location = /api/files/serve {
+            proxy_pass $codex_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header Authorization "Bearer ${CODEX_BACKEND_TOKEN}";
+            proxy_buffering off;
+            proxy_read_timeout 300s;
+        }
+
+        # OnlyOffice save callback. Codex additionally verifies the signed
+        # state and OnlyOffice JWT before accepting a write.
+        location = /api/onlyoffice/callback {
+            proxy_pass $codex_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header Authorization "Bearer ${CODEX_BACKEND_TOKEN}";
+            proxy_buffering off;
+            proxy_request_buffering off;
+            proxy_read_timeout 300s;
+        }
+
+        location / {
+            auth_request /_authentik_check;
+            proxy_pass $codex_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            # The application token remains server-side and replaces any
+            # Authorization header supplied by the client.
+            proxy_set_header Authorization "Bearer ${CODEX_BACKEND_TOKEN}";
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_buffering off;
+            proxy_request_buffering off;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+        }
+    }
+}

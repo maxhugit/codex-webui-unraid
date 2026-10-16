@@ -1,0 +1,176 @@
+services:
+  app-v4:
+    image: ${CODEX_APP_IMAGE:-ghcr.io/maxhugit/codex-webui-unraid:latest}
+    container_name: codex-webui-limlll
+    restart: unless-stopped
+    init: true
+    user: "11002:11002"
+    working_dir: /app
+    entrypoint:
+      - sh
+      - -c
+    command:
+      - export WEBUI_API_KEY="$$(cat /run/secrets/backend_token)"; exec /usr/local/bin/entrypoint.sh node /app/dist/main.js
+    environment:
+      NODE_ENV: production
+      PORT: "8172"
+      HOME: /home/codex
+      CODEX_HOME: /home/codex/.codex
+      WEBUI_DB_PATH: /home/codex/.codex/codex-webui.sqlite
+      WORKSPACE_ROOTS: /workspaces,/appdata
+      LOG_LEVEL: info
+      OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
+      OPENAI_CHAT_MODEL: gpt-5-mini
+      HTTP_PROXY: http://codex-egress-proxy:3128
+      HTTPS_PROXY: http://codex-egress-proxy:3128
+      ALL_PROXY: http://codex-egress-proxy:3128
+      NO_PROXY: 127.0.0.1,localhost,codex-webui-limlll
+      http_proxy: http://codex-egress-proxy:3128
+      https_proxy: http://codex-egress-proxy:3128
+      all_proxy: http://codex-egress-proxy:3128
+      no_proxy: 127.0.0.1,localhost,codex-webui-limlll
+      TZ: Europe/Paris
+    volumes:
+      - ${STATE_ROOT}/home:/home/codex
+      - ${STATE_ROOT}/workspace:/workspaces
+      - ${UNRAID_APPDATA_ROOT:-/mnt/user/appdata}:/appdata
+      - ${STATE_ROOT}/logs:/app/logs
+      - ${STATE_ROOT}/backend-token.txt:/run/secrets/backend_token:ro
+      - ${STATE_ROOT}/openai-api-key.txt:/run/secrets/openai_api_key:ro
+      - ${STATE_ROOT}/ssh:/home/codex/.ssh:ro
+    networks:
+      - codex_isolated
+      - codex_admin
+    group_add:
+      - "11001"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=${DEPLOY_ROOT}/config/seccomp-bwrap.json
+      # Bubblewrap creates a fresh, isolated /proc inside its user namespace.
+      # Docker's default masked system paths make that mount "too revealing"
+      # and the kernel rejects it before the Codex sandbox can start.
+      - systempaths=unconfined
+    pids_limit: 1024
+    mem_limit: 8g
+    cpus: 3.5
+    stop_grace_period: 30m
+    depends_on:
+      codex-egress-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "token=$$(cat /run/secrets/backend_token) && curl -fsS -H \"Authorization: Bearer $$token\" http://127.0.0.1:8172/api/status >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 8
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  codex-ingress:
+    image: ${CODEX_INGRESS_IMAGE:-nginx:stable}
+    container_name: codex-web-ingress
+    restart: unless-stopped
+    depends_on:
+      app-v4:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - export CODEX_BACKEND_TOKEN="$$(cat /run/secrets/backend_token)"; envsubst '$${CODEX_BACKEND_TOKEN}' < /etc/nginx/templates-secure/nginx.conf.template > /tmp/nginx.conf; exec nginx -c /tmp/nginx.conf -g 'daemon off;'
+    volumes:
+      - ${DEPLOY_ROOT}/config/nginx.conf.template:/etc/nginx/templates-secure/nginx.conf.template:ro
+      - ${STATE_ROOT}/backend-token-nginx.txt:/run/secrets/backend_token:ro
+    networks:
+      - codex_isolated
+      - net_standard
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:rw,nosuid,nodev,size=32m
+      - /var/run:rw,nosuid,nodev,size=4m
+      - /tmp:rw,nosuid,nodev,size=16m
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 128m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/_health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  codex-egress-proxy:
+    image: ${CODEX_EGRESS_IMAGE:-ubuntu/squid:latest}
+    container_name: codex-web-egress-proxy
+    restart: unless-stopped
+    volumes:
+      - ${DEPLOY_ROOT}/config/squid.conf:/etc/squid/squid.conf:ro
+    networks:
+      - codex_isolated
+      - codex_external
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/log/squid:rw,nosuid,nodev,size=32m,mode=1777
+      - /var/spool/squid:rw,nosuid,nodev,size=32m
+      - /run:rw,nosuid,nodev,size=4m
+      - /tmp:rw,nosuid,nodev,size=16m
+    pids_limit: 256
+    mem_limit: 512m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/3128'"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  codex_isolated:
+    name: codex_isolated
+    internal: true
+    driver: bridge
+  codex_external:
+    name: codex_external
+    driver: bridge
+  codex_admin:
+    name: codex_admin
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.44.0/28
+  net_standard:
+    external: true
+    name: net_standard

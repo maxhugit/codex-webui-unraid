@@ -18,7 +18,7 @@ interface FontMetadata {
   glyphCount: number;
 }
 
-const DEFAULT_SAMPLE = 'The quick brown fox jumps over the lazy dog 0123456789\n敏捷的棕色狐狸跃过懒狗';
+const DEFAULT_SAMPLE = 'The quick brown fox jumps over the lazy dog 0123456789\nPortez ce vieux whisky au juge blond qui fume';
 
 export function FontViewer({ source }: Props) {
   const { t } = useTranslation();

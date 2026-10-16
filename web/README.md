@@ -1,43 +1,30 @@
-# Codex WebUI — Frontend
+# Interface Web
 
-React 19 + Vite 8 client for the Codex WebUI backend. Talks to it over `REST /api/*` and
-Socket.IO (`/socket.io`, namespace `/ws`); `pnpm dev` proxies both to `localhost:8172`.
+L’interface utilise React 19 et Vite 8. Elle communique avec le backend par les
+routes REST `/api/*` et Socket.IO. En production, le résultat de la compilation
+est servi par le backend NestJS ; aucun serveur frontal séparé n’est nécessaire.
 
-Build output goes to `../public/`, which the NestJS `ServeStaticModule` serves — so the
-production image ships a single origin with no separate frontend host.
-
-## Commands
+## Commandes
 
 ```bash
-pnpm dev            # Dev server on :5173, proxying /api + /socket.io to the backend
-pnpm build          # tsc -b + vite build → ../public/
-pnpm test           # Vitest (jsdom + Testing Library)
-pnpm test:watch     # Vitest in watch mode
-pnpm lint           # ESLint
-pnpm generate:api   # Regenerate the Hey API SDK from the backend OpenAPI spec
-                    # (requires the backend to be running)
+pnpm dev
+pnpm build
+pnpm test
+pnpm test:watch
+pnpm lint
+pnpm generate:api
 ```
 
-Add a shadcn/ui component with `npx shadcn@latest add <component>`.
+## Organisation
 
-## Layout
+| Chemin | Contenu |
+|---|---|
+| `src/routes/` | pages de l’application |
+| `src/components/` | composants de l’interface |
+| `src/stores/` | états Zustand |
+| `src/hooks/` | hooks Socket, conversations, affichage et fichiers |
+| `src/generated/api/` | client généré depuis OpenAPI, à ne pas modifier manuellement |
+| `src/test/setup.ts` | initialisation des tests Vitest |
 
-| Path | Contents |
-|------|----------|
-| `src/routes/` | TanStack Router pages |
-| `src/components/` | UI components (`ui/` is shadcn/Radix) |
-| `src/stores/` | Zustand stores — `timeline-store` holds per-thread state |
-| `src/hooks/` | Socket, thread-opening, breakpoint and file hooks |
-| `src/generated/api/` | Hey API SDK — generated, do not edit |
-| `src/test/setup.ts` | Vitest setup (Testing Library cleanup) |
-
-## Tests
-
-Colocated `*.spec.ts` / `*.spec.tsx`, run by Vitest with `globals: true` against jsdom.
-`vitest.config.ts` merges `vite.config.ts` so tests resolve the `@` alias and use the same
-React plugin as the build rather than a second, drifting copy.
-
-## Docs
-
-Architecture and per-subsystem docs live in [`../docs/`](../docs/); start with
-[`frontend-ui.md`](../docs/frontend-ui.md) and [`frontend-state.md`](../docs/frontend-state.md).
+Les tests sont placés à côté des fichiers concernés avec l’extension `.spec.ts`
+ou `.spec.tsx`.

@@ -5,12 +5,12 @@ import { catalogCopy } from './catalog-copy';
 
 describe('catalogCopy', () => {
   beforeAll(async () => {
-    await i18n.changeLanguage('zh-CN');
+    await i18n.changeLanguage('en');
   });
 
-  it('translates catalog strings we have localized', () => {
+  it('returns catalog strings in the English interface locale', () => {
     expect(catalogCopy('Fast responses with lighter reasoning')).toBe(
-      '轻量推理，响应最快',
+      'Fast responses with lighter reasoning',
     );
   });
 
@@ -29,7 +29,7 @@ describe('catalogCopy', () => {
   it('leaves catalog copy containing separator characters intact', () => {
     // Real tier copy, and the reason no id-keyed dictionary is needed.
     expect(catalogCopy('1.5x speed, increased usage')).toBe(
-      '1.5 倍速度，用量消耗更高',
+      '1.5x speed, increased usage',
     );
   });
 });

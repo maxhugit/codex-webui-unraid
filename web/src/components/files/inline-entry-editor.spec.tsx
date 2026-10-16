@@ -8,7 +8,7 @@ it('never submits a composing Enter, but commits once after composition', () => 
   render(<InlineEntryEditor onCommit={commit} onCancel={vi.fn()} />);
   const input = screen.getByRole('textbox');
   fireEvent.compositionStart(input);
-  fireEvent.change(input, { target: { value: '目录' } });
+  fireEvent.change(input, { target: { value: 'dossier' } });
   fireEvent.keyDown(input, { key: 'Enter', isComposing: true, keyCode: 229 });
   expect(commit).not.toHaveBeenCalled();
   fireEvent.focus(input);
@@ -16,7 +16,7 @@ it('never submits a composing Enter, but commits once after composition', () => 
   fireEvent.compositionEnd(input);
   fireEvent.keyDown(input, { key: 'Enter' });
   fireEvent.blur(input);
-  expect(commit).toHaveBeenCalledExactlyOnceWith('目录');
+  expect(commit).toHaveBeenCalledExactlyOnceWith('dossier');
 });
 
 it('cancels Escape without a subsequent blur committing into the parent dialog', () => {
