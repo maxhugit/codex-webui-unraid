@@ -46,7 +46,7 @@ Dans **Docker > Compose**, la stack permet de :
 - utiliser **Update Stack** pour télécharger les images et recréer les trois
   conteneurs dans le bon ordre.
 
-Il ne faut pas recréer uniquement `codex-webui-limlll` avec le formulaire Docker
+Il ne faut pas recréer uniquement `codex-webui` avec le formulaire Docker
 classique : ce formulaire ne représente pas fidèlement ses deux réseaux, son
 profil seccomp et ses dépendances. Utiliser Compose Manager conserve toutes les
 protections.

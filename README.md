@@ -22,7 +22,7 @@ licence AGPL-3.0-or-later.
 
 La plateforme utilise trois conteneurs :
 
-1. `codex-webui-limlll` exécute l’interface et le moteur Codex ;
+1. `codex-webui` exécute l’interface et le moteur Codex ;
 2. `codex-web-ingress` protège et transmet les requêtes entrantes ;
 3. `codex-web-egress-proxy` filtre les accès HTTP/HTTPS sortants.
 
@@ -31,7 +31,7 @@ flowchart LR
     U[Utilisateur] -->|HTTPS| T[Traefik]
     T -->|SSO| A[Authentik]
     T --> N[codex-web-ingress]
-    N --> C[codex-webui-limlll]
+    N --> C[codex-webui]
     C --> S[codex-web-egress-proxy]
     S --> I[Internet autorisé]
     C --> H[HA-MCP / Home Assistant]

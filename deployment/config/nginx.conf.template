@@ -20,8 +20,8 @@ http {
     server {
         listen 8080;
         client_max_body_size 100m;
-        set $codex_backend http://codex-webui-limlll:8172;
-        set $codex_oauth_callback http://codex-webui-limlll:12345;
+        set $codex_backend http://codex-webui:8172;
+        set $codex_oauth_callback http://codex-webui:12345;
         set $authentik_backend http://authentik:9000;
 
         # This endpoint is used only by Docker's local healthcheck. It cannot

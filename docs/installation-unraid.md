@@ -225,7 +225,7 @@ depuis le conteneur sans donner de clé privée en écriture à Codex.
 ## 9. Tests après reconstruction
 
 ```bash
-docker inspect codex-webui-limlll --format '{{.State.Health.Status}}'
+docker inspect codex-webui --format '{{.State.Health.Status}}'
 curl -I https://codex.example.com
 docker logs --tail 100 codex-web-ingress
 docker logs --tail 100 codex-web-egress-proxy

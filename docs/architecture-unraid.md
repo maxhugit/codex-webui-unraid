@@ -30,7 +30,7 @@ flowchart LR
 
 ## Conteneurs
 
-### `codex-webui-limlll`
+### `codex-webui`
 
 Application principale et moteur Codex. Aucun port n’est publié sur l’hôte.
 L’application est joignable uniquement depuis Nginx sur le réseau interne.
@@ -78,7 +78,7 @@ de domaines Internet.
 2. Le middleware Authentik valide la session.
 3. Traefik transmet à `codex-web-ingress:8080`.
 4. Nginx contrôle à nouveau Authentik.
-5. Nginx transmet vers `codex-webui-limlll:8172` avec le jeton interne.
+5. Nginx transmet vers `codex-webui:8172` avec le jeton interne.
 
 ## Flux sortant
 

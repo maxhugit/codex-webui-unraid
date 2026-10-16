@@ -1,7 +1,7 @@
 services:
   app-v4:
     image: ${CODEX_APP_IMAGE:-ghcr.io/maxhugit/codex-webui-unraid:latest}
-    container_name: codex-webui-limlll
+    container_name: codex-webui
     restart: unless-stopped
     labels:
       net.unraid.docker.managed: composeman
@@ -29,11 +29,11 @@ services:
       HTTP_PROXY: http://codex-egress-proxy:3128
       HTTPS_PROXY: http://codex-egress-proxy:3128
       ALL_PROXY: http://codex-egress-proxy:3128
-      NO_PROXY: 127.0.0.1,localhost,codex-webui-limlll
+      NO_PROXY: 127.0.0.1,localhost,codex-webui
       http_proxy: http://codex-egress-proxy:3128
       https_proxy: http://codex-egress-proxy:3128
       all_proxy: http://codex-egress-proxy:3128
-      no_proxy: 127.0.0.1,localhost,codex-webui-limlll
+      no_proxy: 127.0.0.1,localhost,codex-webui
       TZ: Europe/Paris
     volumes:
       - ${STATE_ROOT}/home:/home/codex
