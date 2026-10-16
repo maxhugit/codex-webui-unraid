@@ -93,7 +93,7 @@ export function SimpleChatRoute() {
   const [sending, setSending] = useState(false);
   const [loadingThread, setLoadingThread] = useState(false);
   const [error, setError] = useState<string>();
-  const endRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
 
   const activeThread = useMemo(
     () => threads.find((thread) => thread.id === activeThreadId),
@@ -178,7 +178,9 @@ export function SimpleChatRoute() {
   }, [activeThreadId]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const scroller = messagesRef.current;
+    if (!scroller) return;
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
   }, [messages, sending]);
 
   const createThread = async () => {
@@ -297,9 +299,9 @@ export function SimpleChatRoute() {
   };
 
   return (
-    <main className="flex min-h-0 flex-1">
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+    <main className="flex h-full min-h-0 flex-1 overflow-hidden">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <div>
             <h1 className="text-base font-semibold">Chat simple</h1>
             <p className="text-xs text-muted-foreground">
@@ -356,7 +358,10 @@ export function SimpleChatRoute() {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+        <div
+          ref={messagesRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5"
+        >
           <div className="mx-auto flex max-w-3xl flex-col gap-4">
             {status && !status.configured && (
               <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
@@ -425,13 +430,12 @@ export function SimpleChatRoute() {
               </div>
             )}
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <div ref={endRef} />
           </div>
         </div>
 
         <form
           onSubmit={(event) => void send(event)}
-          className="border-t bg-background p-3"
+          className="shrink-0 border-t bg-background p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         >
           <div className="mx-auto flex max-w-3xl items-end gap-2">
             <Textarea
