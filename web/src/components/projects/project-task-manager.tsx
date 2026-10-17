@@ -19,6 +19,7 @@ import {
   Clock3,
   FolderOpen,
   History,
+  Lightbulb,
   Settings,
   GripVertical,
   ListFilter,
@@ -28,6 +29,7 @@ import {
   Play,
   Plus,
   Sparkles,
+  TriangleAlert,
   Trash2,
 } from 'lucide-react';
 import {
@@ -89,6 +91,21 @@ type Suggestion = {
   executionMode: 'manual' | 'agent';
   assignmentReason: string;
   labels: string[];
+};
+type AdviceResult = {
+  summary: string;
+  health: 'good' | 'watch' | 'at_risk';
+  advice: Array<{
+    severity: 'alert' | 'recommendation' | 'opportunity' | 'info';
+    title: string;
+    description: string;
+    taskIds: string[];
+  }>;
+  work: Array<{
+    taskId: string;
+    recommendedMinutes: number;
+    reason: string;
+  }>;
 };
 type ReplanSuggestion = {
   taskId: string;
@@ -307,7 +324,9 @@ export function ProjectTaskManager({
       }),
     onSuccess: refresh,
   });
-  const [view, setView] = useState<'board' | 'planning' | 'journal'>('board');
+  const [view, setView] = useState<'advice' | 'board' | 'planning' | 'journal'>(
+    'board',
+  );
   const [search, setSearch] = useState('');
   const [priority, setPriority] = useState('all');
   const [dragged, setDragged] = useState<string | null>(null);
@@ -340,6 +359,13 @@ export function ProjectTaskManager({
   );
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
+  const [adviceResult, setAdviceResult] = useState<AdviceResult | null>(null);
+  const [workResult, setWorkResult] = useState<AdviceResult | null>(null);
+  const [availableHours, setAvailableHours] = useState('2');
+  const [adviceLoading, setAdviceLoading] = useState<
+    'analysis' | 'work' | null
+  >(null);
+  const [adviceError, setAdviceError] = useState('');
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [breakdownSuggestions, setBreakdownSuggestions] = useState<
     Suggestion[]
@@ -784,6 +810,32 @@ export function ProjectTaskManager({
       );
     } finally {
       setAiLoading(false);
+    }
+  };
+  const generateAdvice = async (mode: 'analysis' | 'work') => {
+    setAdviceLoading(mode);
+    setAdviceError('');
+    try {
+      const result = await projectsApi<AdviceResult>(
+        `/${projectId}/resources/${resourceId}/ai-advice`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            mode,
+            ...(mode === 'work'
+              ? { availableHours: Number(availableHours) }
+              : {}),
+          }),
+        },
+      );
+      if (mode === 'analysis') setAdviceResult(result);
+      else setWorkResult(result);
+    } catch (error) {
+      setAdviceError(
+        error instanceof Error ? error.message : 'L’analyse par l’IA a échoué.',
+      );
+    } finally {
+      setAdviceLoading(null);
     }
   };
   const generateReplan = async () => {
@@ -1323,6 +1375,13 @@ export function ProjectTaskManager({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
+            variant={view === 'advice' ? 'default' : 'outline'}
+            onClick={() => setView('advice')}
+          >
+            <Lightbulb />
+            Conseils
+          </Button>
+          <Button
             variant={view === 'board' ? 'default' : 'outline'}
             onClick={() => setView('board')}
           >
@@ -1373,7 +1432,185 @@ export function ProjectTaskManager({
           </Button>
         </div>
       </header>
-      {view === 'board' ? (
+      {view === 'advice' ? (
+        <div className="grid min-h-0 gap-4 overflow-auto pb-4 xl:grid-cols-2">
+          <section className="space-y-4 rounded-xl border bg-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Analyse générale du projet
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Détecte les alertes, les blocages et les pistes d’amélioration
+                  sans modifier le planning.
+                </p>
+              </div>
+              <Button
+                onClick={() => void generateAdvice('analysis')}
+                disabled={adviceLoading !== null}
+              >
+                {adviceLoading === 'analysis' ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Sparkles />
+                )}
+                Analyser le projet
+              </Button>
+            </div>
+            {adviceResult && (
+              <>
+                <div className="rounded-lg border bg-muted/35 p-4">
+                  <div className="mb-1 flex items-center gap-2 text-sm font-medium">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        adviceResult.health === 'good'
+                          ? 'bg-green-500'
+                          : adviceResult.health === 'at_risk'
+                            ? 'bg-red-500'
+                            : 'bg-amber-500'
+                      }`}
+                    />
+                    Synthèse
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {adviceResult.summary}
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {adviceResult.advice.map((item, index) => (
+                    <article
+                      key={`${item.title}:${index}`}
+                      className={`rounded-lg border-l-4 bg-muted/20 p-4 ${
+                        item.severity === 'alert'
+                          ? 'border-l-red-500'
+                          : item.severity === 'opportunity'
+                            ? 'border-l-green-500'
+                            : item.severity === 'recommendation'
+                              ? 'border-l-blue-500'
+                              : 'border-l-slate-400'
+                      }`}
+                    >
+                      <h3 className="font-medium">{item.title}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {item.description}
+                      </p>
+                      {item.taskIds.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.taskIds.map((id) => {
+                            const task = board.tasks.find(
+                              (candidate) => candidate.id === id,
+                            );
+                            return task ? (
+                              <Button
+                                key={id}
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEdit(task)}
+                              >
+                                {task.title}
+                              </Button>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="space-y-4 rounded-xl border bg-card p-5">
+            <div>
+              <h2 className="flex items-center gap-2 font-semibold">
+                <Clock3 className="h-4 w-4 text-primary" />
+                Que puis-je faire maintenant ?
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Indiquez votre temps disponible pour obtenir un programme de
+                travail réaliste et priorisé.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="min-w-44 flex-1 space-y-1 text-sm">
+                <span className="font-medium">Temps disponible (heures)</span>
+                <Input
+                  type="number"
+                  min="0.25"
+                  max="168"
+                  step="0.25"
+                  value={availableHours}
+                  onChange={(event) => setAvailableHours(event.target.value)}
+                />
+              </label>
+              <Button
+                onClick={() => void generateAdvice('work')}
+                disabled={
+                  adviceLoading !== null ||
+                  !Number.isFinite(Number(availableHours)) ||
+                  Number(availableHours) <= 0
+                }
+              >
+                {adviceLoading === 'work' ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Sparkles />
+                )}
+                Me proposer un programme
+              </Button>
+            </div>
+            {workResult && (
+              <>
+                <p className="rounded-lg border bg-muted/35 p-4 text-sm text-muted-foreground">
+                  {workResult.summary}
+                </p>
+                <ol className="space-y-3">
+                  {workResult.work.map((item, index) => {
+                    const task = board.tasks.find(
+                      (candidate) => candidate.id === item.taskId,
+                    );
+                    if (!task) return null;
+                    return (
+                      <li
+                        key={`${item.taskId}:${index}`}
+                        className="flex gap-3 rounded-lg border p-4"
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <button
+                            type="button"
+                            className="font-medium hover:text-primary hover:underline"
+                            onClick={() => openEdit(task)}
+                          >
+                            {task.title}
+                          </button>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {item.reason}
+                          </p>
+                          <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                            {item.recommendedMinutes >= 60
+                              ? `${Math.floor(item.recommendedMinutes / 60)} h ${item.recommendedMinutes % 60 ? `${item.recommendedMinutes % 60} min` : ''}`
+                              : `${item.recommendedMinutes} min`}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </>
+            )}
+          </section>
+          {adviceError && (
+            <div className="xl:col-span-2 flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              <TriangleAlert className="h-4 w-4" />
+              {adviceError}
+            </div>
+          )}
+        </div>
+      ) : view === 'board' ? (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border bg-card/50 p-2">
             <ListFilter className="ml-1 h-4 w-4 text-muted-foreground" />

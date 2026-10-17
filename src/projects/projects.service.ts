@@ -1397,6 +1397,71 @@ export class ProjectsService {
     };
   }
 
+  async taskAdvice(
+    projectId: string,
+    resourceId: string,
+    rawMode: unknown,
+    rawAvailableHours: unknown,
+  ) {
+    this.getResource(projectId, resourceId);
+    const mode = rawMode === 'work' ? 'work' : 'analysis';
+    const availableHours = Number(rawAvailableHours);
+    if (
+      mode === 'work' &&
+      (!Number.isFinite(availableHours) ||
+        availableHours <= 0 ||
+        availableHours > 168)
+    )
+      throw new BadRequestException(
+        'Available hours must be between 0 and 168',
+      );
+    const tasks = this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.resourceId, resourceId))
+      .all();
+    const statuses = this.db
+      .select()
+      .from(projectTaskStatuses)
+      .where(eq(projectTaskStatuses.resourceId, resourceId))
+      .all();
+    const dependencies = this.db.select().from(projectTaskDependencies).all();
+    const terminal = new Set(
+      this.getTaskBoardTerminalSettings(resourceId).taskStatusIds,
+    );
+    const iso = (value: number | null) =>
+      value ? new Date(value).toISOString().slice(0, 10) : '';
+    const context = tasks.map((task) => ({
+      id: task.id,
+      parentTaskId: task.parentTaskId,
+      title: task.title,
+      description: task.description,
+      status: task.parentTaskId
+        ? task.subtaskStatus
+        : (statuses.find((status) => status.id === task.statusId)?.name ?? ''),
+      terminal: task.parentTaskId
+        ? ['done', 'cancelled'].includes(task.subtaskStatus)
+        : terminal.has(task.statusId),
+      priority: task.priority,
+      estimateHours: task.estimateMinutes / 60,
+      progress: task.progress,
+      startDate: iso(task.startAt),
+      dueDate: iso(task.dueAt),
+      labels: task.labels,
+      executionMode: task.executionMode,
+      validationCriteria: task.validationCriteria,
+      dependencyIds: dependencies
+        .filter((dependency) => dependency.taskId === task.id)
+        .map((dependency) => dependency.dependsOnTaskId),
+    }));
+    return this.simpleChat.suggestTaskAdvice({
+      mode,
+      availableHours: mode === 'work' ? availableHours : null,
+      today: new Date().toISOString().slice(0, 10),
+      tasks: context,
+    });
+  }
+
   async suggestSubtasks(
     projectId: string,
     resourceId: string,

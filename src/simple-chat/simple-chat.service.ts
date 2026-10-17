@@ -323,6 +323,135 @@ export class SimpleChatService {
     }));
   }
 
+  async suggestTaskAdvice(input: {
+    mode: 'analysis' | 'work';
+    availableHours: number | null;
+    today: string;
+    tasks: unknown[];
+  }): Promise<{
+    summary: string;
+    health: 'good' | 'watch' | 'at_risk';
+    advice: Array<{
+      severity: 'alert' | 'recommendation' | 'opportunity' | 'info';
+      title: string;
+      description: string;
+      taskIds: string[];
+    }>;
+    work: Array<{
+      taskId: string;
+      recommendedMinutes: number;
+      reason: string;
+    }>;
+  }> {
+    const response = await this.openAiRequest('/v1/responses', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: this.defaultModel,
+        input: JSON.stringify(input),
+        instructions:
+          input.mode === 'analysis'
+            ? 'Tu es un conseiller de gestion de projet prudent. Analyse exclusivement les données fournies. Signale les retards, échéances proches, blocages, incohérences, surcharges et améliorations concrètes. Ne prétends jamais modifier le planning. Classe les conseils par importance et cite les identifiants exacts des tâches concernées.'
+            : `Tu es un conseiller de travail. Propose un programme réaliste qui tient dans ${input.availableHours} heures. Privilégie les urgences, échéances, dépendances débloquées et travaux déjà commencés. Ne recommande aucune tâche terminée ou bloquée par une dépendance non terminée. Les durées proposées doivent totaliser au maximum le temps disponible.`,
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'task_advice',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                summary: { type: 'string' },
+                health: {
+                  type: 'string',
+                  enum: ['good', 'watch', 'at_risk'],
+                },
+                advice: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      severity: {
+                        type: 'string',
+                        enum: [
+                          'alert',
+                          'recommendation',
+                          'opportunity',
+                          'info',
+                        ],
+                      },
+                      title: { type: 'string' },
+                      description: { type: 'string' },
+                      taskIds: { type: 'array', items: { type: 'string' } },
+                    },
+                    required: ['severity', 'title', 'description', 'taskIds'],
+                  },
+                },
+                work: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      taskId: { type: 'string' },
+                      recommendedMinutes: { type: 'number', minimum: 1 },
+                      reason: { type: 'string' },
+                    },
+                    required: ['taskId', 'recommendedMinutes', 'reason'],
+                  },
+                },
+              },
+              required: ['summary', 'health', 'advice', 'work'],
+            },
+          },
+        },
+        store: false,
+      }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as OpenAiResponse;
+    if (!response.ok)
+      throw BusinessException.internal(
+        ErrorCode.simpleChat.upstreamFailed,
+        payload.error?.message || `OpenAI API returned HTTP ${response.status}`,
+      );
+    const parsed = JSON.parse(this.extractText(payload) || '{}') as {
+      summary?: string;
+      health?: 'good' | 'watch' | 'at_risk';
+      advice?: Array<{
+        severity: 'alert' | 'recommendation' | 'opportunity' | 'info';
+        title: string;
+        description: string;
+        taskIds: string[];
+      }>;
+      work?: Array<{
+        taskId: string;
+        recommendedMinutes: number;
+        reason: string;
+      }>;
+    };
+    const ids = new Set(
+      input.tasks
+        .map((task) =>
+          task && typeof task === 'object' && 'id' in task
+            ? String(task.id)
+            : '',
+        )
+        .filter(Boolean),
+    );
+    return {
+      summary: String(parsed.summary ?? '').trim(),
+      health: ['good', 'watch', 'at_risk'].includes(parsed.health ?? '')
+        ? parsed.health!
+        : 'watch',
+      advice: (parsed.advice ?? []).map((item) => ({
+        ...item,
+        taskIds: item.taskIds.filter((id) => ids.has(id)),
+      })),
+      work: (parsed.work ?? []).filter((item) => ids.has(item.taskId)),
+    };
+  }
+
   saveApiKey(value: unknown) {
     const key = typeof value === 'string' ? value.trim() : '';
     if (!key || key.length < 20 || /\s/.test(key)) {
