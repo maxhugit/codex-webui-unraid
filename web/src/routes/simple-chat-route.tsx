@@ -19,6 +19,7 @@ import { withBasePath } from '@/base-path';
 import { cn } from '@/lib/utils';
 import { VoiceDictationButton } from '@/components/chat/voice-dictation-button';
 import { SimpleChatModelSelector } from '@/components/chat/simple-chat-model-selector';
+import { useSimpleChatActivityStore } from '@/stores/simple-chat-activity-store';
 
 interface ChatSource {
   title: string;
@@ -96,6 +97,9 @@ export function SimpleChatRoute() {
   const [loadingThread, setLoadingThread] = useState(false);
   const [error, setError] = useState<string>();
   const messagesRef = useRef<HTMLDivElement>(null);
+  const setThreadActive = useSimpleChatActivityStore(
+    (state) => state.setThreadActive,
+  );
 
   const activeThread = useMemo(
     () => threads.find((thread) => thread.id === activeThreadId),
@@ -236,6 +240,7 @@ export function SimpleChatRoute() {
     setMessages((current) => [...current, temporary]);
     setInput('');
     setSending(true);
+    setThreadActive(threadId, true);
     setError(undefined);
     try {
       const result = await api<{ message: ChatMessage; thread: ChatThread }>(
@@ -258,6 +263,7 @@ export function SimpleChatRoute() {
       );
     } finally {
       setSending(false);
+      setThreadActive(threadId, false);
     }
   };
 

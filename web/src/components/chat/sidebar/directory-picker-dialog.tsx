@@ -21,18 +21,37 @@ interface Props {
 export function DirectoryPickerDialog({ open, onClose, onSelect }: Props) {
   const { t } = useTranslation();
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  return <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
-    {open && <DialogContent className="max-w-md">
-      <DialogHeader><DialogTitle>{t('Select workspace directory')}</DialogTitle></DialogHeader>
-      <DirectorySelectionTree
-        selectedPath={selectedPath}
-        onSelectedPathChange={setSelectedPath}
-        showCreateButton
-      />
-      <DialogFooter>
-        <Button variant="outline" size="sm" onClick={onClose}>{t('Cancel')}</Button>
-        <Button size="sm" disabled={!selectedPath} onClick={() => { if (selectedPath) { onSelect(selectedPath); onClose(); } }}>{t('Confirm')}</Button>
-      </DialogFooter>
-    </DialogContent>}
-  </Dialog>;
+  return (
+    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
+      {open && (
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('Select project directory')}</DialogTitle>
+          </DialogHeader>
+          <DirectorySelectionTree
+            selectedPath={selectedPath}
+            onSelectedPathChange={setSelectedPath}
+            showCreateButton
+          />
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={onClose}>
+              {t('Cancel')}
+            </Button>
+            <Button
+              size="sm"
+              disabled={!selectedPath}
+              onClick={() => {
+                if (selectedPath) {
+                  onSelect(selectedPath);
+                  onClose();
+                }
+              }}
+            >
+              {t('Confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
 }

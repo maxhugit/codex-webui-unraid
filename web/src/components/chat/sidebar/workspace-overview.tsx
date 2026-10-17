@@ -185,8 +185,8 @@ export function WorkspaceOverview({
                     <button
                       type="button"
                       className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      aria-label={t('Workspace actions')}
-                      title={t('Workspace actions')}
+                      aria-label={t('Project actions')}
+                      title={t('Project actions')}
                     >
                       <MoreHorizontal className="h-3.5 w-3.5" />
                     </button>
@@ -223,7 +223,7 @@ export function WorkspaceOverview({
                       }}
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                      {t('Rename workspace')}
+                      {t('Rename project')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -234,7 +234,7 @@ export function WorkspaceOverview({
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                      {t('Delete workspace')}
+                      {t('Delete project')}
                     </Button>
                   </PopoverContent>
                 </Popover>

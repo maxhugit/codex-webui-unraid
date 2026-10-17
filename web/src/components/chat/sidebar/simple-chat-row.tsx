@@ -2,6 +2,7 @@ import { useDraggable } from '@dnd-kit/react';
 import { Feedback } from '@dnd-kit/dom';
 import {
   GripVertical,
+  Loader2,
   MessageCircle,
   MoreHorizontal,
   Pencil,
@@ -21,6 +22,7 @@ interface Props {
   thread: SimpleChatThreadSummary;
   isActive: boolean;
   disabled: boolean;
+  running?: boolean;
   onOpen: () => void;
   onRename: () => void;
   onDelete: () => void;
@@ -30,6 +32,7 @@ export function SimpleChatRow({
   thread,
   isActive,
   disabled,
+  running = false,
   onOpen,
   onRename,
   onDelete,
@@ -75,7 +78,11 @@ export function SimpleChatRow({
         )}
         title={thread.title}
       >
-        <MessageCircle className="h-3 w-3 shrink-0" />
+        {running ? (
+          <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+        ) : (
+          <MessageCircle className="h-3 w-3 shrink-0" />
+        )}
         <span className="truncate">{thread.title}</span>
       </button>
       <Popover>

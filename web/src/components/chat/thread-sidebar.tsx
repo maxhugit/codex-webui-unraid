@@ -67,6 +67,7 @@ import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
 import type { SimpleChatThreadSummary } from '@/lib/simple-chat-api';
 import { simpleChatThreadsQueryKey } from '@/lib/simple-chat-api';
+import { useSimpleChatActivityStore } from '@/stores/simple-chat-activity-store';
 
 type SimpleChatThread = SimpleChatThreadSummary;
 
@@ -135,6 +136,9 @@ export function ThreadSidebar() {
   const setThreadTitle = useTimelineStore((s) => s.setThreadTitle);
   const addSystemError = useTimelineStore((s) => s.addSystemError);
   const queryClient = useQueryClient();
+  const activeSimpleChatIds = useSimpleChatActivityStore(
+    (state) => state.activeThreadIds,
+  );
 
   // ── Layout store (sidebar view + collapsed groups) ──────────────────
   const sidebarView = useLayoutStore((s) => s.sidebarView);
@@ -834,6 +838,7 @@ export function ThreadSidebar() {
         activeView === 'simpleChat' && activeSimpleThreadId === thread.id
       }
       disabled={moveSimpleChat.isPending}
+      running={activeSimpleChatIds.has(thread.id)}
       onOpen={() =>
         void navigate({ to: '/simple-chat', search: { thread: thread.id } })
       }
@@ -911,14 +916,14 @@ export function ThreadSidebar() {
       {/* Thread list header */}
       <div className="flex items-center justify-between px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground">
-          {t('Workspaces')}
+          {t('Projects')}
         </span>
         <Button
           size="icon"
           variant="ghost"
           className="h-6 w-6"
-          aria-label={t('New workspace thread')}
-          title={t('New workspace thread')}
+          aria-label={t('New project conversation')}
+          title={t('New project conversation')}
           onClick={() => setDirPickerOpen(true)}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -1062,10 +1067,10 @@ export function ThreadSidebar() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Delete this workspace?')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this project?')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                'All work agents, simple conversations, files and subfolders in this workspace will be permanently deleted.',
+                'All work agents, simple conversations, files and subfolders in this project will be permanently deleted.',
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
