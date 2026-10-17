@@ -8,6 +8,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Pencil,
+  FolderPlus,
   Trash2,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -52,8 +53,9 @@ interface Props {
   onToggleCollapse: (key: string) => void;
   onOpenArchivedDetail: () => void;
   onOpenWorkspaceDetail: (cwd: string) => void;
-  onCreateAgentInWorkspace: (cwd: string) => void;
-  onCreateSimpleChatInWorkspace: (cwd: string) => void;
+  onCreateAgentInWorkspace: (group: WorkspaceGroup) => void;
+  onCreateSimpleChatInWorkspace: (group: WorkspaceGroup) => void;
+  onCreateWorkspace?: (group: WorkspaceGroup) => void;
   onRenameProject?: (group: WorkspaceGroup) => void;
   onDeleteProject?: (group: WorkspaceGroup) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
@@ -73,6 +75,7 @@ export function WorkspaceOverview({
   onOpenWorkspaceDetail,
   onCreateAgentInWorkspace,
   onCreateSimpleChatInWorkspace,
+  onCreateWorkspace,
   onRenameProject,
   onDeleteProject,
   renderThreadRow,
@@ -177,6 +180,11 @@ export function WorkspaceOverview({
                 <span className="truncate">
                   {group.name ?? workspaceLabel(group.cwd)}
                 </span>
+                {(group.workspaces?.length ?? 0) > 1 && (
+                  <span className="shrink-0 rounded bg-muted px-1 text-[9px] font-normal text-muted-foreground">
+                    {group.workspaces?.length} {t('workspaces')}
+                  </span>
+                )}
               </button>
               <div className="flex shrink-0 items-center gap-0.5">
                 <Popover
@@ -199,7 +207,7 @@ export function WorkspaceOverview({
                       className="h-8 w-full justify-start gap-2 px-2 text-xs"
                       onClick={() => {
                         setOpenMenu(null);
-                        onCreateAgentInWorkspace(group.cwd);
+                        onCreateAgentInWorkspace(group);
                       }}
                     >
                       <Bot className="h-3.5 w-3.5" />
@@ -210,11 +218,22 @@ export function WorkspaceOverview({
                       className="h-8 w-full justify-start gap-2 px-2 text-xs"
                       onClick={() => {
                         setOpenMenu(null);
-                        onCreateSimpleChatInWorkspace(group.cwd);
+                        onCreateSimpleChatInWorkspace(group);
                       }}
                     >
                       <MessageCircle className="h-3.5 w-3.5" />
                       {t('Simple conversation')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-full justify-start gap-2 px-2 text-xs"
+                      onClick={() => {
+                        setOpenMenu(null);
+                        onCreateWorkspace?.(group);
+                      }}
+                    >
+                      <FolderPlus className="h-3.5 w-3.5" />
+                      {t('New workspace')}
                     </Button>
                     <Button
                       variant="ghost"

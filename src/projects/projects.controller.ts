@@ -28,6 +28,16 @@ export class ProjectsController {
     return { project: this.projects.rename(id, body.name) };
   }
 
+  @Post(':id/workspaces')
+  async createWorkspace(
+    @Param('id') id: string,
+    @Body() body: { name: string },
+  ) {
+    return {
+      workspace: await this.projects.createWorkspace(id, body.name),
+    };
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string, @Body() body: { confirmation: string }) {
     return this.projects.remove(id, body.confirmation);

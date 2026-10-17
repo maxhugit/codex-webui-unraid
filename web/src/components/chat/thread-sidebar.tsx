@@ -175,6 +175,13 @@ export function ThreadSidebar() {
   const [deleteProject, setDeleteProject] = useState<ProjectSummary | null>(
     null,
   );
+  const [workspaceProject, setWorkspaceProject] =
+    useState<WorkspaceGroup | null>(null);
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [pendingConversation, setPendingConversation] = useState<{
+    kind: 'agent' | 'simple';
+    group: WorkspaceGroup;
+  } | null>(null);
 
   // ── Queries ─────────────────────────────────────────────────────────
   // The sidebar reads one server-side projection. It used to join a paginated
@@ -279,11 +286,17 @@ export function ThreadSidebar() {
         projectId: project.id,
         name: project.name,
         cwd: project.workspacePath,
+        workspaces: project.workspaces,
         threads: [] as ThreadDto[],
         simpleChats: [] as SimpleChatThread[],
       }),
     );
-    const groupsByCwd = new Map(groups.map((group) => [group.cwd, group]));
+    const groupsByCwd = new Map<string, WorkspaceGroup>();
+    for (const group of groups) {
+      groupsByCwd.set(group.cwd, group);
+      for (const workspace of group.workspaces ?? [])
+        groupsByCwd.set(workspace.path, group);
+    }
     for (const thread of activeThreads) {
       let group = groupsByCwd.get(thread.cwd);
       if (!group) {
@@ -304,10 +317,20 @@ export function ThreadSidebar() {
     }
     return groups;
   }, [activeThreads, simpleChatThreadsQuery.data, projectsQuery.data]);
-  const detailThreads = useMemo(
-    () => rowsByView.detail.map((row) => row.thread),
-    [rowsByView.detail],
+  const detailProject =
+    sidebarView.type === 'workspaceDetail'
+      ? projectsQuery.data?.projects.find(
+          (project) => project.workspacePath === sidebarView.cwd,
+        )
+      : undefined;
+  const detailWorkspacePaths = new Set(
+    detailProject?.workspaces.map((workspace) => workspace.path) ??
+      (sidebarView.type === 'workspaceDetail' ? [sidebarView.cwd] : []),
   );
+  const detailThreads =
+    sidebarView.type === 'workspaceDetail' && detailProject
+      ? activeThreads.filter((thread) => detailWorkspacePaths.has(thread.cwd))
+      : rowsByView.detail.map((row) => row.thread);
 
   const highlightedThreadId = threadId
     ? (displayThreadIdByMember.get(threadId) ?? threadId)
@@ -625,6 +648,19 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
+  const createWorkspace = useMutation({
+    mutationFn: ({ projectId, name }: { projectId: string; name: string }) =>
+      projectsApi(`/${projectId}/workspaces`, {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      }),
+    onSuccess: () => {
+      setWorkspaceProject(null);
+      setWorkspaceName('');
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
   const renameProjectMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) =>
       projectsApi<{ project: ProjectSummary }>(`/${id}`, {
@@ -825,6 +861,24 @@ export function ThreadSidebar() {
     />
   );
 
+  const createConversationIn = (kind: 'agent' | 'simple', cwd: string) => {
+    setPendingConversation(null);
+    if (kind === 'agent') createThread.mutate({ body: { cwd } });
+    else createSimpleChatThread.mutate(cwd);
+  };
+
+  const requestConversation = (
+    kind: 'agent' | 'simple',
+    group: WorkspaceGroup,
+  ) => {
+    const workspaces = group.workspaces ?? [];
+    if (workspaces.length <= 1) {
+      createConversationIn(kind, workspaces[0]?.path ?? group.cwd);
+      return;
+    }
+    setPendingConversation({ kind, group });
+  };
+
   // ── Render ──────────────────────────────────────────────────────────
   return (
     <div className="flex h-full flex-col bg-card/80">
@@ -919,12 +973,13 @@ export function ThreadSidebar() {
               onToggleCollapse={toggleCollapsedGroup}
               onOpenArchivedDetail={openArchivedDetail}
               onOpenWorkspaceDetail={openWorkspaceDetail}
-              onCreateAgentInWorkspace={(cwd) =>
-                createThread.mutate({ body: { cwd } })
+              onCreateAgentInWorkspace={(group) =>
+                requestConversation('agent', group)
               }
-              onCreateSimpleChatInWorkspace={(cwd) =>
-                createSimpleChatThread.mutate(cwd)
+              onCreateSimpleChatInWorkspace={(group) =>
+                requestConversation('simple', group)
               }
+              onCreateWorkspace={setWorkspaceProject}
               onRenameProject={(group) => {
                 if (!group.projectId) return;
                 setRenameProject({
@@ -933,6 +988,7 @@ export function ThreadSidebar() {
                   workspacePath: group.cwd,
                   createdAt: 0,
                   updatedAt: 0,
+                  workspaces: group.workspaces ?? [],
                 });
                 setRenameWorkspaceValue(group.name ?? '');
               }}
@@ -944,6 +1000,7 @@ export function ThreadSidebar() {
                   workspacePath: group.cwd,
                   createdAt: 0,
                   updatedAt: 0,
+                  workspaces: group.workspaces ?? [],
                 });
               }}
               renderThreadRow={renderThreadRow}
@@ -957,17 +1014,15 @@ export function ThreadSidebar() {
               simpleChats={
                 sidebarView.type === 'workspaceDetail'
                   ? cursorStack.length === 0
-                    ? (simpleChatThreadsQuery.data?.threads.filter(
-                        (thread) => thread.cwd === sidebarView.cwd,
+                    ? (simpleChatThreadsQuery.data?.threads.filter((thread) =>
+                        detailWorkspacePaths.has(thread.cwd),
                       ) ?? [])
                     : []
                   : []
               }
               projectName={
                 sidebarView.type === 'workspaceDetail'
-                  ? projectsQuery.data?.projects.find(
-                      (project) => project.workspacePath === sidebarView.cwd,
-                    )?.name
+                  ? detailProject?.name
                   : undefined
               }
               isLoading={detailQuery.isLoading}
@@ -1003,6 +1058,59 @@ export function ThreadSidebar() {
         )}
         saveLabel={t('Create')}
       />
+      <RenameDialog
+        open={workspaceProject !== null}
+        pending={createWorkspace.isPending}
+        value={workspaceName}
+        onChange={setWorkspaceName}
+        onSave={() => {
+          if (workspaceProject?.projectId && workspaceName.trim())
+            createWorkspace.mutate({
+              projectId: workspaceProject.projectId,
+              name: workspaceName.trim(),
+            });
+        }}
+        onClose={() => setWorkspaceProject(null)}
+        title={t('Create a workspace')}
+        description={t(
+          'This workspace will provide a separate file and execution context inside the project.',
+        )}
+        saveLabel={t('Create')}
+      />
+      <AlertDialog
+        open={pendingConversation !== null}
+        onOpenChange={(open) => !open && setPendingConversation(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('Choose a workspace')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'Choose the file and execution context for this conversation.',
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-2">
+            {(pendingConversation?.group.workspaces ?? []).map((workspace) => (
+              <Button
+                key={workspace.id}
+                variant={workspace.primary ? 'secondary' : 'outline'}
+                className="justify-start"
+                onClick={() =>
+                  pendingConversation &&
+                  createConversationIn(pendingConversation.kind, workspace.path)
+                }
+              >
+                <FolderOpen className="h-4 w-4" />
+                {workspace.primary ? t('Primary workspace') : workspace.name}
+              </Button>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <RenameDialog
         open={renameProject !== null}
         pending={renameProjectMutation.isPending}

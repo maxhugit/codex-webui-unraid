@@ -1,6 +1,7 @@
 /** Shared types and pure helpers for the thread sidebar. */
 import type { ThreadDto } from '@/generated/api';
 import type { SimpleChatThreadSummary } from '@/lib/simple-chat-api';
+import type { ProjectWorkspaceSummary } from '@/lib/projects-api';
 
 // SidebarView type is defined in layout-store.ts as SidebarViewState.
 // Re-export for backward compatibility with child components.
@@ -26,6 +27,7 @@ export type ConfirmAction =
 export interface WorkspaceGroup {
   projectId?: string;
   name?: string;
+  workspaces?: ProjectWorkspaceSummary[];
   cwd: string;
   threads: ThreadDto[];
   simpleChats: SimpleChatThreadSummary[];

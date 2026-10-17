@@ -9,7 +9,12 @@ import * as path from 'node:path';
 import { eq } from 'drizzle-orm';
 import { Inject } from '@nestjs/common';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
-import { projects, type Project } from '../database/schema';
+import {
+  projects,
+  projectWorkspaces,
+  type Project,
+  type ProjectWorkspace,
+} from '../database/schema';
 import { FilesService } from '../files/files.service';
 import { WorkspacesManagementService } from '../threads/workspaces-management.service';
 
@@ -21,15 +26,23 @@ export class ProjectsService {
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
   ) {}
 
-  async list(): Promise<Project[]> {
+  async list(): Promise<Array<Project & { workspaces: ProjectWorkspace[] }>> {
     await this.importExistingWorkspaceDirectories();
+    this.ensurePrimaryWorkspaces();
+    const workspaces = this.db.select().from(projectWorkspaces).all();
     return this.db
       .select()
       .from(projects)
       .all()
       .sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
-      );
+      )
+      .map((project) => ({
+        ...project,
+        workspaces: workspaces
+          .filter((workspace) => workspace.projectId === project.id)
+          .sort((a, b) => Number(b.primary) - Number(a.primary)),
+      }));
   }
 
   async create(nameValue: string): Promise<Project> {
@@ -53,10 +66,50 @@ export class ProjectsService {
       updatedAt: now,
     };
     try {
-      this.db.insert(projects).values(project).run();
+      this.db.transaction((tx) => {
+        tx.insert(projects).values(project).run();
+        tx.insert(projectWorkspaces)
+          .values({
+            id: randomUUID(),
+            projectId: project.id,
+            name: 'Principal',
+            path: workspacePath,
+            primary: true,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      });
       return project;
     } catch (error) {
       await this.files.deleteManagedWorkspace(workspacePath).catch(() => {});
+      throw error;
+    }
+  }
+
+  async createWorkspace(
+    projectId: string,
+    nameValue: string,
+  ): Promise<ProjectWorkspace> {
+    const project = this.get(projectId);
+    const name = this.validateName(nameValue);
+    const workspacePath = path.join(project.workspacePath, 'workspaces', name);
+    await this.files.createDirectory(workspacePath, true, false);
+    const now = Date.now();
+    const workspace: ProjectWorkspace = {
+      id: randomUUID(),
+      projectId,
+      name,
+      path: workspacePath,
+      primary: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    try {
+      this.db.insert(projectWorkspaces).values(workspace).run();
+      return workspace;
+    } catch (error) {
+      await this.files.deletePath(workspacePath, true).catch(() => {});
       throw error;
     }
   }
@@ -121,6 +174,33 @@ export class ProjectsService {
           id: randomUUID(),
           name: path.basename(entry.path),
           workspacePath: entry.path,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoNothing()
+        .run();
+    }
+  }
+
+  private ensurePrimaryWorkspaces(): void {
+    const knownPaths = new Set(
+      this.db
+        .select({ path: projectWorkspaces.path })
+        .from(projectWorkspaces)
+        .all()
+        .map((workspace) => workspace.path),
+    );
+    const now = Date.now();
+    for (const project of this.db.select().from(projects).all()) {
+      if (knownPaths.has(project.workspacePath)) continue;
+      this.db
+        .insert(projectWorkspaces)
+        .values({
+          id: randomUUID(),
+          projectId: project.id,
+          name: 'Principal',
+          path: project.workspacePath,
+          primary: true,
           createdAt: now,
           updatedAt: now,
         })

@@ -7,6 +7,17 @@ export interface ProjectSummary {
   workspacePath: string;
   createdAt: number;
   updatedAt: number;
+  workspaces: ProjectWorkspaceSummary[];
+}
+
+export interface ProjectWorkspaceSummary {
+  id: string;
+  projectId: string;
+  name: string;
+  path: string;
+  primary: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export const projectsQueryKey = ['projects'] as const;

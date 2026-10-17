@@ -324,6 +324,31 @@ export const projects = sqliteTable(
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
 
+/** Filesystem execution contexts attached to a user-facing project. */
+export const projectWorkspaces = sqliteTable(
+  'project_workspaces',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    path: text('path').notNull(),
+    primary: integer('is_primary', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('idx_project_workspaces_path').on(table.path),
+    index('idx_project_workspaces_project').on(table.projectId),
+  ],
+);
+
+export type ProjectWorkspace = typeof projectWorkspaces.$inferSelect;
+export type InsertProjectWorkspace = typeof projectWorkspaces.$inferInsert;
+
 /** Lightweight OpenAI API conversations, separate from Codex work threads. */
 export const simpleChatThreads = sqliteTable(
   'simple_chat_threads',
