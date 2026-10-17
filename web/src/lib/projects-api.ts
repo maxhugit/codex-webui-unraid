@@ -33,6 +33,7 @@ export interface ProjectTaskStatusSummary {
   resourceId: string;
   name: string;
   color: string;
+  kind: string;
   position: number;
   system: boolean;
   createdAt: number;
@@ -46,7 +47,21 @@ export interface ProjectTaskSummary {
   title: string;
   description: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
+  parentTaskId: string | null;
+  workspacePath: string | null;
+  executionMode: 'manual' | 'agent';
+  agentState:
+    | 'manual'
+    | 'ready'
+    | 'running'
+    | 'waiting'
+    | 'error'
+    | 'review'
+    | 'validated';
+  estimateMinutes: number;
+  startAt: number | null;
   dueAt: number | null;
+  validationCriteria: string;
   labels: string[];
   linkedThreadId: string | null;
   linkedSimpleChatId: string | null;
@@ -58,8 +73,15 @@ export interface ProjectTaskSummary {
 
 export interface ProjectTaskBoard {
   resource: ProjectResourceSummary;
+  project: Pick<ProjectSummary, 'id' | 'name' | 'workspacePath'>;
+  workspaces: ProjectWorkspaceSummary[];
   statuses: ProjectTaskStatusSummary[];
   tasks: ProjectTaskSummary[];
+  dependencies: Array<{
+    taskId: string;
+    dependsOnTaskId: string;
+    createdAt: number;
+  }>;
 }
 
 export interface ProjectWorkspaceSummary {

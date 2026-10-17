@@ -100,16 +100,24 @@ export class SimpleChatService {
     };
   }
 
-  async suggestProjectTasks(
-    prompt: string,
-  ): Promise<Array<{ title: string; description: string; priority: string }>> {
+  async suggestProjectTasks(prompt: string): Promise<
+    Array<{
+      title: string;
+      description: string;
+      priority: string;
+      estimateHours: number;
+      validationCriteria: string;
+      parentTitle: string;
+      dependsOnTitles: string[];
+    }>
+  > {
     const response = await this.openAiRequest('/v1/responses', {
       method: 'POST',
       body: JSON.stringify({
         model: this.defaultModel,
         input: prompt,
         instructions:
-          'Tu es un chef de projet. Réponds uniquement avec un objet JSON contenant une clé tasks. tasks est une liste de 1 à 12 objets avec title, description et priority (low, normal, high ou urgent). Les tâches doivent être concrètes, concises et rédigées dans la langue de la demande.',
+          'Tu es un chef de projet. Construis un plan concret en français. Utilise parentTitle pour créer des sous-tâches et dependsOnTitles pour les dépendances fin-vers-début. Les titres référencés doivent correspondre exactement à un autre titre de la liste.',
         text: {
           format: {
             type: 'json_schema',
@@ -133,8 +141,23 @@ export class SimpleChatService {
                         type: 'string',
                         enum: ['low', 'normal', 'high', 'urgent'],
                       },
+                      estimateHours: { type: 'number', minimum: 0 },
+                      validationCriteria: { type: 'string' },
+                      parentTitle: { type: 'string' },
+                      dependsOnTitles: {
+                        type: 'array',
+                        items: { type: 'string' },
+                      },
                     },
-                    required: ['title', 'description', 'priority'],
+                    required: [
+                      'title',
+                      'description',
+                      'priority',
+                      'estimateHours',
+                      'validationCriteria',
+                      'parentTitle',
+                      'dependsOnTitles',
+                    ],
                   },
                 },
               },
@@ -156,6 +179,10 @@ export class SimpleChatService {
         title?: string;
         description?: string;
         priority?: string;
+        estimateHours?: number;
+        validationCriteria?: string;
+        parentTitle?: string;
+        dependsOnTitles?: string[];
       }>;
     };
     return (parsed.tasks ?? []).map((task) => ({
@@ -166,6 +193,12 @@ export class SimpleChatService {
       )
         ? task.priority!
         : 'normal',
+      estimateHours: Math.max(0, Number(task.estimateHours) || 0),
+      validationCriteria: task.validationCriteria?.trim() || '',
+      parentTitle: task.parentTitle?.trim() || '',
+      dependsOnTitles: (task.dependsOnTitles ?? [])
+        .map((title) => title.trim())
+        .filter(Boolean),
     }));
   }
 

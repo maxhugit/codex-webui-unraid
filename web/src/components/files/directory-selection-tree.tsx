@@ -48,6 +48,7 @@ export interface DirectorySelectionTreeProps {
   className?: string;
   showSelectedPath?: boolean;
   showCreateButton?: boolean;
+  allowedRoots?: string[];
 }
 
 /** Owns expansion and lazy queries while the caller owns semantic selection. */
@@ -57,6 +58,7 @@ export function DirectorySelectionTree({
   className,
   showSelectedPath = false,
   showCreateButton = false,
+  allowedRoots,
 }: DirectorySelectionTreeProps) {
   const { t } = useTranslation();
   const inline = useInlineFileEdit(onSelectedPathChange);
@@ -73,9 +75,11 @@ export function DirectorySelectionTree({
   );
   const roots = useMemo(() => {
     if (!rootsQuery.data) return [];
-    const candidates = Array.from(
-      new Set([rootsQuery.data.homeDir, ...rootsQuery.data.roots]),
-    ).filter(Boolean) as string[];
+    const candidates = allowedRoots?.length
+      ? Array.from(new Set(allowedRoots))
+      : (Array.from(
+          new Set([rootsQuery.data.homeDir, ...rootsQuery.data.roots]),
+        ).filter(Boolean) as string[]);
     // A thread cwd is dynamically registered as a root. When its parent is
     // already visible (for example /workspaces/Unraid below /workspaces),
     // rendering it again at depth zero creates a misleading duplicate.
@@ -85,7 +89,7 @@ export function DirectorySelectionTree({
           (parent) => parent !== candidate && pathIsWithin(candidate, parent),
         ),
     );
-  }, [rootsQuery.data]);
+  }, [allowedRoots, rootsQuery.data]);
 
   const toggle = (path: string) => {
     const collapsing = expanded.has(path);

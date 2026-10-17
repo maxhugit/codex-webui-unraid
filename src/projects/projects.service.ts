@@ -13,6 +13,7 @@ import {
   projects,
   projectResources,
   projectTasks,
+  projectTaskDependencies,
   projectTaskStatuses,
   projectAgentThreads,
   projectWorkspaces,
@@ -554,11 +555,17 @@ export class ProjectsService {
       updatedAt: now,
     };
     const defaultStatuses = [
-      { name: 'Actions non assignées', color: 'slate', system: true },
-      { name: 'À faire', color: 'blue', system: false },
-      { name: 'En cours', color: 'amber', system: false },
-      { name: 'Bloqué', color: 'red', system: false },
-      { name: 'Terminé', color: 'green', system: false },
+      {
+        name: 'Actions non assignées',
+        color: 'slate',
+        kind: 'unassigned',
+        system: true,
+      },
+      { name: 'À faire', color: 'blue', kind: 'todo', system: false },
+      { name: 'En cours', color: 'amber', kind: 'in_progress', system: false },
+      { name: 'Bloqué', color: 'red', kind: 'blocked', system: false },
+      { name: 'À valider', color: 'purple', kind: 'review', system: true },
+      { name: 'Terminé', color: 'green', kind: 'done', system: false },
     ];
     this.db.transaction((tx) => {
       tx.insert(projectResources).values(resource).run();
@@ -578,22 +585,42 @@ export class ProjectsService {
     return resource;
   }
 
-  readTaskBoard(projectId: string, resourceId: string) {
+  async readTaskBoard(projectId: string, resourceId: string) {
     const resource = this.getResource(projectId, resourceId);
+    const project = this.get(projectId);
+    const workspaces = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(eq(projectWorkspaces.projectId, projectId))
+      .all();
+    await this.syncAgentStates(resourceId);
+    const tasks = this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.resourceId, resourceId))
+      .all()
+      .sort((a, b) => a.position - b.position);
+    const taskIds = new Set(tasks.map((task) => task.id));
     return {
       resource,
+      project,
+      workspaces,
       statuses: this.db
         .select()
         .from(projectTaskStatuses)
         .where(eq(projectTaskStatuses.resourceId, resourceId))
         .all()
         .sort((a, b) => a.position - b.position),
-      tasks: this.db
+      tasks,
+      dependencies: this.db
         .select()
-        .from(projectTasks)
-        .where(eq(projectTasks.resourceId, resourceId))
+        .from(projectTaskDependencies)
         .all()
-        .sort((a, b) => a.position - b.position),
+        .filter(
+          (dependency) =>
+            taskIds.has(dependency.taskId) &&
+            taskIds.has(dependency.dependsOnTaskId),
+        ),
     };
   }
 
@@ -615,6 +642,7 @@ export class ProjectsService {
       resourceId,
       name,
       color: this.validateColor(input.color),
+      kind: 'custom',
       position: Math.max(-1, ...statuses.map((item) => item.position)) + 1,
       system: false,
       createdAt: now,
@@ -660,13 +688,13 @@ export class ProjectsService {
     this.getResource(projectId, resourceId);
     const status = this.requireTaskStatus(resourceId, statusId);
     if (status.system)
-      throw new ConflictException('The unassigned status cannot be deleted');
+      throw new ConflictException('System task statuses cannot be deleted');
     const fallback = this.db
       .select()
       .from(projectTaskStatuses)
       .where(eq(projectTaskStatuses.resourceId, resourceId))
       .all()
-      .find((item) => item.system);
+      .find((item) => item.kind === 'unassigned');
     if (!fallback) throw new ConflictException('Unassigned status is missing');
     const now = Date.now();
     this.db.transaction((tx) => {
@@ -691,6 +719,13 @@ export class ProjectsService {
       dueAt?: number | null;
       labels?: string[];
       linkedFilePath?: string | null;
+      parentTaskId?: string | null;
+      workspacePath?: string | null;
+      executionMode?: string;
+      estimateMinutes?: number;
+      startAt?: number | null;
+      validationCriteria?: string;
+      dependencyIds?: string[];
     },
   ): ProjectTask {
     this.getResource(projectId, resourceId);
@@ -699,7 +734,7 @@ export class ProjectsService {
       .from(projectTaskStatuses)
       .where(eq(projectTaskStatuses.resourceId, resourceId))
       .all()
-      .find((item) => item.system);
+      .find((item) => item.kind === 'unassigned');
     if (!fallback) throw new ConflictException('Unassigned status is missing');
     const tasks = this.db
       .select()
@@ -709,6 +744,7 @@ export class ProjectsService {
     const priorities = new Set(['low', 'normal', 'high', 'urgent']);
     if (input.priority && !priorities.has(input.priority))
       throw new BadRequestException('Invalid priority');
+    if (input.parentTaskId) this.requireTask(resourceId, input.parentTaskId);
     const now = Date.now();
     const task: ProjectTask = {
       id: randomUUID(),
@@ -717,7 +753,15 @@ export class ProjectsService {
       title: this.validateTaskText(input.title, 'Task title', 200),
       description: input.description?.trim().slice(0, 10_000) ?? '',
       priority: input.priority ?? 'normal',
+      parentTaskId: input.parentTaskId ?? null,
+      workspacePath: this.validateTaskWorkspace(projectId, input.workspacePath),
+      executionMode: input.executionMode === 'agent' ? 'agent' : 'manual',
+      agentState: input.executionMode === 'agent' ? 'ready' : 'manual',
+      estimateMinutes: Math.max(0, Math.trunc(input.estimateMinutes ?? 0)),
+      startAt: input.startAt ?? null,
       dueAt: input.dueAt ?? null,
+      validationCriteria:
+        input.validationCriteria?.trim().slice(0, 10_000) ?? '',
       labels: (input.labels ?? [])
         .map((label) => label.trim())
         .filter(Boolean)
@@ -729,7 +773,21 @@ export class ProjectsService {
       createdAt: now,
       updatedAt: now,
     };
-    this.db.insert(projectTasks).values(task).run();
+    this.db.transaction((tx) => {
+      tx.insert(projectTasks).values(task).run();
+      for (const dependencyId of this.validateDependencyIds(
+        resourceId,
+        task.id,
+        input.dependencyIds,
+      ))
+        tx.insert(projectTaskDependencies)
+          .values({
+            taskId: task.id,
+            dependsOnTaskId: dependencyId,
+            createdAt: now,
+          })
+          .run();
+    });
     return task;
   }
 
@@ -748,11 +806,24 @@ export class ProjectsService {
       linkedThreadId: string | null;
       linkedSimpleChatId: string | null;
       linkedFilePath: string | null;
+      parentTaskId: string | null;
+      workspacePath: string | null;
+      executionMode: string;
+      agentState: string;
+      estimateMinutes: number;
+      startAt: number | null;
+      validationCriteria: string;
+      dependencyIds: string[];
     }>,
   ): ProjectTask {
     this.getResource(projectId, resourceId);
     const task = this.requireTask(resourceId, taskId);
     if (input.statusId) this.requireTaskStatus(resourceId, input.statusId);
+    if (input.parentTaskId) {
+      if (input.parentTaskId === task.id)
+        throw new BadRequestException('A task cannot be its own parent');
+      this.requireTask(resourceId, input.parentTaskId);
+    }
     const priorities = new Set(['low', 'normal', 'high', 'urgent']);
     if (input.priority && !priorities.has(input.priority))
       throw new BadRequestException('Invalid priority');
@@ -765,7 +836,43 @@ export class ProjectsService {
         ? { description: input.description.trim().slice(0, 10_000) }
         : {}),
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(input.parentTaskId !== undefined
+        ? { parentTaskId: input.parentTaskId }
+        : {}),
+      ...(input.workspacePath !== undefined
+        ? {
+            workspacePath: this.validateTaskWorkspace(
+              projectId,
+              input.workspacePath,
+            ),
+          }
+        : {}),
+      ...(input.executionMode !== undefined
+        ? {
+            executionMode: input.executionMode === 'agent' ? 'agent' : 'manual',
+            agentState:
+              input.executionMode === 'agent'
+                ? task.linkedThreadId
+                  ? task.agentState
+                  : 'ready'
+                : 'manual',
+          }
+        : {}),
+      ...(input.agentState !== undefined
+        ? { agentState: input.agentState }
+        : {}),
+      ...(input.estimateMinutes !== undefined
+        ? { estimateMinutes: Math.max(0, Math.trunc(input.estimateMinutes)) }
+        : {}),
+      ...(input.startAt !== undefined ? { startAt: input.startAt } : {}),
       ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
+      ...(input.validationCriteria !== undefined
+        ? {
+            validationCriteria: input.validationCriteria
+              .trim()
+              .slice(0, 10_000),
+          }
+        : {}),
       ...(input.labels !== undefined
         ? {
             labels: input.labels
@@ -789,18 +896,42 @@ export class ProjectsService {
         : {}),
       updatedAt: Date.now(),
     };
-    this.db
-      .update(projectTasks)
-      .set(updated)
-      .where(eq(projectTasks.id, task.id))
-      .run();
+    this.db.transaction((tx) => {
+      tx.update(projectTasks)
+        .set(updated)
+        .where(eq(projectTasks.id, task.id))
+        .run();
+      if (input.dependencyIds !== undefined) {
+        tx.delete(projectTaskDependencies)
+          .where(eq(projectTaskDependencies.taskId, task.id))
+          .run();
+        for (const dependencyId of this.validateDependencyIds(
+          resourceId,
+          task.id,
+          input.dependencyIds,
+        ))
+          tx.insert(projectTaskDependencies)
+            .values({
+              taskId: task.id,
+              dependsOnTaskId: dependencyId,
+              createdAt: Date.now(),
+            })
+            .run();
+      }
+    });
     return updated;
   }
 
   deleteTask(projectId: string, resourceId: string, taskId: string) {
     this.getResource(projectId, resourceId);
     const task = this.requireTask(resourceId, taskId);
-    this.db.delete(projectTasks).where(eq(projectTasks.id, task.id)).run();
+    this.db.transaction((tx) => {
+      tx.update(projectTasks)
+        .set({ parentTaskId: null, updatedAt: Date.now() })
+        .where(eq(projectTasks.parentTaskId, task.id))
+        .run();
+      tx.delete(projectTasks).where(eq(projectTasks.id, task.id)).run();
+    });
     return { ok: true };
   }
 
@@ -834,6 +965,113 @@ export class ProjectsService {
     if (!task || task.resourceId !== resourceId)
       throw new NotFoundException('Task not found');
     return task;
+  }
+
+  private validateTaskWorkspace(
+    projectId: string,
+    value: string | null | undefined,
+  ) {
+    if (!value) return null;
+    const normalized = path.resolve(value);
+    const allowed = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(eq(projectWorkspaces.projectId, projectId))
+      .all();
+    if (
+      !allowed.some(
+        (workspace) =>
+          normalized === workspace.path ||
+          normalized.startsWith(`${workspace.path}${path.sep}`),
+      )
+    )
+      throw new BadRequestException(
+        'Task folder must be inside a project workspace',
+      );
+    return normalized;
+  }
+
+  private validateDependencyIds(
+    resourceId: string,
+    taskId: string,
+    values: string[] | undefined,
+  ) {
+    const ids = [...new Set(values ?? [])].filter((id) => id !== taskId);
+    for (const id of ids) {
+      this.requireTask(resourceId, id);
+      if (this.dependencyReaches(id, taskId, new Set()))
+        throw new BadRequestException(
+          'Task dependencies cannot contain a cycle',
+        );
+    }
+    return ids;
+  }
+
+  private dependencyReaches(
+    currentId: string,
+    targetId: string,
+    visited: Set<string>,
+  ): boolean {
+    if (currentId === targetId) return true;
+    if (visited.has(currentId)) return false;
+    visited.add(currentId);
+    return this.db
+      .select()
+      .from(projectTaskDependencies)
+      .where(eq(projectTaskDependencies.taskId, currentId))
+      .all()
+      .some((dependency) =>
+        this.dependencyReaches(dependency.dependsOnTaskId, targetId, visited),
+      );
+  }
+
+  private async syncAgentStates(resourceId: string) {
+    const snapshot = await this.metadata.read().catch(() => null);
+    if (!snapshot) return;
+    const states = new Map(
+      snapshot.entries.map((entry) => [entry.thread.id, entry.thread.status]),
+    );
+    const review = this.db
+      .select()
+      .from(projectTaskStatuses)
+      .where(eq(projectTaskStatuses.resourceId, resourceId))
+      .all()
+      .find((status) => status.kind === 'review');
+    for (const task of this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.resourceId, resourceId))
+      .all()) {
+      if (
+        !task.linkedThreadId ||
+        !['running', 'waiting'].includes(task.agentState)
+      )
+        continue;
+      const state = states.get(task.linkedThreadId);
+      if (!state) continue;
+      if (state.type === 'active') {
+        const waiting = state.activeFlags.some((flag) =>
+          ['waitingOnApproval', 'waitingOnUserInput'].includes(flag),
+        );
+        const next = waiting ? 'waiting' : 'running';
+        if (task.agentState !== next)
+          this.db
+            .update(projectTasks)
+            .set({ agentState: next, updatedAt: Date.now() })
+            .where(eq(projectTasks.id, task.id))
+            .run();
+        continue;
+      }
+      this.db
+        .update(projectTasks)
+        .set({
+          agentState: 'review',
+          ...(review ? { statusId: review.id } : {}),
+          updatedAt: Date.now(),
+        })
+        .where(eq(projectTasks.id, task.id))
+        .run();
+    }
   }
 
   private validateTaskText(value: unknown, label: string, max: number) {

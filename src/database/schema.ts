@@ -356,6 +356,7 @@ export const projectTaskStatuses = sqliteTable(
       .references(() => projectResources.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     color: text('color').notNull().default('slate'),
+    kind: text('kind').notNull().default('custom'),
     position: integer('position').notNull(),
     system: integer('is_system', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at').notNull(),
@@ -379,7 +380,14 @@ export const projectTasks = sqliteTable(
     title: text('title').notNull(),
     description: text('description').notNull().default(''),
     priority: text('priority').notNull().default('normal'),
+    parentTaskId: text('parent_task_id'),
+    workspacePath: text('workspace_path'),
+    executionMode: text('execution_mode').notNull().default('manual'),
+    agentState: text('agent_state').notNull().default('manual'),
+    estimateMinutes: integer('estimate_minutes').notNull().default(0),
+    startAt: integer('start_at'),
     dueAt: integer('due_at'),
+    validationCriteria: text('validation_criteria').notNull().default(''),
     labels: text('labels', { mode: 'json' })
       .$type<string[]>()
       .notNull()
@@ -401,6 +409,25 @@ export const projectTasks = sqliteTable(
 );
 
 export type ProjectTask = typeof projectTasks.$inferSelect;
+
+export const projectTaskDependencies = sqliteTable(
+  'project_task_dependencies',
+  {
+    taskId: text('task_id')
+      .notNull()
+      .references(() => projectTasks.id, { onDelete: 'cascade' }),
+    dependsOnTaskId: text('depends_on_task_id')
+      .notNull()
+      .references(() => projectTasks.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.taskId, table.dependsOnTaskId] }),
+    index('idx_project_task_dependencies_task').on(table.taskId),
+  ],
+);
+
+export type ProjectTaskDependency = typeof projectTaskDependencies.$inferSelect;
 
 /** Filesystem execution contexts attached to a user-facing project. */
 export const projectWorkspaces = sqliteTable(
