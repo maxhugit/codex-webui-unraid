@@ -78,13 +78,10 @@ import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
 import { useForkWithGoal } from '@/hooks/use-fork-with-goal';
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
+import type { SimpleChatThreadSummary } from '@/lib/simple-chat-api';
+import { simpleChatThreadsQueryKey } from '@/lib/simple-chat-api';
 
-interface SimpleChatThread {
-  id: string;
-  title: string;
-  model: string;
-  updatedAt: number;
-}
+type SimpleChatThread = SimpleChatThreadSummary;
 
 function simpleChatHeaders(hasBody = false) {
   const authorization = getAuthorizationHeader();
@@ -233,7 +230,7 @@ export function ThreadSidebar() {
     enabled: sidebarView.type !== 'overview',
   });
   const simpleChatThreadsQuery = useQuery({
-    queryKey: ['simple-chat-threads'],
+    queryKey: simpleChatThreadsQueryKey,
     queryFn: () => simpleChatApi<{ threads: SimpleChatThread[] }>('/threads'),
   });
   const workspaceDirectoriesQuery = useQuery({
@@ -277,14 +274,28 @@ export function ThreadSidebar() {
   );
   const workspaceGroups = useMemo(() => {
     const groups = groupByWorkspace(activeThreads);
-    const known = new Set(groups.map((group) => group.cwd));
+    const groupsByCwd = new Map(groups.map((group) => [group.cwd, group]));
+    for (const simpleChat of simpleChatThreadsQuery.data?.threads ?? []) {
+      let group = groupsByCwd.get(simpleChat.cwd);
+      if (!group) {
+        group = { cwd: simpleChat.cwd, threads: [], simpleChats: [] };
+        groups.push(group);
+        groupsByCwd.set(simpleChat.cwd, group);
+      }
+      group.simpleChats.push(simpleChat);
+    }
+    const known = new Set(groupsByCwd.keys());
     for (const entry of workspaceDirectoriesQuery.data ?? []) {
       if (entry.type !== 'directory' || known.has(entry.path)) continue;
-      groups.push({ cwd: entry.path, threads: [] });
+      groups.push({ cwd: entry.path, threads: [], simpleChats: [] });
       known.add(entry.path);
     }
     return groups;
-  }, [activeThreads, workspaceDirectoriesQuery.data]);
+  }, [
+    activeThreads,
+    simpleChatThreadsQuery.data,
+    workspaceDirectoriesQuery.data,
+  ]);
   const detailThreads = useMemo(
     () => rowsByView.detail.map((row) => row.thread),
     [rowsByView.detail],
@@ -380,7 +391,7 @@ export function ThreadSidebar() {
   const createThread = useMutation({
     ...threadsStartThreadMutation(),
     onSuccess: (res) => {
-      setActiveThread(res.thread.id, res.cwd, threadLabel(res.thread));
+      void setActiveThread(res.thread.id, res.cwd, threadLabel(res.thread));
       invalidateThreads();
       void navigate({
         to: '/t/$threadId',
@@ -468,7 +479,7 @@ export function ThreadSidebar() {
       return { treeIds };
     },
     onSuccess: (_res, vars, context) => {
-      const treeIds = context!.treeIds;
+      const treeIds = context.treeIds;
       for (const id of treeIds)
         useTimelineStore.getState().unsubscribeThread(id);
       switchAfterArchive(vars.path.threadId, treeIds);
@@ -525,13 +536,15 @@ export function ThreadSidebar() {
     },
   });
   const createSimpleChatThread = useMutation({
-    mutationFn: () =>
+    mutationFn: (cwd: string) =>
       simpleChatApi<{ thread: SimpleChatThread }>('/threads', {
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify({ cwd }),
       }),
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
+      void queryClient.invalidateQueries({
+        queryKey: simpleChatThreadsQueryKey,
+      });
       void navigate({
         to: '/simple-chat',
         search: { thread: result.thread.id },
@@ -548,7 +561,9 @@ export function ThreadSidebar() {
     onSuccess: () => {
       setRenameSimpleThread(null);
       setRenameSimpleValue('');
-      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
+      void queryClient.invalidateQueries({
+        queryKey: simpleChatThreadsQueryKey,
+      });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
@@ -557,9 +572,11 @@ export function ThreadSidebar() {
       simpleChatApi(`/threads/${id}`, { method: 'DELETE' }),
     onSuccess: (_result, deletedId) => {
       setDeleteSimpleThread(null);
-      void queryClient.invalidateQueries({ queryKey: ['simple-chat-threads'] });
+      void queryClient.invalidateQueries({
+        queryKey: simpleChatThreadsQueryKey,
+      });
       if (activeView === 'simpleChat' && activeSimpleThreadId === deletedId) {
-        void navigate({ to: '/simple-chat', search: { thread: undefined } });
+        void navigate({ to: '/' });
       }
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
@@ -718,6 +735,63 @@ export function ThreadSidebar() {
     );
   };
 
+  const renderSimpleChatRow = (thread: SimpleChatThread) => (
+    <div key={thread.id} className="group flex items-center gap-0.5 pl-3">
+      <button
+        type="button"
+        onClick={() =>
+          void navigate({
+            to: '/simple-chat',
+            search: { thread: thread.id },
+          })
+        }
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
+          activeView === 'simpleChat' && activeSimpleThreadId === thread.id
+            ? 'bg-accent text-accent-foreground'
+            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+        )}
+        title={thread.title}
+      >
+        <MessageCircle className="h-3 w-3 shrink-0" />
+        <span className="truncate">{thread.title}</span>
+      </button>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="hover-reveal h-6 w-6 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+            aria-label={`${t('Actions for')} ${thread.title}`}
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-44 p-1">
+          <Button
+            variant="ghost"
+            className="h-7 w-full justify-start gap-2 px-2 text-xs"
+            onClick={() => {
+              setRenameSimpleThread(thread);
+              setRenameSimpleValue(thread.title);
+            }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {t('Rename')}
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-7 w-full justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setDeleteSimpleThread(thread)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {t('Delete')}
+          </Button>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+
   // ── Render ──────────────────────────────────────────────────────────
   return (
     <div className="flex h-full flex-col bg-card/80">
@@ -781,100 +855,10 @@ export function ThreadSidebar() {
 
       <Separator />
 
-      {/* Simple Chat conversations */}
-      <div className="space-y-0.5 px-2 py-2">
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() => createSimpleChatThread.mutate()}
-            className={cn(
-              'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
-              activeView === 'simpleChat'
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-            )}
-          >
-            <MessageCircle className="h-4 w-4 shrink-0" />
-            Chat simple
-          </button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            title="Nouvelle discussion simple"
-            aria-label="Nouvelle discussion simple"
-            disabled={createSimpleChatThread.isPending}
-            onClick={() => createSimpleChatThread.mutate()}
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-        <div className="ml-3 space-y-0.5 border-l pl-1.5">
-          {simpleChatThreadsQuery.data?.threads.map((thread) => (
-            <div key={thread.id} className="group flex items-center gap-0.5">
-              <button
-                type="button"
-                onClick={() =>
-                  void navigate({
-                    to: '/simple-chat',
-                    search: { thread: thread.id },
-                  })
-                }
-                className={cn(
-                  'min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent/50 hover:text-foreground',
-                  activeView === 'simpleChat' &&
-                    activeSimpleThreadId === thread.id
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground',
-                )}
-                title={thread.title}
-              >
-                {thread.title}
-              </button>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="hover-reveal h-6 w-6 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-                    aria-label={`Actions pour ${thread.title}`}
-                  >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-44 p-1">
-                  <Button
-                    variant="ghost"
-                    className="h-7 w-full justify-start gap-2 px-2 text-xs"
-                    onClick={() => {
-                      setRenameSimpleThread(thread);
-                      setRenameSimpleValue(thread.title);
-                    }}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Renommer
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="h-7 w-full justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => setDeleteSimpleThread(thread)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Supprimer
-                  </Button>
-                </PopoverContent>
-              </Popover>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
       {/* Thread list header */}
       <div className="flex items-center justify-between px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground">
-          {t('Threads')}
+          {t('Workspaces')}
         </span>
         <Button
           size="icon"
@@ -902,16 +886,29 @@ export function ThreadSidebar() {
               onToggleCollapse={toggleCollapsedGroup}
               onOpenArchivedDetail={openArchivedDetail}
               onOpenWorkspaceDetail={openWorkspaceDetail}
-              onCreateInWorkspace={(cwd) =>
+              onCreateAgentInWorkspace={(cwd) =>
                 createThread.mutate({ body: { cwd } })
               }
+              onCreateSimpleChatInWorkspace={(cwd) =>
+                createSimpleChatThread.mutate(cwd)
+              }
               renderThreadRow={renderThreadRow}
+              renderSimpleChatRow={renderSimpleChatRow}
               movingThread={moveThread.isPending}
             />
           ) : (
             <WorkspaceDetail
               sidebarView={sidebarView}
               threads={detailThreads}
+              simpleChats={
+                sidebarView.type === 'workspaceDetail'
+                  ? cursorStack.length === 0
+                    ? (simpleChatThreadsQuery.data?.threads.filter(
+                        (thread) => thread.cwd === sidebarView.cwd,
+                      ) ?? [])
+                    : []
+                  : []
+              }
               isLoading={detailQuery.isLoading}
               hasPrevious={cursorStack.length > 0}
               hasNext={!!detailQuery.data?.nextCursor}
@@ -919,6 +916,7 @@ export function ThreadSidebar() {
               onPrevious={goPrevious}
               onNext={goNext}
               renderThreadRow={renderThreadRow}
+              renderSimpleChatRow={renderSimpleChatRow}
             />
           )}
         </DragDropProvider>

@@ -82,3 +82,32 @@ it('serializes competing writers and enforces non-null identity uniqueness while
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+it('keeps existing Simple Chat conversations when workspace ownership is added', () => {
+  const sqlite = new Database(':memory:');
+  try {
+    const migrations = readMigrationFiles({ migrationsFolder: 'drizzle' });
+    for (const migration of migrations.slice(0, -1))
+      for (const sql of migration.sql) sqlite.exec(sql);
+    sqlite
+      .prepare(
+        "INSERT INTO simple_chat_threads (id, title, model, created_at, updated_at) VALUES ('legacy', 'Conversation conservée', 'gpt-5-mini', 1, 2)",
+      )
+      .run();
+    for (const sql of migrations.at(-1)!.sql) sqlite.exec(sql);
+
+    expect(
+      sqlite
+        .prepare(
+          "SELECT id, title, cwd FROM simple_chat_threads WHERE id = 'legacy'",
+        )
+        .get(),
+    ).toEqual({
+      id: 'legacy',
+      title: 'Conversation conservée',
+      cwd: '/workspaces',
+    });
+  } finally {
+    sqlite.close();
+  }
+});

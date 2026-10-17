@@ -40,6 +40,7 @@ interface ChatThread {
   id: string;
   title: string;
   model: string;
+  cwd: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -150,11 +151,6 @@ export function SimpleChatRoute() {
     };
   }, [requestedThreadId, activeThreadId]);
 
-  const selectThread = (threadId?: string) => {
-    setActiveThreadId(threadId);
-    void navigate({ to: '/simple-chat', search: { thread: threadId } });
-  };
-
   useEffect(() => {
     if (!activeThreadId) {
       let cancelled = false;
@@ -222,15 +218,10 @@ export function SimpleChatRoute() {
     event?.preventDefault();
     const text = input.trim();
     if (!text || sending || !status?.configured) return;
-    let threadId = activeThreadId;
+    const threadId = activeThreadId;
     if (!threadId) {
-      const created = await api<ThreadDetail>('/threads', {
-        method: 'POST',
-        body: JSON.stringify({ model: status.model }),
-      });
-      threadId = created.thread.id;
-      setThreads((current) => [created.thread, ...current]);
-      selectThread(threadId);
+      setError('Crée d’abord une conversation depuis un workspace.');
+      return;
     }
     const temporary: ChatMessage = {
       id: crypto.randomUUID(),

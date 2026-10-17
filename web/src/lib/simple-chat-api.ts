@@ -5,6 +5,7 @@ export interface SimpleChatThreadSummary {
   id: string;
   title: string;
   model: string;
+  cwd: string;
   createdAt: number;
   updatedAt: number;
 }

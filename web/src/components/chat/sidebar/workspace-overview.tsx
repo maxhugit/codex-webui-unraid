@@ -1,9 +1,23 @@
 /** Overview view: pinned archive group + workspace groups with collapse. */
-import { Archive, ChevronDown, ChevronRight, Eye, Plus } from 'lucide-react';
+import {
+  Archive,
+  Bot,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  MessageCircle,
+  Plus,
+} from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDroppable } from '@dnd-kit/react';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import type { ThreadDto } from '@/generated/api';
 import { cn } from '@/lib/utils';
 import type { WorkspaceGroup } from './sidebar-types';
@@ -35,8 +49,12 @@ interface Props {
   onToggleCollapse: (key: string) => void;
   onOpenArchivedDetail: () => void;
   onOpenWorkspaceDetail: (cwd: string) => void;
-  onCreateInWorkspace: (cwd: string) => void;
+  onCreateAgentInWorkspace: (cwd: string) => void;
+  onCreateSimpleChatInWorkspace: (cwd: string) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
+  renderSimpleChatRow: (
+    thread: WorkspaceGroup['simpleChats'][number],
+  ) => React.ReactNode;
   movingThread: boolean;
 }
 
@@ -48,8 +66,10 @@ export function WorkspaceOverview({
   onToggleCollapse,
   onOpenArchivedDetail,
   onOpenWorkspaceDetail,
-  onCreateInWorkspace,
+  onCreateAgentInWorkspace,
+  onCreateSimpleChatInWorkspace,
   renderThreadRow,
+  renderSimpleChatRow,
   movingThread,
 }: Props) {
   const { t } = useTranslation();
@@ -149,16 +169,37 @@ export function WorkspaceOverview({
                 <span className="truncate">{workspaceLabel(group.cwd)}</span>
               </button>
               <div className="flex shrink-0 items-center gap-0.5">
-                <button
-                  type="button"
-                  className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                  onClick={() => onCreateInWorkspace(group.cwd)}
-                  aria-label={t('New thread in this workspace')}
-                  title={t('New thread in this workspace')}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-                {group.threads.length >= 5 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      aria-label={t('Add to this workspace')}
+                      title={t('Add to this workspace')}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-56 p-1">
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-full justify-start gap-2 px-2 text-xs"
+                      onClick={() => onCreateAgentInWorkspace(group.cwd)}
+                    >
+                      <Bot className="h-3.5 w-3.5" />
+                      {t('Work agent')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-full justify-start gap-2 px-2 text-xs"
+                      onClick={() => onCreateSimpleChatInWorkspace(group.cwd)}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      {t('Simple conversation')}
+                    </Button>
+                  </PopoverContent>
+                </Popover>
+                {group.threads.length + group.simpleChats.length >= 5 && (
                   <button
                     type="button"
                     className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -186,6 +227,9 @@ export function WorkspaceOverview({
                     {group.threads
                       .slice(0, 5)
                       .map((thread) => renderThreadRow(thread, false))}
+                    {group.simpleChats
+                      .slice(0, Math.max(0, 5 - group.threads.length))
+                      .map((thread) => renderSimpleChatRow(thread))}
                   </div>
                 </motion.div>
               )}

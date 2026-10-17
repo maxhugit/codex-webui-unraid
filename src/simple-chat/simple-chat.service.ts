@@ -13,6 +13,7 @@ import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import { simpleChatMessages, simpleChatThreads } from '../database/schema';
+import { FilesService } from '../files/files.service';
 
 const DEFAULT_MODEL = 'gpt-5-mini';
 const MAX_MESSAGE_LENGTH = 6_000;
@@ -79,7 +80,10 @@ export class SimpleChatService {
     );
   private modelCache?: { expiresAt: number; models: string[] };
 
-  constructor(@Inject(DRIZZLE_DB) private readonly db: AppDatabase) {}
+  constructor(
+    @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
+    private readonly filesService: FilesService,
+  ) {}
 
   getStatus() {
     return {
@@ -213,12 +217,14 @@ export class SimpleChatService {
     };
   }
 
-  createThread(input: { model?: unknown }) {
+  async createThread(input: { model?: unknown; cwd?: unknown }) {
+    const cwd = await this.resolveWorkspace(input.cwd);
     const now = Date.now();
     const thread = {
       id: randomUUID(),
       title: 'Nouvelle conversation',
       model: this.parseModel(input.model) || this.defaultModel,
+      cwd,
       createdAt: now,
       updatedAt: now,
     };
@@ -237,9 +243,17 @@ export class SimpleChatService {
     return { thread, messages };
   }
 
-  updateThread(threadId: string, input: { title?: unknown; model?: unknown }) {
+  async updateThread(
+    threadId: string,
+    input: { title?: unknown; model?: unknown; cwd?: unknown },
+  ) {
     this.requireThread(threadId);
-    const updates: { title?: string; model?: string; updatedAt: number } = {
+    const updates: {
+      title?: string;
+      model?: string;
+      cwd?: string;
+      updatedAt: number;
+    } = {
       updatedAt: Date.now(),
     };
     if (typeof input.title === 'string') {
@@ -262,12 +276,26 @@ export class SimpleChatService {
       }
       updates.model = model;
     }
+    if (input.cwd !== undefined) {
+      updates.cwd = await this.resolveWorkspace(input.cwd);
+    }
     this.db
       .update(simpleChatThreads)
       .set(updates)
       .where(eq(simpleChatThreads.id, threadId))
       .run();
     return this.readThread(threadId);
+  }
+
+  /** Requires a real directory covered by the configured workspace roots. */
+  private async resolveWorkspace(value: unknown): Promise<string> {
+    if (typeof value !== 'string' || !value.trim()) {
+      throw BusinessException.badRequest(
+        ErrorCode.files.pathRequired,
+        'A workspace directory is required',
+      );
+    }
+    return this.filesService.resolveSafePath(value.trim());
   }
 
   deleteThread(threadId: string) {

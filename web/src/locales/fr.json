@@ -1,5 +1,7 @@
 {
   "Account": "Compte",
+  "Actions for": "Actions pour",
+  "Add to this workspace": "Ajouter à ce workspace",
   "Appearance": "Apparence",
   "Archive": "Archiver",
   "Archived": "Archivée",
@@ -43,9 +45,12 @@
   "Settings": "Paramètres",
   "Sign out of this session": "Se déconnecter de cette session",
   "Simple Chat": "Chat simple",
+  "Simple conversation": "Conversation simple",
   "Terminal": "Terminal",
   "Theme": "Thème",
   "Threads": "Conversations",
+  "Work agent": "Agent de travail",
+  "Workspaces": "Workspaces",
   "default": "par défaut",
   "hidden": "masqué"
 }

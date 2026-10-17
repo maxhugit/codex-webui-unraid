@@ -99,6 +99,13 @@
       "when": 1791954000000,
       "tag": "0013_simple_chat_history",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1792200952349,
+      "tag": "0014_simple_chat_workspaces",
+      "breakpoints": true
     }
   ]
 }

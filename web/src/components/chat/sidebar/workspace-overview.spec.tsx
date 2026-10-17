@@ -1,0 +1,49 @@
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { DragDropProvider } from '@dnd-kit/react';
+import { describe, expect, it, vi } from 'vitest';
+import { WorkspaceOverview } from './workspace-overview';
+
+describe('WorkspaceOverview creation menu', () => {
+  it.each([
+    ['Work agent', 'agent'],
+    ['Simple conversation', 'simple'],
+  ] as const)('creates a %s in the selected workspace', async (label, kind) => {
+    const user = userEvent.setup();
+    const createAgent = vi.fn();
+    const createSimpleChat = vi.fn();
+
+    render(
+      <DragDropProvider>
+        <WorkspaceOverview
+          archivedThreads={[]}
+          workspaceGroups={[
+            { cwd: '/workspaces/Unraid', threads: [], simpleChats: [] },
+          ]}
+          collapsedGroups={new Set()}
+          isLoading={false}
+          onToggleCollapse={vi.fn()}
+          onOpenArchivedDetail={vi.fn()}
+          onOpenWorkspaceDetail={vi.fn()}
+          onCreateAgentInWorkspace={createAgent}
+          onCreateSimpleChatInWorkspace={createSimpleChat}
+          renderThreadRow={() => null}
+          renderSimpleChatRow={() => null}
+          movingThread={false}
+        />
+      </DragDropProvider>,
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Add to this workspace' }),
+    );
+    expect(screen.getByRole('button', { name: 'Work agent' })).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Simple conversation' }),
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: label }));
+    expect(
+      kind === 'agent' ? createAgent : createSimpleChat,
+    ).toHaveBeenCalledWith('/workspaces/Unraid');
+  });
+});

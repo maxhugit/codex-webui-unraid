@@ -1,5 +1,6 @@
 /** Shared types and pure helpers for the thread sidebar. */
 import type { ThreadDto } from '@/generated/api';
+import type { SimpleChatThreadSummary } from '@/lib/simple-chat-api';
 
 // SidebarView type is defined in layout-store.ts as SidebarViewState.
 // Re-export for backward compatibility with child components.
@@ -25,6 +26,7 @@ export type ConfirmAction =
 export interface WorkspaceGroup {
   cwd: string;
   threads: ThreadDto[];
+  simpleChats: SimpleChatThreadSummary[];
 }
 
 /** Display label for a thread: name → preview → truncated id. */
@@ -55,5 +57,6 @@ export function groupByWorkspace(threads: ThreadDto[]): WorkspaceGroup[] {
   return Array.from(groups.entries()).map(([cwd, groupThreads]) => ({
     cwd,
     threads: groupThreads,
+    simpleChats: [],
   }));
 }

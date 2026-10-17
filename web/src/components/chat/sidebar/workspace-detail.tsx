@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ThreadDto } from '@/generated/api';
+import type { SimpleChatThreadSummary } from '@/lib/simple-chat-api';
 import type { SidebarView } from './sidebar-types';
 import { workspaceLabel } from './sidebar-types';
 
 interface Props {
   sidebarView: SidebarView;
   threads: ThreadDto[];
+  simpleChats: SimpleChatThreadSummary[];
   isLoading: boolean;
   hasPrevious: boolean;
   hasNext: boolean;
@@ -17,11 +19,13 @@ interface Props {
   onPrevious: () => void;
   onNext: () => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
+  renderSimpleChatRow: (thread: SimpleChatThreadSummary) => React.ReactNode;
 }
 
 export function WorkspaceDetail({
   sidebarView,
   threads,
+  simpleChats,
   isLoading,
   hasPrevious,
   hasNext,
@@ -29,6 +33,7 @@ export function WorkspaceDetail({
   onPrevious,
   onNext,
   renderThreadRow,
+  renderSimpleChatRow,
 }: Props) {
   const { t } = useTranslation();
   const archived = sidebarView.type === 'archivedDetail';
@@ -44,7 +49,9 @@ export function WorkspaceDetail({
         {t('Back')}
       </button>
       <div className="px-2 text-sm font-medium text-foreground/80">
-        {sidebarView.type === 'workspaceDetail' ? workspaceLabel(sidebarView.cwd) : t('Archived')}
+        {sidebarView.type === 'workspaceDetail'
+          ? workspaceLabel(sidebarView.cwd)
+          : t('Archived')}
       </div>
       <div className="space-y-0.5">
         {isLoading ? (
@@ -59,17 +66,30 @@ export function WorkspaceDetail({
         ) : (
           <>
             {threads.map((thread) => renderThreadRow(thread, archived))}
-            {threads.length === 0 && (
-              <p className="px-2 py-8 text-center text-xs text-muted-foreground">{t('No threads yet')}</p>
+            {!archived && simpleChats.map(renderSimpleChatRow)}
+            {threads.length === 0 && (archived || simpleChats.length === 0) && (
+              <p className="px-2 py-8 text-center text-xs text-muted-foreground">
+                {t('No threads yet')}
+              </p>
             )}
           </>
         )}
       </div>
       <div className="flex items-center justify-between px-2 pt-2">
-        <Button size="sm" variant="ghost" disabled={!hasPrevious || isLoading} onClick={onPrevious}>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!hasPrevious || isLoading}
+          onClick={onPrevious}
+        >
           {t('Previous')}
         </Button>
-        <Button size="sm" variant="ghost" disabled={!hasNext || isLoading} onClick={onNext}>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!hasNext || isLoading}
+          onClick={onNext}
+        >
           {t('Next')}
         </Button>
       </div>

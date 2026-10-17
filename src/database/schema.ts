@@ -309,10 +309,14 @@ export const simpleChatThreads = sqliteTable(
     id: text('id').primaryKey(),
     title: text('title').notNull(),
     model: text('model').notNull(),
+    cwd: text('cwd').notNull().default('/workspaces'),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
-  (table) => [index('idx_simple_chat_threads_updated').on(table.updatedAt)],
+  (table) => [
+    index('idx_simple_chat_threads_updated').on(table.updatedAt),
+    index('idx_simple_chat_threads_cwd_updated').on(table.cwd, table.updatedAt),
+  ],
 );
 
 export const simpleChatMessages = sqliteTable(
