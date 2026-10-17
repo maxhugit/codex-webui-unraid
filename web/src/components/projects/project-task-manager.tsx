@@ -1490,7 +1490,10 @@ function TaskCard({
       >
         <div className="flex gap-2">
           <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 text-sm font-medium">
+          <span
+            className="min-w-0 flex-1 truncate whitespace-nowrap text-sm font-medium"
+            title={task.title}
+          >
             {task.title}
           </span>
         </div>
@@ -1545,7 +1548,12 @@ function TaskCard({
                 ) : (
                   <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 )}
-                <span className="min-w-0 flex-1 truncate">{subtask.title}</span>
+                <span
+                  className="min-w-0 flex-1 truncate whitespace-nowrap"
+                  title={subtask.title}
+                >
+                  {subtask.title}
+                </span>
                 <span className="shrink-0 text-[9px] text-muted-foreground">
                   {subtaskLabels[subtask.subtaskStatus]}
                 </span>
