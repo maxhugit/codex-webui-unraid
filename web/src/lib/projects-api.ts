@@ -14,6 +14,10 @@ export interface ProjectSummary {
     workspacePath: string;
     title: string;
     archived: boolean;
+    taskId: string | null;
+    taskResourceId: string | null;
+    taskTitle: string | null;
+    isSubtask: boolean;
   }>;
 }
 
@@ -48,6 +52,7 @@ export interface ProjectTaskSummary {
   description: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   parentTaskId: string | null;
+  subtaskStatus: 'todo' | 'started' | 'review' | 'done' | 'cancelled';
   workspacePath: string | null;
   executionMode: 'manual' | 'agent';
   agentState:

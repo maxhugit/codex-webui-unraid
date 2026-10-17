@@ -3,6 +3,7 @@ import {
   Archive,
   ArchiveRestore,
   Bot,
+  ClipboardCheck,
   GitFork,
   GripVertical,
   Loader2,
@@ -62,6 +63,11 @@ interface Props {
   onFork: () => void;
   onDelete: () => void;
   onShowBranchGraph?: () => void;
+  linkedTask?: {
+    title: string;
+    isSubtask: boolean;
+  };
+  onOpenLinkedTask?: () => void;
   draggable?: boolean;
 }
 
@@ -85,6 +91,8 @@ export function ThreadRow({
   onFork,
   onDelete,
   onShowBranchGraph,
+  linkedTask,
+  onOpenLinkedTask,
   draggable = false,
 }: Props) {
   const { t } = useTranslation();
@@ -107,6 +115,8 @@ export function ThreadRow({
     <MessageCircleQuestion className="h-3 w-3 shrink-0 animate-pulse text-blue-500" />
   ) : running ? (
     <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+  ) : linkedTask ? (
+    <ClipboardCheck className="h-3 w-3 shrink-0 text-primary" />
   ) : (
     <Bot className="h-3 w-3 shrink-0" />
   );
@@ -168,6 +178,19 @@ export function ThreadRow({
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-44 p-1">
+          {linkedTask && onOpenLinkedTask && (
+            <Button
+              variant="ghost"
+              className="h-7 w-full justify-start gap-2 px-2 text-xs"
+              onClick={onOpenLinkedTask}
+              title={linkedTask.title}
+            >
+              <ClipboardCheck className="h-3.5 w-3.5" />
+              {linkedTask.isSubtask
+                ? 'Ouvrir la sous-tâche'
+                : 'Ouvrir la tâche'}
+            </Button>
+          )}
           <Button
             variant="ghost"
             className="h-7 w-full justify-start gap-2 px-2 text-xs"

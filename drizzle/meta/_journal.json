@@ -148,6 +148,13 @@
       "when": 1792241659353,
       "tag": "0020_perpetual_norrin_radd",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1792249935684,
+      "tag": "0021_previous_grey_gargoyle",
+      "breakpoints": true
     }
   ]
 }

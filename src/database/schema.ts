@@ -381,6 +381,7 @@ export const projectTasks = sqliteTable(
     description: text('description').notNull().default(''),
     priority: text('priority').notNull().default('normal'),
     parentTaskId: text('parent_task_id'),
+    subtaskStatus: text('subtask_status').notNull().default('todo'),
     workspacePath: text('workspace_path'),
     executionMode: text('execution_mode').notNull().default('manual'),
     agentState: text('agent_state').notNull().default('manual'),

@@ -29,7 +29,10 @@ export class AccountService {
   async readAccount(): Promise<AccountReadResponse> {
     const [account, provider] = await Promise.all([
       this.codex.request<v2.GetAccountResponse>('account/read', {
-        refreshToken: false,
+        // The WebUI keeps a long-lived app-server process. Ask managed ChatGPT
+        // auth to refresh proactively so built-in Apps/MCP connections never
+        // inherit an access token that expired while the page was idle.
+        refreshToken: true,
       } satisfies v2.GetAccountParams),
       this.codexStatusService.getProviderStatus(),
     ]);

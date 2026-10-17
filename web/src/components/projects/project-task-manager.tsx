@@ -19,7 +19,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -53,6 +53,7 @@ type Draft = {
   validationCriteria: string;
   linkedFilePath: string;
   parentTaskId: string;
+  subtaskStatus: ProjectTaskSummary['subtaskStatus'];
   dependencyIds: string[];
 };
 type Suggestion = {
@@ -78,7 +79,15 @@ const emptyDraft: Draft = {
   validationCriteria: '',
   linkedFilePath: '',
   parentTaskId: '',
+  subtaskStatus: 'todo',
   dependencyIds: [],
+};
+const subtaskLabels: Record<ProjectTaskSummary['subtaskStatus'], string> = {
+  todo: 'À faire',
+  started: 'Commencée',
+  review: 'À valider',
+  done: 'Terminée',
+  cancelled: 'Annulée',
 };
 const priorities = {
   low: 'Basse',
@@ -106,9 +115,11 @@ const dateValue = (value: number | null) =>
 export function ProjectTaskManager({
   projectId,
   resourceId,
+  initialTaskId,
 }: {
   projectId: string;
   resourceId: string;
+  initialTaskId?: string;
 }) {
   const client = useQueryClient();
   const navigate = useNavigate();
@@ -156,10 +167,51 @@ export function ProjectTaskManager({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   const [agentBusy, setAgentBusy] = useState(false);
+  const [taskTab, setTaskTab] = useState<'details' | 'subtasks'>('details');
+  const openedInitialTask = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !initialTaskId ||
+      !query.data ||
+      openedInitialTask.current === initialTaskId
+    )
+      return;
+    const task = query.data.tasks.find((item) => item.id === initialTaskId);
+    if (!task) return;
+    openedInitialTask.current = initialTaskId;
+    const dependencyIds = query.data.dependencies
+      .filter((dependency) => dependency.taskId === task.id)
+      .map((dependency) => dependency.dependsOnTaskId);
+    queueMicrotask(() => {
+      setEditing(task);
+      setDraft({
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        startAt: dateValue(task.startAt),
+        dueAt: dateValue(task.dueAt),
+        labels: task.labels.join(', '),
+        statusId: task.statusId,
+        workspacePath: task.workspacePath ?? query.data!.project.workspacePath,
+        executionMode: task.executionMode,
+        estimateHours: task.estimateMinutes
+          ? String(task.estimateMinutes / 60)
+          : '',
+        validationCriteria: task.validationCriteria,
+        linkedFilePath: task.linkedFilePath ?? '',
+        parentTaskId: task.parentTaskId ?? '',
+        subtaskStatus: task.subtaskStatus,
+        dependencyIds,
+      });
+      setTaskTab('details');
+      setTaskOpen(true);
+    });
+  }, [initialTaskId, query.data]);
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return (query.data?.tasks ?? []).filter(
       (task) =>
+        !task.parentTaskId &&
         (priority === 'all' || task.priority === priority) &&
         (!needle ||
           `${task.title} ${task.description} ${task.labels.join(' ')}`
@@ -193,13 +245,18 @@ export function ProjectTaskManager({
         board.tasks.find((item) => item.id === id)?.statusId,
     );
   const openNew = (parentTaskId = '') => {
+    const parent = parentTaskId
+      ? board.tasks.find((task) => task.id === parentTaskId)
+      : null;
     setEditing(null);
     setDraft({
       ...emptyDraft,
       statusId: unassigned?.id ?? '',
-      workspacePath: board.project.workspacePath,
+      workspacePath: parent?.workspacePath ?? board.project.workspacePath,
       parentTaskId,
+      subtaskStatus: 'todo',
     });
+    setTaskTab('details');
     setTaskOpen(true);
   };
   const openEdit = (task: ProjectTaskSummary) => {
@@ -220,8 +277,10 @@ export function ProjectTaskManager({
       validationCriteria: task.validationCriteria,
       linkedFilePath: task.linkedFilePath ?? '',
       parentTaskId: task.parentTaskId ?? '',
+      subtaskStatus: task.subtaskStatus,
       dependencyIds: dependencyIdsFor(task.id),
     });
+    setTaskTab(task.parentTaskId ? 'details' : 'details');
     setTaskOpen(true);
   };
   const payload = () => ({
@@ -243,7 +302,8 @@ export function ProjectTaskManager({
     validationCriteria: draft.validationCriteria.trim(),
     linkedFilePath: draft.linkedFilePath.trim() || null,
     parentTaskId: draft.parentTaskId || null,
-    dependencyIds: draft.dependencyIds,
+    subtaskStatus: draft.subtaskStatus,
+    dependencyIds: draft.parentTaskId ? [] : draft.dependencyIds,
   });
   const saveTask = async () => {
     if (!draft.title.trim()) return;
@@ -272,7 +332,20 @@ export function ProjectTaskManager({
   };
   const dropTask = async (statusId: string) => {
     const task = board.tasks.find((t) => t.id === dragged);
-    if (!task || task.statusId === statusId) return;
+    if (!task || task.parentTaskId || task.statusId === statusId) return;
+    const target = board.statuses.find((status) => status.id === statusId);
+    if (
+      target?.kind === 'done' &&
+      childrenFor(task.id).some(
+        (child) => !['done', 'cancelled'].includes(child.subtaskStatus),
+      )
+    ) {
+      window.alert(
+        'Toutes les sous-tâches doivent être terminées ou annulées.',
+      );
+      setDragged(null);
+      return;
+    }
     await request.mutateAsync({
       path: `/${projectId}/resources/${resourceId}/tasks/${task.id}`,
       method: 'PATCH',
@@ -385,13 +458,16 @@ export function ProjectTaskManager({
       for (const suggestion of aiSuggestions) {
         const id = created.get(suggestion.title);
         if (!id) continue;
+        const parentTaskId = created.get(suggestion.parentTitle) ?? null;
         await projectsApi(`/${projectId}/resources/${resourceId}/tasks/${id}`, {
           method: 'PATCH',
           body: JSON.stringify({
-            parentTaskId: created.get(suggestion.parentTitle) ?? null,
-            dependencyIds: suggestion.dependsOnTitles
-              .map((title) => created.get(title))
-              .filter(Boolean),
+            parentTaskId,
+            dependencyIds: parentTaskId
+              ? []
+              : suggestion.dependsOnTitles
+                  .map((title) => created.get(title))
+                  .filter(Boolean),
           }),
         });
       }
@@ -438,7 +514,11 @@ export function ProjectTaskManager({
             linkedThreadId: thread.id,
             executionMode: 'agent',
             agentState: 'running',
-            ...(inProgress ? { statusId: inProgress.id } : {}),
+            ...(editing.parentTaskId
+              ? { subtaskStatus: 'started' }
+              : inProgress
+                ? { statusId: inProgress.id }
+                : {}),
           }),
         },
       );
@@ -479,12 +559,14 @@ export function ProjectTaskManager({
     await request.mutateAsync({
       path: `/${projectId}/resources/${resourceId}/tasks/${editing.id}`,
       method: 'PATCH',
-      body: { agentState: 'validated', ...(done ? { statusId: done.id } : {}) },
+      body: editing.parentTaskId
+        ? { agentState: 'validated', subtaskStatus: 'done' }
+        : { agentState: 'validated', ...(done ? { statusId: done.id } : {}) },
     });
     setTaskOpen(false);
   };
   const ganttTasks = board.tasks
-    .filter((t) => t.startAt || t.dueAt)
+    .filter((t) => !t.parentTaskId && (t.startAt || t.dueAt))
     .map((t) => {
       const fallback = t.startAt ?? t.dueAt!;
       const start = new Date(t.startAt ?? fallback);
@@ -498,8 +580,8 @@ export function ProjectTaskManager({
           Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1,
         ),
         progress: statusByKind('done')?.id === t.statusId ? 100 : 0,
-        parent: t.parentTaskId ?? 0,
-        type: childrenFor(t.id).length ? 'summary' : 'task',
+        parent: 0,
+        type: 'task',
         open: true,
       };
     });
@@ -637,10 +719,11 @@ export function ProjectTaskManager({
                       <TaskCard
                         key={task.id}
                         task={task}
-                        depth={task.parentTaskId ? 1 : 0}
+                        subtasks={childrenFor(task.id)}
                         blocked={blocked(task)}
                         onDrag={() => setDragged(task.id)}
                         onClick={() => openEdit(task)}
+                        onSubtaskClick={openEdit}
                       />
                     ))}
                     {!tasks.length && (
@@ -661,6 +744,13 @@ export function ProjectTaskManager({
               tasks={ganttTasks as never}
               links={ganttLinks as never}
               zoom
+              readonly
+              onselecttask={(event?: { id?: string | number }) => {
+                const task = board.tasks.find(
+                  (item) => item.id === String(event?.id ?? ''),
+                );
+                if (task) openEdit(task);
+              }}
             />
           </WillowDark>
           {!ganttTasks.length && (
@@ -671,9 +761,9 @@ export function ProjectTaskManager({
         </section>
       )}
       <Dialog open={taskOpen} onOpenChange={setTaskOpen}>
-        <DialogContent className="max-h-[92vh] overflow-auto sm:max-w-2xl">
+        <DialogContent className="flex max-h-[92vh] flex-col overflow-hidden p-0 sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="px-6 pt-6">
               {editing
                 ? 'Modifier la tâche'
                 : draft.parentTaskId
@@ -681,207 +771,302 @@ export function ProjectTaskManager({
                   : 'Nouvelle tâche'}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-3">
-            <Input
-              autoFocus
-              placeholder="Titre"
-              value={draft.title}
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            />
-            <Textarea
-              placeholder="Description détaillée"
-              value={draft.description}
-              onChange={(e) =>
-                setDraft({ ...draft, description: e.target.value })
-              }
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                className="h-8 rounded-lg border bg-background px-2 text-sm"
-                value={draft.executionMode}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    executionMode: e.target.value as Draft['executionMode'],
-                  })
-                }
+          {editing && !editing.parentTaskId && (
+            <div className="flex gap-1 border-b px-6">
+              <button
+                type="button"
+                className={`border-b-2 px-3 py-2 text-sm ${taskTab === 'details' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
+                onClick={() => setTaskTab('details')}
               >
-                <option value="manual">Tâche manuelle</option>
-                <option value="agent">Agent IA</option>
-              </select>
+                Détails
+              </button>
+              <button
+                type="button"
+                className={`border-b-2 px-3 py-2 text-sm ${taskTab === 'subtasks' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
+                onClick={() => setTaskTab('subtasks')}
+              >
+                Sous-tâches ({childrenFor(editing.id).length})
+              </button>
+            </div>
+          )}
+          {taskTab === 'details' || !editing || editing.parentTaskId ? (
+            <div className="grid min-h-0 gap-3 overflow-y-auto px-6 py-3">
               <Input
-                type="number"
-                min="0"
-                step="0.5"
-                placeholder="Charge estimée (heures)"
-                value={draft.estimateHours}
+                autoFocus
+                placeholder="Titre"
+                value={draft.title}
+                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              />
+              <Textarea
+                placeholder="Description détaillée"
+                value={draft.description}
                 onChange={(e) =>
-                  setDraft({ ...draft, estimateHours: e.target.value })
+                  setDraft({ ...draft, description: e.target.value })
                 }
               />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="text-xs text-muted-foreground">
-                Début
-                <Input
-                  type="date"
-                  value={draft.startAt}
-                  onChange={(e) =>
-                    setDraft({ ...draft, startAt: e.target.value })
-                  }
-                />
-              </label>
-              <label className="text-xs text-muted-foreground">
-                Fin prévue
-                <Input
-                  type="date"
-                  value={draft.dueAt}
-                  onChange={(e) =>
-                    setDraft({ ...draft, dueAt: e.target.value })
-                  }
-                />
-              </label>
-            </div>
-            <Textarea
-              placeholder="Conditions de validation / recette"
-              value={draft.validationCriteria}
-              onChange={(e) =>
-                setDraft({ ...draft, validationCriteria: e.target.value })
-              }
-            />
-            <button
-              type="button"
-              className="flex h-9 items-center gap-2 rounded-lg border px-3 text-left text-sm"
-              onClick={() => {
-                setFolderSelection(
-                  draft.workspacePath || board.project.workspacePath,
-                );
-                setFolderOpen(true);
-              }}
-            >
-              <FolderOpen className="h-4 w-4" />
-              <span className="min-w-0 flex-1 truncate">
-                {draft.workspacePath || 'Choisir un dossier'}
-              </span>
-              <ChevronRight className="h-4 w-4" />
-            </button>
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                className="h-8 rounded-lg border bg-background px-2 text-sm"
-                value={draft.priority}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    priority: e.target.value as Draft['priority'],
-                  })
-                }
-              >
-                {Object.entries(priorities).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              {editing && (
+              <div className="grid grid-cols-2 gap-2">
                 <select
                   className="h-8 rounded-lg border bg-background px-2 text-sm"
-                  value={draft.statusId}
+                  value={draft.executionMode}
                   onChange={(e) =>
-                    setDraft({ ...draft, statusId: e.target.value })
+                    setDraft({
+                      ...draft,
+                      executionMode: e.target.value as Draft['executionMode'],
+                    })
                   }
                 >
-                  {board.statuses.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
+                  <option value="manual">Tâche manuelle</option>
+                  <option value="agent">Agent IA</option>
+                </select>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  placeholder="Charge estimée (heures)"
+                  value={draft.estimateHours}
+                  onChange={(e) =>
+                    setDraft({ ...draft, estimateHours: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-muted-foreground">
+                  Début
+                  <Input
+                    type="date"
+                    value={draft.startAt}
+                    onChange={(e) =>
+                      setDraft({ ...draft, startAt: e.target.value })
+                    }
+                  />
+                </label>
+                <label className="text-xs text-muted-foreground">
+                  Fin prévue
+                  <Input
+                    type="date"
+                    value={draft.dueAt}
+                    onChange={(e) =>
+                      setDraft({ ...draft, dueAt: e.target.value })
+                    }
+                  />
+                </label>
+              </div>
+              <Textarea
+                placeholder="Conditions de validation / recette"
+                value={draft.validationCriteria}
+                onChange={(e) =>
+                  setDraft({ ...draft, validationCriteria: e.target.value })
+                }
+              />
+              <button
+                type="button"
+                className="flex h-9 items-center gap-2 rounded-lg border px-3 text-left text-sm"
+                onClick={() => {
+                  setFolderSelection(
+                    draft.workspacePath || board.project.workspacePath,
+                  );
+                  setFolderOpen(true);
+                }}
+              >
+                <FolderOpen className="h-4 w-4" />
+                <span className="min-w-0 flex-1 truncate">
+                  {draft.workspacePath || 'Choisir un dossier'}
+                </span>
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  className="h-8 rounded-lg border bg-background px-2 text-sm"
+                  value={draft.priority}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      priority: e.target.value as Draft['priority'],
+                    })
+                  }
+                >
+                  {Object.entries(priorities).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
                     </option>
                   ))}
                 </select>
-              )}
-            </div>
-            <Input
-              placeholder="Étiquettes séparées par des virgules"
-              value={draft.labels}
-              onChange={(e) => setDraft({ ...draft, labels: e.target.value })}
-            />
-            <Input
-              placeholder="Fichier lié (facultatif)"
-              value={draft.linkedFilePath}
-              onChange={(e) =>
-                setDraft({ ...draft, linkedFilePath: e.target.value })
-              }
-            />
-            <fieldset className="rounded-lg border p-3">
-              <legend className="px-1 text-xs text-muted-foreground">
-                Dépend de
-              </legend>
-              <div className="max-h-28 space-y-1 overflow-auto">
-                {board.tasks
-                  .filter((t) => t.id !== editing?.id)
-                  .map((task) => (
-                    <label
-                      key={task.id}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={draft.dependencyIds.includes(task.id)}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            dependencyIds: e.target.checked
-                              ? [...draft.dependencyIds, task.id]
-                              : draft.dependencyIds.filter(
-                                  (id) => id !== task.id,
-                                ),
-                          })
+                {editing && !editing.parentTaskId && (
+                  <select
+                    className="h-8 rounded-lg border bg-background px-2 text-sm"
+                    value={draft.statusId}
+                    onChange={(e) =>
+                      setDraft({ ...draft, statusId: e.target.value })
+                    }
+                  >
+                    {board.statuses.map((s) => (
+                      <option
+                        key={s.id}
+                        value={s.id}
+                        disabled={
+                          s.kind === 'done' &&
+                          childrenFor(editing.id).some(
+                            (child) =>
+                              !['done', 'cancelled'].includes(
+                                child.subtaskStatus,
+                              ),
+                          )
                         }
-                      />
-                      {task.title}
-                    </label>
-                  ))}
-              </div>
-            </fieldset>
-            {editing && (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setTaskOpen(false);
-                    openNew(editing.id);
-                  }}
-                >
-                  <Plus />
-                  Sous-tâche
-                </Button>
-                {editing.linkedThreadId && (
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      navigate({
-                        to: '/t/$threadId',
-                        params: { threadId: editing.linkedThreadId! },
+                      >
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {editing?.parentTaskId && (
+                  <select
+                    className="h-8 rounded-lg border bg-background px-2 text-sm"
+                    value={draft.subtaskStatus}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        subtaskStatus: e.target
+                          .value as ProjectTaskSummary['subtaskStatus'],
                       })
                     }
                   >
-                    <Bot />
-                    Ouvrir l’agent
-                  </Button>
-                )}
-                {editing.agentState === 'review' && (
-                  <Button onClick={validateTask}>
-                    <Check />
-                    Valider et terminer
-                  </Button>
+                    {Object.entries(subtaskLabels)
+                      .filter(
+                        ([value]) =>
+                          value !== 'review' || draft.executionMode === 'agent',
+                      )
+                      .map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                  </select>
                 )}
               </div>
-            )}
-            {editing && blocked(editing) && (
-              <p className="text-xs text-amber-500">
-                Cette tâche est bloquée par une dépendance non terminée.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
+              <Input
+                placeholder="Étiquettes séparées par des virgules"
+                value={draft.labels}
+                onChange={(e) => setDraft({ ...draft, labels: e.target.value })}
+              />
+              <Input
+                placeholder="Fichier lié (facultatif)"
+                value={draft.linkedFilePath}
+                onChange={(e) =>
+                  setDraft({ ...draft, linkedFilePath: e.target.value })
+                }
+              />
+              {!draft.parentTaskId && (
+                <fieldset className="rounded-lg border p-3">
+                  <legend className="px-1 text-xs text-muted-foreground">
+                    Dépend de
+                  </legend>
+                  <div className="max-h-28 space-y-1 overflow-auto">
+                    {board.tasks
+                      .filter((t) => !t.parentTaskId && t.id !== editing?.id)
+                      .map((task) => (
+                        <label
+                          key={task.id}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={draft.dependencyIds.includes(task.id)}
+                            onChange={(e) =>
+                              setDraft({
+                                ...draft,
+                                dependencyIds: e.target.checked
+                                  ? [...draft.dependencyIds, task.id]
+                                  : draft.dependencyIds.filter(
+                                      (id) => id !== task.id,
+                                    ),
+                              })
+                            }
+                          />
+                          {task.title}
+                        </label>
+                      ))}
+                  </div>
+                </fieldset>
+              )}
+              {editing && (
+                <div className="flex flex-wrap gap-2">
+                  {!editing.parentTaskId && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setTaskOpen(false);
+                        openNew(editing.id);
+                      }}
+                    >
+                      <Plus />
+                      Sous-tâche
+                    </Button>
+                  )}
+                  {editing.linkedThreadId && (
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        navigate({
+                          to: '/t/$threadId',
+                          params: { threadId: editing.linkedThreadId! },
+                        })
+                      }
+                    >
+                      <Bot />
+                      Ouvrir l’agent
+                    </Button>
+                  )}
+                  {editing.agentState === 'review' && (
+                    <Button onClick={validateTask}>
+                      <Check />
+                      Valider et terminer
+                    </Button>
+                  )}
+                </div>
+              )}
+              {editing && blocked(editing) && (
+                <p className="text-xs text-amber-500">
+                  Cette tâche est bloquée par une dépendance non terminée.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-6 py-4">
+              <Button
+                variant="outline"
+                className="mb-2 w-full"
+                onClick={() => openNew(editing.id)}
+              >
+                <Plus /> Nouvelle sous-tâche
+              </Button>
+              {childrenFor(editing.id).map((child) => (
+                <button
+                  type="button"
+                  key={child.id}
+                  className="flex w-full items-center gap-3 rounded-lg border p-3 text-left hover:border-primary/50"
+                  onClick={() => openEdit(child)}
+                >
+                  {child.executionMode === 'agent' ? (
+                    <Bot className="h-4 w-4 shrink-0 text-primary" />
+                  ) : (
+                    <Check className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {child.title}
+                  </span>
+                  <span className="rounded bg-muted px-2 py-1 text-[10px]">
+                    {subtaskLabels[child.subtaskStatus]}
+                  </span>
+                </button>
+              ))}
+              {!childrenFor(editing.id).length && (
+                <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Aucune sous-tâche.
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter className="shrink-0 border-t bg-background px-6 py-4">
             {editing && (
               <Button variant="destructive" onClick={removeTask}>
                 <Trash2 />
@@ -1029,62 +1214,94 @@ export function ProjectTaskManager({
 
 function TaskCard({
   task,
-  depth,
+  subtasks,
   blocked,
   onDrag,
   onClick,
+  onSubtaskClick,
 }: {
   task: ProjectTaskSummary;
-  depth: number;
+  subtasks: ProjectTaskSummary[];
   blocked: boolean;
   onDrag: () => void;
   onClick: () => void;
+  onSubtaskClick: (task: ProjectTaskSummary) => void;
 }) {
   return (
-    <button
-      draggable
-      onDragStart={onDrag}
-      onClick={onClick}
-      className={`block w-full rounded-lg border bg-background/80 p-3 text-left shadow-sm hover:border-primary/50 ${depth ? 'ml-3 w-[calc(100%-0.75rem)]' : ''}`}
-    >
-      <div className="flex gap-2">
-        <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 text-sm font-medium">{task.title}</span>
-      </div>
-      {task.description && (
-        <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
-          {task.description}
-        </p>
+    <div className="rounded-lg border bg-background/80 shadow-sm">
+      <button
+        type="button"
+        draggable
+        onDragStart={onDrag}
+        onClick={onClick}
+        className="block w-full p-3 text-left hover:bg-accent/20"
+      >
+        <div className="flex gap-2">
+          <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 text-sm font-medium">
+            {task.title}
+          </span>
+        </div>
+        {task.description && (
+          <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+            {task.description}
+          </p>
+        )}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <span
+            className={`rounded px-1.5 py-0.5 text-[10px] ${priorityStyle[task.priority]}`}
+          >
+            {priorities[task.priority]}
+          </span>
+          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+            {task.executionMode === 'manual'
+              ? 'Manuel'
+              : (agentLabels[task.agentState] ?? 'Agent IA')}
+          </span>
+          {task.estimateMinutes > 0 && (
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Clock3 className="h-3 w-3" />
+              {task.estimateMinutes / 60} h
+            </span>
+          )}
+          {task.dueAt && (
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <CalendarDays className="h-3 w-3" />
+              {new Date(task.dueAt).toLocaleDateString()}
+            </span>
+          )}
+          {blocked && (
+            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-500">
+              Dépendance bloquante
+            </span>
+          )}
+        </div>
+      </button>
+      {subtasks.length > 0 && (
+        <div className="border-t px-3 py-2">
+          <div className="relative space-y-1 border-l border-muted-foreground/30 pl-3">
+            {subtasks.map((subtask) => (
+              <button
+                type="button"
+                key={subtask.id}
+                className="relative flex w-full items-center gap-2 rounded px-1 py-1 text-left text-xs hover:bg-accent/50"
+                onClick={() => onSubtaskClick(subtask)}
+              >
+                <span className="absolute -left-3.5 top-1/2 w-3 border-t border-muted-foreground/30" />
+                {subtask.executionMode === 'agent' ? (
+                  <Bot className="h-3.5 w-3.5 shrink-0 text-primary" />
+                ) : (
+                  <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                )}
+                <span className="min-w-0 flex-1 truncate">{subtask.title}</span>
+                <span className="shrink-0 text-[9px] text-muted-foreground">
+                  {subtaskLabels[subtask.subtaskStatus]}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <span
-          className={`rounded px-1.5 py-0.5 text-[10px] ${priorityStyle[task.priority]}`}
-        >
-          {priorities[task.priority]}
-        </span>
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
-          {task.executionMode === 'manual'
-            ? 'Manuel'
-            : (agentLabels[task.agentState] ?? 'Agent IA')}
-        </span>
-        {task.estimateMinutes > 0 && (
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Clock3 className="h-3 w-3" />
-            {task.estimateMinutes / 60} h
-          </span>
-        )}
-        {task.dueAt && (
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <CalendarDays className="h-3 w-3" />
-            {new Date(task.dueAt).toLocaleDateString()}
-          </span>
-        )}
-        {blocked && (
-          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-500">
-            Dépendance bloquante
-          </span>
-        )}
-      </div>
-    </button>
+    </div>
   );
 }

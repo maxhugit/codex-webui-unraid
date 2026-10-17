@@ -305,6 +305,29 @@ export function ThreadSidebar() {
     () => rowsByView.active.map((row) => row.thread),
     [rowsByView.active],
   );
+  const linkedTaskByThreadId = useMemo(() => {
+    const links = new Map<
+      string,
+      {
+        projectId: string;
+        resourceId: string;
+        taskId: string;
+        title: string;
+        isSubtask: boolean;
+      }
+    >();
+    for (const project of projectsQuery.data?.projects ?? [])
+      for (const agent of project.agentThreads ?? [])
+        if (agent.taskId && agent.taskResourceId)
+          links.set(agent.threadId, {
+            projectId: project.id,
+            resourceId: agent.taskResourceId,
+            taskId: agent.taskId,
+            title: agent.taskTitle ?? agent.title,
+            isSubtask: agent.isSubtask,
+          });
+    return links;
+  }, [projectsQuery.data]);
   const archivedThreads = useMemo(
     () => rowsByView.archived.map((row) => row.thread),
     [rowsByView.archived],
@@ -539,6 +562,7 @@ export function ThreadSidebar() {
         void navigate({
           to: '/projects/$projectId/resources/$resourceId',
           params: { projectId: resource.projectId, resourceId: resource.id },
+          search: { task: undefined },
         });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
@@ -902,6 +926,7 @@ export function ThreadSidebar() {
       void navigate({
         to: '/projects/$projectId/resources/$resourceId',
         params: { projectId: resource.projectId, resourceId: resource.id },
+        search: { task: undefined },
       });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
@@ -997,6 +1022,7 @@ export function ThreadSidebar() {
   // ── Shared thread-row renderer (passed to overview/detail) ──────────
   const renderThreadRow = (thread: ThreadDto, archived: boolean) => {
     const row = rowByThreadId.get(thread.id);
+    const linkedTask = linkedTaskByThreadId.get(thread.id);
     const readRuntime = (id: string) =>
       id === threadId
         ? { turnStartPending, activeTurnId, approvals, threadStatus }
@@ -1087,6 +1113,20 @@ export function ThreadSidebar() {
         deleteBlockedReason={deleteBlockedReason}
         onDelete={() => setDeleteTargetId(thread.id)}
         onShowBranchGraph={() => setGraphTargetId(thread.id)}
+        linkedTask={linkedTask}
+        onOpenLinkedTask={
+          linkedTask
+            ? () =>
+                void navigate({
+                  to: '/projects/$projectId/resources/$resourceId',
+                  params: {
+                    projectId: linkedTask.projectId,
+                    resourceId: linkedTask.resourceId,
+                  },
+                  search: { task: linkedTask.taskId },
+                })
+            : undefined
+        }
         draggable={!archived}
       />
     );
@@ -1253,6 +1293,7 @@ export function ThreadSidebar() {
                 void navigate({
                   to: '/projects/$projectId/resources/$resourceId',
                   params: { projectId, resourceId },
+                  search: { task: undefined },
                 })
               }
               activeResourceId={activeResourceId}

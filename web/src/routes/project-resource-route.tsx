@@ -1,4 +1,4 @@
-import { useParams } from '@tanstack/react-router';
+import { useParams, useSearch } from '@tanstack/react-router';
 import { ProjectTaskManager } from '@/components/projects/project-task-manager';
 
 export function ProjectResourceRoute() {
@@ -6,5 +6,12 @@ export function ProjectResourceRoute() {
     projectId: string;
     resourceId: string;
   };
-  return <ProjectTaskManager projectId={projectId} resourceId={resourceId} />;
+  const { task } = useSearch({ strict: false }) as { task?: string };
+  return (
+    <ProjectTaskManager
+      projectId={projectId}
+      resourceId={resourceId}
+      initialTaskId={task}
+    />
+  );
 }

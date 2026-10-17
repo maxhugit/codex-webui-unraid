@@ -1,0 +1,1 @@
+ALTER TABLE `project_tasks` ADD `subtask_status` text DEFAULT 'todo' NOT NULL;

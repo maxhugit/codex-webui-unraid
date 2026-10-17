@@ -57,6 +57,10 @@ export class ProjectsService {
           workspacePath: string;
           title: string;
           archived: boolean;
+          taskId: string | null;
+          taskResourceId: string | null;
+          taskTitle: string | null;
+          isSubtask: boolean;
         }>;
       }
     >
@@ -65,6 +69,7 @@ export class ProjectsService {
     await this.migrateConversationAssociations();
     const workspaces = this.db.select().from(projectWorkspaces).all();
     const resources = this.db.select().from(projectResources).all();
+    const tasks = this.db.select().from(projectTasks).all();
     let agents = this.db.select().from(projectAgentThreads).all();
     const snapshot = await this.metadata.read().catch(() => null);
     const snapshotEntries = snapshot?.entries ?? [];
@@ -138,12 +143,19 @@ export class ProjectsService {
           )
           .map(({ threadId, workspacePath }) => {
             const metadata = threadMetadata.get(threadId)!;
+            const task = tasks.find(
+              (candidate) => candidate.linkedThreadId === threadId,
+            );
             return {
               threadId,
               workspacePath,
               title:
                 metadata.thread.name?.trim() || metadata.thread.preview.trim(),
               archived: metadata.archived,
+              taskId: task?.id ?? null,
+              taskResourceId: task?.resourceId ?? null,
+              taskTitle: task?.title ?? null,
+              isSubtask: Boolean(task?.parentTaskId),
             };
           }),
       }));
@@ -729,6 +741,7 @@ export class ProjectsService {
       startAt?: number | null;
       validationCriteria?: string;
       dependencyIds?: string[];
+      subtaskStatus?: string;
     },
   ): ProjectTask {
     this.getResource(projectId, resourceId);
@@ -747,16 +760,21 @@ export class ProjectsService {
     const priorities = new Set(['low', 'normal', 'high', 'urgent']);
     if (input.priority && !priorities.has(input.priority))
       throw new BadRequestException('Invalid priority');
-    if (input.parentTaskId) this.requireTask(resourceId, input.parentTaskId);
+    const parent = input.parentTaskId
+      ? this.requireTask(resourceId, input.parentTaskId)
+      : null;
+    if (parent?.parentTaskId)
+      throw new BadRequestException('A subtask cannot contain subtasks');
     const now = Date.now();
     const task: ProjectTask = {
       id: randomUUID(),
       resourceId,
-      statusId: fallback.id,
+      statusId: parent?.statusId ?? fallback.id,
       title: this.validateTaskText(input.title, 'Task title', 200),
       description: input.description?.trim().slice(0, 10_000) ?? '',
       priority: input.priority ?? 'normal',
       parentTaskId: input.parentTaskId ?? null,
+      subtaskStatus: 'todo',
       workspacePath: this.validateTaskWorkspace(projectId, input.workspacePath),
       executionMode: input.executionMode === 'agent' ? 'agent' : 'manual',
       agentState: input.executionMode === 'agent' ? 'ready' : 'manual',
@@ -781,7 +799,7 @@ export class ProjectsService {
       for (const dependencyId of this.validateDependencyIds(
         resourceId,
         task.id,
-        input.dependencyIds,
+        parent ? [] : input.dependencyIds,
       ))
         tx.insert(projectTaskDependencies)
           .values({
@@ -817,6 +835,7 @@ export class ProjectsService {
       startAt: number | null;
       validationCriteria: string;
       dependencyIds: string[];
+      subtaskStatus: string;
     }>,
   ): ProjectTask {
     this.getResource(projectId, resourceId);
@@ -825,7 +844,45 @@ export class ProjectsService {
     if (input.parentTaskId) {
       if (input.parentTaskId === task.id)
         throw new BadRequestException('A task cannot be its own parent');
-      this.requireTask(resourceId, input.parentTaskId);
+      const parent = this.requireTask(resourceId, input.parentTaskId);
+      if (parent.parentTaskId)
+        throw new BadRequestException('A subtask cannot contain subtasks');
+    }
+    const effectiveParentId =
+      input.parentTaskId !== undefined ? input.parentTaskId : task.parentTaskId;
+    const subtaskStatuses = new Set([
+      'todo',
+      'started',
+      'review',
+      'done',
+      'cancelled',
+    ]);
+    if (
+      input.subtaskStatus !== undefined &&
+      (!effectiveParentId || !subtaskStatuses.has(input.subtaskStatus))
+    )
+      throw new BadRequestException('Invalid subtask status');
+    if (effectiveParentId && input.dependencyIds?.length)
+      throw new BadRequestException('Subtasks cannot have dependencies');
+    if (input.statusId) {
+      const requestedStatus = this.requireTaskStatus(
+        resourceId,
+        input.statusId,
+      );
+      if (!effectiveParentId && requestedStatus.kind === 'done') {
+        const unfinished = this.db
+          .select()
+          .from(projectTasks)
+          .where(eq(projectTasks.parentTaskId, task.id))
+          .all()
+          .filter(
+            (child) => !['done', 'cancelled'].includes(child.subtaskStatus),
+          );
+        if (unfinished.length)
+          throw new ConflictException(
+            'Complete or cancel every subtask before completing this task',
+          );
+      }
     }
     const priorities = new Set(['low', 'normal', 'high', 'urgent']);
     if (input.priority && !priorities.has(input.priority))
@@ -841,6 +898,9 @@ export class ProjectsService {
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
       ...(input.parentTaskId !== undefined
         ? { parentTaskId: input.parentTaskId }
+        : {}),
+      ...(input.subtaskStatus !== undefined
+        ? { subtaskStatus: input.subtaskStatus }
         : {}),
       ...(input.workspacePath !== undefined
         ? {
@@ -908,18 +968,19 @@ export class ProjectsService {
         tx.delete(projectTaskDependencies)
           .where(eq(projectTaskDependencies.taskId, task.id))
           .run();
-        for (const dependencyId of this.validateDependencyIds(
-          resourceId,
-          task.id,
-          input.dependencyIds,
-        ))
-          tx.insert(projectTaskDependencies)
-            .values({
-              taskId: task.id,
-              dependsOnTaskId: dependencyId,
-              createdAt: Date.now(),
-            })
-            .run();
+        if (!effectiveParentId)
+          for (const dependencyId of this.validateDependencyIds(
+            resourceId,
+            task.id,
+            input.dependencyIds,
+          ))
+            tx.insert(projectTaskDependencies)
+              .values({
+                taskId: task.id,
+                dependsOnTaskId: dependencyId,
+                createdAt: Date.now(),
+              })
+              .run();
       }
     });
     return updated;
@@ -929,8 +990,7 @@ export class ProjectsService {
     this.getResource(projectId, resourceId);
     const task = this.requireTask(resourceId, taskId);
     this.db.transaction((tx) => {
-      tx.update(projectTasks)
-        .set({ parentTaskId: null, updatedAt: Date.now() })
+      tx.delete(projectTasks)
         .where(eq(projectTasks.parentTaskId, task.id))
         .run();
       tx.delete(projectTasks).where(eq(projectTasks.id, task.id)).run();
@@ -1001,7 +1061,9 @@ export class ProjectsService {
   ) {
     const ids = [...new Set(values ?? [])].filter((id) => id !== taskId);
     for (const id of ids) {
-      this.requireTask(resourceId, id);
+      const dependency = this.requireTask(resourceId, id);
+      if (dependency.parentTaskId)
+        throw new BadRequestException('Subtasks cannot be dependencies');
       if (this.dependencyReaches(id, taskId, new Set()))
         throw new BadRequestException(
           'Task dependencies cannot contain a cycle',
@@ -1069,7 +1131,11 @@ export class ProjectsService {
         .update(projectTasks)
         .set({
           agentState: 'review',
-          ...(review ? { statusId: review.id } : {}),
+          ...(task.parentTaskId
+            ? { subtaskStatus: 'review' }
+            : review
+              ? { statusId: review.id }
+              : {}),
           updatedAt: Date.now(),
         })
         .where(eq(projectTasks.id, task.id))

@@ -54,7 +54,7 @@ describe('AccountService', () => {
       provider,
     });
     expect(codexService.request).toHaveBeenCalledWith('account/read', {
-      refreshToken: false,
+      refreshToken: true,
     });
   });
 
