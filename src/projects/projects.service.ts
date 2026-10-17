@@ -45,6 +45,77 @@ export class ProjectsService {
       }));
   }
 
+  /** Removes stale workspace rows and safely moves their conversations. */
+  async reconcileMissingWorkspaces(): Promise<{
+    removed: string[];
+    reassignedAgents: number;
+    reassignedSimpleChats: number;
+    unresolved: string[];
+  }> {
+    const removed: string[] = [];
+    const unresolved: string[] = [];
+    let reassignedAgents = 0;
+    let reassignedSimpleChats = 0;
+    for (const project of this.db.select().from(projects).all()) {
+      const attached = this.db
+        .select()
+        .from(projectWorkspaces)
+        .where(eq(projectWorkspaces.projectId, project.id))
+        .all();
+      const existing: ProjectWorkspace[] = [];
+      const missing: ProjectWorkspace[] = [];
+      for (const workspace of attached) {
+        ((await this.files.directoryExists(workspace.path))
+          ? existing
+          : missing
+        ).push(workspace);
+      }
+      if (!missing.length) continue;
+      // Never erase the last reference automatically: without a surviving
+      // destination, conversations cannot be recovered safely.
+      if (!existing.length) {
+        unresolved.push(...missing.map((workspace) => workspace.path));
+        continue;
+      }
+      const fallback =
+        existing.find((workspace) => workspace.primary) ?? existing[0];
+      const primaryWasMissing = missing.some((workspace) => workspace.primary);
+      if (primaryWasMissing || project.workspacePath !== fallback.path) {
+        const now = Date.now();
+        this.db.transaction((tx) => {
+          for (const workspace of attached)
+            tx.update(projectWorkspaces)
+              .set({ primary: workspace.id === fallback.id, updatedAt: now })
+              .where(eq(projectWorkspaces.id, workspace.id))
+              .run();
+          tx.update(projects)
+            .set({ workspacePath: fallback.path, updatedAt: now })
+            .where(eq(projects.id, project.id))
+            .run();
+        });
+      }
+      for (const workspace of missing) {
+        const reassigned = await this.workspaces.reassignMissingWorkspace(
+          workspace.path,
+          fallback.path,
+        );
+        reassignedAgents += reassigned.agents;
+        reassignedSimpleChats += reassigned.simpleChats;
+        this.db
+          .delete(projectWorkspaces)
+          .where(eq(projectWorkspaces.id, workspace.id))
+          .run();
+        removed.push(workspace.path);
+      }
+    }
+    return {
+      removed,
+      reassignedAgents,
+      reassignedSimpleChats,
+      unresolved,
+    };
+  }
+
   async create(nameValue: string): Promise<Project> {
     const name = this.validateName(nameValue);
     const workspacePath = path.join('/workspaces', name);

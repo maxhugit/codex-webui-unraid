@@ -113,6 +113,44 @@ export class WorkspacesManagementService {
     return { ok: true };
   }
 
+  /** Repoints conversations whose persisted workspace disappeared from disk. */
+  async reassignMissingWorkspace(
+    missingCwd: string,
+    replacementCwd: string,
+  ): Promise<{ agents: number; simpleChats: number }> {
+    const snapshot = await this.metadata.read();
+    const effective = this.overrides.applyToThreads(
+      snapshot.entries.map((entry) => entry.thread),
+    );
+    const affectedThreadIds = effective
+      .filter(
+        (thread) =>
+          thread.cwd === missingCwd ||
+          thread.cwd?.startsWith(`${missingCwd}${path.sep}`),
+      )
+      .map((thread) => thread.id);
+    if (affectedThreadIds.length)
+      this.overrides.setMany(affectedThreadIds, replacementCwd);
+
+    let simpleChatsCount = 0;
+    const chats = this.db.select().from(simpleChatThreads).all();
+    this.db.transaction((tx) => {
+      for (const chat of chats) {
+        if (
+          chat.cwd !== missingCwd &&
+          !chat.cwd.startsWith(`${missingCwd}${path.sep}`)
+        )
+          continue;
+        simpleChatsCount += 1;
+        tx.update(simpleChatThreads)
+          .set({ cwd: replacementCwd, updatedAt: Date.now() })
+          .where(eq(simpleChatThreads.id, chat.id))
+          .run();
+      }
+    });
+    return { agents: affectedThreadIds.length, simpleChats: simpleChatsCount };
+  }
+
   private assertWorkspace(cwd: string) {
     const normalized = path.resolve(cwd);
     if (path.dirname(normalized) !== '/workspaces')

@@ -1,7 +1,7 @@
 /** Conversation workspace: one permanent transcript with sibling file and terminal views. */
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ChatHeader } from '@/components/chat/chat-header';
 import { useThemeStore } from '@/stores/theme-store';
@@ -46,6 +46,7 @@ import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
 import { showSnackbar } from '@/stores/snackbar-store';
 import { useThreadSecurityPolicy } from '@/hooks/use-thread-security-policy';
+import { invalidateThreadListSoon } from '@/lib/query-invalidation';
 
 /** URL identity owns opening; tab identity controls only presentation and never subscription. */
 export function ThreadView() {
@@ -73,6 +74,7 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
     queryKey: projectsQueryKey,
     queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
   });
+  const queryClient = useQueryClient();
   const project = projectForWorkspace(
     projectsQuery.data?.projects,
     cwd ?? null,
@@ -148,45 +150,73 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
   const { mutate: openThread } = useOpenThread();
 
   const open = useCallback(() => {
-    openThread(
-      { path: { threadId } },
-      {
-        onError: () => {
-          if (useTimelineStore.getState().getThreadRuntime(threadId)?.hydrated)
-            return;
-          const epoch = currentThreadEpoch(threadId);
-          // Archived/read-only fallback uses the same full-page display contract.
-          void Promise.all([
-            threadsReadThread({ path: { threadId }, throwOnError: true }),
-            threadsListTurns({
-              path: { threadId },
-              query: {
-                limit: HISTORY_PAGE_SIZE,
-                sortDirection: 'desc',
-                itemsView: 'full',
-              },
-              throwOnError: true,
-            }),
-          ])
-            .then(([metadata, page]) => {
-              if (
-                epoch === currentThreadEpoch(threadId) &&
-                useTimelineStore.getState().threadId === threadId
-              )
-                return applyReadOnlySnapshot(metadata.data, page.data);
-            })
-            .catch((error: unknown) => {
-              if (epoch !== currentThreadEpoch(threadId)) return;
-              useTimelineStore.getState().setOpenStateForThread(threadId, {
-                openState: 'error',
-                historyRequest: 'error',
-                historyError: getApiErrorMessage(error),
+    const resume = () =>
+      openThread(
+        { path: { threadId } },
+        {
+          onError: () => {
+            if (
+              useTimelineStore.getState().getThreadRuntime(threadId)?.hydrated
+            )
+              return;
+            const epoch = currentThreadEpoch(threadId);
+            // Archived/read-only fallback uses the same full-page display contract.
+            void Promise.all([
+              threadsReadThread({ path: { threadId }, throwOnError: true }),
+              threadsListTurns({
+                path: { threadId },
+                query: {
+                  limit: HISTORY_PAGE_SIZE,
+                  sortDirection: 'desc',
+                  itemsView: 'full',
+                },
+                throwOnError: true,
+              }),
+            ])
+              .then(([metadata, page]) => {
+                if (
+                  epoch === currentThreadEpoch(threadId) &&
+                  useTimelineStore.getState().threadId === threadId
+                )
+                  return applyReadOnlySnapshot(metadata.data, page.data);
+              })
+              .catch((error: unknown) => {
+                if (epoch !== currentThreadEpoch(threadId)) return;
+                useTimelineStore.getState().setOpenStateForThread(threadId, {
+                  openState: 'error',
+                  historyRequest: 'error',
+                  historyError: getApiErrorMessage(error),
+                });
               });
-            });
+          },
         },
-      },
-    );
-  }, [openThread, threadId]);
+      );
+    void projectsApi<{
+      removed: string[];
+      reassignedAgents: number;
+      reassignedSimpleChats: number;
+      unresolved: string[];
+    }>('/reconcile-workspaces', { method: 'POST' })
+      .then(async (result) => {
+        if (result.removed.length) {
+          await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+          invalidateThreadListSoon(queryClient);
+          showSnackbar(
+            t('{{count}} missing workspace reference(s) cleaned up.', {
+              count: result.removed.length,
+            }),
+            'info',
+          );
+        }
+        if (result.unresolved.length)
+          showSnackbar(
+            t('A project has no remaining workspace on disk.'),
+            'warning',
+          );
+      })
+      .catch((error) => showSnackbar(getApiErrorMessage(error), 'warning'))
+      .finally(resume);
+  }, [openThread, queryClient, t, threadId]);
 
   useEffect(() => {
     open();

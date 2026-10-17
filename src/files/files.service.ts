@@ -775,6 +775,17 @@ export class FilesService implements OnModuleDestroy {
     return Array.from(this.workspaceRoots);
   }
 
+  /** Checks a persisted workspace reference without requiring the path to exist. */
+  async directoryExists(inputPath: string): Promise<boolean> {
+    try {
+      return (await fs.stat(path.resolve(inputPath))).isDirectory();
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT' || code === 'ENOTDIR') return false;
+      throw error;
+    }
+  }
+
   /** Returns the user's home directory. */
   getHomeDir(): string {
     return os.homedir();

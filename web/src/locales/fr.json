@@ -71,6 +71,8 @@
   "Select workspace directory": "Sélectionner le dossier du workspace",
   "Default": "Par défaut",
   "Set as default workspace": "Définir comme workspace par défaut",
+  "{{count}} missing workspace reference(s) cleaned up.": "{{count}} référence(s) de workspace manquante(s) nettoyée(s).",
+  "A project has no remaining workspace on disk.": "Un projet ne possède plus aucun workspace présent sur le disque.",
   "Delete this project?": "Supprimer ce projet ?",
   "All work agents, simple conversations, files and subfolders in this project will be permanently deleted.": "Tous les agents de travail, conversations simples, fichiers et sous-dossiers de ce projet seront définitivement supprimés.",
   "Delete permanently": "Supprimer définitivement",

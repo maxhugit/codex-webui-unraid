@@ -38,6 +38,11 @@ export class ProjectsController {
     };
   }
 
+  @Post('reconcile-workspaces')
+  async reconcileWorkspaces() {
+    return this.projects.reconcileMissingWorkspaces();
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string, @Body() body: { confirmation: string }) {
     return this.projects.remove(id, body.confirmation);
