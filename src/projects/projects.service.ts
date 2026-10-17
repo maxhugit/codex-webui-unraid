@@ -2251,6 +2251,12 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       tx.delete(projectResources)
         .where(eq(projectResources.projectId, id))
         .run();
+      // Databases created before project-aware simple chats were introduced
+      // can still have a NO ACTION foreign key here. Delete these threads
+      // explicitly so those installations do not block project deletion.
+      tx.delete(simpleChatThreads)
+        .where(eq(simpleChatThreads.projectId, id))
+        .run();
       tx.delete(projects).where(eq(projects.id, id)).run();
     });
     for (const workspace of workspacesToDelete)
