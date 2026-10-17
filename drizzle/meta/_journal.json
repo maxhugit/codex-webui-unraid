@@ -127,6 +127,13 @@
       "when": 1792221652526,
       "tag": "0017_cuddly_marauders",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1792233497507,
+      "tag": "0018_old_kate_bishop",
+      "breakpoints": true
     }
   ]
 }

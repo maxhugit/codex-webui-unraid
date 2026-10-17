@@ -304,6 +304,7 @@ export function ThreadSidebar() {
         name: project.name,
         cwd: project.workspacePath,
         workspaces: project.workspaces,
+        resources: project.resources,
         threads: [] as ThreadDto[],
         simpleChats: [] as SimpleChatThread[],
       }),
@@ -834,6 +835,24 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
+  const createTaskBoard = useMutation({
+    mutationFn: (projectId: string) =>
+      projectsApi<{ resource: ProjectSummary['resources'][number] }>(
+        `/${projectId}/resources`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ type: 'task_board' }),
+        },
+      ),
+    onSuccess: ({ resource }) => {
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+      void navigate({
+        to: '/projects/$projectId/resources/$resourceId',
+        params: { projectId: resource.projectId, resourceId: resource.id },
+      });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
 
   // ── View navigation helpers ─────────────────────────────────────────
 
@@ -1141,6 +1160,15 @@ export function ThreadSidebar() {
               }
               onCreateSimpleChatInWorkspace={(group) =>
                 requestConversation('simple', group)
+              }
+              onCreateTaskBoard={(group) =>
+                group.projectId && createTaskBoard.mutate(group.projectId)
+              }
+              onOpenResource={(projectId, resourceId) =>
+                void navigate({
+                  to: '/projects/$projectId/resources/$resourceId',
+                  params: { projectId, resourceId },
+                })
               }
               onManageWorkspaces={(group) =>
                 group.projectId && setManageProjectId(group.projectId)

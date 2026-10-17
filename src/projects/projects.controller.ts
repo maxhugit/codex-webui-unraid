@@ -41,6 +41,22 @@ export class ProjectsController {
     };
   }
 
+  @Post(':id/resources')
+  createResource(
+    @Param('id') id: string,
+    @Body() body: { type: string; name?: string },
+  ) {
+    return { resource: this.projects.createResource(id, body) };
+  }
+
+  @Get(':id/resources/:resourceId')
+  getResource(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+  ) {
+    return { resource: this.projects.getResource(id, resourceId) };
+  }
+
   @Patch(':id/workspaces/:workspaceId/default')
   setDefaultWorkspace(
     @Param('id') id: string,

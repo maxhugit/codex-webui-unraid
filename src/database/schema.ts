@@ -324,6 +324,29 @@ export const projects = sqliteTable(
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
 
+/** Extensible project tools (task boards today, other skills later). */
+export const projectResources = sqliteTable(
+  'project_resources',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    name: text('name').notNull(),
+    config: text('config', { mode: 'json' })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [index('idx_project_resources_project').on(table.projectId)],
+);
+
+export type ProjectResource = typeof projectResources.$inferSelect;
+export type InsertProjectResource = typeof projectResources.$inferInsert;
+
 /** Filesystem execution contexts attached to a user-facing project. */
 export const projectWorkspaces = sqliteTable(
   'project_workspaces',

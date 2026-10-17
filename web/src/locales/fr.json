@@ -100,5 +100,13 @@
   "Also delete associated workspace folders and all their files": "Supprimer également les dossiers workspace associés et tous leurs fichiers",
   "Projects": "Projets",
   "default": "par défaut",
-  "hidden": "masqué"
+  "hidden": "masqué",
+  "Task manager": "Gestionnaire de tâches",
+  "Task board": "Tableau de tâches",
+  "To do": "À faire",
+  "In progress": "En cours",
+  "Blocked": "Bloqué",
+  "Done": "Terminé",
+  "No tasks yet": "Aucune tâche",
+  "Unable to load this project resource.": "Impossible de charger cette ressource du projet."
 }

@@ -8,10 +8,12 @@ describe('WorkspaceOverview creation menu', () => {
   it.each([
     ['Work agent', 'agent'],
     ['Simple conversation', 'simple'],
+    ['Task manager', 'task'],
   ] as const)('creates a %s in the selected workspace', async (label, kind) => {
     const user = userEvent.setup();
     const createAgent = vi.fn();
     const createSimpleChat = vi.fn();
+    const createTaskBoard = vi.fn();
 
     render(
       <DragDropProvider>
@@ -27,6 +29,8 @@ describe('WorkspaceOverview creation menu', () => {
           onOpenWorkspaceDetail={vi.fn()}
           onCreateAgentInWorkspace={createAgent}
           onCreateSimpleChatInWorkspace={createSimpleChat}
+          onCreateTaskBoard={createTaskBoard}
+          onOpenResource={vi.fn()}
           renderThreadRow={() => null}
           renderSimpleChatRow={() => null}
           movingThread={false}
@@ -39,9 +43,14 @@ describe('WorkspaceOverview creation menu', () => {
     expect(
       screen.getByRole('button', { name: 'Simple conversation' }),
     ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Task manager' })).toBeVisible();
     await user.click(screen.getByRole('button', { name: label }));
     expect(
-      kind === 'agent' ? createAgent : createSimpleChat,
+      kind === 'agent'
+        ? createAgent
+        : kind === 'simple'
+          ? createSimpleChat
+          : createTaskBoard,
     ).toHaveBeenCalledWith(
       expect.objectContaining({ cwd: '/workspaces/Unraid' }),
     );

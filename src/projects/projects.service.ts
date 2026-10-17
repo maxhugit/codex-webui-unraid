@@ -11,11 +11,13 @@ import { Inject } from '@nestjs/common';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
   projects,
+  projectResources,
   projectAgentThreads,
   projectWorkspaces,
   simpleChatThreads,
   type Project,
   type ProjectWorkspace,
+  type ProjectResource,
 } from '../database/schema';
 import { FilesService } from '../files/files.service';
 import { WorkspacesManagementService } from '../threads/workspaces-management.service';
@@ -42,6 +44,7 @@ export class ProjectsService {
     Array<
       Project & {
         workspaces: ProjectWorkspace[];
+        resources: ProjectResource[];
         agentThreads: Array<{
           threadId: string;
           workspacePath: string;
@@ -54,6 +57,7 @@ export class ProjectsService {
     this.ensurePrimaryWorkspaces();
     await this.migrateConversationAssociations();
     const workspaces = this.db.select().from(projectWorkspaces).all();
+    const resources = this.db.select().from(projectResources).all();
     let agents = this.db.select().from(projectAgentThreads).all();
     const snapshot = await this.metadata.read().catch(() => null);
     const snapshotEntries = snapshot?.entries ?? [];
@@ -116,6 +120,9 @@ export class ProjectsService {
         workspaces: workspaces
           .filter((workspace) => workspace.projectId === project.id)
           .sort((a, b) => Number(b.primary) - Number(a.primary)),
+        resources: resources.filter(
+          (resource) => resource.projectId === project.id,
+        ),
         agentThreads: agents
           .filter(
             (agent) =>
@@ -504,6 +511,60 @@ export class ProjectsService {
         await this.files.deleteManagedWorkspace(workspacePath).catch(() => {});
       throw error;
     }
+  }
+
+  createResource(
+    projectId: string,
+    input: { type: string; name?: string },
+  ): ProjectResource {
+    this.get(projectId);
+    if (input.type !== 'task_board')
+      throw new BadRequestException('Unsupported project resource type');
+    const siblings = this.db
+      .select()
+      .from(projectResources)
+      .where(
+        and(
+          eq(projectResources.projectId, projectId),
+          eq(projectResources.type, input.type),
+        ),
+      )
+      .all();
+    const defaultName =
+      siblings.length === 0
+        ? 'Gestionnaire de tâches'
+        : `Gestionnaire de tâches ${siblings.length + 1}`;
+    const name = input.name?.trim() || defaultName;
+    if (name.length > 120)
+      throw new BadRequestException('Resource name is too long');
+    const now = Date.now();
+    const resource: ProjectResource = {
+      id: randomUUID(),
+      projectId,
+      type: input.type,
+      name,
+      config: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.db.insert(projectResources).values(resource).run();
+    return resource;
+  }
+
+  getResource(projectId: string, resourceId: string): ProjectResource {
+    this.get(projectId);
+    const resource = this.db
+      .select()
+      .from(projectResources)
+      .where(
+        and(
+          eq(projectResources.id, resourceId),
+          eq(projectResources.projectId, projectId),
+        ),
+      )
+      .get();
+    if (!resource) throw new NotFoundException('Project resource not found');
+    return resource;
   }
 
   rename(id: string, nameValue: string): Project {

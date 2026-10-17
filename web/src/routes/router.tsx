@@ -18,6 +18,7 @@ import { FilesRoute } from './files-route';
 import { TerminalRoute } from './terminal-route';
 import { DiagnosticsRoute } from './diagnostics-route';
 import { SimpleChatRoute } from './simple-chat-route';
+import { ProjectResourceRoute } from './project-resource-route';
 import { SettingsPage } from '@/components/settings/settings-page';
 import { IntegrationsPage } from '@/components/integrations/integrations-page';
 import { BASE_PATH } from '@/base-path';
@@ -28,7 +29,9 @@ export type SimpleChatSearch = { thread?: string };
 
 const INTEGRATION_TABS = ['plugins', 'apps', 'mcps'] as const;
 
-function sanitizeIntegrationsSearch(search: Record<string, unknown>): IntegrationsSearch {
+function sanitizeIntegrationsSearch(
+  search: Record<string, unknown>,
+): IntegrationsSearch {
   const tab = search.tab;
   return {
     tab: INTEGRATION_TABS.includes(tab as IntegrationsSearch['tab'])
@@ -120,9 +123,18 @@ export const simpleChatRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/simple-chat',
   validateSearch: (search: Record<string, unknown>): SimpleChatSearch => ({
-    thread: typeof search.thread === 'string' && search.thread ? search.thread : undefined,
+    thread:
+      typeof search.thread === 'string' && search.thread
+        ? search.thread
+        : undefined,
   }),
   component: SimpleChatRoute,
+});
+
+const projectResourceRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/projects/$projectId/resources/$resourceId',
+  component: ProjectResourceRoute,
 });
 
 /** Settings page. */
@@ -149,6 +161,7 @@ const routeTree = rootRoute.addChildren([
     terminalRoute,
     diagnosticsRoute,
     simpleChatRoute,
+    projectResourceRoute,
     settingsRoute,
     integrationsRoute,
   ]),

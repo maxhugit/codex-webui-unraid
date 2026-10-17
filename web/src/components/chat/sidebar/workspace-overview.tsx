@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Pencil,
   FolderCog,
+  ListTodo,
   Trash2,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -55,6 +56,8 @@ interface Props {
   onOpenWorkspaceDetail: (cwd: string) => void;
   onCreateAgentInWorkspace: (group: WorkspaceGroup) => void;
   onCreateSimpleChatInWorkspace: (group: WorkspaceGroup) => void;
+  onCreateTaskBoard: (group: WorkspaceGroup) => void;
+  onOpenResource: (projectId: string, resourceId: string) => void;
   onManageWorkspaces?: (group: WorkspaceGroup) => void;
   onRenameProject?: (group: WorkspaceGroup) => void;
   onDeleteProject?: (group: WorkspaceGroup) => void;
@@ -75,6 +78,8 @@ export function WorkspaceOverview({
   onOpenWorkspaceDetail,
   onCreateAgentInWorkspace,
   onCreateSimpleChatInWorkspace,
+  onCreateTaskBoard,
+  onOpenResource,
   onManageWorkspaces,
   onRenameProject,
   onDeleteProject,
@@ -230,6 +235,17 @@ export function WorkspaceOverview({
                       className="h-8 w-full justify-start gap-2 px-2 text-xs"
                       onClick={() => {
                         setOpenMenu(null);
+                        onCreateTaskBoard(group);
+                      }}
+                    >
+                      <ListTodo className="h-3.5 w-3.5" />
+                      {t('Task manager')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-full justify-start gap-2 px-2 text-xs"
+                      onClick={() => {
+                        setOpenMenu(null);
                         onManageWorkspaces?.(group);
                       }}
                     >
@@ -285,6 +301,20 @@ export function WorkspaceOverview({
                   className="overflow-hidden"
                 >
                   <div className="space-y-0.5">
+                    {group.resources?.map((resource) => (
+                      <button
+                        key={resource.id}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-md px-4 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        onClick={() =>
+                          group.projectId &&
+                          onOpenResource(group.projectId, resource.id)
+                        }
+                      >
+                        <ListTodo className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{resource.name}</span>
+                      </button>
+                    ))}
                     {group.threads
                       .slice(0, 5)
                       .map((thread) => renderThreadRow(thread, false))}

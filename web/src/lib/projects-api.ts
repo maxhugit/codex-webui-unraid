@@ -8,12 +8,23 @@ export interface ProjectSummary {
   createdAt: number;
   updatedAt: number;
   workspaces: ProjectWorkspaceSummary[];
+  resources: ProjectResourceSummary[];
   agentThreads?: Array<{
     threadId: string;
     workspacePath: string;
     title: string;
     archived: boolean;
   }>;
+}
+
+export interface ProjectResourceSummary {
+  id: string;
+  projectId: string;
+  type: 'task_board';
+  name: string;
+  config: Record<string, unknown>;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface ProjectWorkspaceSummary {
