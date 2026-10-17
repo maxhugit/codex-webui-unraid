@@ -252,6 +252,27 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
               </div>
             </div>
           )}
+          {ops.uploadFiles.isPending && ops.uploadProgress !== null && (
+            <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 rounded-lg border bg-background/95 px-3 py-2 shadow-lg">
+              <div className="mb-1.5 flex items-center justify-between text-xs">
+                <span>{t('Uploading files')}</span>
+                <span className="tabular-nums">{ops.uploadProgress}%</span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label={t('Upload progress')}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={ops.uploadProgress}
+                className="h-1.5 overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-150"
+                  style={{ width: `${ops.uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </FileListingContextMenu>
       <input

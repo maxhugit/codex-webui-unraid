@@ -2,6 +2,7 @@
  * Store-independent mutations publish confirmed changes to the application reconciler.
  * All file management UI surfaces delegate to this hook.
  */
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '@/lib/api-error';
@@ -19,7 +20,11 @@ import {
 } from '@/generated/api/@tanstack/react-query.gen';
 import { showSnackbar } from '@/stores/snackbar-store';
 import { clearApiToken, getAuthorizationHeader } from '@/auth-token';
-import { beginFileMutation, emitFileChange, finishFileMutation } from '@/lib/file-change-events';
+import {
+  beginFileMutation,
+  emitFileChange,
+  finishFileMutation,
+} from '@/lib/file-change-events';
 
 interface UploadFilesResponse {
   files: Array<{ path: string; size: number }>;
@@ -56,6 +61,7 @@ function readApiError(errorBody: unknown, fallback: string): string {
 export function useFileOperations() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   /** Invalidates tree queries for one or more parent directories. */
   const invalidateDirs = (...dirs: string[]) => {
@@ -73,7 +79,11 @@ export function useFileOperations() {
     onMutate: beginFileMutation,
     onSettled: finishFileMutation,
     onSuccess: (_res, variables) => {
-      emitFileChange({ source: 'local', kind: 'invalidate', paths: [variables.body!.path] });
+      emitFileChange({
+        source: 'local',
+        kind: 'invalidate',
+        paths: [variables.body!.path],
+      });
       showSnackbar(t('File created'), 'success');
     },
   });
@@ -83,7 +93,11 @@ export function useFileOperations() {
     onMutate: beginFileMutation,
     onSettled: finishFileMutation,
     onSuccess: (_res, variables) => {
-      emitFileChange({ source: 'local', kind: 'invalidate', paths: [variables.body!.path] });
+      emitFileChange({
+        source: 'local',
+        kind: 'invalidate',
+        paths: [variables.body!.path],
+      });
       showSnackbar(t('Directory created'), 'success');
     },
   });
@@ -94,7 +108,12 @@ export function useFileOperations() {
     onSettled: finishFileMutation,
     onSuccess: (res) => {
       if (res.oldPath && res.newPath)
-        emitFileChange({ source: 'local', kind: 'rename', oldPath: res.oldPath, newPath: res.newPath });
+        emitFileChange({
+          source: 'local',
+          kind: 'rename',
+          oldPath: res.oldPath,
+          newPath: res.newPath,
+        });
       showSnackbar(t('Renamed successfully'), 'success');
     },
   });
@@ -105,7 +124,11 @@ export function useFileOperations() {
     onSettled: finishFileMutation,
     onError: (error) => showSnackbar(getApiErrorMessage(error), 'error'),
     onSuccess: (_res, variables) => {
-      emitFileChange({ source: 'local', kind: 'invalidate', paths: [variables.body!.destinationPath] });
+      emitFileChange({
+        source: 'local',
+        kind: 'invalidate',
+        paths: [variables.body!.destinationPath],
+      });
       showSnackbar(t('Copied successfully'), 'success');
     },
   });
@@ -117,7 +140,12 @@ export function useFileOperations() {
     onError: (error) => showSnackbar(getApiErrorMessage(error), 'error'),
     onSuccess: (res) => {
       if (res.oldPath && res.newPath)
-        emitFileChange({ source: 'local', kind: 'rename', oldPath: res.oldPath, newPath: res.newPath });
+        emitFileChange({
+          source: 'local',
+          kind: 'rename',
+          oldPath: res.oldPath,
+          newPath: res.newPath,
+        });
       showSnackbar(t('Moved successfully'), 'success');
     },
   });
@@ -135,32 +163,64 @@ export function useFileOperations() {
   });
 
   /** Upload via direct fetch — SDK serializes body as JSON, multipart needs raw FormData. */
-  const uploadFiles = useMutation<UploadFilesResponse, Error, UploadFilesVariables>({
-    onMutate: beginFileMutation,
-    onSettled: finishFileMutation,
-    mutationFn: async ({ destinationPath, formData }) => {
-      const resp = await fetch(
-        `${withBasePath('/api/files/upload')}?destinationPath=${encodeURIComponent(destinationPath)}`,
-        {
-          method: 'POST',
-          headers: authHeaders(),
-          body: formData,
-        },
-      );
-      if (!resp.ok) {
-        handleUnauthorized(resp.status);
-        const err = await resp.json().catch(() => undefined);
-        throw new Error(
-          readApiError(err, `${t('Upload failed')}: ${resp.status}`),
-        );
-      }
-      return (await resp.json()) as UploadFilesResponse;
+  const uploadFiles = useMutation<
+    UploadFilesResponse,
+    Error,
+    UploadFilesVariables
+  >({
+    onMutate: () => {
+      beginFileMutation();
+      setUploadProgress(0);
     },
+    onSettled: () => {
+      finishFileMutation();
+      window.setTimeout(() => setUploadProgress(null), 600);
+    },
+    mutationFn: ({ destinationPath, formData }) =>
+      new Promise<UploadFilesResponse>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(
+          'POST',
+          `${withBasePath('/api/files/upload')}?destinationPath=${encodeURIComponent(destinationPath)}`,
+        );
+        const authorization = getAuthorizationHeader();
+        if (authorization) xhr.setRequestHeader('Authorization', authorization);
+        xhr.upload.onprogress = (event) => {
+          if (!event.lengthComputable || event.total <= 0) return;
+          setUploadProgress(
+            Math.min(99, Math.round((event.loaded / event.total) * 100)),
+          );
+        };
+        xhr.onerror = () => reject(new Error(t('Upload failed')));
+        xhr.onload = () => {
+          handleUnauthorized(xhr.status);
+          let body: unknown;
+          try {
+            body = xhr.responseText ? JSON.parse(xhr.responseText) : undefined;
+          } catch {
+            body = undefined;
+          }
+          if (xhr.status < 200 || xhr.status >= 300) {
+            reject(
+              new Error(
+                readApiError(body, `${t('Upload failed')}: ${xhr.status}`),
+              ),
+            );
+            return;
+          }
+          setUploadProgress(100);
+          resolve(body as UploadFilesResponse);
+        };
+        xhr.send(formData);
+      }),
     onSuccess: (res, variables) => {
       emitFileChange({
         source: 'local',
         kind: 'invalidate',
-        paths: [variables.destinationPath, ...res.files.map((file) => file.path)],
+        paths: [
+          variables.destinationPath,
+          ...res.files.map((file) => file.path),
+        ],
       });
       showSnackbar(t('Upload complete'), 'success');
     },
@@ -216,6 +276,7 @@ export function useFileOperations() {
     movePath,
     deletePath,
     uploadFiles,
+    uploadProgress,
     downloadFile,
     refresh,
   };

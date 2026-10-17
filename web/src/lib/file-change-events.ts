@@ -21,6 +21,8 @@ export function filePathChanges(change: FileChange): FilePathChange[] {
 
 type Listener = (change: FileChange) => void;
 const listeners = new Set<Listener>();
+const LOCAL_DELETE_GRACE_MS = 10_000;
+const recentLocalDeletes = new Map<string, number>();
 
 /** Subscribes to confirmed or externally observed file changes. */
 export function subscribeFileChanges(listener: Listener): () => void {
@@ -30,7 +32,25 @@ export function subscribeFileChanges(listener: Listener): () => void {
 
 /** Publishes one normalized change without retaining history in the browser. */
 export function emitFileChange(change: FileChange): void {
+  if (change.source === 'local') {
+    for (const fact of filePathChanges(change))
+      if (fact.kind === 'delete')
+        recentLocalDeletes.set(fact.path, Date.now() + LOCAL_DELETE_GRACE_MS);
+  }
   for (const listener of listeners) listener(change);
+}
+
+/** Ignores delayed watcher echoes for deletions already confirmed by this client. */
+export function isRecentLocalDelete(filePath: string): boolean {
+  const now = Date.now();
+  for (const [deletedPath, expiresAt] of recentLocalDeletes) {
+    if (expiresAt <= now) {
+      recentLocalDeletes.delete(deletedPath);
+      continue;
+    }
+    if (pathIsWithin(filePath, deletedPath)) return true;
+  }
+  return false;
 }
 
 /** Returns the parent path using the same absolute-path convention as the API. */

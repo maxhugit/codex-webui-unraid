@@ -2,7 +2,7 @@
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { applyFileChange, reconcileExternalPaths } from './file-reconciler';
-import { subscribeFileChanges } from './file-change-events';
+import { emitFileChange, subscribeFileChanges } from './file-change-events';
 import { useFilesStore } from '@/stores/files-store';
 import { useDocumentStore } from '@/stores/document-store';
 import {
@@ -137,6 +137,16 @@ it('ignores internal upload staging paths without requesting metadata', async ()
   unsubscribe();
   expect(metadata).not.toHaveBeenCalled();
   expect(events).not.toHaveBeenCalled();
+});
+
+it('ignores delayed watcher echoes for a locally confirmed deletion', async () => {
+  const deletedPath = '/work/already-deleted.pdf';
+  emitFileChange({ source: 'local', kind: 'delete', path: deletedPath });
+  metadata.mockRejectedValue({ errorCode: 'files.path_not_found' });
+
+  await reconcileExternalPaths([deletedPath]);
+
+  expect(metadata).not.toHaveBeenCalled();
 });
 
 /**

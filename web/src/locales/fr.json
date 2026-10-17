@@ -93,6 +93,8 @@
   "Archived": "Archivée",
   "Detaching will move these conversations to the default workspace. They will not be deleted.": "La dissociation déplacera ces conversations vers le workspace par défaut. Elles ne seront pas supprimées.",
   "Drop files into this workspace": "Déposez les fichiers dans ce workspace",
+  "Uploading files": "Envoi des fichiers",
+  "Upload progress": "Progression de l’envoi",
   "Select the workspace folders to delete permanently:": "Sélectionnez les dossiers workspace à supprimer définitivement :",
   "Work agents and simple conversations in this project will be permanently deleted.": "Les agents de travail et les conversations simples de ce projet seront définitivement supprimés.",
   "Also delete associated workspace folders and all their files": "Supprimer également les dossiers workspace associés et tous leurs fichiers",

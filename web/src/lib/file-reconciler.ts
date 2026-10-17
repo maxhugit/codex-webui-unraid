@@ -20,6 +20,7 @@ import {
   filePathChanges,
   type FilePathChange,
   fileMutationEpoch,
+  isRecentLocalDelete,
   waitForFileMutations,
   emitFileChange,
   parentFilePath,
@@ -197,6 +198,7 @@ export function reconcileExternalPaths(
   // files, so querying their metadata only produces noisy path-not-found UI.
   const changedPaths = [...new Set(paths)].filter(
     (path) =>
+      !isRecentLocalDelete(path) &&
       !path
         .split(/[\\/]/)
         .some(
