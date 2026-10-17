@@ -124,6 +124,11 @@ type GanttDisplay = {
   scales: Array<{ unit: string; step: number; format: string }>;
   cellWidth: number;
 };
+type GanttViewport = {
+  level: number;
+  cellWidth: number;
+  scrollLeft: number;
+};
 const emptyDraft: Draft = {
   title: '',
   description: '',
@@ -386,6 +391,8 @@ export function ProjectTaskManager({
   const [ganttWidth, setGanttWidth] = useState(900);
   const [fittedGanttDisplay, setFittedGanttDisplay] =
     useState<GanttDisplay | null>(null);
+  const [ganttViewport, setGanttViewport] =
+    useState<GanttViewport | null>(null);
   const ganttShellRef = useRef<HTMLElement | null>(null);
   const [taskTab, setTaskTab] = useState<string>('new');
   const [rootTaskId, setRootTaskId] = useState<string | null>(null);
@@ -402,6 +409,21 @@ export function ProjectTaskManager({
     observer.observe(element);
     return () => observer.disconnect();
   }, [view]);
+  useEffect(() => {
+    if (view !== 'planning' || !ganttApi || !ganttViewport) return;
+    const frame = requestAnimationFrame(() => {
+      const current = ganttApi.getState();
+      ganttApi.getStores().data.setState({
+        cellWidth: ganttViewport.cellWidth,
+        _cellWidth: ganttViewport.cellWidth,
+        ...(current.zoom
+          ? { zoom: { ...current.zoom, level: ganttViewport.level } }
+          : {}),
+      });
+      void ganttApi.exec('scroll-chart', { left: ganttViewport.scrollLeft });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [ganttApi, ganttViewport, query.dataUpdatedAt, view]);
   useEffect(() => {
     if (
       !initialTaskId ||
@@ -475,7 +497,9 @@ export function ProjectTaskManager({
     const dayClass = (date: Date) =>
       date.getDay() === 0 || date.getDay() === 6 ? 'project-gantt-weekend' : '';
     return {
-      level: ganttView === 'years' ? 0 : ganttView === 'months' ? 1 : 2,
+      level:
+        ganttViewport?.level ??
+        (ganttView === 'years' ? 0 : ganttView === 'months' ? 1 : 2),
       minCellWidth: 30,
       maxCellWidth: 180,
       levels: [
@@ -526,7 +550,7 @@ export function ProjectTaskManager({
         },
       ],
     };
-  }, [ganttFrench, ganttView]);
+  }, [ganttFrench, ganttView, ganttViewport?.level]);
   if (query.isLoading)
     return <div className="p-6 text-sm text-muted-foreground">Chargement…</div>;
   if (!query.data)
@@ -1483,6 +1507,14 @@ export function ProjectTaskManager({
     if (event.inProgress) return;
     const current = board.tasks.find((task) => task.id === String(event.id));
     if (!current) return;
+    if (ganttApi) {
+      const viewport = ganttApi.getState();
+      setGanttViewport({
+        level: viewport.zoom?.level ?? 0,
+        cellWidth: viewport.cellWidth ?? ganttDisplay.cellWidth,
+        scrollLeft: viewport.scrollLeft,
+      });
+    }
     const patch: { startAt?: number; dueAt?: number; progress?: number } = {};
     if (event.task.start) {
       const start = new Date(event.task.start);
@@ -1993,7 +2025,10 @@ export function ProjectTaskManager({
                 type="button"
                 size="sm"
                 variant={ganttView === mode ? 'default' : 'ghost'}
-                onClick={() => setGanttView(mode)}
+                onClick={() => {
+                  setGanttViewport(null);
+                  setGanttView(mode);
+                }}
                 aria-pressed={ganttView === mode}
               >
                 {label}
@@ -2004,6 +2039,7 @@ export function ProjectTaskManager({
               size="sm"
               variant={ganttView === 'fit' ? 'default' : 'ghost'}
               onClick={() => {
+                setGanttViewport(null);
                 setFittedGanttDisplay(calculatedFitDisplay);
                 setGanttView('fit');
               }}
@@ -2166,7 +2202,10 @@ export function ProjectTaskManager({
                     columns={ganttColumns}
                     taskTypes={ganttTaskTypes}
                     scales={ganttDisplay.scales as never}
-                    cellWidth={ganttDisplay.cellWidth}
+                    cellWidth={
+                      ganttViewport?.cellWidth ?? ganttDisplay.cellWidth
+                    }
+                    autoScale={false}
                     highlightTime={(date, unit) => {
                       if (unit !== 'day' && unit !== 'hour') return '';
                       const today = new Date();
@@ -2186,6 +2225,21 @@ export function ProjectTaskManager({
                     zoom={ganttZoom as never}
                     init={(api) => {
                       setGanttApi(api);
+                      api.on(
+                        'zoom-scale',
+                        () => {
+                          requestAnimationFrame(() => {
+                            const viewport = api.getState();
+                            setGanttViewport({
+                              level: viewport.zoom?.level ?? 0,
+                              cellWidth:
+                                viewport.cellWidth ?? ganttDisplay.cellWidth,
+                              scrollLeft: viewport.scrollLeft,
+                            });
+                          });
+                        },
+                        { tag: 'remember-project-gantt-viewport' },
+                      );
                       api.on(
                         'update-task',
                         (event) => void persistGanttDates(event),
