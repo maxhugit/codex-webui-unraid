@@ -579,7 +579,7 @@ export class ProjectsService {
       { name: 'À faire', color: 'blue', kind: 'todo', system: false },
       { name: 'En cours', color: 'amber', kind: 'in_progress', system: false },
       { name: 'Bloqué', color: 'red', kind: 'blocked', system: false },
-      { name: 'À valider', color: 'purple', kind: 'review', system: true },
+      { name: 'À valider', color: 'purple', kind: 'review', system: false },
       { name: 'Terminé', color: 'green', kind: 'done', system: false },
     ];
     this.db.transaction((tx) => {
@@ -603,6 +603,21 @@ export class ProjectsService {
   async readTaskBoard(projectId: string, resourceId: string) {
     const resource = this.getResource(projectId, resourceId);
     const project = this.get(projectId);
+    // "À valider" used to be protected while top-level tasks could run an
+    // agent. Agents now belong exclusively to subtasks, so existing boards
+    // must expose this legacy column as a regular, removable status.
+    const legacyReviewStatus = this.db
+      .select()
+      .from(projectTaskStatuses)
+      .where(eq(projectTaskStatuses.resourceId, resourceId))
+      .all()
+      .find((status) => status.kind === 'review' && status.system);
+    if (legacyReviewStatus)
+      this.db
+        .update(projectTaskStatuses)
+        .set({ system: false, updatedAt: Date.now() })
+        .where(eq(projectTaskStatuses.id, legacyReviewStatus.id))
+        .run();
     const workspaces = this.db
       .select()
       .from(projectWorkspaces)
