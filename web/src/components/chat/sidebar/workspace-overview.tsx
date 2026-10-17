@@ -8,7 +8,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Pencil,
-  FolderPlus,
+  FolderCog,
   Trash2,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -55,11 +55,9 @@ interface Props {
   onOpenWorkspaceDetail: (cwd: string) => void;
   onCreateAgentInWorkspace: (group: WorkspaceGroup) => void;
   onCreateSimpleChatInWorkspace: (group: WorkspaceGroup) => void;
-  onCreateWorkspace?: (group: WorkspaceGroup) => void;
+  onManageWorkspaces?: (group: WorkspaceGroup) => void;
   onRenameProject?: (group: WorkspaceGroup) => void;
   onDeleteProject?: (group: WorkspaceGroup) => void;
-  onSetDefaultWorkspace?: (group: WorkspaceGroup, workspaceId: string) => void;
-  onDetachWorkspace?: (group: WorkspaceGroup, workspaceId: string) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
   renderSimpleChatRow: (
     thread: WorkspaceGroup['simpleChats'][number],
@@ -77,11 +75,9 @@ export function WorkspaceOverview({
   onOpenWorkspaceDetail,
   onCreateAgentInWorkspace,
   onCreateSimpleChatInWorkspace,
-  onCreateWorkspace,
+  onManageWorkspaces,
   onRenameProject,
   onDeleteProject,
-  onSetDefaultWorkspace,
-  onDetachWorkspace,
   renderThreadRow,
   renderSimpleChatRow,
   movingThread,
@@ -234,54 +230,12 @@ export function WorkspaceOverview({
                       className="h-8 w-full justify-start gap-2 px-2 text-xs"
                       onClick={() => {
                         setOpenMenu(null);
-                        onCreateWorkspace?.(group);
+                        onManageWorkspaces?.(group);
                       }}
                     >
-                      <FolderPlus className="h-3.5 w-3.5" />
-                      {t('New workspace')}
+                      <FolderCog className="h-3.5 w-3.5" />
+                      {t('Manage workspaces')}
                     </Button>
-                    {(group.workspaces ?? []).length > 1 && (
-                      <div className="my-1 border-t border-border pt-1">
-                        {(group.workspaces ?? []).map((workspace) => (
-                          <div key={workspace.id} className="px-2 py-1.5">
-                            <div
-                              className="truncate text-[11px] text-muted-foreground"
-                              title={workspace.path}
-                            >
-                              {workspace.name}{' '}
-                              {workspace.primary ? `(${t('Default')})` : ''}
-                            </div>
-                            {!workspace.primary && (
-                              <div className="mt-1 flex gap-1">
-                                <Button
-                                  variant="outline"
-                                  className="h-6 px-1.5 text-[10px]"
-                                  onClick={() => {
-                                    setOpenMenu(null);
-                                    onSetDefaultWorkspace?.(
-                                      group,
-                                      workspace.id,
-                                    );
-                                  }}
-                                >
-                                  {t('Set as default')}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  className="h-6 px-1.5 text-[10px] text-destructive"
-                                  onClick={() => {
-                                    setOpenMenu(null);
-                                    onDetachWorkspace?.(group, workspace.id);
-                                  }}
-                                >
-                                  {t('Detach')}
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                     <Button
                       variant="ghost"
                       className="h-8 w-full justify-start gap-2 px-2 text-xs"

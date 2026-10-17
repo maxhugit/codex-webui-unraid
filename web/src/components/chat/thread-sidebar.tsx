@@ -61,6 +61,7 @@ import { RenameDialog, ConfirmDialog } from './sidebar/sidebar-dialogs';
 import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
 import { DirectoryPickerDialog } from './sidebar/directory-picker-dialog';
 import { CreateProjectDialog } from './sidebar/create-project-dialog';
+import { ManageWorkspacesDialog } from './sidebar/manage-workspaces-dialog';
 import { useForkWithGoal } from '@/hooks/use-fork-with-goal';
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
@@ -181,7 +182,8 @@ export function ThreadSidebar() {
     null,
   );
   const [workspaceProject, setWorkspaceProject] =
-    useState<WorkspaceGroup | null>(null);
+    useState<ProjectSummary | null>(null);
+  const [manageProjectId, setManageProjectId] = useState<string | null>(null);
   const [pendingConversation, setPendingConversation] = useState<{
     kind: 'agent' | 'simple';
     group: WorkspaceGroup;
@@ -190,7 +192,9 @@ export function ThreadSidebar() {
     projectId: string;
     workspacePath: string;
   } | null>(null);
-  const [deleteProjectWorkspaces, setDeleteProjectWorkspaces] = useState(false);
+  const [deleteProjectWorkspaceIds, setDeleteProjectWorkspaceIds] = useState<
+    Set<string>
+  >(new Set());
 
   // ── Queries ─────────────────────────────────────────────────────────
   // The sidebar reads one server-side projection. It used to join a paginated
@@ -254,6 +258,10 @@ export function ThreadSidebar() {
     queryKey: projectsQueryKey,
     queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
   });
+  const managedProject =
+    projectsQuery.data?.projects.find(
+      (project) => project.id === manageProjectId,
+    ) ?? null;
 
   // ── Deletion ────────────────────────────────────────────────────────
   const adoptionStatus = useBranchAdoptionStatus();
@@ -695,11 +703,25 @@ export function ThreadSidebar() {
   });
   const createWorkspace = useMutation({
     mutationFn: ({ projectId, path }: { projectId: string; path: string }) =>
-      projectsApi(`/${projectId}/workspaces`, {
+      projectsApi<{
+        workspace: ProjectSummary['workspaces'][number];
+      }>(`/${projectId}/workspaces`, {
         method: 'POST',
         body: JSON.stringify({ path }),
       }),
-    onSuccess: () => {
+    onSuccess: ({ workspace }, variables) => {
+      queryClient.setQueryData<{ projects: ProjectSummary[] }>(
+        projectsQueryKey,
+        (current) =>
+          current && {
+            projects: current.projects.map((project) =>
+              project.id === variables.projectId &&
+              !project.workspaces.some((item) => item.id === workspace.id)
+                ? { ...project, workspaces: [...project.workspaces, workspace] }
+                : project,
+            ),
+          },
+      );
       setWorkspaceProject(null);
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
     },
@@ -716,8 +738,30 @@ export function ThreadSidebar() {
       projectsApi(`/${projectId}/workspaces/${workspaceId}/default`, {
         method: 'PATCH',
       }),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+    onSuccess: (_result, variables) => {
+      queryClient.setQueryData<{ projects: ProjectSummary[] }>(
+        projectsQueryKey,
+        (current) =>
+          current && {
+            projects: current.projects.map((project) => {
+              if (project.id !== variables.projectId) return project;
+              const selected = project.workspaces.find(
+                (workspace) => workspace.id === variables.workspaceId,
+              );
+              if (!selected) return project;
+              return {
+                ...project,
+                workspacePath: selected.path,
+                workspaces: project.workspaces.map((workspace) => ({
+                  ...workspace,
+                  primary: workspace.id === variables.workspaceId,
+                })),
+              };
+            }),
+          },
+      );
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
   const detachWorkspace = useMutation({
@@ -731,7 +775,23 @@ export function ThreadSidebar() {
       projectsApi(`/${projectId}/workspaces/${workspaceId}`, {
         method: 'DELETE',
       }),
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
+      queryClient.setQueryData<{ projects: ProjectSummary[] }>(
+        projectsQueryKey,
+        (current) =>
+          current && {
+            projects: current.projects.map((project) =>
+              project.id === variables.projectId
+                ? {
+                    ...project,
+                    workspaces: project.workspaces.filter(
+                      (workspace) => workspace.id !== variables.workspaceId,
+                    ),
+                  }
+                : project,
+            ),
+          },
+      );
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
       void queryClient.invalidateQueries({
         queryKey: simpleChatThreadsQueryKey,
@@ -759,12 +819,12 @@ export function ThreadSidebar() {
         method: 'DELETE',
         body: JSON.stringify({
           confirmation: project.name,
-          deleteWorkspaces: deleteProjectWorkspaces,
+          deleteWorkspaceIds: [...deleteProjectWorkspaceIds],
         }),
       }),
     onSuccess: () => {
       setDeleteProject(null);
-      setDeleteProjectWorkspaces(false);
+      setDeleteProjectWorkspaceIds(new Set());
       void queryClient.invalidateQueries();
       void navigate({ to: '/' });
     },
@@ -1073,21 +1133,9 @@ export function ThreadSidebar() {
               onCreateSimpleChatInWorkspace={(group) =>
                 requestConversation('simple', group)
               }
-              onCreateWorkspace={setWorkspaceProject}
-              onSetDefaultWorkspace={(group, workspaceId) => {
-                if (group.projectId)
-                  setDefaultWorkspace.mutate({
-                    projectId: group.projectId,
-                    workspaceId,
-                  });
-              }}
-              onDetachWorkspace={(group, workspaceId) => {
-                if (group.projectId)
-                  detachWorkspace.mutate({
-                    projectId: group.projectId,
-                    workspaceId,
-                  });
-              }}
+              onManageWorkspaces={(group) =>
+                group.projectId && setManageProjectId(group.projectId)
+              }
               onRenameProject={(group) => {
                 if (!group.projectId) return;
                 setRenameProject({
@@ -1102,6 +1150,7 @@ export function ThreadSidebar() {
               }}
               onDeleteProject={(group) => {
                 if (!group.projectId) return;
+                setDeleteProjectWorkspaceIds(new Set());
                 setDeleteProject({
                   id: group.projectId,
                   name: group.name ?? group.cwd,
@@ -1180,13 +1229,29 @@ export function ThreadSidebar() {
           setCreateProjectPathCustomized(false);
         }}
       />
+      <ManageWorkspacesDialog
+        project={workspaceProject ? null : managedProject}
+        pending={
+          createWorkspace.isPending ||
+          setDefaultWorkspace.isPending ||
+          detachWorkspace.isPending
+        }
+        onClose={() => setManageProjectId(null)}
+        onAdd={(project) => setWorkspaceProject(project)}
+        onSetDefault={(project, workspaceId) =>
+          setDefaultWorkspace.mutate({ projectId: project.id, workspaceId })
+        }
+        onDetach={(project, workspaceId) =>
+          detachWorkspace.mutate({ projectId: project.id, workspaceId })
+        }
+      />
       <DirectoryPickerDialog
         open={workspaceProject !== null}
         onClose={() => setWorkspaceProject(null)}
         onSelect={(path) => {
-          if (workspaceProject?.projectId)
+          if (workspaceProject)
             createWorkspace.mutate({
-              projectId: workspaceProject.projectId,
+              projectId: workspaceProject.id,
               path,
             });
         }}
@@ -1307,7 +1372,7 @@ export function ThreadSidebar() {
           !deleteProjectMutation.isPending &&
           (() => {
             setDeleteProject(null);
-            setDeleteProjectWorkspaces(false);
+            setDeleteProjectWorkspaceIds(new Set());
           })()
         }
       >
@@ -1321,26 +1386,39 @@ export function ThreadSidebar() {
             </AlertDialogDescription>
             {deleteProject && (
               <div className="space-y-2 text-sm">
-                <label className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={deleteProjectWorkspaces}
-                    onChange={(event) =>
-                      setDeleteProjectWorkspaces(event.target.checked)
-                    }
-                    className="mt-1"
-                  />
-                  <span>
-                    {t(
-                      'Also delete associated workspace folders and all their files',
-                    )}
-                  </span>
-                </label>
-                <ul className="max-h-28 overflow-auto rounded border border-border p-2 font-mono text-[11px] text-muted-foreground">
+                <p className="font-medium">
+                  {t('Select the workspace folders to delete permanently:')}
+                </p>
+                <div className="max-h-40 space-y-2 overflow-auto rounded border border-border p-2">
                   {deleteProject.workspaces.map((workspace) => (
-                    <li key={workspace.id}>{workspace.path}</li>
+                    <label
+                      key={workspace.id}
+                      className="flex cursor-pointer items-start gap-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={deleteProjectWorkspaceIds.has(workspace.id)}
+                        onChange={(event) =>
+                          setDeleteProjectWorkspaceIds((current) => {
+                            const next = new Set(current);
+                            if (event.target.checked) next.add(workspace.id);
+                            else next.delete(workspace.id);
+                            return next;
+                          })
+                        }
+                        className="mt-1"
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium">
+                          {workspace.name}
+                        </span>
+                        <span className="block truncate font-mono text-[11px] text-muted-foreground">
+                          {workspace.path}
+                        </span>
+                      </span>
+                    </label>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
           </AlertDialogHeader>

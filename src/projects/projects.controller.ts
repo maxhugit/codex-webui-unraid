@@ -74,12 +74,13 @@ export class ProjectsController {
   @Delete(':id')
   remove(
     @Param('id') id: string,
-    @Body() body: { confirmation: string; deleteWorkspaces?: boolean },
+    @Body()
+    body: { confirmation: string; deleteWorkspaceIds?: string[] },
   ) {
     return this.projects.remove(
       id,
       body.confirmation,
-      body.deleteWorkspaces === true,
+      Array.isArray(body.deleteWorkspaceIds) ? body.deleteWorkspaceIds : [],
     );
   }
 }

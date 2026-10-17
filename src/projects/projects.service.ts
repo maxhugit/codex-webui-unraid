@@ -448,7 +448,11 @@ export class ProjectsService {
     return { ...project, name, updatedAt };
   }
 
-  async remove(id: string, confirmation: string, deleteWorkspaces = false) {
+  async remove(
+    id: string,
+    confirmation: string,
+    deleteWorkspaceIds: string[] = [],
+  ) {
     const project = this.get(id);
     if (confirmation !== project.name)
       throw new BadRequestException('Project confirmation does not match');
@@ -457,6 +461,10 @@ export class ProjectsService {
       .from(projectWorkspaces)
       .where(eq(projectWorkspaces.projectId, id))
       .all();
+    const selectedWorkspaceIds = new Set(deleteWorkspaceIds);
+    const workspacesToDelete = attached.filter((workspace) =>
+      selectedWorkspaceIds.has(workspace.id),
+    );
     const agents = this.db
       .select()
       .from(projectAgentThreads)
@@ -485,14 +493,14 @@ export class ProjectsService {
       preview.threadIds.forEach((threadId) => handled.add(threadId));
     }
     this.db.delete(projects).where(eq(projects.id, id)).run();
-    if (deleteWorkspaces)
-      for (const workspace of attached)
-        await this.files.deletePath(workspace.path, true);
+    for (const workspace of workspacesToDelete)
+      await this.files.deletePath(workspace.path, true);
     return {
       ok: true,
-      preservedWorkspaces: deleteWorkspaces
-        ? []
-        : attached.map((workspace) => workspace.path),
+      deletedWorkspaces: workspacesToDelete.map((workspace) => workspace.path),
+      preservedWorkspaces: attached
+        .filter((workspace) => !selectedWorkspaceIds.has(workspace.id))
+        .map((workspace) => workspace.path),
     };
   }
 
