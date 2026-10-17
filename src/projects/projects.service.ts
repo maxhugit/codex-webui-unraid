@@ -2160,10 +2160,19 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
 
   deleteResource(projectId: string, resourceId: string) {
     const resource = this.getResource(projectId, resourceId);
-    this.db
-      .delete(projectResources)
-      .where(eq(projectResources.id, resource.id))
-      .run();
+    this.db.transaction((tx) => {
+      // Tasks reference statuses with RESTRICT. Delete tasks first instead of
+      // relying on SQLite to choose a safe order for the resource cascade.
+      tx.delete(projectTasks)
+        .where(eq(projectTasks.resourceId, resource.id))
+        .run();
+      tx.delete(projectTaskStatuses)
+        .where(eq(projectTaskStatuses.resourceId, resource.id))
+        .run();
+      tx.delete(projectResources)
+        .where(eq(projectResources.id, resource.id))
+        .run();
+    });
     return { ok: true };
   }
 
@@ -2223,7 +2232,27 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         );
       preview.threadIds.forEach((threadId) => handled.add(threadId));
     }
-    this.db.delete(projects).where(eq(projects.id, id)).run();
+    const resources = this.db
+      .select()
+      .from(projectResources)
+      .where(eq(projectResources.projectId, id))
+      .all();
+    this.db.transaction((tx) => {
+      // A task status is RESTRICTed while tasks still reference it. The
+      // explicit child-first order makes whole-project deletion deterministic.
+      for (const resource of resources) {
+        tx.delete(projectTasks)
+          .where(eq(projectTasks.resourceId, resource.id))
+          .run();
+        tx.delete(projectTaskStatuses)
+          .where(eq(projectTaskStatuses.resourceId, resource.id))
+          .run();
+      }
+      tx.delete(projectResources)
+        .where(eq(projectResources.projectId, id))
+        .run();
+      tx.delete(projects).where(eq(projects.id, id)).run();
+    });
     for (const workspace of workspacesToDelete)
       await this.files.deletePath(workspace.path, true);
     return {

@@ -188,6 +188,7 @@ export function ThreadSidebar() {
   const [deleteProject, setDeleteProject] = useState<ProjectSummary | null>(
     null,
   );
+  const [deleteProjectError, setDeleteProjectError] = useState('');
   const [workspaceProject, setWorkspaceProject] =
     useState<ProjectSummary | null>(null);
   const [manageProjectId, setManageProjectId] = useState<string | null>(null);
@@ -904,13 +905,19 @@ export function ThreadSidebar() {
           deleteWorkspaceIds: [...deleteProjectWorkspaceIds],
         }),
       }),
+    onMutate: () => setDeleteProjectError(''),
     onSuccess: () => {
       setDeleteProject(null);
+      setDeleteProjectError('');
       setDeleteProjectWorkspaceIds(new Set());
       void queryClient.invalidateQueries();
       void navigate({ to: '/' });
     },
-    onError: (err) => addSystemError(getApiErrorMessage(err)),
+    onError: (err) => {
+      const message = getApiErrorMessage(err);
+      setDeleteProjectError(message);
+      addSystemError(message);
+    },
   });
   const createTaskBoard = useMutation({
     mutationFn: (projectId: string) =>
@@ -1319,6 +1326,7 @@ export function ThreadSidebar() {
               }}
               onDeleteProject={(group) => {
                 if (!group.projectId) return;
+                setDeleteProjectError('');
                 setDeleteProjectWorkspaceIds(new Set());
                 setDeleteProject({
                   id: group.projectId,
@@ -1594,6 +1602,7 @@ export function ThreadSidebar() {
           !deleteProjectMutation.isPending &&
           (() => {
             setDeleteProject(null);
+            setDeleteProjectError('');
             setDeleteProjectWorkspaceIds(new Set());
           })()
         }
@@ -1643,6 +1652,11 @@ export function ThreadSidebar() {
                 </div>
               </div>
             )}
+            {deleteProjectError && (
+              <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
+                {deleteProjectError}
+              </p>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteProjectMutation.isPending}>
@@ -1651,9 +1665,10 @@ export function ThreadSidebar() {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={!deleteProject || deleteProjectMutation.isPending}
-              onClick={() =>
-                deleteProject && deleteProjectMutation.mutate(deleteProject)
-              }
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteProject) deleteProjectMutation.mutate(deleteProject);
+              }}
             >
               {t('Delete permanently')}
             </AlertDialogAction>
