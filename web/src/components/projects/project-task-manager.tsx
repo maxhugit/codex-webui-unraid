@@ -458,6 +458,67 @@ export function ProjectTaskManager({
             .includes(needle)),
     );
   }, [query.data?.tasks, search, priority]);
+  const ganttZoom = useMemo(() => {
+    const dayFormat = (date: Date) =>
+      new Intl.DateTimeFormat(ganttFrench ? 'fr-FR' : 'en-US', {
+        weekday: 'short',
+        day: 'numeric',
+      }).format(date);
+    const dayClass = (date: Date) =>
+      date.getDay() === 0 || date.getDay() === 6 ? 'project-gantt-weekend' : '';
+    return {
+      level: ganttView === 'years' ? 0 : ganttView === 'months' ? 1 : 2,
+      minCellWidth: 30,
+      maxCellWidth: 180,
+      levels: [
+        {
+          minCellWidth: 70,
+          maxCellWidth: 160,
+          scales: [
+            { unit: 'year', step: 1, format: '%Y' },
+            {
+              unit: 'quarter',
+              step: 1,
+              format: ganttFrench ? "'T'%Q" : "'Q'%Q",
+            },
+          ],
+        },
+        {
+          minCellWidth: 70,
+          maxCellWidth: 150,
+          scales: [
+            { unit: 'year', step: 1, format: '%Y' },
+            { unit: 'month', step: 1, format: '%F' },
+          ],
+        },
+        {
+          minCellWidth: 55,
+          maxCellWidth: 130,
+          scales: [
+            { unit: 'month', step: 1, format: '%F %Y' },
+            {
+              unit: 'week',
+              step: 1,
+              format: ganttFrench ? "'Sem.' %W" : "'Week' %W",
+            },
+          ],
+        },
+        {
+          minCellWidth: 72,
+          maxCellWidth: 140,
+          scales: [
+            { unit: 'month', step: 1, format: '%F %Y' },
+            {
+              unit: 'day',
+              step: 1,
+              format: dayFormat,
+              css: dayClass,
+            },
+          ],
+        },
+      ],
+    };
+  }, [ganttFrench, ganttView]);
   if (query.isLoading)
     return <div className="p-6 text-sm text-muted-foreground">Chargement…</div>;
   if (!query.data)
@@ -1355,76 +1416,6 @@ export function ProjectTaskManager({
       cellWidth: 110,
     };
   })();
-  const ganttDayFormat = (date: Date) =>
-    new Intl.DateTimeFormat(ganttFrench ? 'fr-FR' : 'en-US', {
-      weekday: 'short',
-      day: 'numeric',
-    }).format(date);
-  const ganttDayClass = (date: Date) =>
-    date.getDay() === 0 || date.getDay() === 6 ? 'project-gantt-weekend' : '';
-  const ganttZoom = {
-    level:
-      ganttView === 'years'
-        ? 0
-        : ganttView === 'months'
-          ? 1
-          : ganttView === 'fit'
-            ? ganttRange.days > 730
-              ? 0
-              : ganttRange.days > 120
-                ? 1
-                : 2
-            : 2,
-    minCellWidth: 30,
-    maxCellWidth: 180,
-    levels: [
-      {
-        minCellWidth: 70,
-        maxCellWidth: 160,
-        scales: [
-          { unit: 'year', step: 1, format: '%Y' },
-          {
-            unit: 'quarter',
-            step: 1,
-            format: ganttFrench ? "'T'%Q" : "'Q'%Q",
-          },
-        ],
-      },
-      {
-        minCellWidth: 70,
-        maxCellWidth: 150,
-        scales: [
-          { unit: 'year', step: 1, format: '%Y' },
-          { unit: 'month', step: 1, format: '%F' },
-        ],
-      },
-      {
-        minCellWidth: 55,
-        maxCellWidth: 130,
-        scales: [
-          { unit: 'month', step: 1, format: '%F %Y' },
-          {
-            unit: 'week',
-            step: 1,
-            format: ganttFrench ? "'Sem.' %W" : "'Week' %W",
-          },
-        ],
-      },
-      {
-        minCellWidth: 72,
-        maxCellWidth: 140,
-        scales: [
-          { unit: 'month', step: 1, format: '%F %Y' },
-          {
-            unit: 'day',
-            step: 1,
-            format: ganttDayFormat,
-            css: ganttDayClass,
-          },
-        ],
-      },
-    ],
-  };
   const ganttLinks = board.dependencies.map((d) => ({
     id: `${d.dependsOnTaskId}:${d.taskId}`,
     source: d.dependsOnTaskId,
@@ -2152,7 +2143,7 @@ export function ProjectTaskManager({
                   }}
                 >
                   <Gantt
-                    key={`${dark ? 'dark' : 'light'}:${i18n.language}:${ganttView}:${ganttDisplay.cellWidth}:${ganttTasks
+                    key={`${dark ? 'dark' : 'light'}:${i18n.language}:${ganttView}:${ganttTasks
                       .map((task) => task.id)
                       .join(':')}`}
                     tasks={ganttTasks as never}
