@@ -200,7 +200,7 @@ export function ProjectTaskManager({
       setDraft({
         title: task.title,
         description: task.description,
-        priority: task.priority,
+        priority: parent?.priority ?? task.priority,
         startAt: dateValue(task.startAt),
         dueAt: dateValue(task.dueAt),
         labels: task.labels.join(', '),
@@ -288,7 +288,7 @@ export function ProjectTaskManager({
     setDraft({
       title: task.title,
       description: task.description,
-      priority: task.priority,
+      priority: parent?.priority ?? task.priority,
       startAt: dateValue(task.startAt),
       dueAt: dateValue(task.dueAt),
       labels: task.labels.join(', '),
@@ -1014,23 +1014,27 @@ export function ProjectTaskManager({
                 <ChevronRight className="h-4 w-4" />
               </button>
             )}
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                className="h-8 rounded-lg border bg-background px-2 text-sm"
-                value={draft.priority}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    priority: e.target.value as Draft['priority'],
-                  })
-                }
-              >
-                {Object.entries(priorities).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+            <div
+              className={`grid gap-2 ${draft.parentTaskId ? 'grid-cols-1' : 'grid-cols-2'}`}
+            >
+              {!draft.parentTaskId && (
+                <select
+                  className="h-8 rounded-lg border bg-background px-2 text-sm"
+                  value={draft.priority}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      priority: e.target.value as Draft['priority'],
+                    })
+                  }
+                >
+                  {Object.entries(priorities).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              )}
               {editing && !editing.parentTaskId && (
                 <select
                   className="h-8 rounded-lg border bg-background px-2 text-sm"
@@ -1058,7 +1062,7 @@ export function ProjectTaskManager({
                   ))}
                 </select>
               )}
-              {editing?.parentTaskId && (
+              {draft.parentTaskId && (
                 <select
                   className="h-8 rounded-lg border bg-background px-2 text-sm"
                   value={draft.subtaskStatus}
@@ -1269,7 +1273,7 @@ export function ProjectTaskManager({
                       update({ description: event.target.value })
                     }
                   />
-                  <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     <select
                       className="h-8 rounded-lg border bg-background px-2 text-sm"
                       value={suggestion.executionMode}
@@ -1282,19 +1286,6 @@ export function ProjectTaskManager({
                     >
                       <option value="manual">Manuelle</option>
                       <option value="agent">Agent IA</option>
-                    </select>
-                    <select
-                      className="h-8 rounded-lg border bg-background px-2 text-sm"
-                      value={suggestion.priority}
-                      onChange={(event) =>
-                        update({ priority: event.target.value })
-                      }
-                    >
-                      {Object.entries(priorities).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
                     </select>
                     <Input
                       type="number"

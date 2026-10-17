@@ -772,7 +772,7 @@ export class ProjectsService {
       statusId: parent?.statusId ?? fallback.id,
       title: this.validateTaskText(input.title, 'Task title', 200),
       description: input.description?.trim().slice(0, 10_000) ?? '',
-      priority: input.priority ?? 'normal',
+      priority: parent ? parent.priority : (input.priority ?? 'normal'),
       parentTaskId: input.parentTaskId ?? null,
       subtaskStatus: 'todo',
       workspacePath: parent
@@ -906,7 +906,11 @@ export class ProjectsService {
       ...(input.description !== undefined
         ? { description: input.description.trim().slice(0, 10_000) }
         : {}),
-      ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(effectiveParent
+        ? { priority: effectiveParent.priority }
+        : input.priority !== undefined
+          ? { priority: input.priority }
+          : {}),
       ...(input.parentTaskId !== undefined
         ? { parentTaskId: input.parentTaskId }
         : {}),
@@ -982,10 +986,14 @@ export class ProjectsService {
         .set(updated)
         .where(eq(projectTasks.id, task.id))
         .run();
-      if (!effectiveParentId && input.workspacePath !== undefined)
+      if (
+        !effectiveParentId &&
+        (input.workspacePath !== undefined || input.priority !== undefined)
+      )
         tx.update(projectTasks)
           .set({
             workspacePath: updated.workspacePath,
+            priority: updated.priority,
             linkedFilePath: null,
             updatedAt: Date.now(),
           })
