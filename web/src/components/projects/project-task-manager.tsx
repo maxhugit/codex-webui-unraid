@@ -249,6 +249,7 @@ export function ProjectTaskManager({
   const [dragged, setDragged] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [taskError, setTaskError] = useState('');
   const [editing, setEditing] = useState<ProjectTaskSummary | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [folderOpen, setFolderOpen] = useState(false);
@@ -368,6 +369,7 @@ export function ProjectTaskManager({
       ? board.tasks.find((task) => task.id === parentTaskId)
       : null;
     setEditing(null);
+    setTaskError('');
     setRootTaskId(parentTaskId || null);
     setDraft({
       ...emptyDraft,
@@ -392,6 +394,7 @@ export function ProjectTaskManager({
       ? board.tasks.find((candidate) => candidate.id === task.parentTaskId)
       : null;
     setEditing(task);
+    setTaskError('');
     setRootTaskId(rootId ?? task.parentTaskId ?? task.id);
     setDraft({
       title: task.title,
@@ -441,19 +444,30 @@ export function ProjectTaskManager({
       ? null
       : draft.linkedFilePath.trim() || null,
     parentTaskId: draft.parentTaskId || null,
-    subtaskStatus: draft.subtaskStatus,
+    ...(draft.parentTaskId
+      ? { subtaskStatus: draft.subtaskStatus }
+      : {}),
     dependencyIds: draft.parentTaskId ? [] : draft.dependencyIds,
   });
   const saveTask = async () => {
     if (!draft.title.trim()) return;
-    await request.mutateAsync({
-      path: editing
-        ? `/${projectId}/resources/${resourceId}/tasks/${editing.id}`
-        : `/${projectId}/resources/${resourceId}/tasks`,
-      method: editing ? 'PATCH' : 'POST',
-      body: payload(),
-    });
-    setTaskOpen(false);
+    setTaskError('');
+    try {
+      await request.mutateAsync({
+        path: editing
+          ? `/${projectId}/resources/${resourceId}/tasks/${editing.id}`
+          : `/${projectId}/resources/${resourceId}/tasks`,
+        method: editing ? 'PATCH' : 'POST',
+        body: payload(),
+      });
+      setTaskOpen(false);
+    } catch (error) {
+      setTaskError(
+        error instanceof Error
+          ? error.message
+          : "Impossible d'enregistrer la tâche.",
+      );
+    }
   };
   const removeTask = async () => {
     if (
@@ -1337,6 +1351,11 @@ export function ProjectTaskManager({
             {editing && blocked(editing) && (
               <p className="text-xs text-amber-500">
                 Cette tâche est bloquée par une dépendance non terminée.
+              </p>
+            )}
+            {taskError && (
+              <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {taskError}
               </p>
             )}
           </div>
