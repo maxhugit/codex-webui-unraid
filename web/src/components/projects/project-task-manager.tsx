@@ -2831,7 +2831,7 @@ export function ProjectTaskManager({
               Replanifier le projet
             </Button>
           </div>
-          <Textarea
+          <DictatedTextarea
             rows={5}
             placeholder={
               aiMode === 'create'
@@ -2839,7 +2839,7 @@ export function ProjectTaskManager({
                 : 'Ajoutez éventuellement de nouvelles contraintes : échéance, disponibilité, ordre de priorité…'
             }
             value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
+            onChange={setAiPrompt}
           />
           {aiLoading && (
             <div className="flex items-center gap-2 rounded-lg border p-3 text-sm">
@@ -3012,16 +3012,19 @@ export function ProjectTaskManager({
 function DictatedTextarea({
   value,
   placeholder,
+  rows,
   onChange,
 }: {
   value: string;
   placeholder: string;
+  rows?: number;
   onChange: (value: string) => void;
 }) {
   return (
     <div className="relative">
       <Textarea
         className="pr-10"
+        rows={rows}
         placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
