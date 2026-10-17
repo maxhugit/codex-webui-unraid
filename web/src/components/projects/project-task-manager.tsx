@@ -99,7 +99,7 @@ const subtaskStatusStyle: Record<ProjectTaskSummary['subtaskStatus'], string> =
       'bg-violet-200/70 text-violet-800 dark:bg-violet-800/45 dark:text-violet-200',
     done: 'bg-emerald-200/70 text-emerald-800 dark:bg-emerald-800/45 dark:text-emerald-200',
     cancelled:
-      'bg-rose-200/60 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200',
+      'bg-zinc-200/80 text-zinc-600 dark:bg-zinc-700/55 dark:text-zinc-300',
   };
 const priorities = {
   low: 'Basse',
