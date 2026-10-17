@@ -1081,9 +1081,43 @@ export class ProjectsService {
     return this.requireTask(resourceId, task.id);
   }
 
-  deleteTask(projectId: string, resourceId: string, taskId: string) {
+  async deleteTask(projectId: string, resourceId: string, taskId: string) {
     this.getResource(projectId, resourceId);
     const task = this.requireTask(resourceId, taskId);
+    const deletedTasks = [
+      task,
+      ...this.db
+        .select()
+        .from(projectTasks)
+        .where(eq(projectTasks.parentTaskId, task.id))
+        .all(),
+    ];
+    const linkedAgentIds = [
+      ...new Set(
+        deletedTasks
+          .map((deletedTask) => deletedTask.linkedThreadId)
+          .filter((threadId): threadId is string => Boolean(threadId)),
+      ),
+    ];
+    for (const threadId of linkedAgentIds) {
+      const preview = await this.deletion.previewDelete(threadId);
+      if (!preview.canDelete)
+        throw new ConflictException(
+          'The task cannot be deleted because a linked work agent cannot be deleted safely',
+        );
+      const result = await this.deletion.deleteThread(threadId, {
+        expectedThreadIds: preview.threadIds,
+        expectedRunningThreadIds: preview.runningThreadIds,
+        expectedPendingApprovalThreadIds: preview.pendingApprovalThreadIds,
+        expectedPendingApprovalRequestIds: preview.pendingApprovals.map(
+          (approval) => approval.requestId,
+        ),
+      });
+      if (result.status !== 'completed')
+        throw new ConflictException(
+          'Task deletion stopped while deleting its linked work agent',
+        );
+    }
     this.db.transaction((tx) => {
       tx.delete(projectTasks)
         .where(eq(projectTasks.parentTaskId, task.id))

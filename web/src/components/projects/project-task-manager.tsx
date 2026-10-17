@@ -551,12 +551,26 @@ export function ProjectTaskManager({
     }
   };
   const removeTask = async () => {
+    if (!editing) return;
+    const children = childrenFor(editing.id);
+    const linkedAgentCount = [editing, ...children].filter(
+      (task) => task.linkedThreadId,
+    ).length;
+    const details = [
+      children.length
+        ? `Ses ${children.length} sous-tâche${children.length > 1 ? 's' : ''} seront également supprimées.`
+        : '',
+      linkedAgentCount
+        ? `${linkedAgentCount > 1 ? `Les ${linkedAgentCount} agents associés seront supprimés` : 'L’agent associé sera supprimé'}. Le workspace et ses fichiers seront conservés.`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
     if (
-      !editing ||
-      (settings.confirmDelete &&
-        !window.confirm(
-          `Supprimer « ${editing.title} »${childrenFor(editing.id).length ? ' et dissocier ses sous-tâches' : ''} ?`,
-        ))
+      (settings.confirmDelete || linkedAgentCount > 0) &&
+      !window.confirm(
+        `Supprimer « ${editing.title} » ?${details ? `\n\n${details}` : ''}`,
+      )
     )
       return;
     await request.mutateAsync({

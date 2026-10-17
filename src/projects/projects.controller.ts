@@ -142,12 +142,12 @@ export class ProjectsController {
   }
 
   @Delete(':id/resources/:resourceId/tasks/:taskId')
-  deleteTask(
+  async deleteTask(
     @Param('id') id: string,
     @Param('resourceId') resourceId: string,
     @Param('taskId') taskId: string,
   ) {
-    return this.projects.deleteTask(id, resourceId, taskId);
+    return await this.projects.deleteTask(id, resourceId, taskId);
   }
 
   @Patch(':id/resources/:resourceId')
