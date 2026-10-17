@@ -20,6 +20,7 @@ import {
   FolderOpen,
   History,
   Lightbulb,
+  Maximize2,
   Settings,
   GripVertical,
   ListFilter,
@@ -116,6 +117,7 @@ type ReplanSuggestion = {
   dependencyIds: string[];
   reason: string;
 };
+type GanttView = 'years' | 'months' | 'weeks' | 'fit';
 const emptyDraft: Draft = {
   title: '',
   description: '',
@@ -374,11 +376,24 @@ export function ProjectTaskManager({
   const [breakdownError, setBreakdownError] = useState('');
   const [agentBusy, setAgentBusy] = useState(false);
   const [ganttApi, setGanttApi] = useState<IApi | null>(null);
+  const [ganttView, setGanttView] = useState<GanttView>('months');
+  const [ganttWidth, setGanttWidth] = useState(900);
+  const ganttShellRef = useRef<HTMLElement | null>(null);
   const [taskTab, setTaskTab] = useState<string>('new');
   const [rootTaskId, setRootTaskId] = useState<string | null>(null);
   const [parentToComplete, setParentToComplete] = useState<string | null>(null);
   const [completionStatusOpen, setCompletionStatusOpen] = useState(false);
   const openedInitialTask = useRef<string | null>(null);
+  useEffect(() => {
+    if (view !== 'planning') return;
+    const element = ganttShellRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setGanttWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [view]);
   useEffect(() => {
     if (
       !initialTaskId ||
@@ -1186,11 +1201,15 @@ export function ProjectTaskManager({
     setTaskOpen(false);
   };
   const ganttTasks = board.tasks
-    .filter((t) => !t.parentTaskId && (t.startAt || t.dueAt))
+    .filter((t) => t.startAt || t.dueAt)
     .map((t) => {
+      const parent = t.parentTaskId
+        ? board.tasks.find((candidate) => candidate.id === t.parentTaskId)
+        : null;
       const fallback = t.startAt ?? t.dueAt!;
       const start = new Date(t.startAt ?? fallback);
       const end = new Date(t.dueAt ?? fallback);
+      const priorityId = parent?.priority ?? t.priority;
       return {
         id: t.id,
         text: t.title,
@@ -1200,11 +1219,87 @@ export function ProjectTaskManager({
           Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1,
         ),
         progress: t.progress,
-        parent: 0,
-        type: 'task',
-        open: true,
+        parent: t.parentTaskId ?? 0,
+        type: `priority-${Math.max(
+          0,
+          settings.priorityOptions.findIndex((option) => option.id === priorityId),
+        )}`,
+        open: false,
       };
     });
+  const ganttTaskTypes = settings.priorityOptions.map((option, index) => ({
+    id: `priority-${index}`,
+    label: option.name,
+  }));
+  const ganttPriorityStyles = settings.priorityOptions
+    .map((option, index) => {
+      const color = palette[option.color ?? 'slate'];
+      return `.project-gantt-shell .wx-bar.wx-task.priority-${index}{background-color:color-mix(in srgb, ${color} 68%, white);border-color:${color}}.project-gantt-shell .wx-bar.wx-task.priority-${index} .wx-progress-percent{background-color:${color}}`;
+    })
+    .join('');
+  const ganttRange = (() => {
+    if (!ganttTasks.length) return { start: new Date(), end: new Date(), days: 1 };
+    const starts = ganttTasks.map((task) => task.start.getTime());
+    const ends = ganttTasks.map(
+      (task) => task.start.getTime() + Math.max(1, task.duration) * 86400000,
+    );
+    const start = new Date(Math.min(...starts));
+    const end = new Date(Math.max(...ends));
+    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    return { start, end, days };
+  })();
+  const ganttDisplay = (() => {
+    if (ganttView === 'years') {
+      return {
+        scales: [
+          { unit: 'year', step: 1, format: '%Y' },
+          { unit: 'quarter', step: 1, format: ganttFrench ? "'T'%Q" : "'Q'%Q" },
+        ],
+        cellWidth: 90,
+      };
+    }
+    if (ganttView === 'weeks') {
+      return {
+        scales: [
+          { unit: 'month', step: 1, format: '%F %Y' },
+          { unit: 'week', step: 1, format: ganttFrench ? "'Sem.' %W" : "'Week' %W" },
+        ],
+        cellWidth: 90,
+      };
+    }
+    if (ganttView === 'fit') {
+      const chartWidth = Math.max(260, ganttWidth - 395);
+      if (ganttRange.days > 730) {
+        return {
+          scales: [{ unit: 'year', step: 1, format: '%Y' }],
+          cellWidth: Math.max(55, Math.floor(chartWidth / Math.ceil(ganttRange.days / 365))),
+        };
+      }
+      if (ganttRange.days > 120) {
+        return {
+          scales: [
+            { unit: 'year', step: 1, format: '%Y' },
+            { unit: 'month', step: 1, format: '%M' },
+          ],
+          cellWidth: Math.max(28, Math.floor(chartWidth / Math.ceil(ganttRange.days / 30.44))),
+        };
+      }
+      return {
+        scales: [
+          { unit: 'month', step: 1, format: '%F %Y' },
+          { unit: 'week', step: 1, format: ganttFrench ? "'Sem.' %W" : "'Week' %W" },
+        ],
+        cellWidth: Math.max(34, Math.floor(chartWidth / Math.ceil(ganttRange.days / 7))),
+      };
+    }
+    return {
+      scales: [
+        { unit: 'year', step: 1, format: '%Y' },
+        { unit: 'month', step: 1, format: '%F' },
+      ],
+      cellWidth: 110,
+    };
+  })();
   const ganttLinks = board.dependencies.map((d) => ({
     id: `${d.dependsOnTaskId}:${d.taskId}`,
     source: d.dependsOnTaskId,
@@ -1260,7 +1355,7 @@ export function ProjectTaskManager({
   }) => {
     if (event.inProgress) return;
     const current = board.tasks.find(
-      (task) => task.id === String(event.id) && !task.parentTaskId,
+      (task) => task.id === String(event.id),
     );
     if (!current || !event.task.start) return;
     const start = new Date(event.task.start);
@@ -1742,7 +1837,42 @@ export function ProjectTaskManager({
           </div>
         </>
       ) : view === 'planning' ? (
-        <section className="project-gantt-shell min-h-0 flex-1 overflow-hidden rounded-xl border bg-card">
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-1 rounded-lg border bg-card p-1">
+            {(
+              [
+                ['years', ganttFrench ? 'Années' : 'Years'],
+                ['months', ganttFrench ? 'Mois' : 'Months'],
+                ['weeks', ganttFrench ? 'Semaines' : 'Weeks'],
+              ] as const
+            ).map(([mode, label]) => (
+              <Button
+                key={mode}
+                type="button"
+                size="sm"
+                variant={ganttView === mode ? 'default' : 'ghost'}
+                onClick={() => setGanttView(mode)}
+                aria-pressed={ganttView === mode}
+              >
+                {label}
+              </Button>
+            ))}
+            <Button
+              type="button"
+              size="sm"
+              variant={ganttView === 'fit' ? 'default' : 'ghost'}
+              onClick={() => setGanttView('fit')}
+              aria-pressed={ganttView === 'fit'}
+            >
+              <Maximize2 className="size-4" />
+              {ganttFrench ? 'Tout afficher' : 'Fit all'}
+            </Button>
+          </div>
+          <section
+            ref={ganttShellRef}
+            className="project-gantt-shell min-h-0 flex-1 overflow-hidden rounded-xl border bg-card"
+          >
+          <style>{ganttPriorityStyles}</style>
           <GanttTheme>
             <Locale words={ganttLocale}>
               <Tooltip
@@ -1885,45 +2015,9 @@ export function ProjectTaskManager({
                   tasks={ganttTasks as never}
                   links={ganttLinks as never}
                   columns={ganttColumns}
-                  taskTemplate={({ data }) => {
-                    const task = board.tasks.find(
-                      (item) => item.id === String(data.id),
-                    );
-                    const priority = settings.priorityOptions.find(
-                      (option) => option.id === task?.priority,
-                    );
-                    const color = palette[priority?.color ?? 'slate'];
-                    return (
-                      <span
-                        ref={(node) => {
-                          const bar = node?.closest<HTMLElement>('.wx-bar');
-                          if (!bar) return;
-                          bar.style.setProperty(
-                            '--wx-gantt-task-color',
-                            `color-mix(in srgb, ${color} 68%, white)`,
-                          );
-                          bar.style.setProperty(
-                            '--wx-gantt-task-fill-color',
-                            color,
-                          );
-                          bar.style.setProperty(
-                            '--wx-gantt-task-border-color',
-                            color,
-                          );
-                          bar.style.setProperty(
-                            '--wx-gantt-task-border',
-                            `1px solid ${color}`,
-                          );
-                        }}
-                        className="flex w-full items-center justify-between gap-2 px-2"
-                      >
-                        <span className="min-w-0 truncate">{data.text}</span>
-                        <span className="shrink-0 text-[11px] font-semibold tabular-nums">
-                          {Math.round(Number(data.progress) || 0)} %
-                        </span>
-                      </span>
-                    );
-                  }}
+                  taskTypes={ganttTaskTypes}
+                  scales={ganttDisplay.scales as never}
+                  cellWidth={ganttDisplay.cellWidth}
                   highlightTime={(date, unit) => {
                     if (unit !== 'day' && unit !== 'hour') return '';
                     const today = new Date();
@@ -1933,7 +2027,7 @@ export function ProjectTaskManager({
                       ? 'project-gantt-today-cell'
                       : '';
                   }}
-                  zoom
+                  zoom={false}
                   init={(api) => {
                     setGanttApi(api);
                     api.on(
@@ -1961,7 +2055,8 @@ export function ProjectTaskManager({
               Ajoutez des dates pour afficher les tâches dans le planning.
             </div>
           )}
-        </section>
+          </section>
+        </div>
       ) : (
         <TaskActivityJournal board={board} statuses={board.statuses} />
       )}
