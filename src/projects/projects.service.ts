@@ -775,7 +775,9 @@ export class ProjectsService {
       priority: input.priority ?? 'normal',
       parentTaskId: input.parentTaskId ?? null,
       subtaskStatus: 'todo',
-      workspacePath: this.validateTaskWorkspace(projectId, input.workspacePath),
+      workspacePath: parent
+        ? parent.workspacePath
+        : this.validateTaskWorkspace(projectId, input.workspacePath),
       executionMode:
         parent && input.executionMode === 'agent' ? 'agent' : 'manual',
       agentState:
@@ -791,7 +793,7 @@ export class ProjectsService {
         .slice(0, 20),
       linkedThreadId: null,
       linkedSimpleChatId: null,
-      linkedFilePath: input.linkedFilePath?.trim() || null,
+      linkedFilePath: parent ? null : input.linkedFilePath?.trim() || null,
       position: Math.max(-1, ...tasks.map((item) => item.position)) + 1,
       createdAt: now,
       updatedAt: now,
@@ -852,6 +854,9 @@ export class ProjectsService {
     }
     const effectiveParentId =
       input.parentTaskId !== undefined ? input.parentTaskId : task.parentTaskId;
+    const effectiveParent = effectiveParentId
+      ? this.requireTask(resourceId, effectiveParentId)
+      : null;
     if (input.executionMode === 'agent' && !effectiveParentId)
       throw new BadRequestException(
         'Only subtasks can be assigned to an agent',
@@ -908,14 +913,16 @@ export class ProjectsService {
       ...(input.subtaskStatus !== undefined
         ? { subtaskStatus: input.subtaskStatus }
         : {}),
-      ...(input.workspacePath !== undefined
-        ? {
-            workspacePath: this.validateTaskWorkspace(
-              projectId,
-              input.workspacePath,
-            ),
-          }
-        : {}),
+      ...(effectiveParent
+        ? { workspacePath: effectiveParent.workspacePath }
+        : input.workspacePath !== undefined
+          ? {
+              workspacePath: this.validateTaskWorkspace(
+                projectId,
+                input.workspacePath,
+              ),
+            }
+          : {}),
       ...(input.executionMode !== undefined
         ? {
             executionMode:
@@ -963,9 +970,11 @@ export class ProjectsService {
       ...(input.linkedSimpleChatId !== undefined
         ? { linkedSimpleChatId: input.linkedSimpleChatId }
         : {}),
-      ...(input.linkedFilePath !== undefined
-        ? { linkedFilePath: input.linkedFilePath?.trim() || null }
-        : {}),
+      ...(effectiveParent
+        ? { linkedFilePath: null }
+        : input.linkedFilePath !== undefined
+          ? { linkedFilePath: input.linkedFilePath?.trim() || null }
+          : {}),
       updatedAt: Date.now(),
     };
     this.db.transaction((tx) => {
@@ -973,6 +982,15 @@ export class ProjectsService {
         .set(updated)
         .where(eq(projectTasks.id, task.id))
         .run();
+      if (!effectiveParentId && input.workspacePath !== undefined)
+        tx.update(projectTasks)
+          .set({
+            workspacePath: updated.workspacePath,
+            linkedFilePath: null,
+            updatedAt: Date.now(),
+          })
+          .where(eq(projectTasks.parentTaskId, task.id))
+          .run();
       if (input.dependencyIds !== undefined) {
         tx.delete(projectTaskDependencies)
           .where(eq(projectTaskDependencies.taskId, task.id))

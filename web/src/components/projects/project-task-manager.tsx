@@ -187,6 +187,9 @@ export function ProjectTaskManager({
       return;
     const task = query.data.tasks.find((item) => item.id === initialTaskId);
     if (!task) return;
+    const parent = task.parentTaskId
+      ? query.data.tasks.find((item) => item.id === task.parentTaskId)
+      : null;
     openedInitialTask.current = initialTaskId;
     const dependencyIds = query.data.dependencies
       .filter((dependency) => dependency.taskId === task.id)
@@ -202,13 +205,16 @@ export function ProjectTaskManager({
         dueAt: dateValue(task.dueAt),
         labels: task.labels.join(', '),
         statusId: task.statusId,
-        workspacePath: task.workspacePath ?? query.data!.project.workspacePath,
+        workspacePath:
+          parent?.workspacePath ??
+          task.workspacePath ??
+          query.data!.project.workspacePath,
         executionMode: task.parentTaskId ? task.executionMode : 'manual',
         estimateHours: task.estimateMinutes
           ? String(task.estimateMinutes / 60)
           : '',
         validationCriteria: task.validationCriteria,
-        linkedFilePath: task.linkedFilePath ?? '',
+        linkedFilePath: task.parentTaskId ? '' : (task.linkedFilePath ?? ''),
         parentTaskId: task.parentTaskId ?? '',
         subtaskStatus: task.subtaskStatus,
         dependencyIds,
@@ -274,6 +280,9 @@ export function ProjectTaskManager({
     setTaskOpen(true);
   };
   const openEdit = (task: ProjectTaskSummary, rootId?: string) => {
+    const parent = task.parentTaskId
+      ? board.tasks.find((candidate) => candidate.id === task.parentTaskId)
+      : null;
     setEditing(task);
     setRootTaskId(rootId ?? task.parentTaskId ?? task.id);
     setDraft({
@@ -284,13 +293,16 @@ export function ProjectTaskManager({
       dueAt: dateValue(task.dueAt),
       labels: task.labels.join(', '),
       statusId: task.statusId,
-      workspacePath: task.workspacePath ?? board.project.workspacePath,
+      workspacePath:
+        parent?.workspacePath ??
+        task.workspacePath ??
+        board.project.workspacePath,
       executionMode: task.parentTaskId ? task.executionMode : 'manual',
       estimateHours: task.estimateMinutes
         ? String(task.estimateMinutes / 60)
         : '',
       validationCriteria: task.validationCriteria,
-      linkedFilePath: task.linkedFilePath ?? '',
+      linkedFilePath: task.parentTaskId ? '' : (task.linkedFilePath ?? ''),
       parentTaskId: task.parentTaskId ?? '',
       subtaskStatus: task.subtaskStatus,
       dependencyIds: dependencyIdsFor(task.id),
@@ -311,11 +323,15 @@ export function ProjectTaskManager({
       .map((x) => x.trim())
       .filter(Boolean),
     statusId: draft.statusId,
-    workspacePath: draft.workspacePath || board.project.workspacePath,
+    workspacePath: draft.parentTaskId
+      ? (rootTask?.workspacePath ?? board.project.workspacePath)
+      : draft.workspacePath || board.project.workspacePath,
     executionMode: draft.parentTaskId ? draft.executionMode : 'manual',
     estimateMinutes: Math.round((Number(draft.estimateHours) || 0) * 60),
     validationCriteria: draft.validationCriteria.trim(),
-    linkedFilePath: draft.linkedFilePath.trim() || null,
+    linkedFilePath: draft.parentTaskId
+      ? null
+      : draft.linkedFilePath.trim() || null,
     parentTaskId: draft.parentTaskId || null,
     subtaskStatus: draft.subtaskStatus,
     dependencyIds: draft.parentTaskId ? [] : draft.dependencyIds,
@@ -980,22 +996,24 @@ export function ProjectTaskManager({
                 setDraft({ ...draft, validationCriteria: e.target.value })
               }
             />
-            <button
-              type="button"
-              className="flex h-9 items-center gap-2 rounded-lg border px-3 text-left text-sm"
-              onClick={() => {
-                setFolderSelection(
-                  draft.workspacePath || board.project.workspacePath,
-                );
-                setFolderOpen(true);
-              }}
-            >
-              <FolderOpen className="h-4 w-4" />
-              <span className="min-w-0 flex-1 truncate">
-                {draft.workspacePath || 'Choisir un dossier'}
-              </span>
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            {!draft.parentTaskId && (
+              <button
+                type="button"
+                className="flex h-9 items-center gap-2 rounded-lg border px-3 text-left text-sm"
+                onClick={() => {
+                  setFolderSelection(
+                    draft.workspacePath || board.project.workspacePath,
+                  );
+                  setFolderOpen(true);
+                }}
+              >
+                <FolderOpen className="h-4 w-4" />
+                <span className="min-w-0 flex-1 truncate">
+                  {draft.workspacePath || 'Choisir un dossier'}
+                </span>
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <select
                 className="h-8 rounded-lg border bg-background px-2 text-sm"
@@ -1070,13 +1088,15 @@ export function ProjectTaskManager({
               value={draft.labels}
               onChange={(e) => setDraft({ ...draft, labels: e.target.value })}
             />
-            <Input
-              placeholder="Fichier lié (facultatif)"
-              value={draft.linkedFilePath}
-              onChange={(e) =>
-                setDraft({ ...draft, linkedFilePath: e.target.value })
-              }
-            />
+            {!draft.parentTaskId && (
+              <Input
+                placeholder="Fichier lié (facultatif)"
+                value={draft.linkedFilePath}
+                onChange={(e) =>
+                  setDraft({ ...draft, linkedFilePath: e.target.value })
+                }
+              />
+            )}
             {!draft.parentTaskId && (
               <fieldset className="rounded-lg border p-3">
                 <legend className="px-1 text-xs text-muted-foreground">
