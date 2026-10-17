@@ -36,6 +36,7 @@ import type { ThreadDto } from '@/generated/api';
 import { selectSidebarRows } from '@/lib/sidebar-rows';
 import { useTimelineStore } from '@/stores/timeline-store';
 import { useLayoutStore } from '@/stores/layout-store';
+import { useFilesStore } from '@/stores/files-store';
 import { cn } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/api-error';
 import {
@@ -602,12 +603,44 @@ export function ThreadSidebar() {
       });
       const result = (await response.json().catch(() => ({}))) as {
         message?: string;
+        oldPath?: string;
+        newPath?: string;
       };
       if (!response.ok)
         throw new Error(result.message || `HTTP ${response.status}`);
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
+      const oldPath = result.oldPath ?? variables.cwd;
+      const newPath = result.newPath;
+      if (newPath) {
+        const remap = (value: string) =>
+          value === oldPath
+            ? newPath
+            : value.startsWith(`${oldPath}/`)
+              ? `${newPath}${value.slice(oldPath.length)}`
+              : null;
+        const timeline = useTimelineStore.getState();
+        const runtimeIds = new Set([
+          ...Object.keys(timeline.threadsById),
+          ...(timeline.threadId ? [timeline.threadId] : []),
+        ]);
+        for (const runtimeId of runtimeIds) {
+          const cwd = timeline.getThreadRuntime(runtimeId)?.threadCwd;
+          if (!cwd) continue;
+          const remapped = remap(cwd);
+          if (remapped) timeline.setThreadCwdForThread(runtimeId, remapped);
+        }
+        useFilesStore.getState().remapPaths(oldPath, newPath);
+        if (sidebarView.type === 'workspaceDetail') {
+          const remappedDetail = remap(sidebarView.cwd);
+          if (remappedDetail)
+            setSidebarView({
+              type: 'workspaceDetail',
+              cwd: remappedDetail,
+            });
+        }
+      }
       setRenameWorkspace(null);
       setRenameWorkspaceValue('');
       void queryClient.invalidateQueries();
