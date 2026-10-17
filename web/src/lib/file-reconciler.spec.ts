@@ -65,6 +65,18 @@ it('never treats permission or network errors as deletion', async () => {
   });
 });
 
+it('ignores internal upload staging paths without requesting metadata', async () => {
+  const events = vi.fn();
+  const unsubscribe = subscribeFileChanges(events);
+  await reconcileExternalPaths([
+    '/work/.codex-upload-deadbeef.tmp',
+    '/work/nested/.codex-upload-cafebabe.tmp',
+  ]);
+  unsubscribe();
+  expect(metadata).not.toHaveBeenCalled();
+  expect(events).not.toHaveBeenCalled();
+});
+
 /**
  * `pnpm probe fs-watch-classification` measured a rename and an unrelated
  * delete-plus-create emitting an identical two-path batch, so this shape must

@@ -96,6 +96,44 @@ describe('FileWatchCoordinatorService', () => {
     });
     expect(changes).toHaveLength(count);
   });
+
+  it('does not publish internal upload staging paths', async () => {
+    const notifications: Array<(value: unknown) => void> = [];
+    let registeredWatchId = '';
+    const processManager = {
+      getClient: () => ({}),
+      addListener: vi.fn((_event: string, listener: (value: unknown) => void) =>
+        notifications.push(listener),
+      ),
+      addLifecycleListener: vi.fn(() => () => undefined),
+    };
+    const requests = vi.fn((method: string, body: { watchId?: string }) => {
+      if (method === 'fs/watch') registeredWatchId = body.watchId ?? '';
+      return Promise.resolve({ path: '/workspace' });
+    });
+    const service = new FileWatchCoordinatorService(
+      { resolveWatchPath: vi.fn((path: string) => path) } as never,
+      { request: requests } as never,
+      processManager as never,
+    );
+    const changes: unknown[] = [];
+    service.subscribe((change) => changes.push(change));
+    await service.acquire('socket-a', '/workspace');
+    notifications[0]({
+      method: 'fs/changed',
+      params: {
+        watchId: registeredWatchId,
+        changedPaths: [
+          '/workspace/.codex-upload-deadbeef.tmp',
+          '/workspace/report.pdf',
+        ],
+      },
+    });
+
+    expect(changes).toEqual([
+      expect.objectContaining({ changedPaths: ['/workspace/report.pdf'] }),
+    ]);
+  });
 });
 
 it('keeps overlapping surfaces alive and cancels an acquisition released during path resolution', async () => {

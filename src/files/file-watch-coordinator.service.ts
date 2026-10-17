@@ -5,6 +5,12 @@ import { CodexProcessManager } from '../codex/codex-process-manager.service';
 import { CodexService } from '../codex/codex.service';
 import { FilesService } from './files.service';
 
+/** Internal upload staging files must never escape into browser state. */
+const isUploadTempPath = (filePath: string): boolean =>
+  filePath
+    .split(/[\\/]/)
+    .some((part) => part.startsWith('.codex-upload-') && part.endsWith('.tmp'));
+
 export interface FileWatchChange {
   watchPath: string;
   changedPaths: string[];
@@ -222,9 +228,10 @@ export class FileWatchCoordinatorService implements OnModuleDestroy {
     if (notification?.method !== 'fs/changed') return;
     const registration = this.byWatchId.get(notification.params.watchId);
     if (!registration || registration.epoch !== this.epoch) return;
-    this.publish(registration.path, [
-      ...new Set(notification.params.changedPaths),
-    ]);
+    const changedPaths = [...new Set(notification.params.changedPaths)].filter(
+      (changedPath) => !isUploadTempPath(changedPath),
+    );
+    this.publish(registration.path, changedPaths);
   }
 
   /** Fans out once per socket even when several surfaces lease the same path. */

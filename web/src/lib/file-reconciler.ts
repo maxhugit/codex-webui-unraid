@@ -150,8 +150,21 @@ let externalWork: Promise<void> = Promise.resolve();
  * not parameters: a reconnect batch names the watched directory itself, and
  * invalidating that path already refreshes its listing and its parent.
  */
-export function reconcileExternalPaths(paths: readonly string[]): Promise<void> {
-  const changedPaths = [...new Set(paths)];
+export function reconcileExternalPaths(
+  paths: readonly string[],
+): Promise<void> {
+  // Older servers and already queued socket events may still expose atomic
+  // upload staging files. They disappear during the rename and are not user
+  // files, so querying their metadata only produces noisy path-not-found UI.
+  const changedPaths = [...new Set(paths)].filter(
+    (path) =>
+      !path
+        .split(/[\\/]/)
+        .some(
+          (part) => part.startsWith('.codex-upload-') && part.endsWith('.tmp'),
+        ),
+  );
+  if (!changedPaths.length) return Promise.resolve();
   const task = async () => {
     await waitForFileMutations();
     const epoch = fileMutationEpoch();
