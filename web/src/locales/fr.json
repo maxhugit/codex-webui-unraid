@@ -137,5 +137,9 @@
   "Depends on": "Dépend de",
   "System information": "Informations système",
   "Created on": "Créée le",
-  "Last modified": "Dernière modification"
+  "Last modified": "Dernière modification",
+  "Integrations": "Intégrations",
+  "Plugins": "Plugins",
+  "Apps": "Applications",
+  "MCP Servers": "Serveurs MCP"
 }

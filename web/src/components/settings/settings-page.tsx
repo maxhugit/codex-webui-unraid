@@ -20,6 +20,9 @@ import { TerminalSettings } from './terminal-settings';
 import { FilesSettings } from './files-settings';
 import { SecuritySettings } from './security-settings';
 import { SimpleChatSettings } from './simple-chat-settings';
+import { PluginsTab } from '@/components/integrations/plugins-tab';
+import { AppsTab } from '@/components/integrations/apps-tab';
+import { McpsTab } from '@/components/integrations/mcps-tab';
 
 const SECTIONS = [
   'general',
@@ -29,7 +32,11 @@ const SECTIONS = [
   'terminal',
   'files',
   'security',
+  'integrations',
 ] as const;
+
+const INTEGRATION_SECTIONS = ['plugins', 'apps', 'mcps'] as const;
+type IntegrationSection = (typeof INTEGRATION_SECTIONS)[number];
 
 type SettingsSection = (typeof SECTIONS)[number];
 
@@ -40,6 +47,8 @@ export function SettingsPage() {
   const toggleDark = useThemeStore((s) => s.toggleDark);
   const threadId = useTimelineStore((s) => s.threadId);
   const [section, setSection] = useState<SettingsSection>('general');
+  const [integrationSection, setIntegrationSection] =
+    useState<IntegrationSection>('plugins');
 
   const navigateBack = () => {
     if (threadId) {
@@ -57,7 +66,7 @@ export function SettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
-      <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-4 sm:px-6 sm:py-8">
+      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-4 sm:px-6 sm:py-8">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button
@@ -106,6 +115,32 @@ export function SettingsPage() {
         {section === 'terminal' && <TerminalSettings />}
         {section === 'files' && <FilesSettings />}
         {section === 'security' && <SecuritySettings />}
+        {section === 'integrations' && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap gap-2">
+              {INTEGRATION_SECTIONS.map((item) => (
+                <Button
+                  key={item}
+                  size="sm"
+                  variant={integrationSection === item ? 'default' : 'outline'}
+                  onClick={() => setIntegrationSection(item)}
+                >
+                  {t(
+                    item === 'plugins'
+                      ? 'Plugins'
+                      : item === 'apps'
+                        ? 'Apps'
+                        : 'MCP Servers',
+                  )}
+                </Button>
+              ))}
+            </div>
+            <Separator />
+            {integrationSection === 'plugins' && <PluginsTab />}
+            {integrationSection === 'apps' && <AppsTab />}
+            {integrationSection === 'mcps' && <McpsTab />}
+          </div>
+        )}
       </div>
     </div>
   );

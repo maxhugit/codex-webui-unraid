@@ -60,15 +60,14 @@ export function sectionLabel(section: string): string {
     terminal: 'Terminal',
     files: 'Files',
     security: 'Security',
+    integrations: 'Integrations',
   };
   return labels[section] ?? section;
 }
 
 export function settingLabel(key: string): string {
   const label = key.split('.').at(-1) ?? key;
-  return label
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, (c) => c.toUpperCase());
+  return label.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
 }
 
 export function sourceLabel(source: RuntimeSetting['source']): string {
