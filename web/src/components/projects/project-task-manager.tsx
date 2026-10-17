@@ -58,6 +58,7 @@ type Draft = {
   workspacePath: string;
   executionMode: 'manual' | 'agent';
   estimateHours: string;
+  progress: string;
   validationCriteria: string;
   linkedFilePath: string;
   parentTaskId: string;
@@ -86,6 +87,7 @@ const emptyDraft: Draft = {
   workspacePath: '',
   executionMode: 'manual',
   estimateHours: '',
+  progress: '0',
   validationCriteria: '',
   linkedFilePath: '',
   parentTaskId: '',
@@ -341,6 +343,7 @@ export function ProjectTaskManager({
         estimateHours: task.estimateMinutes
           ? String(task.estimateMinutes / 60)
           : '',
+        progress: String(task.progress),
         validationCriteria: task.validationCriteria,
         linkedFilePath: task.parentTaskId ? '' : (task.linkedFilePath ?? ''),
         parentTaskId: task.parentTaskId ?? '',
@@ -446,6 +449,7 @@ export function ProjectTaskManager({
       estimateHours: task.estimateMinutes
         ? String(task.estimateMinutes / 60)
         : '',
+      progress: String(task.progress),
       validationCriteria: task.validationCriteria,
       linkedFilePath: task.parentTaskId ? '' : (task.linkedFilePath ?? ''),
       parentTaskId: task.parentTaskId ?? '',
@@ -473,6 +477,7 @@ export function ProjectTaskManager({
       : draft.workspacePath || board.project.workspacePath,
     executionMode: draft.parentTaskId ? draft.executionMode : 'manual',
     estimateMinutes: Math.round((Number(draft.estimateHours) || 0) * 60),
+    progress: Math.min(100, Math.max(0, Number(draft.progress) || 0)),
     validationCriteria: draft.validationCriteria.trim(),
     linkedFilePath: draft.parentTaskId
       ? null
@@ -899,7 +904,7 @@ export function ProjectTaskManager({
           1,
           Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1,
         ),
-        progress: statusByKind('done')?.id === t.statusId ? 100 : 0,
+        progress: t.progress,
         parent: 0,
         type: 'task',
         open: true,
@@ -1221,6 +1226,48 @@ export function ProjectTaskManager({
                 />
               </label>
             </div>
+            <label className="grid gap-1 text-xs text-muted-foreground">
+              {editing &&
+              !editing.parentTaskId &&
+              childrenFor(editing.id).length > 0
+                ? 'Avancement calculé depuis les sous-tâches'
+                : 'Avancement'}
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  className="min-w-0 flex-1 accent-primary"
+                  value={draft.progress}
+                  disabled={Boolean(
+                    editing &&
+                      !editing.parentTaskId &&
+                      childrenFor(editing.id).length > 0,
+                  )}
+                  onChange={(event) =>
+                    setDraft({ ...draft, progress: event.target.value })
+                  }
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  className="w-20"
+                  value={draft.progress}
+                  disabled={Boolean(
+                    editing &&
+                      !editing.parentTaskId &&
+                      childrenFor(editing.id).length > 0,
+                  )}
+                  onChange={(event) =>
+                    setDraft({ ...draft, progress: event.target.value })
+                  }
+                />
+                <span className="w-4 text-sm">%</span>
+              </div>
+            </label>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-xs text-muted-foreground">
                 Début
@@ -2256,6 +2303,17 @@ function TaskCard({
             })}
           </div>
         )}
+        <div className="mt-2 flex items-center gap-2">
+          <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-[width]"
+              style={{ width: `${task.progress}%` }}
+            />
+          </div>
+          <span className="w-8 text-right text-[10px] font-medium text-muted-foreground">
+            {task.progress}%
+          </span>
+        </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           <span
             className="rounded px-1.5 py-0.5 text-[10px]"
@@ -2311,6 +2369,15 @@ function TaskCard({
                   title={subtask.title}
                 >
                   {subtask.title}
+                </span>
+                <span className="flex w-14 shrink-0 items-center gap-1 text-[9px] text-muted-foreground">
+                  <span className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+                    <span
+                      className="block h-full rounded-full bg-primary"
+                      style={{ width: `${subtask.progress}%` }}
+                    />
+                  </span>
+                  {subtask.progress}%
                 </span>
                 <span
                   className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium"

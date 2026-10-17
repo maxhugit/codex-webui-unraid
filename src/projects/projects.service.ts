@@ -739,6 +739,7 @@ export class ProjectsService {
       workspacePath?: string | null;
       executionMode?: string;
       estimateMinutes?: number;
+      progress?: number;
       startAt?: number | null;
       validationCriteria?: string;
       dependencyIds?: string[];
@@ -784,6 +785,7 @@ export class ProjectsService {
       agentState:
         parent && input.executionMode === 'agent' ? 'ready' : 'manual',
       estimateMinutes: Math.max(0, Math.trunc(input.estimateMinutes ?? 0)),
+      progress: Math.min(100, Math.max(0, Math.trunc(input.progress ?? 0))),
       startAt: input.startAt ?? null,
       dueAt: input.dueAt ?? null,
       validationCriteria:
@@ -839,6 +841,7 @@ export class ProjectsService {
       executionMode: string;
       agentState: string;
       estimateMinutes: number;
+      progress: number;
       startAt: number | null;
       validationCriteria: string;
       dependencyIds: string[];
@@ -950,6 +953,11 @@ export class ProjectsService {
       ...(input.estimateMinutes !== undefined
         ? { estimateMinutes: Math.max(0, Math.trunc(input.estimateMinutes)) }
         : {}),
+      ...(input.progress !== undefined
+        ? {
+            progress: Math.min(100, Math.max(0, Math.trunc(input.progress))),
+          }
+        : {}),
       ...(input.startAt !== undefined ? { startAt: input.startAt } : {}),
       ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
       ...(input.validationCriteria !== undefined
@@ -984,6 +992,11 @@ export class ProjectsService {
           : {}),
       updatedAt: Date.now(),
     };
+    if (
+      effectiveParentId &&
+      ['done', 'cancelled'].includes(updated.subtaskStatus)
+    )
+      updated.progress = 100;
     this.db.transaction((tx) => {
       tx.update(projectTasks)
         .set(updated)
@@ -1074,10 +1087,21 @@ export class ProjectsService {
       (total, child) => total + child.estimateMinutes,
       0,
     );
-    if (parent.estimateMinutes === estimateMinutes) return;
+    const progress = Math.round(
+      (children.filter((child) =>
+        ['done', 'cancelled'].includes(child.subtaskStatus),
+      ).length /
+        Math.max(1, children.length)) *
+        100,
+    );
+    if (
+      parent.estimateMinutes === estimateMinutes &&
+      parent.progress === progress
+    )
+      return;
     this.db
       .update(projectTasks)
-      .set({ estimateMinutes, updatedAt: Date.now() })
+      .set({ estimateMinutes, progress, updatedAt: Date.now() })
       .where(eq(projectTasks.id, parentTaskId))
       .run();
   }

@@ -386,6 +386,7 @@ export const projectTasks = sqliteTable(
     executionMode: text('execution_mode').notNull().default('manual'),
     agentState: text('agent_state').notNull().default('manual'),
     estimateMinutes: integer('estimate_minutes').notNull().default(0),
+    progress: integer('progress').notNull().default(0),
     startAt: integer('start_at'),
     dueAt: integer('due_at'),
     validationCriteria: text('validation_criteria').notNull().default(''),

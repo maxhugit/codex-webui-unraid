@@ -64,6 +64,7 @@ export interface ProjectTaskSummary {
     | 'review'
     | 'validated';
   estimateMinutes: number;
+  progress: number;
   startAt: number | null;
   dueAt: number | null;
   validationCriteria: string;

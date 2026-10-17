@@ -1,0 +1,1 @@
+ALTER TABLE `project_tasks` ADD `progress` integer DEFAULT 0 NOT NULL;
