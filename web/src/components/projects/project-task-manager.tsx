@@ -123,12 +123,6 @@ const subtaskLabels: Record<ProjectTaskSummary['subtaskStatus'], string> = {
   done: 'Terminée',
   cancelled: 'Annulée',
 };
-const priorities = {
-  low: 'Basse',
-  normal: 'Normale',
-  high: 'Haute',
-  urgent: 'Urgente',
-} as const;
 const palette = {
   slate: '#64748b',
   blue: '#3b82f6',
@@ -141,10 +135,10 @@ const palette = {
 } as const;
 type PaletteColor = keyof typeof palette;
 type TaskBoardSettings = {
-  priorityColors: Record<ProjectTaskSummary['priority'], PaletteColor>;
+  priorityOptions: Array<{ id: string; name: string; color: PaletteColor }>;
   subtaskColors: Record<ProjectTaskSummary['subtaskStatus'], PaletteColor>;
   defaultStatusId: string;
-  defaultPriority: ProjectTaskSummary['priority'];
+  defaultPriority: string;
   confirmDelete: boolean;
   hiddenEmptyStatusIds: string[];
   terminalStatusIds: string[] | null;
@@ -152,12 +146,12 @@ type TaskBoardSettings = {
   labels: Array<{ id: string; name: string; color: PaletteColor }>;
 };
 const defaultTaskBoardSettings: TaskBoardSettings = {
-  priorityColors: {
-    low: 'green',
-    normal: 'blue',
-    high: 'amber',
-    urgent: 'red',
-  },
+  priorityOptions: [
+    { id: 'low', name: 'Basse', color: 'green' },
+    { id: 'normal', name: 'Normale', color: 'blue' },
+    { id: 'high', name: 'Haute', color: 'amber' },
+    { id: 'urgent', name: 'Urgente', color: 'red' },
+  ],
   subtaskColors: {
     todo: 'slate',
     started: 'blue',
@@ -177,33 +171,46 @@ const paletteColor = (value: unknown, fallback: PaletteColor): PaletteColor =>
   typeof value === 'string' && value in palette
     ? (value as PaletteColor)
     : fallback;
-function readTaskBoardSettings(config: Record<string, unknown>) {
+function readTaskBoardSettings(
+  config: Record<string, unknown>,
+): TaskBoardSettings {
   const raw =
     config.taskBoardSettings &&
     typeof config.taskBoardSettings === 'object' &&
     !Array.isArray(config.taskBoardSettings)
       ? (config.taskBoardSettings as Partial<TaskBoardSettings>)
       : {};
-  const priorityColors = (raw.priorityColors ?? {}) as Partial<
-    TaskBoardSettings['priorityColors']
-  >;
+  const legacyPriorityColors = (
+    raw as { priorityColors?: Record<string, unknown> }
+  ).priorityColors;
+  const priorityOptions = Array.isArray(raw.priorityOptions)
+    ? raw.priorityOptions
+        .filter(
+          (
+            option,
+          ): option is { id: string; name: string; color: PaletteColor } =>
+            Boolean(
+              option &&
+              typeof option.id === 'string' &&
+              option.id.trim() &&
+              typeof option.name === 'string' &&
+              option.name.trim() &&
+              typeof option.color === 'string' &&
+              option.color in palette,
+            ),
+        )
+        .map((option) => ({ ...option, name: option.name.trim() }))
+    : defaultTaskBoardSettings.priorityOptions.map((option) => ({
+        ...option,
+        color: paletteColor(legacyPriorityColors?.[option.id], option.color),
+      }));
   const subtaskColors = (raw.subtaskColors ?? {}) as Partial<
     TaskBoardSettings['subtaskColors']
   >;
   return {
     ...defaultTaskBoardSettings,
     ...raw,
-    priorityColors: Object.fromEntries(
-      Object.entries(defaultTaskBoardSettings.priorityColors).map(
-        ([key, fallback]) => [
-          key,
-          paletteColor(
-            priorityColors[key as ProjectTaskSummary['priority']],
-            fallback,
-          ),
-        ],
-      ),
-    ) as TaskBoardSettings['priorityColors'],
+    priorityOptions,
     subtaskColors: Object.fromEntries(
       Object.entries(defaultTaskBoardSettings.subtaskColors).map(
         ([key, fallback]) => [
@@ -220,16 +227,15 @@ function readTaskBoardSettings(config: Record<string, unknown>) {
           (id): id is string => typeof id === 'string',
         )
       : null,
-    terminalSubtaskStatuses: Array.isArray(raw.terminalSubtaskStatuses)
-      ? raw.terminalSubtaskStatuses.filter(
-          (status): status is ProjectTaskSummary['subtaskStatus'] =>
-            status in subtaskLabels,
-        )
-      : defaultTaskBoardSettings.terminalSubtaskStatuses,
+    terminalSubtaskStatuses: [
+      'done',
+      'cancelled',
+    ] as ProjectTaskSummary['subtaskStatus'][],
     defaultPriority:
-      raw.defaultPriority && raw.defaultPriority in priorities
+      raw.defaultPriority &&
+      priorityOptions.some((p) => p.id === raw.defaultPriority)
         ? raw.defaultPriority
-        : 'normal',
+        : (priorityOptions[0]?.id ?? 'normal'),
     defaultStatusId:
       typeof raw.defaultStatusId === 'string' ? raw.defaultStatusId : '',
     confirmDelete: raw.confirmDelete !== false,
@@ -428,6 +434,8 @@ export function ProjectTaskManager({
     );
   const board = query.data;
   const settings = readTaskBoardSettings(board.resource.config);
+  const priorityName = (id: string) =>
+    settings.priorityOptions.find((option) => option.id === id)?.name ?? id;
   const unassigned =
     board.statuses.find((s) => s.kind === 'unassigned') ?? board.statuses[0];
   const statusByKind = (kind: string) =>
@@ -1360,9 +1368,9 @@ export function ProjectTaskManager({
               onChange={(e) => setPriority(e.target.value)}
             >
               <option value="all">Toutes les priorités</option>
-              {Object.entries(priorities).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {settings.priorityOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
                 </option>
               ))}
             </select>
@@ -1543,7 +1551,7 @@ export function ProjectTaskManager({
                         <span className="text-muted-foreground">
                           {ganttFrench ? 'Priorité' : 'Priority'}
                         </span>
-                        <span>{priorities[task.priority]}</span>
+                        <span>{priorityName(task.priority)}</span>
                         <span className="text-muted-foreground">
                           {ganttFrench ? 'Début' : 'Start'}
                         </span>
@@ -1884,9 +1892,9 @@ export function ProjectTaskManager({
                       })
                     }
                   >
-                    {Object.entries(priorities).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
+                    {settings.priorityOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
                       </option>
                     ))}
                   </select>
@@ -2558,17 +2566,18 @@ export function ProjectTaskManager({
               </div>
             </section>
 
-            <ColorSettingsSection
-              title="Couleurs des priorités"
-              labels={priorities}
-              values={settingsDraft.priorityColors}
-              onChange={(key, color) =>
+            <PrioritySettingsSection
+              values={settingsDraft.priorityOptions}
+              usedValues={new Set(board.tasks.map((task) => task.priority))}
+              onChange={(priorityOptions) =>
                 setSettingsDraft((current) => ({
                   ...current,
-                  priorityColors: {
-                    ...current.priorityColors,
-                    [key]: color,
-                  },
+                  priorityOptions,
+                  defaultPriority: priorityOptions.some(
+                    (option) => option.id === current.defaultPriority,
+                  )
+                    ? current.defaultPriority
+                    : (priorityOptions[0]?.id ?? ''),
                 }))
               }
             />
@@ -2576,16 +2585,6 @@ export function ProjectTaskManager({
               labels={subtaskLabels}
               values={settingsDraft.subtaskColors}
               terminalValues={settingsDraft.terminalSubtaskStatuses}
-              onTerminalChange={(key, terminal) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  terminalSubtaskStatuses: terminal
-                    ? [...current.terminalSubtaskStatuses, key]
-                    : current.terminalSubtaskStatuses.filter(
-                        (status) => status !== key,
-                      ),
-                }))
-              }
               onChange={(key, color) =>
                 setSettingsDraft((current) => ({
                   ...current,
@@ -2735,9 +2734,9 @@ export function ProjectTaskManager({
                     }))
                   }
                 >
-                  {Object.entries(priorities).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
+                  {settingsDraft.priorityOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
                     </option>
                   ))}
                 </select>
@@ -2863,9 +2862,7 @@ export function ProjectTaskManager({
                     {s.description}
                   </div>
                   <div className="mt-1 text-xs">
-                    {s.estimateHours} h ·{' '}
-                    {priorities[s.priority as keyof typeof priorities] ??
-                      s.priority}
+                    {s.estimateHours} h · {priorityName(s.priority)}
                     {s.parentTitle ? ` · sous-tâche de ${s.parentTitle}` : ''}
                   </div>
                 </div>
@@ -2903,8 +2900,8 @@ export function ProjectTaskManager({
                 const rows = [
                   task.priority !== suggestion.priority && [
                     'Priorité',
-                    priorities[task.priority],
-                    priorities[suggestion.priority],
+                    priorityName(task.priority),
+                    priorityName(suggestion.priority),
                   ],
                   task.estimateMinutes !==
                     Math.round(suggestion.estimateHours * 60) && [
@@ -3055,10 +3052,7 @@ function TaskActivityJournal({
       return new Date(Number(value)).toLocaleDateString(i18n.language);
     if (field === 'estimateMinutes') return `${Number(value) / 60} h`;
     if (field === 'progress') return `${value} %`;
-    if (field === 'priority')
-      return (
-        priorities[value as ProjectTaskSummary['priority']] ?? String(value)
-      );
+    if (field === 'priority') return String(value);
     if (Array.isArray(value)) return value.join(', ') || '—';
     if (typeof value === 'object') return JSON.stringify(value);
     return String(value);
@@ -3146,36 +3140,81 @@ function TaskActivityJournal({
   );
 }
 
-function ColorSettingsSection<K extends string>({
-  title,
-  labels,
+function PrioritySettingsSection({
   values,
+  usedValues,
   onChange,
 }: {
-  title: string;
-  labels: Record<K, string>;
-  values: Record<K, PaletteColor>;
-  onChange: (key: K, color: PaletteColor) => void;
+  values: Array<{ id: string; name: string; color: PaletteColor }>;
+  usedValues: Set<string>;
+  onChange: (
+    values: Array<{ id: string; name: string; color: PaletteColor }>,
+  ) => void;
 }) {
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-medium">{title}</h3>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {(Object.keys(labels) as K[]).map((key) => (
-          <label
-            key={key}
-            className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm"
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium">Priorités</h3>
+          <p className="text-xs text-muted-foreground">
+            Ajoutez ou renommez les priorités et choisissez leur couleur.
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            onChange([
+              ...values,
+              {
+                id: `priority-${Date.now()}`,
+                name: 'Nouvelle priorité',
+                color: 'slate',
+              },
+            ])
+          }
+        >
+          <Plus /> Ajouter
+        </Button>
+      </div>
+      <div className="overflow-hidden rounded-xl border">
+        {values.map((value) => (
+          <div
+            key={value.id}
+            className="grid gap-3 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-center"
           >
             <span
               className="h-4 w-4 rounded-full"
-              style={{ backgroundColor: palette[values[key]] }}
+              style={{ backgroundColor: palette[value.color] }}
             />
-            <span className="min-w-0 flex-1 truncate">{labels[key]}</span>
+            <Input
+              value={value.name}
+              aria-label="Nom de la priorité"
+              onChange={(event) =>
+                onChange(
+                  values.map((item) =>
+                    item.id === value.id
+                      ? { ...item, name: event.target.value }
+                      : item,
+                  ),
+                )
+              }
+            />
             <select
               className="h-8 rounded-md border bg-background px-2 text-xs"
-              value={values[key]}
+              value={value.color}
               onChange={(event) =>
-                onChange(key, event.target.value as PaletteColor)
+                onChange(
+                  values.map((item) =>
+                    item.id === value.id
+                      ? {
+                          ...item,
+                          color: event.target.value as PaletteColor,
+                        }
+                      : item,
+                  ),
+                )
               }
             >
               {Object.entries(palette).map(([color, hex]) => (
@@ -3184,7 +3223,10 @@ function ColorSettingsSection<K extends string>({
                 </option>
               ))}
             </select>
-          </label>
+            <span className="text-[10px] text-muted-foreground">
+              {usedValues.has(value.id) ? 'Utilisée' : ''}
+            </span>
+          </div>
         ))}
       </div>
     </section>
@@ -3196,21 +3238,19 @@ function SubtaskStatusSettingsSection<K extends string>({
   values,
   terminalValues,
   onChange,
-  onTerminalChange,
 }: {
   labels: Record<K, string>;
   values: Record<K, PaletteColor>;
   terminalValues: K[];
   onChange: (key: K, color: PaletteColor) => void;
-  onTerminalChange: (key: K, terminal: boolean) => void;
 }) {
   return (
     <section className="space-y-3">
       <div>
         <h3 className="text-sm font-medium">Statuts des sous-tâches</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Les statuts sont fixes. Vous pouvez personnaliser leur couleur et
-          indiquer ceux qui terminent définitivement une sous-tâche.
+          Les statuts et leur état final sont fixes. Seule leur couleur peut
+          être personnalisée.
         </p>
       </div>
       <div className="overflow-hidden rounded-xl border">
@@ -3252,13 +3292,12 @@ function SubtaskStatusSettingsSection<K extends string>({
                 ))}
               </select>
             </label>
-            <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm">
+            <label className="flex items-center gap-2 whitespace-nowrap text-sm text-muted-foreground">
               <input
                 type="checkbox"
                 checked={terminalValues.includes(key)}
-                onChange={(event) =>
-                  onTerminalChange(key, event.target.checked)
-                }
+                disabled
+                readOnly
               />
               Statut de fin
             </label>
@@ -3292,7 +3331,10 @@ function TaskCard({
   onClick: () => void;
   onSubtaskClick: (task: ProjectTaskSummary) => void;
 }) {
-  const priorityColor = palette[settings.priorityColors[task.priority]];
+  const priority = settings.priorityOptions.find(
+    (option) => option.id === task.priority,
+  );
+  const priorityColor = palette[priority?.color ?? 'slate'];
   const startDrag = (event: ReactDragEvent<HTMLSpanElement>) => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', task.id);
@@ -3397,7 +3439,7 @@ function TaskCard({
               color: priorityColor,
             }}
           >
-            {priorities[task.priority]}
+            {priority?.name ?? task.priority}
           </span>
           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
             {task.executionMode === 'manual'

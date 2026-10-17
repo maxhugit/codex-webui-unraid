@@ -50,7 +50,7 @@ export interface ProjectTaskSummary {
   statusId: string;
   title: string;
   description: string;
-  priority: 'low' | 'normal' | 'high' | 'urgent';
+  priority: string;
   parentTaskId: string | null;
   subtaskStatus: 'todo' | 'started' | 'review' | 'done' | 'cancelled';
   workspacePath: string | null;

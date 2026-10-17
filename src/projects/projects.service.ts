@@ -781,7 +781,7 @@ export class ProjectsService {
       .from(projectTasks)
       .where(eq(projectTasks.statusId, fallback.id))
       .all();
-    const priorities = new Set(['low', 'normal', 'high', 'urgent']);
+    const priorities = this.getTaskPriorities(resourceId);
     if (input.priority && !priorities.has(input.priority))
       throw new BadRequestException('Invalid priority');
     const parent = input.parentTaskId
@@ -941,7 +941,7 @@ export class ProjectsService {
           );
       }
     }
-    const priorities = new Set(['low', 'normal', 'high', 'urgent']);
+    const priorities = this.getTaskPriorities(resourceId);
     if (input.priority && !priorities.has(input.priority))
       throw new BadRequestException('Invalid priority');
     const updated: ProjectTask = {
@@ -1294,16 +1294,34 @@ export class ProjectsService {
       'done',
       'cancelled',
     ]);
-    const configuredSubtaskStatuses = raw.terminalSubtaskStatuses;
-    const subtaskStatuses = (
-      Array.isArray(configuredSubtaskStatuses)
-        ? configuredSubtaskStatuses.filter(
-            (value): value is string =>
-              typeof value === 'string' && allowedSubtaskStatuses.has(value),
-          )
-        : ['done', 'cancelled']
-    ) as string[];
+    const subtaskStatuses = ['done', 'cancelled'].filter((value) =>
+      allowedSubtaskStatuses.has(value),
+    );
     return { taskStatusIds, subtaskStatuses };
+  }
+
+  private getTaskPriorities(resourceId: string): Set<string> {
+    const resource = this.db
+      .select()
+      .from(projectResources)
+      .where(eq(projectResources.id, resourceId))
+      .get();
+    const config = resource?.config as Record<string, unknown> | undefined;
+    const board = config?.taskBoardSettings as
+      | Record<string, unknown>
+      | undefined;
+    const configured = Array.isArray(board?.priorityOptions)
+      ? board.priorityOptions
+          .map((value) =>
+            value && typeof value === 'object' && 'id' in value
+              ? String(value.id).trim()
+              : '',
+          )
+          .filter(Boolean)
+      : [];
+    return new Set(
+      configured.length ? configured : ['low', 'normal', 'high', 'urgent'],
+    );
   }
 
   async suggestTasks(projectId: string, resourceId: string, prompt: unknown) {
