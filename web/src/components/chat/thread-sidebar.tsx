@@ -5,28 +5,13 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
-import {
-  FolderOpen,
-  MessageCircle,
-  MoreHorizontal,
-  Pencil,
-  Puzzle,
-  Plus,
-  Settings,
-  Terminal,
-  Trash2,
-} from 'lucide-react';
+import { FolderOpen, Puzzle, Plus, Settings, Terminal } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +57,7 @@ import { threadLabel, groupByWorkspace } from './sidebar/sidebar-types';
 import { ThreadRow } from './sidebar/thread-row';
 import { WorkspaceOverview } from './sidebar/workspace-overview';
 import { WorkspaceDetail } from './sidebar/workspace-detail';
+import { SimpleChatRow } from './sidebar/simple-chat-row';
 import { RenameDialog, ConfirmDialog } from './sidebar/sidebar-dialogs';
 import { DirectoryPickerDialog } from './sidebar/directory-picker-dialog';
 import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
@@ -438,6 +424,19 @@ export function ThreadSidebar() {
       addSystemError(getApiErrorMessage(err));
     },
   });
+  const moveSimpleChat = useMutation({
+    mutationFn: ({ threadId, cwd }: { threadId: string; cwd: string }) =>
+      simpleChatApi(`/threads/${threadId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ cwd }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: simpleChatThreadsQueryKey,
+      });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
 
   const handleThreadDragEnd = useCallback(
     (event: {
@@ -447,25 +446,35 @@ export function ThreadSidebar() {
         target: { id?: string | number; data?: Record<string, unknown> } | null;
       };
     }) => {
-      if (event.canceled || moveThread.isPending) return;
+      if (event.canceled || moveThread.isPending || moveSimpleChat.isPending)
+        return;
       const source = event.operation.source?.data;
       const target = event.operation.target?.data;
       const sourceId = String(event.operation.source?.id ?? '');
       const targetId = String(event.operation.target?.id ?? '');
-      if (source?.kind !== 'thread' && !sourceId.startsWith('thread-')) return;
       if (target?.kind !== 'workspace' && !targetId.startsWith('workspace-'))
         return;
-      const threadId =
-        (source?.threadId as string | undefined) ||
-        (sourceId.startsWith('thread-') ? sourceId.slice(7) : undefined);
       const sourceCwd = source?.cwd as string | undefined;
       const targetCwd =
         (target?.cwd as string | undefined) ||
         (targetId.startsWith('workspace-') ? targetId.slice(10) : undefined);
-      if (!threadId || !targetCwd || sourceCwd === targetCwd) return;
-      moveThread.mutate({ threadId, cwd: targetCwd });
+      if (!targetCwd || sourceCwd === targetCwd) return;
+      if (
+        source?.kind === 'simple-chat' ||
+        sourceId.startsWith('simple-chat-')
+      ) {
+        const threadId =
+          (source?.threadId as string | undefined) || sourceId.slice(12);
+        if (threadId) moveSimpleChat.mutate({ threadId, cwd: targetCwd });
+        return;
+      }
+      if (source?.kind === 'thread' || sourceId.startsWith('thread-')) {
+        const threadId =
+          (source?.threadId as string | undefined) || sourceId.slice(7);
+        if (threadId) moveThread.mutate({ threadId, cwd: targetCwd });
+      }
     },
-    [moveThread],
+    [moveSimpleChat, moveThread],
   );
 
   const archiveThread = useMutation({
@@ -785,60 +794,22 @@ export function ThreadSidebar() {
   };
 
   const renderSimpleChatRow = (thread: SimpleChatThread) => (
-    <div key={thread.id} className="group flex items-center gap-0.5 pl-3">
-      <button
-        type="button"
-        onClick={() =>
-          void navigate({
-            to: '/simple-chat',
-            search: { thread: thread.id },
-          })
-        }
-        className={cn(
-          'flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
-          activeView === 'simpleChat' && activeSimpleThreadId === thread.id
-            ? 'bg-accent text-accent-foreground'
-            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-        )}
-        title={thread.title}
-      >
-        <MessageCircle className="h-3 w-3 shrink-0" />
-        <span className="truncate">{thread.title}</span>
-      </button>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="hover-reveal h-6 w-6 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-            aria-label={`${t('Actions for')} ${thread.title}`}
-          >
-            <MoreHorizontal className="h-3.5 w-3.5" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-44 p-1">
-          <Button
-            variant="ghost"
-            className="h-7 w-full justify-start gap-2 px-2 text-xs"
-            onClick={() => {
-              setRenameSimpleThread(thread);
-              setRenameSimpleValue(thread.title);
-            }}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            {t('Rename')}
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-7 w-full justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => setDeleteSimpleThread(thread)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            {t('Delete')}
-          </Button>
-        </PopoverContent>
-      </Popover>
-    </div>
+    <SimpleChatRow
+      key={thread.id}
+      thread={thread}
+      isActive={
+        activeView === 'simpleChat' && activeSimpleThreadId === thread.id
+      }
+      disabled={moveSimpleChat.isPending}
+      onOpen={() =>
+        void navigate({ to: '/simple-chat', search: { thread: thread.id } })
+      }
+      onRename={() => {
+        setRenameSimpleThread(thread);
+        setRenameSimpleValue(thread.title);
+      }}
+      onDelete={() => setDeleteSimpleThread(thread)}
+    />
   );
 
   // ── Render ──────────────────────────────────────────────────────────
