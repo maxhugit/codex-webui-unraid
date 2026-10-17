@@ -1613,6 +1613,29 @@ export function ProjectTaskManager({
                 Cette tâche est bloquée par une dépendance non terminée.
               </p>
             )}
+            {editing && (
+              <fieldset className="rounded-lg border bg-muted/20 p-3">
+                <legend className="px-1 text-xs text-muted-foreground">
+                  Informations système
+                </legend>
+                <dl className="grid gap-3 text-xs sm:grid-cols-2">
+                  <div>
+                    <dt className="text-muted-foreground">Créée le</dt>
+                    <dd className="mt-1 font-medium">
+                      {new Date(editing.createdAt).toLocaleString('fr-FR')}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">
+                      Dernière modification
+                    </dt>
+                    <dd className="mt-1 font-medium">
+                      {new Date(editing.updatedAt).toLocaleString('fr-FR')}
+                    </dd>
+                  </div>
+                </dl>
+              </fieldset>
+            )}
             {taskError && (
               <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 {taskError}
