@@ -148,6 +148,8 @@ export class ProjectsController {
       name?: string;
       projectId?: string;
       config?: Record<string, unknown>;
+      labelRenames?: Array<{ from: string; to: string }>;
+      removedLabels?: string[];
     },
   ) {
     return {

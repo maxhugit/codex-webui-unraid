@@ -1264,6 +1264,8 @@ export class ProjectsService {
       name?: string;
       projectId?: string;
       config?: Record<string, unknown>;
+      labelRenames?: Array<{ from: string; to: string }>;
+      removedLabels?: string[];
     },
   ): ProjectResource {
     const resource = this.getResource(projectId, resourceId);
@@ -1278,11 +1280,43 @@ export class ProjectsService {
         ? resource.config
         : this.validateResourceConfig(input.config);
     const updatedAt = Date.now();
+    const labelRenames = new Map(
+      (input.labelRenames ?? []).slice(0, 50).map((change) => [
+        this.validateOptionalLabel(change.from),
+        this.validateOptionalLabel(change.to),
+      ]),
+    );
+    const removedLabels = new Set(
+      (input.removedLabels ?? [])
+        .slice(0, 50)
+        .map((label) => this.validateOptionalLabel(label)),
+    );
     this.db
       .update(projectResources)
       .set({ projectId: targetProjectId, name, config, updatedAt })
       .where(eq(projectResources.id, resourceId))
       .run();
+    if (labelRenames.size || removedLabels.size) {
+      for (const task of this.db
+        .select()
+        .from(projectTasks)
+        .where(eq(projectTasks.resourceId, resourceId))
+        .all()) {
+        const labels = [
+          ...new Set(
+            task.labels
+              .map((label) => labelRenames.get(label) ?? label)
+              .filter((label) => !removedLabels.has(label)),
+          ),
+        ];
+        if (JSON.stringify(labels) !== JSON.stringify(task.labels))
+          this.db
+            .update(projectTasks)
+            .set({ labels, updatedAt })
+            .where(eq(projectTasks.id, task.id))
+            .run();
+      }
+    }
     return {
       ...resource,
       projectId: targetProjectId,
@@ -1298,6 +1332,13 @@ export class ProjectsService {
     if (JSON.stringify(value).length > 20_000)
       throw new BadRequestException('Resource config is too large');
     return value as Record<string, unknown>;
+  }
+
+  private validateOptionalLabel(value: unknown): string {
+    const label = typeof value === 'string' ? value.trim() : '';
+    if (!label || label.length > 50)
+      throw new BadRequestException('Label must contain 1 to 50 characters');
+    return label;
   }
 
   deleteResource(projectId: string, resourceId: string) {

@@ -123,6 +123,7 @@ type TaskBoardSettings = {
   defaultPriority: ProjectTaskSummary['priority'];
   confirmDelete: boolean;
   hideEmptyColumns: boolean;
+  labels: Array<{ id: string; name: string; color: PaletteColor }>;
 };
 const defaultTaskBoardSettings: TaskBoardSettings = {
   priorityColors: {
@@ -142,6 +143,7 @@ const defaultTaskBoardSettings: TaskBoardSettings = {
   defaultPriority: 'normal',
   confirmDelete: true,
   hideEmptyColumns: false,
+  labels: [],
 };
 const paletteColor = (value: unknown, fallback: PaletteColor): PaletteColor =>
   typeof value === 'string' && value in palette
@@ -193,6 +195,21 @@ function readTaskBoardSettings(config: Record<string, unknown>) {
       typeof raw.defaultStatusId === 'string' ? raw.defaultStatusId : '',
     confirmDelete: raw.confirmDelete !== false,
     hideEmptyColumns: raw.hideEmptyColumns === true,
+    labels: Array.isArray(raw.labels)
+      ? raw.labels
+          .filter(
+            (label): label is { id: string; name: string; color: PaletteColor } =>
+              Boolean(
+                label &&
+                  typeof label.id === 'string' &&
+                  typeof label.name === 'string' &&
+                  label.name.trim() &&
+                  typeof label.color === 'string' &&
+                  label.color in palette,
+              ),
+          )
+          .map((label) => ({ ...label, name: label.name.trim() }))
+      : [],
   } satisfies TaskBoardSettings;
 }
 const agentLabels: Record<string, string> = {
@@ -526,6 +543,19 @@ export function ProjectTaskManager({
     setStatusOpen(false);
   };
   const saveSettings = async () => {
+    const previousById = new Map(
+      settings.labels.map((label) => [label.id, label]),
+    );
+    const nextIds = new Set(settingsDraft.labels.map((label) => label.id));
+    const labelRenames = settingsDraft.labels
+      .map((label) => ({
+        from: previousById.get(label.id)?.name ?? label.name,
+        to: label.name.trim(),
+      }))
+      .filter((change) => change.from !== change.to);
+    const removedLabels = settings.labels
+      .filter((label) => !nextIds.has(label.id))
+      .map((label) => label.name);
     await request.mutateAsync({
       path: `/${projectId}/resources/${resourceId}`,
       method: 'PATCH',
@@ -534,6 +564,8 @@ export function ProjectTaskManager({
           ...board.resource.config,
           taskBoardSettings: settingsDraft,
         },
+        labelRenames,
+        removedLabels,
       },
     });
     setSettingsOpen(false);
@@ -1262,11 +1294,70 @@ export function ProjectTaskManager({
                 </select>
               )}
             </div>
-            <Input
-              placeholder="Étiquettes séparées par des virgules"
-              value={draft.labels}
-              onChange={(e) => setDraft({ ...draft, labels: e.target.value })}
-            />
+            <fieldset className="rounded-lg border p-3">
+              <legend className="px-1 text-xs text-muted-foreground">
+                Labels
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  ...settings.labels,
+                  ...draft.labels
+                    .split(',')
+                    .map((name) => name.trim())
+                    .filter(
+                      (name) =>
+                        name &&
+                        !settings.labels.some((label) => label.name === name),
+                    )
+                    .map((name) => ({
+                      id: `legacy:${name}`,
+                      name,
+                      color: 'slate' as PaletteColor,
+                    })),
+                ].map((label) => {
+                  const selected = draft.labels
+                    .split(',')
+                    .map((name) => name.trim())
+                    .filter(Boolean);
+                  const checked = selected.includes(label.name);
+                  return (
+                    <label
+                      key={label.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-full border px-2.5 py-1 text-xs"
+                      style={
+                        checked
+                          ? {
+                              borderColor: `${palette[label.color]}88`,
+                              backgroundColor: `${palette[label.color]}20`,
+                            }
+                          : undefined
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          const next = event.target.checked
+                            ? [...selected, label.name]
+                            : selected.filter((name) => name !== label.name);
+                          setDraft({ ...draft, labels: next.join(', ') });
+                        }}
+                      />
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: palette[label.color] }}
+                      />
+                      {label.name}
+                    </label>
+                  );
+                })}
+                {!settings.labels.length && !draft.labels.trim() && (
+                  <span className="text-xs text-muted-foreground">
+                    Ajoutez des labels depuis les paramètres du tableau.
+                  </span>
+                )}
+              </div>
+            </fieldset>
             {!draft.parentTaskId && (
               <Input
                 placeholder="Fichier lié (facultatif)"
@@ -1670,6 +1761,109 @@ export function ProjectTaskManager({
             />
 
             <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">Labels</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Ces labels seront proposés sous forme de cases à cocher.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setSettingsDraft((current) => ({
+                      ...current,
+                      labels: [
+                        ...current.labels,
+                        {
+                          id: crypto.randomUUID(),
+                          name: 'Nouveau label',
+                          color: 'blue',
+                        },
+                      ],
+                    }))
+                  }
+                >
+                  <Plus /> Ajouter
+                </Button>
+              </div>
+              {settingsDraft.labels.length ? (
+                <div className="space-y-2">
+                  {settingsDraft.labels.map((label) => (
+                    <div
+                      key={label.id}
+                      className="flex items-center gap-2 rounded-lg border p-2"
+                    >
+                      <span
+                        className="h-4 w-4 shrink-0 rounded-full"
+                        style={{ backgroundColor: palette[label.color] }}
+                      />
+                      <Input
+                        value={label.name}
+                        maxLength={50}
+                        aria-label="Nom du label"
+                        onChange={(event) =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            labels: current.labels.map((item) =>
+                              item.id === label.id
+                                ? { ...item, name: event.target.value }
+                                : item,
+                            ),
+                          }))
+                        }
+                      />
+                      <select
+                        className="h-9 rounded-md border bg-background px-2 text-xs"
+                        value={label.color}
+                        aria-label="Couleur du label"
+                        onChange={(event) =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            labels: current.labels.map((item) =>
+                              item.id === label.id
+                                ? {
+                                    ...item,
+                                    color: event.target.value as PaletteColor,
+                                  }
+                                : item,
+                            ),
+                          }))
+                        }
+                      >
+                        {Object.keys(palette).map((color) => (
+                          <option key={color} value={color}>
+                            {color}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        title="Supprimer le label"
+                        onClick={() =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            labels: current.labels.filter(
+                              (item) => item.id !== label.id,
+                            ),
+                          }))
+                        }
+                      >
+                        <Trash2 className="text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">
+                  Aucun label configuré.
+                </p>
+              )}
+            </section>
+
+            <section className="space-y-3">
               <h3 className="text-sm font-medium">Comportement par défaut</h3>
               <label className="grid gap-1 text-xs text-muted-foreground">
                 Statut des nouvelles tâches
@@ -1743,7 +1937,18 @@ export function ProjectTaskManager({
             <Button variant="outline" onClick={() => setSettingsOpen(false)}>
               Annuler
             </Button>
-            <Button disabled={request.isPending} onClick={saveSettings}>
+            <Button
+              disabled={
+                request.isPending ||
+                settingsDraft.labels.some((label) => !label.name.trim()) ||
+                new Set(
+                  settingsDraft.labels.map((label) =>
+                    label.name.trim().toLocaleLowerCase(),
+                  ),
+                ).size !== settingsDraft.labels.length
+              }
+              onClick={saveSettings}
+            >
               Enregistrer
             </Button>
           </DialogFooter>
@@ -1973,6 +2178,25 @@ function TaskCard({
           <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
             {task.description}
           </p>
+        )}
+        {task.labels.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {task.labels.map((name) => {
+              const configured = settings.labels.find(
+                (label) => label.name === name,
+              );
+              const color = palette[configured?.color ?? 'slate'];
+              return (
+                <span
+                  key={name}
+                  className="rounded-full px-1.5 py-0.5 text-[9px]"
+                  style={{ backgroundColor: `${color}20`, color }}
+                >
+                  {name}
+                </span>
+              );
+            })}
+          </div>
         )}
         <div className="mt-3 flex flex-wrap gap-1.5">
           <span
