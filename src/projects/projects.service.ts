@@ -1245,14 +1245,9 @@ export class ProjectsService {
       (total, child) => total + child.estimateMinutes,
       0,
     );
-    const terminalSubtaskStatuses =
-      this.getTaskBoardTerminalSettings(resourceId).subtaskStatuses;
     const progress = Math.round(
-      (children.filter((child) =>
-        terminalSubtaskStatuses.includes(child.subtaskStatus),
-      ).length /
-        Math.max(1, children.length)) *
-        100,
+      children.reduce((total, child) => total + child.progress, 0) /
+        Math.max(1, children.length),
     );
     if (
       parent.estimateMinutes === estimateMinutes &&
