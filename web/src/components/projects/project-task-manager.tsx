@@ -1139,10 +1139,6 @@ export function ProjectTaskManager({
       const fallback = t.startAt ?? t.dueAt!;
       const start = new Date(t.startAt ?? fallback);
       const end = new Date(t.dueAt ?? fallback);
-      const priorityIndex = Math.max(
-        0,
-        settings.priorityOptions.findIndex((option) => option.id === t.priority),
-      );
       return {
         id: t.id,
         text: t.title,
@@ -1155,7 +1151,6 @@ export function ProjectTaskManager({
         parent: 0,
         type: 'task',
         open: true,
-        css: `project-gantt-priority-${priorityIndex}`,
       };
     });
   const ganttLinks = board.dependencies.map((d) => ({
@@ -1308,8 +1303,12 @@ export function ProjectTaskManager({
   };
 
   return (
-    <main className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
-      <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <main
+      className={`min-h-0 flex-1 p-4 md:p-6 ${
+        view === 'planning' ? 'flex flex-col overflow-hidden' : 'overflow-auto'
+      }`}
+    >
+      <header className="mb-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-primary/10 p-2 text-primary">
             <ListTodo className="h-5 w-5" />
@@ -1506,15 +1505,7 @@ export function ProjectTaskManager({
           </div>
         </>
       ) : view === 'planning' ? (
-        <section className="project-gantt-shell h-[70vh] min-h-[480px] overflow-hidden rounded-xl border bg-card">
-          <style>
-            {settings.priorityOptions
-              .map((option, index) => {
-                const color = palette[option.color];
-                return `.project-gantt-priority-${index}{--wx-gantt-task-color:${color};--wx-gantt-task-fill-color:color-mix(in srgb, ${color} 72%, black);--wx-gantt-task-border-color:${color};--wx-gantt-task-border:1px solid ${color}}`;
-              })
-              .join('\n')}
-          </style>
+        <section className="project-gantt-shell min-h-0 flex-1 overflow-hidden rounded-xl border bg-card">
           <GanttTheme>
             <Locale words={ganttLocale}>
               <Tooltip
@@ -1657,6 +1648,42 @@ export function ProjectTaskManager({
                   tasks={ganttTasks as never}
                   links={ganttLinks as never}
                   columns={ganttColumns}
+                  taskTemplate={({ data }) => {
+                    const task = board.tasks.find(
+                      (item) => item.id === String(data.id),
+                    );
+                    const priority = settings.priorityOptions.find(
+                      (option) => option.id === task?.priority,
+                    );
+                    const color = palette[priority?.color ?? 'slate'];
+                    return (
+                      <span
+                        ref={(node) => {
+                          const bar = node?.closest<HTMLElement>('.wx-bar');
+                          if (!bar) return;
+                          bar.style.setProperty(
+                            '--wx-gantt-task-color',
+                            `color-mix(in srgb, ${color} 68%, white)`,
+                          );
+                          bar.style.setProperty(
+                            '--wx-gantt-task-fill-color',
+                            color,
+                          );
+                          bar.style.setProperty(
+                            '--wx-gantt-task-border-color',
+                            color,
+                          );
+                          bar.style.setProperty(
+                            '--wx-gantt-task-border',
+                            `1px solid ${color}`,
+                          );
+                        }}
+                        className="block w-full truncate px-2"
+                      >
+                        {data.text}
+                      </span>
+                    );
+                  }}
                   markers={[
                     {
                       start: new Date(),

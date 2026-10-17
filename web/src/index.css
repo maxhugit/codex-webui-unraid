@@ -39,25 +39,6 @@
   outline: none;
 }
 
-/* The Gantt component scrolls its whole surface by default. Keep both the
-   table headings and the timeline scale anchored while rows move underneath. */
-.project-gantt-shell .wx-layout {
-  overflow: clip !important;
-}
-
-.project-gantt-shell .wx-table-container,
-.project-gantt-shell .wx-chart {
-  overflow-y: clip !important;
-}
-
-.project-gantt-shell .wx-table-container .wx-header,
-.project-gantt-shell .wx-timescale-viewport {
-  position: sticky !important;
-  top: 0;
-  z-index: 30 !important;
-  background: var(--wx-background);
-}
-
 .wx-tooltip:has(.project-gantt-tooltip-content) {
   --wx-tooltip-background: var(--popover);
   --wx-tooltip-font-color: var(--popover-foreground);
