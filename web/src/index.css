@@ -10,6 +10,11 @@
     inset -1px 0 0 rgb(239 68 68 / 70%);
 }
 
+.project-gantt-shell .project-gantt-weekend {
+  background: color-mix(in srgb, var(--muted) 78%, transparent) !important;
+  color: var(--muted-foreground);
+}
+
 .project-gantt-task-title {
   display: block;
   width: 100%;
