@@ -29,6 +29,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -251,6 +252,7 @@ export function ProjectTaskManager({
   resourceId: string;
   initialTaskId?: string;
 }) {
+  const { t, i18n } = useTranslation();
   const client = useQueryClient();
   const navigate = useNavigate();
   const dark = useThemeStore((state) => state.dark);
@@ -1284,45 +1286,57 @@ export function ProjectTaskManager({
             </div>
           )}
           <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-6 py-3">
-            <Input
-              autoFocus
-              placeholder="Titre"
-              value={draft.title}
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            />
-            <Textarea
-              placeholder="Description détaillée"
-              value={draft.description}
-              onChange={(e) =>
-                setDraft({ ...draft, description: e.target.value })
-              }
-            />
+            <label className="grid gap-1 text-xs text-muted-foreground">
+              {t('Task title')}
+              <Input
+                autoFocus
+                placeholder={t('Task title')}
+                value={draft.title}
+                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              />
+            </label>
+            <label className="grid gap-1 text-xs text-muted-foreground">
+              {t('Description')}
+              <Textarea
+                placeholder={t('Detailed description')}
+                value={draft.description}
+                onChange={(e) =>
+                  setDraft({ ...draft, description: e.target.value })
+                }
+              />
+            </label>
             <div className="grid grid-cols-2 gap-2">
               {draft.parentTaskId ? (
-                <select
-                  className="h-8 rounded-lg border bg-background px-2 text-sm"
-                  value={draft.executionMode}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      executionMode: e.target.value as Draft['executionMode'],
-                    })
-                  }
-                >
-                  <option value="manual">Sous-tâche manuelle</option>
-                  <option value="agent">Agent IA</option>
-                </select>
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  {t('Execution mode')}
+                  <select
+                    className="h-8 rounded-lg border bg-background px-2 text-sm text-foreground"
+                    value={draft.executionMode}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        executionMode: e.target.value as Draft['executionMode'],
+                      })
+                    }
+                  >
+                    <option value="manual">{t('Manual subtask')}</option>
+                    <option value="agent">{t('AI agent')}</option>
+                  </select>
+                </label>
               ) : (
-                <div className="flex h-8 items-center rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground">
-                  Tâche principale manuelle
-                </div>
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  {t('Execution mode')}
+                  <div className="flex h-8 items-center rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground">
+                    {t('Manual main task')}
+                  </div>
+                </label>
               )}
               <label className="grid gap-1 text-xs text-muted-foreground">
                 {editing &&
                 !editing.parentTaskId &&
                 childrenFor(editing.id).length > 0
-                  ? 'Charge calculée (somme des sous-tâches)'
-                  : 'Charge estimée (heures)'}
+                  ? t('Calculated workload (sum of subtasks)')
+                  : t('Estimated workload (hours)')}
                 <Input
                   type="number"
                   min="0"
@@ -1344,8 +1358,8 @@ export function ProjectTaskManager({
               {editing &&
               !editing.parentTaskId &&
               childrenFor(editing.id).length > 0
-                ? 'Avancement calculé depuis les sous-tâches'
-                : 'Avancement'}
+                ? t('Progress calculated from subtasks')
+                : t('Progress')}
               <div className="flex items-center gap-3">
                 <input
                   type="range"
@@ -1384,7 +1398,7 @@ export function ProjectTaskManager({
             </label>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-xs text-muted-foreground">
-                Début
+                {t('Start date')}
                 <Input
                   type="date"
                   value={draft.startAt}
@@ -1394,7 +1408,7 @@ export function ProjectTaskManager({
                 />
               </label>
               <label className="text-xs text-muted-foreground">
-                Fin prévue
+                {t('Planned end')}
                 <Input
                   type="date"
                   value={draft.dueAt}
@@ -1404,107 +1418,122 @@ export function ProjectTaskManager({
                 />
               </label>
             </div>
-            <Textarea
-              placeholder="Conditions de validation / recette"
-              value={draft.validationCriteria}
-              onChange={(e) =>
-                setDraft({ ...draft, validationCriteria: e.target.value })
-              }
-            />
+            <label className="grid gap-1 text-xs text-muted-foreground">
+              {t('Acceptance criteria')}
+              <Textarea
+                placeholder={t('Acceptance criteria')}
+                value={draft.validationCriteria}
+                onChange={(e) =>
+                  setDraft({ ...draft, validationCriteria: e.target.value })
+                }
+              />
+            </label>
             {!draft.parentTaskId && (
-              <button
-                type="button"
-                className="flex h-9 items-center gap-2 rounded-lg border px-3 text-left text-sm"
-                onClick={() => {
-                  setFolderSelection(
-                    draft.workspacePath || board.project.workspacePath,
-                  );
-                  setFolderOpen(true);
-                }}
-              >
-                <FolderOpen className="h-4 w-4" />
-                <span className="min-w-0 flex-1 truncate">
-                  {draft.workspacePath || 'Choisir un dossier'}
-                </span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                {t('Working folder')}
+                <button
+                  type="button"
+                  className="flex h-9 items-center gap-2 rounded-lg border px-3 text-left text-sm text-foreground"
+                  onClick={() => {
+                    setFolderSelection(
+                      draft.workspacePath || board.project.workspacePath,
+                    );
+                    setFolderOpen(true);
+                  }}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  <span className="min-w-0 flex-1 truncate">
+                    {draft.workspacePath || t('Choose a folder')}
+                  </span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </label>
             )}
             <div
               className={`grid gap-2 ${draft.parentTaskId ? 'grid-cols-1' : 'grid-cols-2'}`}
             >
               {!draft.parentTaskId && (
-                <select
-                  className="h-8 rounded-lg border bg-background px-2 text-sm"
-                  value={draft.priority}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      priority: e.target.value as Draft['priority'],
-                    })
-                  }
-                >
-                  {Object.entries(priorities).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {editing && !editing.parentTaskId && (
-                <select
-                  className="h-8 rounded-lg border bg-background px-2 text-sm"
-                  value={draft.statusId}
-                  onChange={(e) =>
-                    setDraft({ ...draft, statusId: e.target.value })
-                  }
-                >
-                  {board.statuses.map((s) => (
-                    <option
-                      key={s.id}
-                      value={s.id}
-                      disabled={
-                        s.kind === 'done' &&
-                        childrenFor(editing.id).some(
-                          (child) =>
-                            !['done', 'cancelled'].includes(
-                              child.subtaskStatus,
-                            ),
-                        )
-                      }
-                    >
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {draft.parentTaskId && (
-                <select
-                  className="h-8 rounded-lg border bg-background px-2 text-sm"
-                  value={draft.subtaskStatus}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      subtaskStatus: e.target
-                        .value as ProjectTaskSummary['subtaskStatus'],
-                    })
-                  }
-                >
-                  {Object.entries(subtaskLabels)
-                    .filter(
-                      ([value]) =>
-                        value !== 'review' || draft.executionMode === 'agent',
-                    )
-                    .map(([value, label]) => (
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  {t('Priority')}
+                  <select
+                    className="h-8 rounded-lg border bg-background px-2 text-sm text-foreground"
+                    value={draft.priority}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        priority: e.target.value as Draft['priority'],
+                      })
+                    }
+                  >
+                    {Object.entries(priorities).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
                     ))}
-                </select>
+                  </select>
+                </label>
+              )}
+              {editing && !editing.parentTaskId && (
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  {t('Status')}
+                  <select
+                    className="h-8 rounded-lg border bg-background px-2 text-sm text-foreground"
+                    value={draft.statusId}
+                    onChange={(e) =>
+                      setDraft({ ...draft, statusId: e.target.value })
+                    }
+                  >
+                    {board.statuses.map((s) => (
+                      <option
+                        key={s.id}
+                        value={s.id}
+                        disabled={
+                          s.kind === 'done' &&
+                          childrenFor(editing.id).some(
+                            (child) =>
+                              !['done', 'cancelled'].includes(
+                                child.subtaskStatus,
+                              ),
+                          )
+                        }
+                      >
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {draft.parentTaskId && (
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  {t('Subtask status')}
+                  <select
+                    className="h-8 rounded-lg border bg-background px-2 text-sm text-foreground"
+                    value={draft.subtaskStatus}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        subtaskStatus: e.target
+                          .value as ProjectTaskSummary['subtaskStatus'],
+                      })
+                    }
+                  >
+                    {Object.entries(subtaskLabels)
+                      .filter(
+                        ([value]) =>
+                          value !== 'review' || draft.executionMode === 'agent',
+                      )
+                      .map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                  </select>
+                </label>
               )}
             </div>
             <fieldset className="rounded-lg border p-3">
               <legend className="px-1 text-xs text-muted-foreground">
-                Labels
+                {t('Labels')}
               </legend>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -1567,18 +1596,21 @@ export function ProjectTaskManager({
               </div>
             </fieldset>
             {!draft.parentTaskId && (
-              <Input
-                placeholder="Fichier lié (facultatif)"
-                value={draft.linkedFilePath}
-                onChange={(e) =>
-                  setDraft({ ...draft, linkedFilePath: e.target.value })
-                }
-              />
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                {t('Linked file (optional)')}
+                <Input
+                  placeholder={t('Linked file (optional)')}
+                  value={draft.linkedFilePath}
+                  onChange={(e) =>
+                    setDraft({ ...draft, linkedFilePath: e.target.value })
+                  }
+                />
+              </label>
             )}
             {!draft.parentTaskId && (
               <fieldset className="rounded-lg border p-3">
                 <legend className="px-1 text-xs text-muted-foreground">
-                  Dépend de
+                  {t('Depends on')}
                 </legend>
                 <div className="max-h-28 space-y-1 overflow-auto">
                   {board.tasks
@@ -1616,21 +1648,25 @@ export function ProjectTaskManager({
             {editing && (
               <fieldset className="rounded-lg border bg-muted/20 p-3">
                 <legend className="px-1 text-xs text-muted-foreground">
-                  Informations système
+                  {t('System information')}
                 </legend>
                 <dl className="grid gap-3 text-xs sm:grid-cols-2">
                   <div>
-                    <dt className="text-muted-foreground">Créée le</dt>
+                    <dt className="text-muted-foreground">{t('Created on')}</dt>
                     <dd className="mt-1 font-medium">
-                      {new Date(editing.createdAt).toLocaleString('fr-FR')}
+                      {new Date(editing.createdAt).toLocaleString(
+                        i18n.language,
+                      )}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">
-                      Dernière modification
+                      {t('Last modified')}
                     </dt>
                     <dd className="mt-1 font-medium">
-                      {new Date(editing.updatedAt).toLocaleString('fr-FR')}
+                      {new Date(editing.updatedAt).toLocaleString(
+                        i18n.language,
+                      )}
                     </dd>
                   </div>
                 </dl>
