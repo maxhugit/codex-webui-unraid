@@ -2593,11 +2593,7 @@ function TaskCard({
         backgroundColor: `${priorityColor}18`,
       }}
     >
-      <button
-        type="button"
-        onClick={onClick}
-        className="block w-full cursor-pointer p-3 text-left hover:bg-accent/20"
-      >
+      <div className="w-full p-3 text-left">
         <div className="flex gap-2">
           <span
             draggable
@@ -2609,12 +2605,14 @@ function TaskCard({
           >
             <GripVertical className="h-4 w-4" />
           </span>
-          <span
-            className="min-w-0 flex-1 cursor-pointer truncate whitespace-nowrap text-sm font-medium"
+          <button
+            type="button"
+            onClick={onClick}
+            className="min-w-0 flex-1 cursor-pointer truncate whitespace-nowrap text-left text-sm font-medium hover:underline"
             title={task.title}
           >
             {task.title}
-          </span>
+          </button>
         </div>
         {task.description && (
           <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
@@ -2684,16 +2682,14 @@ function TaskCard({
             </span>
           )}
         </div>
-      </button>
+      </div>
       {subtasks.length > 0 && (
         <div className="border-t px-3 py-2">
           <div className="relative space-y-1 border-l border-muted-foreground/30 pl-3">
             {subtasks.map((subtask) => (
-              <button
-                type="button"
+              <div
                 key={subtask.id}
-                className="relative flex w-full cursor-pointer items-center gap-2 rounded px-1 py-1 text-left text-xs hover:bg-accent/50"
-                onClick={() => onSubtaskClick(subtask)}
+                className="relative flex w-full items-center gap-2 rounded px-1 py-1 text-left text-xs"
               >
                 <span className="absolute -left-3.5 top-1/2 w-3 border-t border-muted-foreground/30" />
                 {subtask.executionMode === 'agent' ? (
@@ -2701,12 +2697,14 @@ function TaskCard({
                 ) : (
                   <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 )}
-                <span
-                  className="min-w-0 flex-1 cursor-pointer truncate whitespace-nowrap"
+                <button
+                  type="button"
+                  onClick={() => onSubtaskClick(subtask)}
+                  className="min-w-0 flex-1 cursor-pointer truncate whitespace-nowrap text-left hover:underline"
                   title={subtask.title}
                 >
                   {subtask.title}
-                </span>
+                </button>
                 <span className="flex w-14 shrink-0 items-center gap-1 text-[9px] text-muted-foreground">
                   <span className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
                     <span
@@ -2728,7 +2726,7 @@ function TaskCard({
                 >
                   {subtaskLabels[subtask.subtaskStatus]}
                 </span>
-              </button>
+              </div>
             ))}
           </div>
         </div>
