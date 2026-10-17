@@ -13,11 +13,10 @@ import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
-  projectWorkspaces,
+  projects,
   simpleChatMessages,
   simpleChatThreads,
 } from '../database/schema';
-import { FilesService } from '../files/files.service';
 
 const DEFAULT_MODEL = 'gpt-5-mini';
 const MAX_MESSAGE_LENGTH = 6_000;
@@ -84,10 +83,7 @@ export class SimpleChatService {
     );
   private modelCache?: { expiresAt: number; models: string[] };
 
-  constructor(
-    @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
-    private readonly filesService: FilesService,
-  ) {}
+  constructor(@Inject(DRIZZLE_DB) private readonly db: AppDatabase) {}
 
   getStatus() {
     return {
@@ -221,20 +217,17 @@ export class SimpleChatService {
     };
   }
 
-  async createThread(input: {
-    model?: unknown;
-    cwd?: unknown;
-    projectId?: unknown;
-  }) {
-    const cwd = await this.resolveWorkspace(input.cwd);
-    const projectId = this.resolveProject(input.projectId, cwd);
+  async createThread(input: { model?: unknown; projectId?: unknown }) {
+    const project = this.resolveProject(input.projectId);
     const now = Date.now();
     const thread = {
       id: randomUUID(),
       title: 'Nouvelle conversation',
       model: this.parseModel(input.model) || this.defaultModel,
-      projectId,
-      cwd,
+      projectId: project.id,
+      // Kept as an internal compatibility value for the existing schema.
+      // Simple conversations are project-scoped and never grouped by cwd.
+      cwd: project.workspacePath,
       createdAt: now,
       updatedAt: now,
     };
@@ -258,7 +251,6 @@ export class SimpleChatService {
     input: {
       title?: unknown;
       model?: unknown;
-      cwd?: unknown;
       projectId?: unknown;
     },
   ) {
@@ -292,15 +284,10 @@ export class SimpleChatService {
       }
       updates.model = model;
     }
-    if (input.cwd !== undefined)
-      updates.cwd = await this.resolveWorkspace(input.cwd);
-    if (input.projectId !== undefined || input.cwd !== undefined) {
-      const current = this.requireThread(threadId);
-      const cwd = updates.cwd ?? current.cwd;
-      updates.projectId = this.resolveProject(
-        input.projectId !== undefined ? input.projectId : current.projectId,
-        cwd,
-      );
+    if (input.projectId !== undefined) {
+      const project = this.resolveProject(input.projectId);
+      updates.projectId = project.id;
+      updates.cwd = project.workspacePath;
     }
     this.db
       .update(simpleChatThreads)
@@ -310,36 +297,25 @@ export class SimpleChatService {
     return this.readThread(threadId);
   }
 
-  /** Requires a real directory covered by the configured workspace roots. */
-  private async resolveWorkspace(value: unknown): Promise<string> {
-    if (typeof value !== 'string' || !value.trim()) {
-      throw BusinessException.badRequest(
-        ErrorCode.files.pathRequired,
-        'A workspace directory is required',
-      );
-    }
-    return this.filesService.resolveSafePath(value.trim());
-  }
-
-  private resolveProject(value: unknown, cwd: string): string {
+  private resolveProject(value: unknown) {
     if (typeof value !== 'string' || !value.trim()) {
       throw BusinessException.badRequest(
         ErrorCode.files.pathRequired,
         'A project is required',
       );
     }
-    const workspace = this.db
+    const project = this.db
       .select()
-      .from(projectWorkspaces)
-      .where(eq(projectWorkspaces.path, cwd))
+      .from(projects)
+      .where(eq(projects.id, value.trim()))
       .get();
-    if (!workspace || workspace.projectId !== value.trim()) {
+    if (!project) {
       throw BusinessException.badRequest(
         ErrorCode.files.pathRequired,
-        'Workspace is not attached to this project',
+        'Project not found',
       );
     }
-    return workspace.projectId;
+    return project;
   }
 
   deleteThread(threadId: string) {

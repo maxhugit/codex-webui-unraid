@@ -44,7 +44,7 @@ export function SimpleChatRow({
     data: {
       kind: 'simple-chat',
       threadId: thread.id,
-      cwd: thread.cwd,
+      projectId: thread.projectId,
     },
     plugins: [Feedback.configure({ feedback: 'clone' })],
   });

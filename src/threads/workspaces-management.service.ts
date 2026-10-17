@@ -3,17 +3,13 @@ import {
   ConflictException,
   Injectable,
 } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
 import * as path from 'node:path';
-import { Inject } from '@nestjs/common';
-import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
-import { simpleChatThreads } from '../database/schema';
 import { FilesService } from '../files/files.service';
 import { ThreadsDeletionService } from './threads-deletion.service';
 import { ThreadMetadataService } from './thread-metadata.service';
 import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 
-/** Coordinates workspace folder changes with both kinds of conversations. */
+/** Coordinates workspace folder changes with Codex work-agent conversations. */
 @Injectable()
 export class WorkspacesManagementService {
   constructor(
@@ -21,7 +17,6 @@ export class WorkspacesManagementService {
     private readonly metadata: ThreadMetadataService,
     private readonly deletion: ThreadsDeletionService,
     private readonly overrides: ThreadWorkspaceOverridesService,
-    @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
   ) {}
 
   async rename(cwd: string, newName: string) {
@@ -46,17 +41,6 @@ export class WorkspacesManagementService {
         const next = thread.cwd ? remap(thread.cwd) : null;
         if (next) this.overrides.setMany([thread.id], next);
       }
-      const chats = this.db.select().from(simpleChatThreads).all();
-      this.db.transaction((tx) => {
-        for (const chat of chats) {
-          const next = remap(chat.cwd);
-          if (next)
-            tx.update(simpleChatThreads)
-              .set({ cwd: next, updatedAt: Date.now() })
-              .where(eq(simpleChatThreads.id, chat.id))
-              .run();
-        }
-      });
       return { ok: true, oldPath: cwd, newPath: renamedPath };
     } catch (error) {
       await this.files.renameManagedWorkspace(renamedPath, path.basename(cwd));
@@ -100,15 +84,6 @@ export class WorkspacesManagementService {
       preview.threadIds.forEach((id) => handled.add(id));
     }
 
-    const chats = this.db.select().from(simpleChatThreads).all();
-    this.db.transaction((tx) => {
-      for (const chat of chats) {
-        if (chat.cwd === cwd || chat.cwd.startsWith(`${cwd}${path.sep}`))
-          tx.delete(simpleChatThreads)
-            .where(eq(simpleChatThreads.id, chat.id))
-            .run();
-      }
-    });
     await this.files.deleteManagedWorkspace(cwd);
     return { ok: true };
   }
@@ -132,23 +107,7 @@ export class WorkspacesManagementService {
     if (affectedThreadIds.length)
       this.overrides.setMany(affectedThreadIds, replacementCwd);
 
-    let simpleChatsCount = 0;
-    const chats = this.db.select().from(simpleChatThreads).all();
-    this.db.transaction((tx) => {
-      for (const chat of chats) {
-        if (
-          chat.cwd !== missingCwd &&
-          !chat.cwd.startsWith(`${missingCwd}${path.sep}`)
-        )
-          continue;
-        simpleChatsCount += 1;
-        tx.update(simpleChatThreads)
-          .set({ cwd: replacementCwd, updatedAt: Date.now() })
-          .where(eq(simpleChatThreads.id, chat.id))
-          .run();
-      }
-    });
-    return { agents: affectedThreadIds.length, simpleChats: simpleChatsCount };
+    return { agents: affectedThreadIds.length, simpleChats: 0 };
   }
 
   private assertWorkspace(cwd: string) {

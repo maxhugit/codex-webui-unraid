@@ -326,9 +326,7 @@ export function ThreadSidebar() {
       if (group) group.threads.push(thread);
     }
     for (const simpleChat of simpleChatThreadsQuery.data?.threads ?? []) {
-      const group =
-        groupsByProject.get(simpleChat.projectId ?? '') ??
-        legacyGroupByCwd.get(simpleChat.cwd);
+      const group = groupsByProject.get(simpleChat.projectId ?? '');
       if (group) group.simpleChats.push(simpleChat);
     }
     return groups;
@@ -494,16 +492,14 @@ export function ThreadSidebar() {
   const moveSimpleChat = useMutation({
     mutationFn: ({
       threadId,
-      cwd,
       projectId,
     }: {
       threadId: string;
-      cwd: string;
       projectId: string;
     }) =>
       simpleChatApi(`/threads/${threadId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ cwd, projectId }),
+        body: JSON.stringify({ projectId }),
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
@@ -540,12 +536,12 @@ export function ThreadSidebar() {
         source?.kind === 'simple-chat' ||
         sourceId.startsWith('simple-chat-')
       ) {
+        if (source?.projectId === targetProjectId) return;
         const threadId =
           (source?.threadId as string | undefined) || sourceId.slice(12);
         if (threadId)
           moveSimpleChat.mutate({
             threadId,
-            cwd: targetCwd,
             projectId: targetProjectId,
           });
         return;
@@ -635,10 +631,10 @@ export function ThreadSidebar() {
     },
   });
   const createSimpleChatThread = useMutation({
-    mutationFn: ({ cwd, projectId }: { cwd: string; projectId: string }) =>
+    mutationFn: ({ projectId }: { projectId: string }) =>
       simpleChatApi<{ thread: SimpleChatThread }>('/threads', {
         method: 'POST',
-        body: JSON.stringify({ cwd, projectId }),
+        body: JSON.stringify({ projectId }),
       }),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({
@@ -1021,7 +1017,7 @@ export function ThreadSidebar() {
     if (kind === 'agent') {
       pendingAgentProject.current = { projectId, workspacePath: cwd };
       createThread.mutate({ body: { cwd } });
-    } else createSimpleChatThread.mutate({ cwd, projectId });
+    } else createSimpleChatThread.mutate({ projectId });
   };
 
   const requestConversation = (
@@ -1029,6 +1025,11 @@ export function ThreadSidebar() {
     group: WorkspaceGroup,
   ) => {
     const workspaces = group.workspaces ?? [];
+    if (kind === 'simple') {
+      if (group.projectId)
+        createSimpleChatThread.mutate({ projectId: group.projectId });
+      return;
+    }
     if (workspaces.length <= 1) {
       if (!group.projectId) return;
       createConversationIn(
@@ -1239,7 +1240,6 @@ export function ThreadSidebar() {
       />
       <ManageWorkspacesDialog
         project={workspaceProject ? null : managedProject}
-        simpleChats={simpleChatThreadsQuery.data?.threads ?? []}
         pending={
           createWorkspace.isPending ||
           setDefaultWorkspace.isPending ||

@@ -255,19 +255,6 @@ export class ProjectsService {
             },
           })
           .run();
-      for (const chat of tx
-        .select()
-        .from(simpleChatThreads)
-        .where(eq(simpleChatThreads.projectId, projectId))
-        .all())
-        if (
-          chat.cwd === workspace.path ||
-          chat.cwd.startsWith(`${workspace.path}${path.sep}`)
-        )
-          tx.update(simpleChatThreads)
-            .set({ cwd: project.workspacePath, updatedAt: now })
-            .where(eq(simpleChatThreads.id, chat.id))
-            .run();
       tx.delete(projectWorkspaces)
         .where(eq(projectWorkspaces.id, workspaceId))
         .run();
@@ -285,7 +272,7 @@ export class ProjectsService {
     const removed: string[] = [];
     const unresolved: string[] = [];
     let reassignedAgents = 0;
-    let reassignedSimpleChats = 0;
+    const reassignedSimpleChats = 0;
     for (const project of this.db.select().from(projects).all()) {
       const attached = this.db
         .select()
@@ -330,7 +317,6 @@ export class ProjectsService {
           fallback.path,
         );
         reassignedAgents += reassigned.agents;
-        reassignedSimpleChats += reassigned.simpleChats;
         this.db
           .update(projectAgentThreads)
           .set({ workspacePath: fallback.path, updatedAt: Date.now() })

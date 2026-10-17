@@ -1,12 +1,4 @@
-import {
-  Bot,
-  Folder,
-  FolderPlus,
-  Loader2,
-  MessageCircle,
-  Star,
-  Unlink,
-} from 'lucide-react';
+import { Bot, Folder, FolderPlus, Loader2, Star, Unlink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,11 +11,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { ProjectSummary } from '@/lib/projects-api';
-import type { SimpleChatThreadSummary } from '@/lib/simple-chat-api';
 
 interface Props {
   project: ProjectSummary | null;
-  simpleChats: SimpleChatThreadSummary[];
   pending: boolean;
   onClose: () => void;
   onAdd: (project: ProjectSummary) => void;
@@ -34,7 +24,6 @@ interface Props {
 /** Centralizes workspace membership without mixing it with project actions. */
 export function ManageWorkspacesDialog({
   project,
-  simpleChats,
   pending,
   onClose,
   onAdd,
@@ -62,13 +51,7 @@ export function ManageWorkspacesDialog({
               const agents = (project.agentThreads ?? []).filter(
                 (thread) => thread.workspacePath === workspace.path,
               );
-              const chats = simpleChats.filter(
-                (chat) =>
-                  chat.projectId === project.id &&
-                  (chat.cwd === workspace.path ||
-                    chat.cwd.startsWith(`${workspace.path}/`)),
-              );
-              const conversationCount = agents.length + chats.length;
+              const conversationCount = agents.length;
               return (
                 <div
                   key={workspace.id}
@@ -138,18 +121,6 @@ export function ManageWorkspacesDialog({
                             <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
                               {t('Work agent')}
                               {thread.archived ? ` · ${t('Archived')}` : ''}
-                            </span>
-                          </div>
-                        ))}
-                        {chats.map((chat) => (
-                          <div
-                            key={chat.id}
-                            className="flex min-w-0 items-center gap-2 text-xs"
-                          >
-                            <MessageCircle className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">{chat.title}</span>
-                            <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                              {t('Simple conversation')}
                             </span>
                           </div>
                         ))}
