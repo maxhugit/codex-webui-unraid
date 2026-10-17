@@ -349,6 +349,24 @@ export const projectWorkspaces = sqliteTable(
 export type ProjectWorkspace = typeof projectWorkspaces.$inferSelect;
 export type InsertProjectWorkspace = typeof projectWorkspaces.$inferInsert;
 
+/** Explicit project membership for Codex work-agent conversations. */
+export const projectAgentThreads = sqliteTable(
+  'project_agent_threads',
+  {
+    threadId: text('thread_id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    workspacePath: text('workspace_path').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    index('idx_project_agent_threads_project').on(table.projectId),
+    index('idx_project_agent_threads_workspace').on(table.workspacePath),
+  ],
+);
+
 /** Lightweight OpenAI API conversations, separate from Codex work threads. */
 export const simpleChatThreads = sqliteTable(
   'simple_chat_threads',
@@ -356,6 +374,9 @@ export const simpleChatThreads = sqliteTable(
     id: text('id').primaryKey(),
     title: text('title').notNull(),
     model: text('model').notNull(),
+    projectId: text('project_id').references(() => projects.id, {
+      onDelete: 'cascade',
+    }),
     cwd: text('cwd').notNull().default('/workspaces'),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),

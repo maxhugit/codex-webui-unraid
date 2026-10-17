@@ -12,7 +12,11 @@ import { randomUUID } from 'node:crypto';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
-import { simpleChatMessages, simpleChatThreads } from '../database/schema';
+import {
+  projectWorkspaces,
+  simpleChatMessages,
+  simpleChatThreads,
+} from '../database/schema';
 import { FilesService } from '../files/files.service';
 
 const DEFAULT_MODEL = 'gpt-5-mini';
@@ -217,13 +221,19 @@ export class SimpleChatService {
     };
   }
 
-  async createThread(input: { model?: unknown; cwd?: unknown }) {
+  async createThread(input: {
+    model?: unknown;
+    cwd?: unknown;
+    projectId?: unknown;
+  }) {
     const cwd = await this.resolveWorkspace(input.cwd);
+    const projectId = this.resolveProject(input.projectId, cwd);
     const now = Date.now();
     const thread = {
       id: randomUUID(),
       title: 'Nouvelle conversation',
       model: this.parseModel(input.model) || this.defaultModel,
+      projectId,
       cwd,
       createdAt: now,
       updatedAt: now,
@@ -245,13 +255,19 @@ export class SimpleChatService {
 
   async updateThread(
     threadId: string,
-    input: { title?: unknown; model?: unknown; cwd?: unknown },
+    input: {
+      title?: unknown;
+      model?: unknown;
+      cwd?: unknown;
+      projectId?: unknown;
+    },
   ) {
     this.requireThread(threadId);
     const updates: {
       title?: string;
       model?: string;
       cwd?: string;
+      projectId?: string | null;
       updatedAt: number;
     } = {
       updatedAt: Date.now(),
@@ -276,8 +292,15 @@ export class SimpleChatService {
       }
       updates.model = model;
     }
-    if (input.cwd !== undefined) {
+    if (input.cwd !== undefined)
       updates.cwd = await this.resolveWorkspace(input.cwd);
+    if (input.projectId !== undefined || input.cwd !== undefined) {
+      const current = this.requireThread(threadId);
+      const cwd = updates.cwd ?? current.cwd;
+      updates.projectId = this.resolveProject(
+        input.projectId !== undefined ? input.projectId : current.projectId,
+        cwd,
+      );
     }
     this.db
       .update(simpleChatThreads)
@@ -296,6 +319,27 @@ export class SimpleChatService {
       );
     }
     return this.filesService.resolveSafePath(value.trim());
+  }
+
+  private resolveProject(value: unknown, cwd: string): string {
+    if (typeof value !== 'string' || !value.trim()) {
+      throw BusinessException.badRequest(
+        ErrorCode.files.pathRequired,
+        'A project is required',
+      );
+    }
+    const workspace = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(eq(projectWorkspaces.path, cwd))
+      .get();
+    if (!workspace || workspace.projectId !== value.trim()) {
+      throw BusinessException.badRequest(
+        ErrorCode.files.pathRequired,
+        'Workspace is not attached to this project',
+      );
+    }
+    return workspace.projectId;
   }
 
   deleteThread(threadId: string) {

@@ -134,7 +134,9 @@ export class SimpleChatController {
 
   @Post('threads')
   @ApiOperation({ summary: 'Create a Simple Chat conversation' })
-  createThread(@Body() body: { model?: unknown; cwd?: unknown }) {
+  createThread(
+    @Body() body: { model?: unknown; cwd?: unknown; projectId?: unknown },
+  ) {
     return this.simpleChatService.createThread(body ?? {});
   }
 
@@ -148,7 +150,13 @@ export class SimpleChatController {
   @ApiOperation({ summary: 'Rename a conversation or change its model' })
   updateThread(
     @Param('threadId') threadId: string,
-    @Body() body: { title?: unknown; model?: unknown; cwd?: unknown },
+    @Body()
+    body: {
+      title?: unknown;
+      model?: unknown;
+      cwd?: unknown;
+      projectId?: unknown;
+    },
   ) {
     return this.simpleChatService.updateThread(threadId, body ?? {});
   }

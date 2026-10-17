@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 
@@ -40,13 +41,45 @@ export class ProjectsController {
     };
   }
 
+  @Patch(':id/workspaces/:workspaceId/default')
+  setDefaultWorkspace(
+    @Param('id') id: string,
+    @Param('workspaceId') workspaceId: string,
+  ) {
+    return { workspace: this.projects.setDefaultWorkspace(id, workspaceId) };
+  }
+
+  @Delete(':id/workspaces/:workspaceId')
+  detachWorkspace(
+    @Param('id') id: string,
+    @Param('workspaceId') workspaceId: string,
+  ) {
+    return this.projects.detachWorkspace(id, workspaceId);
+  }
+
+  @Put(':id/agents/:threadId')
+  associateAgent(
+    @Param('id') id: string,
+    @Param('threadId') threadId: string,
+    @Body() body: { workspacePath: string },
+  ) {
+    return this.projects.associateAgent(id, threadId, body.workspacePath);
+  }
+
   @Post('reconcile-workspaces')
   async reconcileWorkspaces() {
     return this.projects.reconcileMissingWorkspaces();
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Body() body: { confirmation: string }) {
-    return this.projects.remove(id, body.confirmation);
+  remove(
+    @Param('id') id: string,
+    @Body() body: { confirmation: string; deleteWorkspaces?: boolean },
+  ) {
+    return this.projects.remove(
+      id,
+      body.confirmation,
+      body.deleteWorkspaces === true,
+    );
   }
 }

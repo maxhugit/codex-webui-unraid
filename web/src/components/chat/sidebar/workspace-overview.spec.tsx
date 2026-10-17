@@ -34,9 +34,7 @@ describe('WorkspaceOverview creation menu', () => {
       </DragDropProvider>,
     );
 
-    await user.click(
-      screen.getByRole('button', { name: 'Add to this workspace' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Project actions' }));
     expect(screen.getByRole('button', { name: 'Work agent' })).toBeVisible();
     expect(
       screen.getByRole('button', { name: 'Simple conversation' }),
@@ -44,6 +42,8 @@ describe('WorkspaceOverview creation menu', () => {
     await user.click(screen.getByRole('button', { name: label }));
     expect(
       kind === 'agent' ? createAgent : createSimpleChat,
-    ).toHaveBeenCalledWith('/workspaces/Unraid');
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ cwd: '/workspaces/Unraid' }),
+    );
   });
 });

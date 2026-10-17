@@ -8,6 +8,7 @@ export interface ProjectSummary {
   createdAt: number;
   updatedAt: number;
   workspaces: ProjectWorkspaceSummary[];
+  agentThreads?: Array<{ threadId: string; workspacePath: string }>;
 }
 
 export interface ProjectWorkspaceSummary {

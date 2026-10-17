@@ -81,6 +81,10 @@
   "Delete this project?": "Supprimer ce projet ?",
   "All work agents, simple conversations, files and subfolders in this project will be permanently deleted.": "Tous les agents de travail, conversations simples, fichiers et sous-dossiers de ce projet seront définitivement supprimés.",
   "Delete permanently": "Supprimer définitivement",
+  "Set as default": "Définir par défaut",
+  "Detach": "Dissocier",
+  "Work agents and simple conversations in this project will be permanently deleted.": "Les agents de travail et les conversations simples de ce projet seront définitivement supprimés.",
+  "Also delete associated workspace folders and all their files": "Supprimer également les dossiers workspace associés et tous leurs fichiers",
   "Projects": "Projets",
   "default": "par défaut",
   "hidden": "masqué"

@@ -6,30 +6,48 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { Inject } from '@nestjs/common';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
   projects,
+  projectAgentThreads,
   projectWorkspaces,
+  simpleChatThreads,
   type Project,
   type ProjectWorkspace,
 } from '../database/schema';
 import { FilesService } from '../files/files.service';
 import { WorkspacesManagementService } from '../threads/workspaces-management.service';
+import { ThreadMetadataService } from '../threads/thread-metadata.service';
+import { ThreadWorkspaceOverridesService } from '../threads/thread-workspace-overrides.service';
+import { ThreadsDeletionService } from '../threads/threads-deletion.service';
+import { ThreadsService } from '../threads/threads.service';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private readonly files: FilesService,
     private readonly workspaces: WorkspacesManagementService,
+    private readonly metadata: ThreadMetadataService,
+    private readonly overrides: ThreadWorkspaceOverridesService,
+    private readonly deletion: ThreadsDeletionService,
+    private readonly threads: ThreadsService,
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
   ) {}
 
-  async list(): Promise<Array<Project & { workspaces: ProjectWorkspace[] }>> {
-    await this.importExistingWorkspaceDirectories();
+  async list(): Promise<
+    Array<
+      Project & {
+        workspaces: ProjectWorkspace[];
+        agentThreads: Array<{ threadId: string; workspacePath: string }>;
+      }
+    >
+  > {
     this.ensurePrimaryWorkspaces();
+    await this.migrateConversationAssociations();
     const workspaces = this.db.select().from(projectWorkspaces).all();
+    const agents = this.db.select().from(projectAgentThreads).all();
     return this.db
       .select()
       .from(projects)
@@ -42,7 +60,177 @@ export class ProjectsService {
         workspaces: workspaces
           .filter((workspace) => workspace.projectId === project.id)
           .sort((a, b) => Number(b.primary) - Number(a.primary)),
+        agentThreads: agents
+          .filter((agent) => agent.projectId === project.id)
+          .map(({ threadId, workspacePath }) => ({ threadId, workspacePath })),
       }));
+  }
+
+  /** Associates historical conversations once; future grouping never relies on cwd. */
+  private async migrateConversationAssociations(): Promise<void> {
+    const workspaces = this.db.select().from(projectWorkspaces).all();
+    const ownerFor = (cwd: string) =>
+      workspaces
+        .filter(
+          (workspace) =>
+            cwd === workspace.path ||
+            cwd.startsWith(`${workspace.path}${path.sep}`),
+        )
+        .sort((a, b) => b.path.length - a.path.length)[0];
+    const now = Date.now();
+    for (const chat of this.db.select().from(simpleChatThreads).all()) {
+      if (chat.projectId) continue;
+      const owner = ownerFor(chat.cwd);
+      if (owner)
+        this.db
+          .update(simpleChatThreads)
+          .set({ projectId: owner.projectId, updatedAt: now })
+          .where(eq(simpleChatThreads.id, chat.id))
+          .run();
+    }
+    const known = new Set(
+      this.db
+        .select({ threadId: projectAgentThreads.threadId })
+        .from(projectAgentThreads)
+        .all()
+        .map((row) => row.threadId),
+    );
+    const snapshot = await this.metadata.read().catch(() => null);
+    if (!snapshot) return;
+    for (const thread of this.overrides.applyToThreads(
+      snapshot.entries.map((entry) => entry.thread),
+    )) {
+      if (known.has(thread.id) || !thread.cwd) continue;
+      const owner = ownerFor(thread.cwd);
+      if (!owner) continue;
+      this.db
+        .insert(projectAgentThreads)
+        .values({
+          threadId: thread.id,
+          projectId: owner.projectId,
+          workspacePath: thread.cwd,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoNothing()
+        .run();
+    }
+  }
+
+  async associateAgent(
+    projectId: string,
+    threadId: string,
+    workspacePath: string,
+  ) {
+    const workspace = this.requireWorkspace(projectId, workspacePath);
+    const threadIds = await this.threads.setThreadCwd(threadId, workspace.path);
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      for (const id of threadIds)
+        tx.insert(projectAgentThreads)
+          .values({
+            threadId: id,
+            projectId,
+            workspacePath: workspace.path,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: projectAgentThreads.threadId,
+            set: { projectId, workspacePath: workspace.path, updatedAt: now },
+          })
+          .run();
+    });
+    return { threadIds, projectId, workspacePath: workspace.path };
+  }
+
+  setDefaultWorkspace(projectId: string, workspaceId: string) {
+    const project = this.get(projectId);
+    const selected = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(
+        and(
+          eq(projectWorkspaces.id, workspaceId),
+          eq(projectWorkspaces.projectId, projectId),
+        ),
+      )
+      .get();
+    if (!selected) throw new NotFoundException('Workspace not found');
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      for (const workspace of tx
+        .select()
+        .from(projectWorkspaces)
+        .where(eq(projectWorkspaces.projectId, projectId))
+        .all())
+        tx.update(projectWorkspaces)
+          .set({ primary: workspace.id === workspaceId, updatedAt: now })
+          .where(eq(projectWorkspaces.id, workspace.id))
+          .run();
+      tx.update(projects)
+        .set({ workspacePath: selected.path, updatedAt: now })
+        .where(eq(projects.id, project.id))
+        .run();
+    });
+    return selected;
+  }
+
+  async detachWorkspace(projectId: string, workspaceId: string) {
+    const project = this.get(projectId);
+    const workspace = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(
+        and(
+          eq(projectWorkspaces.id, workspaceId),
+          eq(projectWorkspaces.projectId, projectId),
+        ),
+      )
+      .get();
+    if (!workspace) throw new NotFoundException('Workspace not found');
+    if (workspace.primary)
+      throw new ConflictException('Choose another default workspace first');
+    const agents = this.db
+      .select()
+      .from(projectAgentThreads)
+      .where(
+        and(
+          eq(projectAgentThreads.projectId, projectId),
+          eq(projectAgentThreads.workspacePath, workspace.path),
+        ),
+      )
+      .all();
+    if (agents.length)
+      this.overrides.setMany(
+        agents.map((row) => row.threadId),
+        project.workspacePath,
+      );
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      for (const agent of agents)
+        tx.update(projectAgentThreads)
+          .set({ workspacePath: project.workspacePath, updatedAt: now })
+          .where(eq(projectAgentThreads.threadId, agent.threadId))
+          .run();
+      for (const chat of tx
+        .select()
+        .from(simpleChatThreads)
+        .where(eq(simpleChatThreads.projectId, projectId))
+        .all())
+        if (
+          chat.cwd === workspace.path ||
+          chat.cwd.startsWith(`${workspace.path}${path.sep}`)
+        )
+          tx.update(simpleChatThreads)
+            .set({ cwd: project.workspacePath, updatedAt: now })
+            .where(eq(simpleChatThreads.id, chat.id))
+            .run();
+      tx.delete(projectWorkspaces)
+        .where(eq(projectWorkspaces.id, workspaceId))
+        .run();
+    });
+    return { ok: true, preservedPath: workspace.path };
   }
 
   /** Removes stale workspace rows and safely moves their conversations. */
@@ -101,6 +289,16 @@ export class ProjectsService {
         );
         reassignedAgents += reassigned.agents;
         reassignedSimpleChats += reassigned.simpleChats;
+        this.db
+          .update(projectAgentThreads)
+          .set({ workspacePath: fallback.path, updatedAt: Date.now() })
+          .where(
+            and(
+              eq(projectAgentThreads.projectId, project.id),
+              eq(projectAgentThreads.workspacePath, workspace.path),
+            ),
+          )
+          .run();
         this.db
           .delete(projectWorkspaces)
           .where(eq(projectWorkspaces.id, workspace.id))
@@ -250,16 +448,68 @@ export class ProjectsService {
     return { ...project, name, updatedAt };
   }
 
-  async remove(id: string, confirmation: string) {
+  async remove(id: string, confirmation: string, deleteWorkspaces = false) {
     const project = this.get(id);
     if (confirmation !== project.name)
       throw new BadRequestException('Project confirmation does not match');
-    await this.workspaces.remove(
-      project.workspacePath,
-      path.basename(project.workspacePath),
-    );
+    const attached = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(eq(projectWorkspaces.projectId, id))
+      .all();
+    const agents = this.db
+      .select()
+      .from(projectAgentThreads)
+      .where(eq(projectAgentThreads.projectId, id))
+      .all();
+    const handled = new Set<string>();
+    for (const agent of agents) {
+      if (handled.has(agent.threadId)) continue;
+      const preview = await this.deletion.previewDelete(agent.threadId);
+      if (!preview.canDelete)
+        throw new ConflictException(
+          'One or more work agents cannot be deleted safely',
+        );
+      const result = await this.deletion.deleteThread(agent.threadId, {
+        expectedThreadIds: preview.threadIds,
+        expectedRunningThreadIds: preview.runningThreadIds,
+        expectedPendingApprovalThreadIds: preview.pendingApprovalThreadIds,
+        expectedPendingApprovalRequestIds: preview.pendingApprovals.map(
+          (approval) => approval.requestId,
+        ),
+      });
+      if (result.status !== 'completed')
+        throw new ConflictException(
+          'Project deletion stopped while deleting work agents',
+        );
+      preview.threadIds.forEach((threadId) => handled.add(threadId));
+    }
     this.db.delete(projects).where(eq(projects.id, id)).run();
-    return { ok: true };
+    if (deleteWorkspaces)
+      for (const workspace of attached)
+        await this.files.deletePath(workspace.path, true);
+    return {
+      ok: true,
+      preservedWorkspaces: deleteWorkspaces
+        ? []
+        : attached.map((workspace) => workspace.path),
+    };
+  }
+
+  private requireWorkspace(
+    projectId: string,
+    workspacePath: string,
+  ): ProjectWorkspace {
+    const workspace = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(eq(projectWorkspaces.path, workspacePath))
+      .get();
+    if (!workspace || workspace.projectId !== projectId)
+      throw new BadRequestException(
+        'Workspace is not attached to this project',
+      );
+    return workspace;
   }
 
   private get(id: string): Project {
@@ -277,38 +527,6 @@ export class ProjectsService {
     if (!name) throw new BadRequestException('Project name is required');
     this.files.validateEntryName(name);
     return name;
-  }
-
-  /** Imports pre-project installations without moving or rewriting anything. */
-  private async importExistingWorkspaceDirectories(): Promise<void> {
-    const entries = await this.files.readDirectory('/workspaces');
-    const known = new Set(
-      [
-        ...this.db
-          .select({ path: projects.workspacePath })
-          .from(projects)
-          .all(),
-        ...this.db
-          .select({ path: projectWorkspaces.path })
-          .from(projectWorkspaces)
-          .all(),
-      ].map((entry) => entry.path),
-    );
-    const now = Date.now();
-    for (const entry of entries) {
-      if (entry.type !== 'directory' || known.has(entry.path)) continue;
-      this.db
-        .insert(projects)
-        .values({
-          id: randomUUID(),
-          name: path.basename(entry.path),
-          workspacePath: entry.path,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .onConflictDoNothing()
-        .run();
-    }
   }
 
   private ensurePrimaryWorkspaces(): void {

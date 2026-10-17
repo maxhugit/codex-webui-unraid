@@ -3,7 +3,7 @@
  * Rendering is split into sidebar/ sub-components; this file orchestrates
  * state, queries, mutations, and view routing.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { FolderOpen, Puzzle, Plus, Settings, Terminal } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
@@ -186,6 +186,11 @@ export function ThreadSidebar() {
     kind: 'agent' | 'simple';
     group: WorkspaceGroup;
   } | null>(null);
+  const pendingAgentProject = useRef<{
+    projectId: string;
+    workspacePath: string;
+  } | null>(null);
+  const [deleteProjectWorkspaces, setDeleteProjectWorkspaces] = useState(false);
 
   // ── Queries ─────────────────────────────────────────────────────────
   // The sidebar reads one server-side projection. It used to join a paginated
@@ -295,29 +300,28 @@ export function ThreadSidebar() {
         simpleChats: [] as SimpleChatThread[],
       }),
     );
-    const groupsByCwd = new Map<string, WorkspaceGroup>();
-    for (const group of groups) {
-      groupsByCwd.set(group.cwd, group);
+    const groupsByProject = new Map(
+      groups.map((group) => [group.projectId, group]),
+    );
+    const legacyGroupByCwd = new Map<string, WorkspaceGroup>();
+    for (const group of groups)
       for (const workspace of group.workspaces ?? [])
-        groupsByCwd.set(workspace.path, group);
-    }
+        legacyGroupByCwd.set(workspace.path, group);
+    const agentProjects = new Map<string, string>();
+    for (const project of projectsQuery.data?.projects ?? [])
+      for (const agent of project.agentThreads ?? [])
+        agentProjects.set(agent.threadId, project.id);
     for (const thread of activeThreads) {
-      let group = groupsByCwd.get(thread.cwd);
-      if (!group) {
-        group = { cwd: thread.cwd, threads: [], simpleChats: [] };
-        groups.push(group);
-        groupsByCwd.set(thread.cwd, group);
-      }
-      group.threads.push(thread);
+      const group =
+        groupsByProject.get(agentProjects.get(thread.id) ?? '') ??
+        legacyGroupByCwd.get(thread.cwd);
+      if (group) group.threads.push(thread);
     }
     for (const simpleChat of simpleChatThreadsQuery.data?.threads ?? []) {
-      let group = groupsByCwd.get(simpleChat.cwd);
-      if (!group) {
-        group = { cwd: simpleChat.cwd, threads: [], simpleChats: [] };
-        groups.push(group);
-        groupsByCwd.set(simpleChat.cwd, group);
-      }
-      group.simpleChats.push(simpleChat);
+      const group =
+        groupsByProject.get(simpleChat.projectId ?? '') ??
+        legacyGroupByCwd.get(simpleChat.cwd);
+      if (group) group.simpleChats.push(simpleChat);
     }
     return groups;
   }, [activeThreads, simpleChatThreadsQuery.data, projectsQuery.data]);
@@ -327,13 +331,19 @@ export function ThreadSidebar() {
           (project) => project.workspacePath === sidebarView.cwd,
         )
       : undefined;
-  const detailWorkspacePaths = new Set(
-    detailProject?.workspaces.map((workspace) => workspace.path) ??
-      (sidebarView.type === 'workspaceDetail' ? [sidebarView.cwd] : []),
-  );
   const detailThreads =
     sidebarView.type === 'workspaceDetail' && detailProject
-      ? activeThreads.filter((thread) => detailWorkspacePaths.has(thread.cwd))
+      ? Array.from(
+          new Map(
+            [...rowsByView.detail.map((row) => row.thread), ...activeThreads]
+              .filter((thread) =>
+                detailProject.agentThreads?.some(
+                  (agent) => agent.threadId === thread.id,
+                ),
+              )
+              .map((thread) => [thread.id, thread]),
+          ).values(),
+        )
       : rowsByView.detail.map((row) => row.thread);
 
   const highlightedThreadId = threadId
@@ -425,7 +435,14 @@ export function ThreadSidebar() {
   // ── Mutations ───────────────────────────────────────────────────────
   const createThread = useMutation({
     ...threadsStartThreadMutation(),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
+      const target = pendingAgentProject.current;
+      pendingAgentProject.current = null;
+      if (target)
+        await projectsApi(`/${target.projectId}/agents/${res.thread.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ workspacePath: target.workspacePath }),
+        });
       void setActiveThread(
         res.thread.id,
         res.cwd,
@@ -444,24 +461,16 @@ export function ThreadSidebar() {
     mutationFn: async ({
       threadId,
       cwd,
+      projectId,
     }: {
       threadId: string;
       cwd: string;
+      projectId: string;
     }) => {
-      const response = await fetch(
-        withBasePath(`/api/threads/${threadId}/cwd`),
-        {
-          method: 'PATCH',
-          headers: simpleChatHeaders(true),
-          body: JSON.stringify({ cwd }),
-        },
+      const payload = await projectsApi<{ threadIds: string[] }>(
+        `/${projectId}/agents/${threadId}`,
+        { method: 'PUT', body: JSON.stringify({ workspacePath: cwd }) },
       );
-      const payload = (await response.json().catch(() => ({}))) as {
-        message?: string;
-        threadIds?: string[];
-      };
-      if (!response.ok)
-        throw new Error(payload.message || `HTTP ${response.status}`);
       return payload.threadIds?.length ? payload.threadIds : [threadId];
     },
     onSuccess: (threadIds, variables) => {
@@ -475,10 +484,18 @@ export function ThreadSidebar() {
     },
   });
   const moveSimpleChat = useMutation({
-    mutationFn: ({ threadId, cwd }: { threadId: string; cwd: string }) =>
+    mutationFn: ({
+      threadId,
+      cwd,
+      projectId,
+    }: {
+      threadId: string;
+      cwd: string;
+      projectId: string;
+    }) =>
       simpleChatApi(`/threads/${threadId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ cwd }),
+        body: JSON.stringify({ cwd, projectId }),
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
@@ -509,19 +526,31 @@ export function ThreadSidebar() {
         (target?.cwd as string | undefined) ||
         (targetId.startsWith('workspace-') ? targetId.slice(10) : undefined);
       if (!targetCwd || sourceCwd === targetCwd) return;
+      const targetProjectId = target?.projectId as string | undefined;
+      if (!targetProjectId) return;
       if (
         source?.kind === 'simple-chat' ||
         sourceId.startsWith('simple-chat-')
       ) {
         const threadId =
           (source?.threadId as string | undefined) || sourceId.slice(12);
-        if (threadId) moveSimpleChat.mutate({ threadId, cwd: targetCwd });
+        if (threadId)
+          moveSimpleChat.mutate({
+            threadId,
+            cwd: targetCwd,
+            projectId: targetProjectId,
+          });
         return;
       }
       if (source?.kind === 'thread' || sourceId.startsWith('thread-')) {
         const threadId =
           (source?.threadId as string | undefined) || sourceId.slice(7);
-        if (threadId) moveThread.mutate({ threadId, cwd: targetCwd });
+        if (threadId)
+          moveThread.mutate({
+            threadId,
+            cwd: targetCwd,
+            projectId: targetProjectId,
+          });
       }
     },
     [moveSimpleChat, moveThread],
@@ -598,10 +627,10 @@ export function ThreadSidebar() {
     },
   });
   const createSimpleChatThread = useMutation({
-    mutationFn: (cwd: string) =>
+    mutationFn: ({ cwd, projectId }: { cwd: string; projectId: string }) =>
       simpleChatApi<{ thread: SimpleChatThread }>('/threads', {
         method: 'POST',
-        body: JSON.stringify({ cwd }),
+        body: JSON.stringify({ cwd, projectId }),
       }),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({
@@ -676,6 +705,41 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
+  const setDefaultWorkspace = useMutation({
+    mutationFn: ({
+      projectId,
+      workspaceId,
+    }: {
+      projectId: string;
+      workspaceId: string;
+    }) =>
+      projectsApi(`/${projectId}/workspaces/${workspaceId}/default`, {
+        method: 'PATCH',
+      }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
+  const detachWorkspace = useMutation({
+    mutationFn: ({
+      projectId,
+      workspaceId,
+    }: {
+      projectId: string;
+      workspaceId: string;
+    }) =>
+      projectsApi(`/${projectId}/workspaces/${workspaceId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+      void queryClient.invalidateQueries({
+        queryKey: simpleChatThreadsQueryKey,
+      });
+      invalidateThreads();
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
   const renameProjectMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) =>
       projectsApi<{ project: ProjectSummary }>(`/${id}`, {
@@ -693,10 +757,14 @@ export function ThreadSidebar() {
     mutationFn: (project: ProjectSummary) =>
       projectsApi(`/${project.id}`, {
         method: 'DELETE',
-        body: JSON.stringify({ confirmation: project.name }),
+        body: JSON.stringify({
+          confirmation: project.name,
+          deleteWorkspaces: deleteProjectWorkspaces,
+        }),
       }),
     onSuccess: () => {
       setDeleteProject(null);
+      setDeleteProjectWorkspaces(false);
       void queryClient.invalidateQueries();
       void navigate({ to: '/' });
     },
@@ -876,10 +944,16 @@ export function ThreadSidebar() {
     />
   );
 
-  const createConversationIn = (kind: 'agent' | 'simple', cwd: string) => {
+  const createConversationIn = (
+    kind: 'agent' | 'simple',
+    cwd: string,
+    projectId: string,
+  ) => {
     setPendingConversation(null);
-    if (kind === 'agent') createThread.mutate({ body: { cwd } });
-    else createSimpleChatThread.mutate(cwd);
+    if (kind === 'agent') {
+      pendingAgentProject.current = { projectId, workspacePath: cwd };
+      createThread.mutate({ body: { cwd } });
+    } else createSimpleChatThread.mutate({ cwd, projectId });
   };
 
   const requestConversation = (
@@ -888,7 +962,12 @@ export function ThreadSidebar() {
   ) => {
     const workspaces = group.workspaces ?? [];
     if (workspaces.length <= 1) {
-      createConversationIn(kind, workspaces[0]?.path ?? group.cwd);
+      if (!group.projectId) return;
+      createConversationIn(
+        kind,
+        workspaces[0]?.path ?? group.cwd,
+        group.projectId,
+      );
       return;
     }
     setPendingConversation({ kind, group });
@@ -995,6 +1074,20 @@ export function ThreadSidebar() {
                 requestConversation('simple', group)
               }
               onCreateWorkspace={setWorkspaceProject}
+              onSetDefaultWorkspace={(group, workspaceId) => {
+                if (group.projectId)
+                  setDefaultWorkspace.mutate({
+                    projectId: group.projectId,
+                    workspaceId,
+                  });
+              }}
+              onDetachWorkspace={(group, workspaceId) => {
+                if (group.projectId)
+                  detachWorkspace.mutate({
+                    projectId: group.projectId,
+                    workspaceId,
+                  });
+              }}
               onRenameProject={(group) => {
                 if (!group.projectId) return;
                 setRenameProject({
@@ -1030,7 +1123,9 @@ export function ThreadSidebar() {
                 sidebarView.type === 'workspaceDetail'
                   ? cursorStack.length === 0
                     ? (simpleChatThreadsQuery.data?.threads.filter((thread) =>
-                        detailWorkspacePaths.has(thread.cwd),
+                        detailProject
+                          ? thread.projectId === detailProject.id
+                          : false,
                       ) ?? [])
                     : []
                   : []
@@ -1117,7 +1212,12 @@ export function ThreadSidebar() {
                 className="justify-start"
                 onClick={() =>
                   pendingConversation &&
-                  createConversationIn(pendingConversation.kind, workspace.path)
+                  pendingConversation.group.projectId &&
+                  createConversationIn(
+                    pendingConversation.kind,
+                    workspace.path,
+                    pendingConversation.group.projectId,
+                  )
                 }
               >
                 <FolderOpen className="h-4 w-4" />
@@ -1203,7 +1303,12 @@ export function ThreadSidebar() {
       <AlertDialog
         open={deleteProject !== null}
         onOpenChange={(open) =>
-          !open && !deleteProjectMutation.isPending && setDeleteProject(null)
+          !open &&
+          !deleteProjectMutation.isPending &&
+          (() => {
+            setDeleteProject(null);
+            setDeleteProjectWorkspaces(false);
+          })()
         }
       >
         <AlertDialogContent>
@@ -1211,9 +1316,33 @@ export function ThreadSidebar() {
             <AlertDialogTitle>{t('Delete this project?')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                'All work agents, simple conversations, files and subfolders in this project will be permanently deleted.',
+                'Work agents and simple conversations in this project will be permanently deleted.',
               )}
             </AlertDialogDescription>
+            {deleteProject && (
+              <div className="space-y-2 text-sm">
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={deleteProjectWorkspaces}
+                    onChange={(event) =>
+                      setDeleteProjectWorkspaces(event.target.checked)
+                    }
+                    className="mt-1"
+                  />
+                  <span>
+                    {t(
+                      'Also delete associated workspace folders and all their files',
+                    )}
+                  </span>
+                </label>
+                <ul className="max-h-28 overflow-auto rounded border border-border p-2 font-mono text-[11px] text-muted-foreground">
+                  {deleteProject.workspaces.map((workspace) => (
+                    <li key={workspace.id}>{workspace.path}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteProjectMutation.isPending}>

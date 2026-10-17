@@ -17,6 +17,7 @@ import type { ThreadRow } from './sidebar/thread-row';
 import type { ThreadOverviewRowDto } from '@/generated/api/types.gen';
 import { useTimelineStore } from '@/stores/timeline-store';
 import { useLayoutStore } from '@/stores/layout-store';
+import { projectsQueryKey } from '@/lib/projects-api';
 
 const transport = vi.hoisted(() => ({
   archive: vi.fn(),
@@ -24,7 +25,13 @@ const transport = vi.hoisted(() => ({
   navigate: vi.fn(),
   emit: vi.fn(),
 }));
-vi.mock('@/socket', () => ({ getSocket: () => ({ emit: transport.emit, timeout: () => ({ emit: transport.emit }), connected: true }) }));
+vi.mock('@/socket', () => ({
+  getSocket: () => ({
+    emit: transport.emit,
+    timeout: () => ({ emit: transport.emit }),
+    connected: true,
+  }),
+}));
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => transport.navigate,
   useRouterState: () => '/t/branch',
@@ -140,6 +147,32 @@ it.each(['navigation', 'refetch', 'confirmation refetch'] as const)(
         mutations: { retry: false },
       },
     });
+    client.setQueryData(projectsQueryKey, {
+      projects: [
+        {
+          id: 'project',
+          name: 'Project',
+          workspacePath: '/workspace',
+          createdAt: 1,
+          updatedAt: 1,
+          workspaces: [
+            {
+              id: 'workspace',
+              projectId: 'project',
+              name: 'Principal',
+              path: '/workspace',
+              primary: true,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+          ],
+          agentThreads: [
+            { threadId: 'root', workspacePath: '/workspace' },
+            { threadId: 'neighbour', workspacePath: '/workspace' },
+          ],
+        },
+      ],
+    });
     const { result, unmount } = renderHook(() => ThreadSidebar(), {
       wrapper: ({ children }) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -216,16 +249,34 @@ it.each(['navigation', 'refetch', 'confirmation refetch'] as const)(
 
 it('ignores stale active lifecycle cached for an unsubscribed branch member', async () => {
   const root = row('root', ['root', 'branch']);
-  transport.overview.mockResolvedValue({ data: { data: [root], nextCursor: null } });
-  useTimelineStore.getState().setTurnStartPendingForThread('branch', true);
-  useTimelineStore.getState().setThreadStatusForThread('branch', { type: 'active', activeFlags: ['waitingOnApproval'] });
-  useTimelineStore.setState({ subscribedThreadIds: new Set() });
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const { result, unmount } = renderHook(() => ThreadSidebar(), {
-    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  transport.overview.mockResolvedValue({
+    data: { data: [root], nextCursor: null },
   });
-  await waitFor(() => expect(findElement(result.current, WorkspaceDetail)?.props.threads).toHaveLength(1));
-  const rendered = findElement(result.current, WorkspaceDetail)!.props.renderThreadRow(root.thread, false) as ReactElement<React.ComponentProps<typeof ThreadRow>>;
+  useTimelineStore.getState().setTurnStartPendingForThread('branch', true);
+  useTimelineStore.getState().setThreadStatusForThread('branch', {
+    type: 'active',
+    activeFlags: ['waitingOnApproval'],
+  });
+  useTimelineStore.setState({ subscribedThreadIds: new Set() });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const { result, unmount } = renderHook(() => ThreadSidebar(), {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+  await waitFor(() =>
+    expect(
+      findElement(result.current, WorkspaceDetail)?.props.threads,
+    ).toHaveLength(1),
+  );
+  const rendered = findElement(
+    result.current,
+    WorkspaceDetail,
+  )!.props.renderThreadRow(root.thread, false) as ReactElement<
+    React.ComponentProps<typeof ThreadRow>
+  >;
   expect(rendered.props.running).toBe(false);
   expect(rendered.props.pendingApproval).toBe(false);
   expect(rendered.props.destructiveDisabled).toBe(false);
