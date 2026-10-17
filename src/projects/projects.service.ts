@@ -204,9 +204,12 @@ export class ProjectsService {
     projectId: string,
     threadId: string,
     workspacePath: string,
+    alreadyAtWorkspace = false,
   ) {
     const workspace = this.requireWorkspace(projectId, workspacePath);
-    const threadIds = await this.threads.setThreadCwd(threadId, workspace.path);
+    const threadIds = alreadyAtWorkspace
+      ? this.threads.rememberInitialThreadCwd(threadId, workspace.path)
+      : await this.threads.setThreadCwd(threadId, workspace.path);
     const now = Date.now();
     this.db.transaction((tx) => {
       for (const id of threadIds)

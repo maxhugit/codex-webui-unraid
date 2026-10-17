@@ -424,7 +424,10 @@ export function ProjectTaskManager({
       if (!thread) throw new Error('Impossible de créer l’agent');
       await projectsApi(`/${projectId}/agents/${thread.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ workspacePath: cwd }),
+        body: JSON.stringify({
+          workspacePath: cwd,
+          alreadyAtWorkspace: true,
+        }),
       });
       const inProgress = statusByKind('in_progress');
       await projectsApi(

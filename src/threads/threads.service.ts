@@ -129,6 +129,18 @@ export class ThreadsService {
   }
 
   /**
+   * Persists the cwd of a thread that has just been created at that exact cwd.
+   * A brand-new thread has no rollout until its first turn, so trying to resume
+   * it only to reapply the same cwd would fail with `no rollout found`.
+   */
+  rememberInitialThreadCwd(threadId: string, cwd: string): string[] {
+    this.deletionRegistry.assertMutable(threadId);
+    const memberIds = this.branches.listKnownTreeThreadIds(threadId);
+    this.workspaceOverrides.setMany(memberIds, cwd);
+    return memberIds;
+  }
+
+  /**
    * Lists threads with optional filtering and pagination.
    *
    * @param params - List parameters (cursor, limit, archived, searchTerm, etc.)

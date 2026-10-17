@@ -163,9 +163,14 @@ export class ProjectsController {
   associateAgent(
     @Param('id') id: string,
     @Param('threadId') threadId: string,
-    @Body() body: { workspacePath: string },
+    @Body() body: { workspacePath: string; alreadyAtWorkspace?: boolean },
   ) {
-    return this.projects.associateAgent(id, threadId, body.workspacePath);
+    return this.projects.associateAgent(
+      id,
+      threadId,
+      body.workspacePath,
+      body.alreadyAtWorkspace === true,
+    );
   }
 
   @Post('reconcile-workspaces')
