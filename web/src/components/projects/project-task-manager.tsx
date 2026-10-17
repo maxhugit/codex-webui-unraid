@@ -48,6 +48,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { VoiceDictationButton } from '@/components/chat/voice-dictation-button';
 import { DirectorySelectionTree } from '@/components/files/directory-selection-tree';
 import { threadsStartThread, threadsStartTurn } from '@/generated/api/sdk.gen';
 import { useThemeStore } from '@/stores/theme-store';
@@ -1720,12 +1721,10 @@ export function ProjectTaskManager({
             </label>
             <label className="grid gap-1 text-xs text-muted-foreground">
               {t('Description')}
-              <Textarea
+              <DictatedTextarea
                 placeholder={t('Detailed description')}
                 value={draft.description}
-                onChange={(e) =>
-                  setDraft({ ...draft, description: e.target.value })
-                }
+                onChange={(description) => setDraft({ ...draft, description })}
               />
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -1847,11 +1846,11 @@ export function ProjectTaskManager({
             </div>
             <label className="grid gap-1 text-xs text-muted-foreground">
               {t('Acceptance criteria')}
-              <Textarea
+              <DictatedTextarea
                 placeholder={t('Acceptance criteria')}
                 value={draft.validationCriteria}
-                onChange={(e) =>
-                  setDraft({ ...draft, validationCriteria: e.target.value })
+                onChange={(validationCriteria) =>
+                  setDraft({ ...draft, validationCriteria })
                 }
               />
             </label>
@@ -3007,6 +3006,34 @@ export function ProjectTaskManager({
         </DialogContent>
       </Dialog>
     </main>
+  );
+}
+
+function DictatedTextarea({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <Textarea
+        className="pr-10"
+        placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <div className="absolute bottom-1.5 right-1.5 rounded-md border bg-background/90 shadow-sm backdrop-blur">
+        <VoiceDictationButton
+          onTranscript={(text) =>
+            onChange(`${value}${value.trim() ? ' ' : ''}${text}`)
+          }
+        />
+      </div>
+    </div>
   );
 }
 
