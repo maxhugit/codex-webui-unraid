@@ -264,14 +264,6 @@ function readTaskBoardSettings(
       : [],
   } satisfies TaskBoardSettings;
 }
-const agentLabels: Record<string, string> = {
-  ready: 'Agent prêt',
-  running: 'Agent en cours',
-  waiting: 'Autorisation requise',
-  error: 'Agent en erreur',
-  review: 'Résultat à valider',
-  validated: 'Validée',
-};
 const dateValue = (value: number | null) =>
   value ? new Date(value).toISOString().slice(0, 10) : '';
 
@@ -3494,11 +3486,6 @@ function TaskCard({
             }}
           >
             {priority?.name ?? task.priority}
-          </span>
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
-            {task.executionMode === 'manual'
-              ? 'Manuel'
-              : (agentLabels[task.agentState] ?? 'Agent IA')}
           </span>
           {task.estimateMinutes > 0 && (
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
