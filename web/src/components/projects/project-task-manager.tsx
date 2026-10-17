@@ -1608,30 +1608,6 @@ export function ProjectTaskManager({
                 </div>
               </fieldset>
             )}
-            {editing && (
-              <div className="flex flex-wrap gap-2">
-                {editing.parentTaskId && editing.linkedThreadId && (
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      navigate({
-                        to: '/t/$threadId',
-                        params: { threadId: editing.linkedThreadId! },
-                      })
-                    }
-                  >
-                    <Bot />
-                    Ouvrir l’agent
-                  </Button>
-                )}
-                {editing.parentTaskId && editing.agentState === 'review' && (
-                  <Button onClick={validateTask}>
-                    <Check />
-                    Valider et terminer
-                  </Button>
-                )}
-              </div>
-            )}
             {editing && blocked(editing) && (
               <p className="text-xs text-amber-500">
                 Cette tâche est bloquée par une dépendance non terminée.
@@ -1653,6 +1629,26 @@ export function ProjectTaskManager({
               )}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
+              {editing?.parentTaskId && editing.linkedThreadId && (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    navigate({
+                      to: '/t/$threadId',
+                      params: { threadId: editing.linkedThreadId! },
+                    })
+                  }
+                >
+                  <Bot />
+                  Ouvrir l’agent
+                </Button>
+              )}
+              {editing?.parentTaskId && editing.agentState === 'review' && (
+                <Button variant="secondary" onClick={validateTask}>
+                  <Check />
+                  Valider et terminer
+                </Button>
+              )}
               {!draft.parentTaskId && (
                 <Button
                   type="button"
