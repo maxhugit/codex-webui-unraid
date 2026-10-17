@@ -34,12 +34,34 @@ export function configureApiClient() {
 
   client.interceptors.error.use((error, response, _request, options) => {
     // Skip aborted requests (page refresh, component unmount, cancelled queries)
-    const errName = error instanceof Error ? error.name : (error as { name?: string })?.name;
-    const errMsg = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+    const errName =
+      error instanceof Error ? error.name : (error as { name?: string })?.name;
+    const errMsg =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : '';
     if (errName === 'AbortError' || errMsg.includes('abort')) return error;
 
+    // Safari/iOS may retire an idle tab's network process. Its first fetch on
+    // wake then fails locally with no HTTP response (usually "Load Failed").
+    // Ask the application to reconnect and let the query retry rather than
+    // presenting a misleading server error.
+    if (
+      !response &&
+      /load failed|failed to fetch|networkerror|network request failed/i.test(
+        errMsg,
+      )
+    ) {
+      window.dispatchEvent(new Event('codex-webui:transport-recover'));
+      return error;
+    }
+
     // Skip snackbar for 401 (handled by auth flow) and explicit silent requests
-    const meta = (options as unknown as { meta?: Record<string, unknown> } | undefined)?.meta;
+    const meta = (
+      options as unknown as { meta?: Record<string, unknown> } | undefined
+    )?.meta;
     if (response?.status === 401 || meta?.silent) {
       return error;
     }
