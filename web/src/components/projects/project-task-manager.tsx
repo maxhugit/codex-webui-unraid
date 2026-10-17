@@ -24,6 +24,7 @@ import {
   Maximize2,
   Settings,
   GripVertical,
+  Hand,
   ListFilter,
   ListTodo,
   Loader2,
@@ -4048,9 +4049,15 @@ function TaskCard({
               >
                 <span className="absolute -left-3.5 top-1/2 w-3 border-t border-muted-foreground/30" />
                 {subtask.executionMode === 'agent' ? (
-                  <Bot className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <Bot
+                    className="h-3.5 w-3.5 shrink-0 text-primary"
+                    aria-label="Sous-tâche réalisée par un agent"
+                  />
                 ) : (
-                  <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <Hand
+                    className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    aria-label="Sous-tâche manuelle"
+                  />
                 )}
                 <button
                   type="button"
