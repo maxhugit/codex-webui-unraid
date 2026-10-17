@@ -3058,8 +3058,8 @@ function TaskActivityJournal({
     return String(value);
   };
   return (
-    <section className="overflow-hidden rounded-xl border bg-card">
-      <div className="border-b px-5 py-4">
+    <section className="flex h-[calc(100dvh-11rem)] min-h-[28rem] flex-col overflow-hidden rounded-xl border bg-card">
+      <div className="shrink-0 border-b bg-card px-5 py-4">
         <h2 className="font-semibold">Journal des modifications</h2>
         <p className="text-sm text-muted-foreground">
           Historique chronologique des tâches et des sous-tâches.
@@ -3070,7 +3070,7 @@ function TaskActivityJournal({
           Aucune modification enregistrée pour le moment.
         </div>
       ) : (
-        <div className="divide-y">
+        <div className="min-h-0 flex-1 divide-y overflow-y-auto">
           {board.activity.map((entry) => {
             const changes = Object.entries(entry.changes);
             return (
