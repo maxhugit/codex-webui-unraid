@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Gantt, Willow, WillowDark } from '@svar-ui/react-gantt';
+import { Gantt, Tooltip, Willow, WillowDark } from '@svar-ui/react-gantt';
 import '@svar-ui/react-gantt/all.css';
 import {
   Bot,
@@ -1233,27 +1233,89 @@ export function ProjectTaskManager({
       ) : (
         <section className="h-[70vh] min-h-[480px] overflow-hidden rounded-xl border bg-card">
           <GanttTheme>
-            <Gantt
-              key={`${dark ? 'dark' : 'light'}:${ganttTasks
-                .map((task) => task.id)
-                .join(':')}`}
-              tasks={ganttTasks as never}
-              links={ganttLinks as never}
-              zoom
-              readonly
-              init={(api) => {
-                api.on(
-                  'select-task',
-                  (event) => {
-                    const task = board.tasks.find(
-                      (item) => item.id === String(event.id),
-                    );
-                    if (task) openEdit(task);
-                  },
-                  { tag: 'open-project-task' },
+            <Tooltip
+              content={({ data }) => {
+                if (!('task' in data)) return null;
+                const task = board.tasks.find(
+                  (item) => item.id === String(data.task.id),
+                );
+                if (!task) return null;
+                const status = board.statuses.find(
+                  (item) => item.id === task.statusId,
+                );
+                const formatDate = (value: number | null) =>
+                  value
+                    ? new Intl.DateTimeFormat(undefined, {
+                        dateStyle: 'medium',
+                      }).format(value)
+                    : 'Non définie';
+                return (
+                  <div className="min-w-64 space-y-2 p-3 text-sm">
+                    <div className="font-semibold">{task.title}</div>
+                    {task.description && (
+                      <div className="max-w-80 text-muted-foreground">
+                        {task.description}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                      <span className="text-muted-foreground">Statut</span>
+                      <span>{status?.name ?? 'Non défini'}</span>
+                      <span className="text-muted-foreground">Priorité</span>
+                      <span>{priorities[task.priority]}</span>
+                      <span className="text-muted-foreground">Début</span>
+                      <span>{formatDate(task.startAt)}</span>
+                      <span className="text-muted-foreground">Fin</span>
+                      <span>{formatDate(task.dueAt)}</span>
+                      <span className="text-muted-foreground">Charge</span>
+                      <span>{task.estimateMinutes / 60} h</span>
+                      <span className="text-muted-foreground">Avancement</span>
+                      <span>{task.progress} %</span>
+                    </div>
+                    {task.labels.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {task.labels.map((label) => (
+                          <span
+                            key={label}
+                            className="rounded bg-muted px-2 py-0.5 text-xs"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 );
               }}
-            />
+            >
+              <Gantt
+                key={`${dark ? 'dark' : 'light'}:${ganttTasks
+                  .map((task) => task.id)
+                  .join(':')}`}
+                tasks={ganttTasks as never}
+                links={ganttLinks as never}
+                markers={[
+                  {
+                    start: new Date(),
+                    text: 'Aujourd’hui',
+                    css: 'project-gantt-today',
+                  },
+                ]}
+                zoom
+                readonly
+                init={(api) => {
+                  api.on(
+                    'select-task',
+                    (event) => {
+                      const task = board.tasks.find(
+                        (item) => item.id === String(event.id),
+                      );
+                      if (task) openEdit(task);
+                    },
+                    { tag: 'open-project-task' },
+                  );
+                }}
+              />
+            </Tooltip>
           </GanttTheme>
           {!ganttTasks.length && (
             <div className="p-8 text-center text-sm text-muted-foreground">

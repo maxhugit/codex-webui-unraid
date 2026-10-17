@@ -130,13 +130,15 @@ export class ProjectsController {
   }
 
   @Patch(':id/resources/:resourceId/tasks/:taskId')
-  updateTask(
+  async updateTask(
     @Param('id') id: string,
     @Param('resourceId') resourceId: string,
     @Param('taskId') taskId: string,
     @Body() body: Parameters<ProjectsService['updateTask']>[3],
   ) {
-    return { task: this.projects.updateTask(id, resourceId, taskId, body) };
+    return {
+      task: await this.projects.updateTask(id, resourceId, taskId, body),
+    };
   }
 
   @Delete(':id/resources/:resourceId/tasks/:taskId')

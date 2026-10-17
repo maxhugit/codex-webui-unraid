@@ -822,7 +822,7 @@ export class ProjectsService {
     return task;
   }
 
-  updateTask(
+  async updateTask(
     projectId: string,
     resourceId: string,
     taskId: string,
@@ -848,7 +848,7 @@ export class ProjectsService {
       dependencyIds: string[];
       subtaskStatus: string;
     }>,
-  ): ProjectTask {
+  ): Promise<ProjectTask> {
     this.getResource(projectId, resourceId);
     const task = this.requireTask(resourceId, taskId);
     if (input.statusId) this.requireTaskStatus(resourceId, input.statusId);
@@ -1007,6 +1007,33 @@ export class ProjectsService {
         .all();
       for (const child of children)
         this.validateTaskDateRange(child.startAt, child.dueAt, updated);
+    }
+    const validatedAgentThreadId =
+      effectiveParentId &&
+      task.linkedThreadId &&
+      input.agentState === 'validated' &&
+      input.subtaskStatus === 'done'
+        ? task.linkedThreadId
+        : null;
+    if (validatedAgentThreadId) {
+      const preview = await this.deletion.previewDelete(validatedAgentThreadId);
+      if (!preview.canDelete)
+        throw new ConflictException(
+          'The completed work agent cannot be deleted safely',
+        );
+      const result = await this.deletion.deleteThread(validatedAgentThreadId, {
+        expectedThreadIds: preview.threadIds,
+        expectedRunningThreadIds: preview.runningThreadIds,
+        expectedPendingApprovalThreadIds: preview.pendingApprovalThreadIds,
+        expectedPendingApprovalRequestIds: preview.pendingApprovals.map(
+          (approval) => approval.requestId,
+        ),
+      });
+      if (result.status !== 'completed')
+        throw new ConflictException(
+          'The subtask was not validated because its work agent could not be deleted',
+        );
+      updated.linkedThreadId = null;
     }
     this.db.transaction((tx) => {
       tx.update(projectTasks)
