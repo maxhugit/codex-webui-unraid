@@ -837,7 +837,12 @@ export function ProjectTaskManager({
     }
   };
   const proposeSubtasks = async () => {
-    if (!draft.title.trim() || draft.parentTaskId) return;
+    if (
+      !draft.title.trim() ||
+      draft.parentTaskId ||
+      (editing && childrenFor(editing.id).length > 0)
+    )
+      return;
     setBreakdownLoading(true);
     setBreakdownError('');
     try {
@@ -1603,21 +1608,6 @@ export function ProjectTaskManager({
                 </div>
               </fieldset>
             )}
-            {!draft.parentTaskId && (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!draft.title.trim() || breakdownLoading}
-                onClick={proposeSubtasks}
-              >
-                {breakdownLoading ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Sparkles />
-                )}
-                Découper avec l’IA
-              </Button>
-            )}
             {editing && (
               <div className="flex flex-wrap gap-2">
                 {editing.parentTaskId && editing.linkedThreadId && (
@@ -1663,6 +1653,30 @@ export function ProjectTaskManager({
               )}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
+              {!draft.parentTaskId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  title={
+                    editing && childrenFor(editing.id).length > 0
+                      ? 'Cette tâche possède déjà des sous-tâches'
+                      : 'Proposer un découpage en sous-tâches'
+                  }
+                  disabled={
+                    !draft.title.trim() ||
+                    breakdownLoading ||
+                    Boolean(editing && childrenFor(editing.id).length > 0)
+                  }
+                  onClick={proposeSubtasks}
+                >
+                  {breakdownLoading ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Sparkles />
+                  )}
+                  Découper avec l’IA
+                </Button>
+              )}
               {editing &&
                 draft.executionMode === 'agent' &&
                 editing.agentState !== 'running' &&
