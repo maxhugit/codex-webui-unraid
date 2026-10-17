@@ -887,14 +887,19 @@ export class ProjectsService {
         resourceId,
         input.statusId,
       );
-      if (!effectiveParentId && requestedStatus.kind === 'done') {
+      const terminalSettings = this.getTaskBoardTerminalSettings(resourceId);
+      if (
+        !effectiveParentId &&
+        terminalSettings.taskStatusIds.includes(requestedStatus.id)
+      ) {
         const unfinished = this.db
           .select()
           .from(projectTasks)
           .where(eq(projectTasks.parentTaskId, task.id))
           .all()
           .filter(
-            (child) => !['done', 'cancelled'].includes(child.subtaskStatus),
+            (child) =>
+              !terminalSettings.subtaskStatuses.includes(child.subtaskStatus),
           );
         if (unfinished.length)
           throw new ConflictException(
@@ -995,7 +1000,9 @@ export class ProjectsService {
     };
     if (
       effectiveParentId &&
-      ['done', 'cancelled'].includes(updated.subtaskStatus)
+      this.getTaskBoardTerminalSettings(resourceId).subtaskStatuses.includes(
+        updated.subtaskStatus,
+      )
     )
       updated.progress = 100;
     this.validateTaskDateRange(updated.startAt, updated.dueAt, effectiveParent);
@@ -1156,9 +1163,11 @@ export class ProjectsService {
       (total, child) => total + child.estimateMinutes,
       0,
     );
+    const terminalSubtaskStatuses =
+      this.getTaskBoardTerminalSettings(resourceId).subtaskStatuses;
     const progress = Math.round(
       (children.filter((child) =>
-        ['done', 'cancelled'].includes(child.subtaskStatus),
+        terminalSubtaskStatuses.includes(child.subtaskStatus),
       ).length /
         Math.max(1, children.length)) *
         100,
@@ -1173,6 +1182,53 @@ export class ProjectsService {
       .set({ estimateMinutes, progress, updatedAt: Date.now() })
       .where(eq(projectTasks.id, parentTaskId))
       .run();
+  }
+
+  private getTaskBoardTerminalSettings(resourceId: string) {
+    const resource = this.db
+      .select()
+      .from(projectResources)
+      .where(eq(projectResources.id, resourceId))
+      .get();
+    const config =
+      resource?.config && typeof resource.config === 'object'
+        ? (resource.config as Record<string, unknown>)
+        : {};
+    const raw =
+      config.taskBoardSettings &&
+      typeof config.taskBoardSettings === 'object' &&
+      !Array.isArray(config.taskBoardSettings)
+        ? (config.taskBoardSettings as Record<string, unknown>)
+        : {};
+    const configuredTaskIds = raw.terminalStatusIds;
+    const taskStatusIds = Array.isArray(configuredTaskIds)
+      ? configuredTaskIds.filter(
+          (value): value is string => typeof value === 'string',
+        )
+      : this.db
+          .select()
+          .from(projectTaskStatuses)
+          .where(eq(projectTaskStatuses.resourceId, resourceId))
+          .all()
+          .filter((status) => status.kind === 'done')
+          .map((status) => status.id);
+    const allowedSubtaskStatuses = new Set([
+      'todo',
+      'started',
+      'review',
+      'done',
+      'cancelled',
+    ]);
+    const configuredSubtaskStatuses = raw.terminalSubtaskStatuses;
+    const subtaskStatuses = (
+      Array.isArray(configuredSubtaskStatuses)
+        ? configuredSubtaskStatuses.filter(
+            (value): value is string =>
+              typeof value === 'string' && allowedSubtaskStatuses.has(value),
+          )
+        : ['done', 'cancelled']
+    ) as string[];
+    return { taskStatusIds, subtaskStatuses };
   }
 
   async suggestTasks(projectId: string, resourceId: string, prompt: unknown) {
@@ -1580,6 +1636,8 @@ export class ProjectsService {
             .run();
       }
     }
+    if (input.config !== undefined)
+      this.recalculateAllParentEstimates(resourceId);
     return {
       ...resource,
       projectId: targetProjectId,

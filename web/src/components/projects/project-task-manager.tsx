@@ -146,6 +146,8 @@ type TaskBoardSettings = {
   defaultPriority: ProjectTaskSummary['priority'];
   confirmDelete: boolean;
   hiddenEmptyStatusIds: string[];
+  terminalStatusIds: string[] | null;
+  terminalSubtaskStatuses: ProjectTaskSummary['subtaskStatus'][];
   labels: Array<{ id: string; name: string; color: PaletteColor }>;
 };
 const defaultTaskBoardSettings: TaskBoardSettings = {
@@ -166,6 +168,8 @@ const defaultTaskBoardSettings: TaskBoardSettings = {
   defaultPriority: 'normal',
   confirmDelete: true,
   hiddenEmptyStatusIds: [],
+  terminalStatusIds: null,
+  terminalSubtaskStatuses: ['done', 'cancelled'],
   labels: [],
 };
 const paletteColor = (value: unknown, fallback: PaletteColor): PaletteColor =>
@@ -210,6 +214,17 @@ function readTaskBoardSettings(config: Record<string, unknown>) {
         ],
       ),
     ) as TaskBoardSettings['subtaskColors'],
+    terminalStatusIds: Array.isArray(raw.terminalStatusIds)
+      ? raw.terminalStatusIds.filter(
+          (id): id is string => typeof id === 'string',
+        )
+      : null,
+    terminalSubtaskStatuses: Array.isArray(raw.terminalSubtaskStatuses)
+      ? raw.terminalSubtaskStatuses.filter(
+          (status): status is ProjectTaskSummary['subtaskStatus'] =>
+            status in subtaskLabels,
+        )
+      : defaultTaskBoardSettings.terminalSubtaskStatuses,
     defaultPriority:
       raw.defaultPriority && raw.defaultPriority in priorities
         ? raw.defaultPriority
@@ -414,6 +429,17 @@ export function ProjectTaskManager({
     board.statuses.find((s) => s.kind === 'unassigned') ?? board.statuses[0];
   const statusByKind = (kind: string) =>
     board.statuses.find((s) => s.kind === kind);
+  const inferredTerminalStatusIds = board.statuses
+    .filter((status) => status.kind === 'done')
+    .map((status) => status.id);
+  const terminalStatusIds =
+    settings.terminalStatusIds ?? inferredTerminalStatusIds;
+  const draftTerminalStatusIds =
+    settingsDraft.terminalStatusIds ?? inferredTerminalStatusIds;
+  const isTerminalStatus = (statusId: string) =>
+    terminalStatusIds.includes(statusId);
+  const isTerminalSubtask = (status: ProjectTaskSummary['subtaskStatus']) =>
+    settings.terminalSubtaskStatuses.includes(status);
   const dependencyIdsFor = (id: string) =>
     board.dependencies
       .filter((d) => d.taskId === id)
@@ -429,8 +455,9 @@ export function ProjectTaskManager({
   const blocked = (task: ProjectTaskSummary) =>
     dependencyIdsFor(task.id).some(
       (id) =>
-        statusByKind('done')?.id !==
-        board.tasks.find((item) => item.id === id)?.statusId,
+        !isTerminalStatus(
+          board.tasks.find((item) => item.id === id)?.statusId ?? '',
+        ),
     );
   const openNew = (parentTaskId = '') => {
     const parent = parentTaskId
@@ -599,9 +626,10 @@ export function ProjectTaskManager({
     }
     const target = board.statuses.find((status) => status.id === statusId);
     if (
-      target?.kind === 'done' &&
+      target &&
+      isTerminalStatus(target.id) &&
       childrenFor(task.id).some(
-        (child) => !['done', 'cancelled'].includes(child.subtaskStatus),
+        (child) => !isTerminalSubtask(child.subtaskStatus),
       )
     ) {
       window.alert(
@@ -1356,15 +1384,13 @@ export function ProjectTaskManager({
                           overdue={
                             (Boolean(task.dueAt) &&
                               dateValue(task.dueAt) < dateValue(Date.now()) &&
-                              task.statusId !== statusByKind('done')?.id) ||
+                              !isTerminalStatus(task.statusId)) ||
                             childrenFor(task.id).some(
                               (child) =>
                                 Boolean(child.dueAt) &&
                                 dateValue(child.dueAt) <
                                   dateValue(Date.now()) &&
-                                !['done', 'cancelled'].includes(
-                                  child.subtaskStatus,
-                                ),
+                                !isTerminalSubtask(child.subtaskStatus),
                             )
                           }
                           settings={settings}
@@ -1827,12 +1853,9 @@ export function ProjectTaskManager({
                         key={s.id}
                         value={s.id}
                         disabled={
-                          s.kind === 'done' &&
+                          isTerminalStatus(s.id) &&
                           childrenFor(editing.id).some(
-                            (child) =>
-                              !['done', 'cancelled'].includes(
-                                child.subtaskStatus,
-                              ),
+                            (child) => !isTerminalSubtask(child.subtaskStatus),
                           )
                         }
                       >
@@ -2338,7 +2361,7 @@ export function ProjectTaskManager({
                 {board.statuses.map((status, statusIndex) => (
                   <div
                     key={status.id}
-                    className="grid grid-cols-[minmax(0,1fr)_5rem_9rem_4rem_2rem_2rem] items-center gap-2 px-3 py-2"
+                    className="grid grid-cols-[minmax(0,1fr)_5rem_7rem_9rem_4rem_2rem_2rem] items-center gap-2 px-3 py-2"
                   >
                     <span className="flex min-w-0 items-center gap-3">
                       <span
@@ -2355,6 +2378,23 @@ export function ProjectTaskManager({
                     <span className="text-[10px] text-muted-foreground">
                       {status.system ? 'Système' : ''}
                     </span>
+                    <label className="flex items-center gap-1.5 whitespace-nowrap text-[11px] text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={draftTerminalStatusIds.includes(status.id)}
+                        onChange={(event) =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            terminalStatusIds: event.target.checked
+                              ? [...draftTerminalStatusIds, status.id]
+                              : draftTerminalStatusIds.filter(
+                                  (id) => id !== status.id,
+                                ),
+                          }))
+                        }
+                      />
+                      Statut de fin
+                    </label>
                     <label className="flex items-center gap-1.5 whitespace-nowrap text-[11px] text-muted-foreground">
                       <input
                         type="checkbox"
@@ -2441,6 +2481,17 @@ export function ProjectTaskManager({
               title="Couleurs des statuts de sous-tâches"
               labels={subtaskLabels}
               values={settingsDraft.subtaskColors}
+              terminalValues={settingsDraft.terminalSubtaskStatuses}
+              onTerminalChange={(key, terminal) =>
+                setSettingsDraft((current) => ({
+                  ...current,
+                  terminalSubtaskStatuses: terminal
+                    ? [...current.terminalSubtaskStatuses, key]
+                    : current.terminalSubtaskStatuses.filter(
+                        (status) => status !== key,
+                      ),
+                }))
+              }
               onChange={(key, color) =>
                 setSettingsDraft((current) => ({
                   ...current,
@@ -2873,11 +2924,15 @@ function ColorSettingsSection<K extends string>({
   labels,
   values,
   onChange,
+  terminalValues,
+  onTerminalChange,
 }: {
   title: string;
   labels: Record<K, string>;
   values: Record<K, PaletteColor>;
   onChange: (key: K, color: PaletteColor) => void;
+  terminalValues?: K[];
+  onTerminalChange?: (key: K, terminal: boolean) => void;
 }) {
   return (
     <section className="space-y-3">
@@ -2893,6 +2948,18 @@ function ColorSettingsSection<K extends string>({
               style={{ backgroundColor: palette[values[key]] }}
             />
             <span className="min-w-0 flex-1 truncate">{labels[key]}</span>
+            {terminalValues && onTerminalChange && (
+              <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={terminalValues.includes(key)}
+                  onChange={(event) =>
+                    onTerminalChange(key, event.target.checked)
+                  }
+                />
+                Fin
+              </label>
+            )}
             <select
               className="h-8 rounded-md border bg-background px-2 text-xs"
               value={values[key]}
