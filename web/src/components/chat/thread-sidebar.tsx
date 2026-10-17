@@ -194,8 +194,6 @@ export function ThreadSidebar() {
   const [renameResource, setRenameResource] =
     useState<ProjectResourceSummary | null>(null);
   const [renameResourceValue, setRenameResourceValue] = useState('');
-  const [moveResource, setMoveResource] =
-    useState<ProjectResourceSummary | null>(null);
   const [deleteResource, setDeleteResource] =
     useState<ProjectResourceSummary | null>(null);
   const [pendingConversation, setPendingConversation] = useState<{
@@ -523,6 +521,28 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
+  const moveProjectResource = useMutation({
+    mutationFn: ({
+      resource,
+      projectId,
+    }: {
+      resource: ProjectResourceSummary;
+      projectId: string;
+    }) =>
+      projectsApi<{ resource: ProjectResourceSummary }>(
+        `/${resource.projectId}/resources/${resource.id}`,
+        { method: 'PATCH', body: JSON.stringify({ projectId }) },
+      ),
+    onSuccess: ({ resource }) => {
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+      if (activeResourceId === resource.id)
+        void navigate({
+          to: '/projects/$projectId/resources/$resourceId',
+          params: { projectId: resource.projectId, resourceId: resource.id },
+        });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
 
   const handleThreadDragEnd = useCallback(
     (event: {
@@ -532,7 +552,12 @@ export function ThreadSidebar() {
         target: { id?: string | number; data?: Record<string, unknown> } | null;
       };
     }) => {
-      if (event.canceled || moveThread.isPending || moveSimpleChat.isPending)
+      if (
+        event.canceled ||
+        moveThread.isPending ||
+        moveSimpleChat.isPending ||
+        moveProjectResource.isPending
+      )
         return;
       const source = event.operation.source?.data;
       const target = event.operation.target?.data;
@@ -547,6 +572,20 @@ export function ThreadSidebar() {
       if (!targetCwd || sourceCwd === targetCwd) return;
       const targetProjectId = target?.projectId as string | undefined;
       if (!targetProjectId) return;
+      if (
+        source?.kind === 'project-resource' ||
+        sourceId.startsWith('project-resource-')
+      ) {
+        if (source?.projectId === targetProjectId) return;
+        const resourceId =
+          (source?.resourceId as string | undefined) || sourceId.slice(17);
+        const resource = (projectsQuery.data?.projects ?? [])
+          .flatMap((project) => project.resources)
+          .find((item) => item.id === resourceId);
+        if (resource)
+          moveProjectResource.mutate({ resource, projectId: targetProjectId });
+        return;
+      }
       if (
         source?.kind === 'simple-chat' ||
         sourceId.startsWith('simple-chat-')
@@ -572,7 +611,7 @@ export function ThreadSidebar() {
           });
       }
     },
-    [moveSimpleChat, moveThread],
+    [moveProjectResource, moveSimpleChat, moveThread, projectsQuery.data],
   );
 
   const archiveThread = useMutation({
@@ -884,29 +923,6 @@ export function ThreadSidebar() {
       setRenameResourceValue('');
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
       void queryClient.invalidateQueries({ queryKey: ['project-resource'] });
-    },
-    onError: (err) => addSystemError(getApiErrorMessage(err)),
-  });
-  const moveProjectResource = useMutation({
-    mutationFn: ({
-      resource,
-      projectId,
-    }: {
-      resource: ProjectResourceSummary;
-      projectId: string;
-    }) =>
-      projectsApi<{ resource: ProjectResourceSummary }>(
-        `/${resource.projectId}/resources/${resource.id}`,
-        { method: 'PATCH', body: JSON.stringify({ projectId }) },
-      ),
-    onSuccess: ({ resource }) => {
-      setMoveResource(null);
-      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-      if (activeResourceId === resource.id)
-        void navigate({
-          to: '/projects/$projectId/resources/$resourceId',
-          params: { projectId: resource.projectId, resourceId: resource.id },
-        });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
@@ -1249,7 +1265,6 @@ export function ThreadSidebar() {
                 setRenameResource(resource);
                 setRenameResourceValue(resource.name);
               }}
-              onMoveResource={setMoveResource}
               onDeleteResource={setDeleteResource}
               onManageWorkspaces={(group) =>
                 group.projectId && setManageProjectId(group.projectId)
@@ -1282,7 +1297,11 @@ export function ThreadSidebar() {
               }}
               renderThreadRow={renderThreadRow}
               renderSimpleChatRow={renderSimpleChatRow}
-              movingThread={moveThread.isPending}
+              movingThread={
+                moveThread.isPending ||
+                moveSimpleChat.isPending ||
+                moveProjectResource.isPending
+              }
             />
           ) : (
             <WorkspaceDetail
@@ -1448,54 +1467,6 @@ export function ThreadSidebar() {
           'The project name changes without renaming its workspace folder.',
         )}
       />
-      <AlertDialog
-        open={moveResource !== null}
-        onOpenChange={(open) =>
-          !open && !moveProjectResource.isPending && setMoveResource(null)
-        }
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('Move to another project')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                'Choose the destination project. The task board and its data will be preserved.',
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="grid max-h-72 gap-2 overflow-auto">
-            {(projectsQuery.data?.projects ?? [])
-              .filter((project) => project.id !== moveResource?.projectId)
-              .map((project) => (
-                <Button
-                  key={project.id}
-                  variant="outline"
-                  className="justify-start"
-                  disabled={moveProjectResource.isPending}
-                  onClick={() =>
-                    moveResource &&
-                    moveProjectResource.mutate({
-                      resource: moveResource,
-                      projectId: project.id,
-                    })
-                  }
-                >
-                  {project.name}
-                </Button>
-              ))}
-            {(projectsQuery.data?.projects.length ?? 0) <= 1 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                {t('No other project is available.')}
-              </p>
-            )}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={moveProjectResource.isPending}>
-              {t('Cancel')}
-            </AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       <AlertDialog
         open={deleteResource !== null}
         onOpenChange={(open) =>

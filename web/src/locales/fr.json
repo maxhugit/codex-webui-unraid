@@ -109,10 +109,8 @@
   "Done": "Terminé",
   "No tasks yet": "Aucune tâche",
   "Unable to load this project resource.": "Impossible de charger cette ressource du projet.",
-  "Move to another project": "Déplacer vers un autre projet",
+  "Move task manager": "Déplacer le gestionnaire de tâches",
   "Rename task manager": "Renommer le gestionnaire de tâches",
-  "Choose the destination project. The task board and its data will be preserved.": "Choisissez le projet de destination. Le tableau et ses données seront conservés.",
-  "No other project is available.": "Aucun autre projet n’est disponible.",
   "Delete this task manager?": "Supprimer ce gestionnaire de tâches ?",
   "This task board and all of its future tasks will be permanently deleted.": "Ce tableau et toutes ses futures tâches seront supprimés définitivement."
 }

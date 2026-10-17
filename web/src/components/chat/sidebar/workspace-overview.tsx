@@ -63,7 +63,6 @@ interface Props {
   activeResourceId?: string;
   resourceActionPending: boolean;
   onRenameResource: (resource: ProjectResourceSummary) => void;
-  onMoveResource: (resource: ProjectResourceSummary) => void;
   onDeleteResource: (resource: ProjectResourceSummary) => void;
   onManageWorkspaces?: (group: WorkspaceGroup) => void;
   onRenameProject?: (group: WorkspaceGroup) => void;
@@ -90,7 +89,6 @@ export function WorkspaceOverview({
   activeResourceId,
   resourceActionPending,
   onRenameResource,
-  onMoveResource,
   onDeleteResource,
   onManageWorkspaces,
   onRenameProject,
@@ -324,7 +322,6 @@ export function WorkspaceOverview({
                           onOpenResource(group.projectId, resource.id)
                         }
                         onRename={() => onRenameResource(resource)}
-                        onMove={() => onMoveResource(resource)}
                         onDelete={() => onDeleteResource(resource)}
                       />
                     ))}

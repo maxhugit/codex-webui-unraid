@@ -1,10 +1,12 @@
 import {
-  FolderInput,
+  GripVertical,
   ListTodo,
   MoreHorizontal,
   Pencil,
   Trash2,
 } from 'lucide-react';
+import { Feedback } from '@dnd-kit/dom';
+import { useDraggable } from '@dnd-kit/react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +23,6 @@ interface Props {
   pending: boolean;
   onOpen: () => void;
   onRename: () => void;
-  onMove: () => void;
   onDelete: () => void;
 }
 
@@ -31,12 +32,37 @@ export function ProjectResourceRow({
   pending,
   onOpen,
   onRename,
-  onMove,
   onDelete,
 }: Props) {
   const { t } = useTranslation();
+  const { ref, handleRef, isDragging } = useDraggable({
+    id: `project-resource-${resource.id}`,
+    disabled: pending,
+    data: {
+      kind: 'project-resource',
+      resourceId: resource.id,
+      projectId: resource.projectId,
+    },
+    plugins: [Feedback.configure({ feedback: 'clone' })],
+  });
   return (
-    <div className="group flex items-center gap-0.5 pl-3">
+    <div
+      ref={ref}
+      className={cn(
+        'group flex items-center gap-0.5 pl-3',
+        isDragging && 'opacity-40',
+      )}
+    >
+      <button
+        ref={handleRef}
+        type="button"
+        disabled={pending}
+        className="touch-none cursor-grab rounded p-0.5 text-muted-foreground/50 hover:bg-accent/50 hover:text-foreground active:cursor-grabbing disabled:cursor-not-allowed"
+        aria-label={t('Move task manager')}
+        title={t('Move task manager')}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
       <button
         type="button"
         className={cn(
@@ -71,15 +97,6 @@ export function ProjectResourceRow({
           >
             <Pencil className="h-3.5 w-3.5" />
             {t('Rename')}
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-7 w-full justify-start gap-2 px-2 text-xs"
-            disabled={pending}
-            onClick={onMove}
-          >
-            <FolderInput className="h-3.5 w-3.5" />
-            {t('Move to another project')}
           </Button>
           <Button
             variant="ghost"
