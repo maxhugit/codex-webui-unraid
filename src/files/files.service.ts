@@ -611,6 +611,59 @@ export class FilesService implements OnModuleDestroy {
   }
 
   /**
+   * Renames one direct child of /workspaces for the workspace administration
+   * feature. Unlike renamePath, this intentionally accepts a dynamically
+   * registered thread root, while still rejecting nested or external paths.
+   */
+  async renameManagedWorkspace(
+    sourcePath: string,
+    newName: string,
+  ): Promise<FileRelocationResult> {
+    this.validateEntryName(newName);
+    const source = await fs.realpath(path.resolve(sourcePath));
+    const parent = await fs.realpath(path.dirname(source));
+    const workspacesRoot = await fs.realpath('/workspaces');
+    if (parent !== workspacesRoot) {
+      throw BusinessException.badRequest(
+        ErrorCode.files.pathOutsideWorkspace,
+        'Only direct workspace folders can be renamed',
+      );
+    }
+    const stat = await fs.lstat(source);
+    if (!stat.isDirectory()) {
+      throw BusinessException.badRequest(
+        ErrorCode.files.pathOutsideWorkspace,
+        'Workspace path must be a directory',
+      );
+    }
+    const destination = path.join(workspacesRoot, newName);
+    await this.assertNoOverwrite(destination, false);
+    await fs.rename(source, destination);
+    return { oldPath: source, newPath: destination };
+  }
+
+  /** Permanently removes one direct child of /workspaces after orchestration. */
+  async deleteManagedWorkspace(targetPath: string): Promise<void> {
+    const target = await fs.realpath(path.resolve(targetPath));
+    const parent = await fs.realpath(path.dirname(target));
+    const workspacesRoot = await fs.realpath('/workspaces');
+    if (parent !== workspacesRoot) {
+      throw BusinessException.badRequest(
+        ErrorCode.files.pathOutsideWorkspace,
+        'Only direct workspace folders can be deleted',
+      );
+    }
+    const stat = await fs.lstat(target);
+    if (!stat.isDirectory()) {
+      throw BusinessException.badRequest(
+        ErrorCode.files.pathOutsideWorkspace,
+        'Workspace path must be a directory',
+      );
+    }
+    await fs.rm(target, { recursive: true, force: false });
+  }
+
+  /**
    * Copies a file or directory to a safe destination path.
    * Directory copies are recursive and cannot target themselves or descendants.
    *

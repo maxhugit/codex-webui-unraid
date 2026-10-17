@@ -26,7 +26,7 @@ export class WorkspacesManagementService {
 
   async rename(cwd: string, newName: string) {
     this.assertWorkspace(cwd);
-    const result = await this.files.renamePath(cwd, newName);
+    const result = await this.files.renameManagedWorkspace(cwd, newName);
     if (!result.newPath) throw new ConflictException('Workspace rename failed');
     const renamedPath = result.newPath;
     const oldPrefix = `${cwd}${path.sep}`;
@@ -59,7 +59,7 @@ export class WorkspacesManagementService {
       });
       return { ok: true, oldPath: cwd, newPath: renamedPath };
     } catch (error) {
-      await this.files.renamePath(renamedPath, path.basename(cwd));
+      await this.files.renameManagedWorkspace(renamedPath, path.basename(cwd));
       throw error;
     }
   }
@@ -109,7 +109,7 @@ export class WorkspacesManagementService {
             .run();
       }
     });
-    await this.files.deletePath(cwd, true);
+    await this.files.deleteManagedWorkspace(cwd);
     return { ok: true };
   }
 
