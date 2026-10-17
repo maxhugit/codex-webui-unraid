@@ -1682,7 +1682,7 @@ export function ProjectTaskManager({
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Paramètres du tableau</DialogTitle>
+            <DialogTitle>Paramètres du tableau des tâches</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <section className="space-y-3">
@@ -1710,23 +1710,23 @@ export function ProjectTaskManager({
                 {board.statuses.map((status) => (
                   <div
                     key={status.id}
-                    className="flex items-center gap-3 px-3 py-2"
+                    className="grid grid-cols-[minmax(0,1fr)_5rem_9rem_2rem_2rem] items-center gap-2 px-3 py-2"
                   >
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{
-                        backgroundColor:
-                          palette[paletteColor(status.color, 'slate')],
-                      }}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      {status.name}
-                    </span>
-                    {status.system && (
-                      <span className="text-[10px] text-muted-foreground">
-                        Système
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span
+                        className="h-3 w-3 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor:
+                            palette[paletteColor(status.color, 'slate')],
+                        }}
+                      />
+                      <span className="min-w-0 truncate text-sm">
+                        {status.name}
                       </span>
-                    )}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {status.system ? 'Système' : ''}
+                    </span>
                     <label className="flex items-center gap-1.5 whitespace-nowrap text-[11px] text-muted-foreground">
                       <input
                         type="checkbox"
@@ -1772,6 +1772,7 @@ export function ProjectTaskManager({
                         <Trash2 className="text-destructive" />
                       </Button>
                     )}
+                    {status.system && <span aria-hidden="true" />}
                   </div>
                 ))}
               </div>
