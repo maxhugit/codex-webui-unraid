@@ -137,6 +137,28 @@ html.keyboard-open #root {
   height: var(--app-vh, 100dvh);
 }
 
+/* Radix renders navigation under body, outside #root's safe-area padding.
+   Match the app's dynamic viewport: percentage heights can stop above the
+   home-indicator strip in an installed iOS PWA. Keep the panel background
+   full-height while reserving safe areas only inside its content box. */
+[data-slot='sheet-content'].mobile-sidebar-sheet {
+  top: 0;
+  bottom: auto;
+  height: 100dvh;
+  min-height: 0;
+  gap: 0;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+html.keyboard-open [data-slot='sheet-content'].mobile-sidebar-sheet {
+  top: var(--app-vtop, 0px);
+  height: var(--app-vh, 100dvh);
+}
+
 /*
  * QQ Browser draws a bottom toolbar over the page without reporting it through
  * any viewport measurement, so the space has to be reserved blind. Scoped to

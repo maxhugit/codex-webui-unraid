@@ -216,7 +216,7 @@ export function AuthenticatedLayout() {
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetContent
               side="left"
-              className="!w-[280px] p-0 sm:!max-w-[320px]"
+              className="mobile-sidebar-sheet !w-[280px] p-0 sm:!max-w-[320px]"
               showCloseButton={false}
             >
               <SheetTitle className="sr-only">{t('Navigation')}</SheetTitle>

@@ -1216,9 +1216,9 @@ export function ThreadSidebar() {
 
   // ── Render ──────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full flex-col bg-card/80">
+    <div className="flex h-full min-h-0 flex-col bg-card/80">
       {/* Global actions */}
-      <div className="space-y-0.5 px-2 py-2">
+      <div className="shrink-0 space-y-0.5 px-2 py-2">
         <button
           type="button"
           onClick={() => void navigate({ to: '/' })}
@@ -1263,7 +1263,7 @@ export function ThreadSidebar() {
       <Separator />
 
       {/* Thread list header */}
-      <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex shrink-0 items-center justify-between px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground">
           {t('Projects')}
         </span>
