@@ -411,6 +411,9 @@ export function ProjectTaskManager({
   const rootTask = rootTaskId
     ? (board.tasks.find((task) => task.id === rootTaskId) ?? null)
     : null;
+  const dateParent = draft.parentTaskId
+    ? (board.tasks.find((task) => task.id === draft.parentTaskId) ?? null)
+    : null;
   const blocked = (task: ProjectTaskSummary) =>
     dependencyIdsFor(task.id).some(
       (id) =>
@@ -1181,6 +1184,20 @@ export function ProjectTaskManager({
                           task={task}
                           subtasks={childrenFor(task.id)}
                           blocked={blocked(task)}
+                          overdue={
+                            (Boolean(task.dueAt) &&
+                              dateValue(task.dueAt) < dateValue(Date.now()) &&
+                              task.statusId !== statusByKind('done')?.id) ||
+                            childrenFor(task.id).some(
+                              (child) =>
+                                Boolean(child.dueAt) &&
+                                dateValue(child.dueAt) <
+                                  dateValue(Date.now()) &&
+                                !['done', 'cancelled'].includes(
+                                  child.subtaskStatus,
+                                ),
+                            )
+                          }
                           settings={settings}
                           dragging={dragged === task.id}
                           onDrag={() => setDragged(task.id)}
@@ -1401,6 +1418,8 @@ export function ProjectTaskManager({
                 {t('Start date')}
                 <Input
                   type="date"
+                  min={dateValue(dateParent?.startAt ?? null) || undefined}
+                  max={dateValue(dateParent?.dueAt ?? null) || undefined}
                   value={draft.startAt}
                   onChange={(e) =>
                     setDraft({ ...draft, startAt: e.target.value })
@@ -1411,6 +1430,8 @@ export function ProjectTaskManager({
                 {t('Planned end')}
                 <Input
                   type="date"
+                  min={dateValue(dateParent?.startAt ?? null) || undefined}
+                  max={dateValue(dateParent?.dueAt ?? null) || undefined}
                   value={draft.dueAt}
                   onChange={(e) =>
                     setDraft({ ...draft, dueAt: e.target.value })
@@ -2538,6 +2559,7 @@ function TaskCard({
   task,
   subtasks,
   blocked,
+  overdue,
   settings,
   dragging,
   onDrag,
@@ -2548,6 +2570,7 @@ function TaskCard({
   task: ProjectTaskSummary;
   subtasks: ProjectTaskSummary[];
   blocked: boolean;
+  overdue: boolean;
   settings: TaskBoardSettings;
   dragging: boolean;
   onDrag: (event: ReactDragEvent<HTMLSpanElement>) => void;
@@ -2586,10 +2609,10 @@ function TaskCard({
     <div
       data-task-card
       className={`rounded-lg border shadow-sm transition-all ${
-        dragging ? 'scale-[0.98] opacity-40' : ''
-      }`}
+        overdue ? 'border-2 ring-1 ring-red-500/30' : ''
+      } ${dragging ? 'scale-[0.98] opacity-40' : ''}`}
       style={{
-        borderColor: `${priorityColor}66`,
+        borderColor: overdue ? '#ef4444' : `${priorityColor}66`,
         backgroundColor: `${priorityColor}18`,
       }}
     >
@@ -2613,6 +2636,12 @@ function TaskCard({
           >
             {task.title}
           </button>
+          <span
+            className="shrink-0 rounded-full bg-background/70 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+            title="Avancement"
+          >
+            {task.progress}%
+          </span>
         </div>
         {task.description && (
           <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
@@ -2638,16 +2667,13 @@ function TaskCard({
             })}
           </div>
         )}
-        <div className="mt-2 flex items-center gap-2">
-          <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+        <div className="mt-2">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-[width]"
               style={{ width: `${task.progress}%` }}
             />
           </div>
-          <span className="w-8 text-right text-[10px] font-medium text-muted-foreground">
-            {task.progress}%
-          </span>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           <span

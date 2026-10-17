@@ -801,6 +801,7 @@ export class ProjectsService {
       createdAt: now,
       updatedAt: now,
     };
+    this.validateTaskDateRange(task.startAt, task.dueAt, parent);
     this.db.transaction((tx) => {
       tx.insert(projectTasks).values(task).run();
       for (const dependencyId of this.validateDependencyIds(
@@ -997,6 +998,16 @@ export class ProjectsService {
       ['done', 'cancelled'].includes(updated.subtaskStatus)
     )
       updated.progress = 100;
+    this.validateTaskDateRange(updated.startAt, updated.dueAt, effectiveParent);
+    if (!effectiveParentId) {
+      const children = this.db
+        .select()
+        .from(projectTasks)
+        .where(eq(projectTasks.parentTaskId, task.id))
+        .all();
+      for (const child of children)
+        this.validateTaskDateRange(child.startAt, child.dueAt, updated);
+    }
     this.db.transaction((tx) => {
       tx.update(projectTasks)
         .set(updated)
@@ -1260,6 +1271,27 @@ export class ProjectsService {
         'Task folder must be inside a project workspace',
       );
     return normalized;
+  }
+
+  private validateTaskDateRange(
+    startAt: number | null,
+    dueAt: number | null,
+    parent: Pick<ProjectTask, 'startAt' | 'dueAt'> | null,
+  ) {
+    if (startAt !== null && dueAt !== null && startAt > dueAt)
+      throw new BadRequestException(
+        'The start date cannot be after the end date',
+      );
+    if (!parent) return;
+    if (
+      (parent.startAt !== null &&
+        startAt !== null &&
+        startAt < parent.startAt) ||
+      (parent.dueAt !== null && dueAt !== null && dueAt > parent.dueAt)
+    )
+      throw new BadRequestException(
+        'A subtask must stay within its parent task date range',
+      );
   }
 
   private validateDependencyIds(
