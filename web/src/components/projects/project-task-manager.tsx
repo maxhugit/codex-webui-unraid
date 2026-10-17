@@ -316,6 +316,15 @@ export function ProjectTaskManager({
     const dependencyIds = query.data.dependencies
       .filter((dependency) => dependency.taskId === task.id)
       .map((dependency) => dependency.dependsOnTaskId);
+    const storedWorkspace =
+      parent?.workspacePath ??
+      task.workspacePath ??
+      query.data.project.workspacePath;
+    const validWorkspace = query.data.workspaces.some(
+      (workspace) => workspace.path === storedWorkspace,
+    )
+      ? storedWorkspace
+      : query.data.project.workspacePath;
     queueMicrotask(() => {
       setEditing(task);
       setRootTaskId(task.parentTaskId ?? task.id);
@@ -327,10 +336,7 @@ export function ProjectTaskManager({
         dueAt: dateValue(task.dueAt),
         labels: task.labels.join(', '),
         statusId: task.statusId,
-        workspacePath:
-          parent?.workspacePath ??
-          task.workspacePath ??
-          query.data!.project.workspacePath,
+        workspacePath: validWorkspace,
         executionMode: task.parentTaskId ? task.executionMode : 'manual',
         estimateHours: task.estimateMinutes
           ? String(task.estimateMinutes / 60)
@@ -415,6 +421,15 @@ export function ProjectTaskManager({
     const parent = task.parentTaskId
       ? board.tasks.find((candidate) => candidate.id === task.parentTaskId)
       : null;
+    const storedWorkspace =
+      parent?.workspacePath ??
+      task.workspacePath ??
+      board.project.workspacePath;
+    const validWorkspace = board.workspaces.some(
+      (workspace) => workspace.path === storedWorkspace,
+    )
+      ? storedWorkspace
+      : board.project.workspacePath;
     setEditing(task);
     setTaskError('');
     setRootTaskId(rootId ?? task.parentTaskId ?? task.id);
@@ -426,10 +441,7 @@ export function ProjectTaskManager({
       dueAt: dateValue(task.dueAt),
       labels: task.labels.join(', '),
       statusId: task.statusId,
-      workspacePath:
-        parent?.workspacePath ??
-        task.workspacePath ??
-        board.project.workspacePath,
+      workspacePath: validWorkspace,
       executionMode: task.parentTaskId ? task.executionMode : 'manual',
       estimateHours: task.estimateMinutes
         ? String(task.estimateMinutes / 60)
