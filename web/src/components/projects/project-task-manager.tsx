@@ -1139,6 +1139,10 @@ export function ProjectTaskManager({
       const fallback = t.startAt ?? t.dueAt!;
       const start = new Date(t.startAt ?? fallback);
       const end = new Date(t.dueAt ?? fallback);
+      const priorityIndex = Math.max(
+        0,
+        settings.priorityOptions.findIndex((option) => option.id === t.priority),
+      );
       return {
         id: t.id,
         text: t.title,
@@ -1151,6 +1155,7 @@ export function ProjectTaskManager({
         parent: 0,
         type: 'task',
         open: true,
+        css: `project-gantt-priority-${priorityIndex}`,
       };
     });
   const ganttLinks = board.dependencies.map((d) => ({
@@ -1501,7 +1506,15 @@ export function ProjectTaskManager({
           </div>
         </>
       ) : view === 'planning' ? (
-        <section className="h-[70vh] min-h-[480px] overflow-hidden rounded-xl border bg-card">
+        <section className="project-gantt-shell h-[70vh] min-h-[480px] overflow-hidden rounded-xl border bg-card">
+          <style>
+            {settings.priorityOptions
+              .map((option, index) => {
+                const color = palette[option.color];
+                return `.project-gantt-priority-${index}{--wx-gantt-task-color:${color};--wx-gantt-task-fill-color:color-mix(in srgb, ${color} 72%, black);--wx-gantt-task-border-color:${color};--wx-gantt-task-border:1px solid ${color}}`;
+              })
+              .join('\n')}
+          </style>
           <GanttTheme>
             <Locale words={ganttLocale}>
               <Tooltip
