@@ -440,6 +440,11 @@ export function ProjectTaskManager({
     terminalStatusIds.includes(statusId);
   const isTerminalSubtask = (status: ProjectTaskSummary['subtaskStatus']) =>
     settings.terminalSubtaskStatuses.includes(status);
+  const openActionCount = board.tasks.filter((task) =>
+    task.parentTaskId
+      ? !isTerminalSubtask(task.subtaskStatus)
+      : !isTerminalStatus(task.statusId),
+  ).length;
   const dependencyIdsFor = (id: string) =>
     board.dependencies
       .filter((d) => d.taskId === id)
@@ -1243,7 +1248,8 @@ export function ProjectTaskManager({
           <div>
             <h1 className="text-xl font-semibold">{board.resource.name}</h1>
             <p className="text-sm text-muted-foreground">
-              {board.tasks.length} action{board.tasks.length > 1 ? 's' : ''}
+              {openActionCount} action{openActionCount !== 1 ? 's' : ''} ouverte
+              {openActionCount !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
