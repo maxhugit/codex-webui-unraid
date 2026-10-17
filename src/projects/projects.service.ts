@@ -609,6 +609,7 @@ export class ProjectsService {
       .where(eq(projectWorkspaces.projectId, projectId))
       .all();
     await this.syncAgentStates(resourceId);
+    this.recalculateAllParentEstimates(resourceId);
     const tasks = this.db
       .select()
       .from(projectTasks)
@@ -813,6 +814,8 @@ export class ProjectsService {
           })
           .run();
     });
+    if (task.parentTaskId)
+      this.recalculateParentEstimate(resourceId, task.parentTaskId);
     return task;
   }
 
@@ -1018,7 +1021,16 @@ export class ProjectsService {
               .run();
       }
     });
-    return updated;
+    if (task.parentTaskId)
+      this.recalculateParentEstimate(resourceId, task.parentTaskId);
+    if (
+      effectiveParentId &&
+      effectiveParentId !== task.parentTaskId
+    )
+      this.recalculateParentEstimate(resourceId, effectiveParentId);
+    if (!effectiveParentId)
+      this.recalculateParentEstimate(resourceId, task.id, false);
+    return this.requireTask(resourceId, task.id);
   }
 
   deleteTask(projectId: string, resourceId: string, taskId: string) {
@@ -1030,7 +1042,44 @@ export class ProjectsService {
         .run();
       tx.delete(projectTasks).where(eq(projectTasks.id, task.id)).run();
     });
+    if (task.parentTaskId)
+      this.recalculateParentEstimate(resourceId, task.parentTaskId);
     return { ok: true };
+  }
+
+  private recalculateAllParentEstimates(resourceId: string) {
+    const tasks = this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.resourceId, resourceId))
+      .all();
+    for (const parent of tasks.filter((task) => !task.parentTaskId))
+      if (tasks.some((task) => task.parentTaskId === parent.id))
+        this.recalculateParentEstimate(resourceId, parent.id);
+  }
+
+  private recalculateParentEstimate(
+    resourceId: string,
+    parentTaskId: string,
+    resetWhenEmpty = true,
+  ) {
+    const parent = this.requireTask(resourceId, parentTaskId);
+    const children = this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.parentTaskId, parentTaskId))
+      .all();
+    if (!children.length && !resetWhenEmpty) return;
+    const estimateMinutes = children.reduce(
+      (total, child) => total + child.estimateMinutes,
+      0,
+    );
+    if (parent.estimateMinutes === estimateMinutes) return;
+    this.db
+      .update(projectTasks)
+      .set({ estimateMinutes, updatedAt: Date.now() })
+      .where(eq(projectTasks.id, parentTaskId))
+      .run();
   }
 
   async suggestTasks(projectId: string, resourceId: string, prompt: unknown) {

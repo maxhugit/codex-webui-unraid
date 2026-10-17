@@ -1198,16 +1198,28 @@ export function ProjectTaskManager({
                   Tâche principale manuelle
                 </div>
               )}
-              <Input
-                type="number"
-                min="0"
-                step="0.5"
-                placeholder="Charge estimée (heures)"
-                value={draft.estimateHours}
-                onChange={(e) =>
-                  setDraft({ ...draft, estimateHours: e.target.value })
-                }
-              />
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                {editing &&
+                !editing.parentTaskId &&
+                childrenFor(editing.id).length > 0
+                  ? 'Charge calculée (somme des sous-tâches)'
+                  : 'Charge estimée (heures)'}
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  placeholder="Charge estimée (heures)"
+                  value={draft.estimateHours}
+                  disabled={Boolean(
+                    editing &&
+                      !editing.parentTaskId &&
+                      childrenFor(editing.id).length > 0,
+                  )}
+                  onChange={(e) =>
+                    setDraft({ ...draft, estimateHours: e.target.value })
+                  }
+                />
+              </label>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-xs text-muted-foreground">
