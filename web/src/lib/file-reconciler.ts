@@ -46,12 +46,50 @@ function invalidatePaths(queryClient: QueryClient, paths: Set<string>): void {
   }
 }
 
+/**
+ * Removes cache entries below a confirmed deletion without refetching them.
+ * The parent listing is the only resource that still exists and needs a refresh.
+ */
+function evictDeletedPaths(
+  queryClient: QueryClient,
+  deletedPaths: Set<string>,
+): void {
+  const isDeletedQuery = (query: { queryKey: readonly unknown[] }) => {
+    const descriptor = query.queryKey[0] as
+      | {
+          _id?: string;
+          query?: { path?: string; root?: string };
+        }
+      | undefined;
+    if (!descriptor) return false;
+    const candidate =
+      descriptor._id === 'filesReadTree'
+        ? descriptor.query?.root
+        : descriptor._id === 'filesReadFile' ||
+            descriptor._id === 'filesGetMetadata'
+          ? descriptor.query?.path
+          : undefined;
+    return Boolean(
+      candidate &&
+      [...deletedPaths].some((deleted) => pathIsWithin(candidate, deleted)),
+    );
+  };
+
+  void queryClient.cancelQueries({ predicate: isDeletedQuery });
+  queryClient.removeQueries({ predicate: isDeletedQuery });
+  for (const parent of new Set([...deletedPaths].map(parentFilePath)))
+    void queryClient.invalidateQueries({
+      queryKey: filesReadTreeQueryKey({ query: { root: parent } }),
+    });
+}
+
 /** Repairs every owner before refetching; source is diagnostic and never changes semantics. */
 export function applyFileChange(
   queryClient: QueryClient,
   change: FileChange,
 ): void {
   const paths = new Set<string>();
+  const deletedPaths = new Set<string>();
   for (const fact of filePathChanges(change)) {
     if (fact.kind === 'rename') {
       useFilesStore.getState().remapPaths(fact.oldPath, fact.newPath);
@@ -63,7 +101,7 @@ export function applyFileChange(
       useFilesStore.getState().removePaths(fact.path);
       markDocumentsDeleted(fact.path);
       useWorkspaceStore.getState().syncDocumentPaths();
-      paths.add(fact.path);
+      deletedPaths.add(fact.path);
     } else {
       fact.paths.forEach((path) => paths.add(path));
     }
@@ -79,6 +117,7 @@ export function applyFileChange(
     }
   }
   invalidatePaths(queryClient, paths);
+  evictDeletedPaths(queryClient, deletedPaths);
 }
 
 /**

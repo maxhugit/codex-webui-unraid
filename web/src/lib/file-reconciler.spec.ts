@@ -1,10 +1,14 @@
 /** Reconciliation uses component-prefix matches and set-based invalidations. */
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { applyFileChange, reconcileExternalPaths } from './file-reconciler';
 import { subscribeFileChanges } from './file-change-events';
 import { useFilesStore } from '@/stores/files-store';
 import { useDocumentStore } from '@/stores/document-store';
+import {
+  filesGetMetadataQueryKey,
+  filesReadFileQueryKey,
+} from '@/generated/api/@tanstack/react-query.gen';
 const metadata = vi.hoisted(() => vi.fn());
 vi.mock('@/generated/api', async (original) => ({
   ...(await original<typeof import('@/generated/api')>()),
@@ -31,6 +35,64 @@ it('repairs the browser directory but leaves a string-prefix sibling alone', () 
     rootDir: '/work/b/sub',
     selectedFile: '/work/ab/file.ts',
   });
+});
+
+it('evicts deleted file queries and refreshes only their parent directory', () => {
+  const client = new QueryClient();
+  const deletedPath = '/work/report.pdf';
+  client.setQueryData(filesReadFileQueryKey({ query: { path: deletedPath } }), {
+    content: 'stale',
+  });
+  client.setQueryData(
+    filesGetMetadataQueryKey({ query: { path: deletedPath } }),
+    { path: deletedPath },
+  );
+  const invalidations = vi.spyOn(client, 'invalidateQueries');
+
+  applyFileChange(client, {
+    source: 'local',
+    kind: 'delete',
+    path: deletedPath,
+  });
+
+  expect(
+    client.getQueryData(
+      filesReadFileQueryKey({ query: { path: deletedPath } }),
+    ),
+  ).toBeUndefined();
+  expect(
+    client.getQueryData(
+      filesGetMetadataQueryKey({ query: { path: deletedPath } }),
+    ),
+  ).toBeUndefined();
+  expect(
+    invalidations.mock.calls.map(([filters]) =>
+      JSON.stringify(filters?.queryKey),
+    ),
+  ).toEqual([expect.stringContaining('"root":"/work"')]);
+});
+
+it('does not refetch an actively observed resource after it is deleted', async () => {
+  const client = new QueryClient();
+  const deletedPath = '/work/report.pdf';
+  const queryFn = vi.fn().mockResolvedValue({ path: deletedPath });
+  const observer = new QueryObserver(client, {
+    queryKey: filesGetMetadataQueryKey({ query: { path: deletedPath } }),
+    queryFn,
+  });
+  const unsubscribe = observer.subscribe(() => undefined);
+  await observer.refetch();
+  queryFn.mockClear();
+
+  applyFileChange(client, {
+    source: 'local',
+    kind: 'delete',
+    path: deletedPath,
+  });
+  await Promise.resolve();
+
+  unsubscribe();
+  expect(queryFn).not.toHaveBeenCalled();
 });
 
 it('invalidates a shared parent once for a 50-path batch', () => {
