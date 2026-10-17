@@ -1435,7 +1435,6 @@ export function ProjectTaskManager({
             <Locale words={ganttLocale}>
               <Tooltip
                 api={ganttApi ?? undefined}
-                css="project-gantt-tooltip"
                 content={({ data }) => {
                   if (!('task' in data)) return null;
                   const task = board.tasks.find(
@@ -1462,7 +1461,7 @@ export function ProjectTaskManager({
                         ? 'Non définie'
                         : 'Not set';
                   return (
-                    <div className="w-80 space-y-3 p-3 text-sm">
+                    <div className="project-gantt-tooltip-content w-80 space-y-3 rounded-xl bg-popover p-3 text-sm text-popover-foreground">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 font-semibold leading-snug">
                           {task.title}
@@ -2484,8 +2483,7 @@ export function ProjectTaskManager({
                 }))
               }
             />
-            <ColorSettingsSection
-              title="Couleurs des statuts de sous-tâches"
+            <SubtaskStatusSettingsSection
               labels={subtaskLabels}
               values={settingsDraft.subtaskColors}
               terminalValues={settingsDraft.terminalSubtaskStatuses}
@@ -2931,15 +2929,11 @@ function ColorSettingsSection<K extends string>({
   labels,
   values,
   onChange,
-  terminalValues,
-  onTerminalChange,
 }: {
   title: string;
   labels: Record<K, string>;
   values: Record<K, PaletteColor>;
   onChange: (key: K, color: PaletteColor) => void;
-  terminalValues?: K[];
-  onTerminalChange?: (key: K, terminal: boolean) => void;
 }) {
   return (
     <section className="space-y-3">
@@ -2955,18 +2949,6 @@ function ColorSettingsSection<K extends string>({
               style={{ backgroundColor: palette[values[key]] }}
             />
             <span className="min-w-0 flex-1 truncate">{labels[key]}</span>
-            {terminalValues && onTerminalChange && (
-              <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={terminalValues.includes(key)}
-                  onChange={(event) =>
-                    onTerminalChange(key, event.target.checked)
-                  }
-                />
-                Fin
-              </label>
-            )}
             <select
               className="h-8 rounded-md border bg-background px-2 text-xs"
               value={values[key]}
@@ -2981,6 +2963,84 @@ function ColorSettingsSection<K extends string>({
               ))}
             </select>
           </label>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SubtaskStatusSettingsSection<K extends string>({
+  labels,
+  values,
+  terminalValues,
+  onChange,
+  onTerminalChange,
+}: {
+  labels: Record<K, string>;
+  values: Record<K, PaletteColor>;
+  terminalValues: K[];
+  onChange: (key: K, color: PaletteColor) => void;
+  onTerminalChange: (key: K, terminal: boolean) => void;
+}) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h3 className="text-sm font-medium">Statuts des sous-tâches</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Les statuts sont fixes. Vous pouvez personnaliser leur couleur et
+          indiquer ceux qui terminent définitivement une sous-tâche.
+        </p>
+      </div>
+      <div className="overflow-hidden rounded-xl border">
+        <div className="hidden grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-5 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid">
+          <span>Statut</span>
+          <span>Couleur</span>
+          <span>État final</span>
+        </div>
+        {(Object.keys(labels) as K[]).map((key) => (
+          <div
+            key={key}
+            className="grid gap-3 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-5"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                className="h-4 w-4 shrink-0 rounded-full"
+                style={{ backgroundColor: palette[values[key]] }}
+              />
+              <span className="truncate text-sm font-medium">
+                {labels[key]}
+              </span>
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                Fixe
+              </span>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="sm:hidden">Couleur</span>
+              <select
+                className="h-8 rounded-md border bg-background px-2 text-xs text-foreground"
+                value={values[key]}
+                onChange={(event) =>
+                  onChange(key, event.target.value as PaletteColor)
+                }
+              >
+                {Object.entries(palette).map(([color, hex]) => (
+                  <option key={color} value={color}>
+                    {color} · {hex}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm">
+              <input
+                type="checkbox"
+                checked={terminalValues.includes(key)}
+                onChange={(event) =>
+                  onTerminalChange(key, event.target.checked)
+                }
+              />
+              Statut de fin
+            </label>
+          </div>
         ))}
       </div>
     </section>

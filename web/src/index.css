@@ -39,7 +39,7 @@
   outline: none;
 }
 
-.project-gantt-tooltip {
+.wx-tooltip:has(.project-gantt-tooltip-content) {
   --wx-tooltip-background: var(--popover);
   --wx-tooltip-font-color: var(--popover-foreground);
   --wx-tooltip-border: 1px solid var(--border);
