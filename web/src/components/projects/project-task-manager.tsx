@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import {
-  Gantt,
   Tooltip,
   Willow,
   WillowDark,
   type IApi,
 } from '@svar-ui/react-gantt';
 import { Locale } from '@svar-ui/react-core';
+import { StableProjectGantt } from './stable-project-gantt';
 import '@svar-ui/react-gantt/all.css';
 import {
   Bot,
@@ -123,11 +123,6 @@ type GanttView = 'years' | 'months' | 'weeks' | 'fit';
 type GanttDisplay = {
   scales: Array<{ unit: string; step: number; format: string }>;
   cellWidth: number;
-};
-type GanttViewport = {
-  level: number;
-  cellWidth: number;
-  scrollLeft: number;
 };
 const emptyDraft: Draft = {
   title: '',
@@ -391,8 +386,6 @@ export function ProjectTaskManager({
   const [ganttWidth, setGanttWidth] = useState(900);
   const [fittedGanttDisplay, setFittedGanttDisplay] =
     useState<GanttDisplay | null>(null);
-  const [ganttViewport, setGanttViewport] =
-    useState<GanttViewport | null>(null);
   const ganttShellRef = useRef<HTMLElement | null>(null);
   const [taskTab, setTaskTab] = useState<string>('new');
   const [rootTaskId, setRootTaskId] = useState<string | null>(null);
@@ -409,21 +402,6 @@ export function ProjectTaskManager({
     observer.observe(element);
     return () => observer.disconnect();
   }, [view]);
-  useEffect(() => {
-    if (view !== 'planning' || !ganttApi || !ganttViewport) return;
-    const frame = requestAnimationFrame(() => {
-      const current = ganttApi.getState();
-      ganttApi.getStores().data.setState({
-        cellWidth: ganttViewport.cellWidth,
-        _cellWidth: ganttViewport.cellWidth,
-        ...(current.zoom
-          ? { zoom: { ...current.zoom, level: ganttViewport.level } }
-          : {}),
-      });
-      void ganttApi.exec('scroll-chart', { left: ganttViewport.scrollLeft });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [ganttApi, ganttViewport, query.dataUpdatedAt, view]);
   useEffect(() => {
     if (
       !initialTaskId ||
@@ -498,7 +476,6 @@ export function ProjectTaskManager({
       date.getDay() === 0 || date.getDay() === 6 ? 'project-gantt-weekend' : '';
     return {
       level:
-        ganttViewport?.level ??
         (ganttView === 'years' ? 0 : ganttView === 'months' ? 1 : 2),
       minCellWidth: 30,
       maxCellWidth: 180,
@@ -550,7 +527,7 @@ export function ProjectTaskManager({
         },
       ],
     };
-  }, [ganttFrench, ganttView, ganttViewport?.level]);
+  }, [ganttFrench, ganttView]);
   if (query.isLoading)
     return <div className="p-6 text-sm text-muted-foreground">Chargement…</div>;
   if (!query.data)
@@ -1507,14 +1484,6 @@ export function ProjectTaskManager({
     if (event.inProgress) return;
     const current = board.tasks.find((task) => task.id === String(event.id));
     if (!current) return;
-    if (ganttApi) {
-      const viewport = ganttApi.getState();
-      setGanttViewport({
-        level: viewport.zoom?.level ?? 0,
-        cellWidth: viewport.cellWidth ?? ganttDisplay.cellWidth,
-        scrollLeft: viewport.scrollLeft,
-      });
-    }
     const patch: { startAt?: number; dueAt?: number; progress?: number } = {};
     if (event.task.start) {
       const start = new Date(event.task.start);
@@ -2026,7 +1995,6 @@ export function ProjectTaskManager({
                 size="sm"
                 variant={ganttView === mode ? 'default' : 'ghost'}
                 onClick={() => {
-                  setGanttViewport(null);
                   setGanttView(mode);
                 }}
                 aria-pressed={ganttView === mode}
@@ -2039,7 +2007,6 @@ export function ProjectTaskManager({
               size="sm"
               variant={ganttView === 'fit' ? 'default' : 'ghost'}
               onClick={() => {
-                setGanttViewport(null);
                 setFittedGanttDisplay(calculatedFitDisplay);
                 setGanttView('fit');
               }}
@@ -2193,18 +2160,14 @@ export function ProjectTaskManager({
                     );
                   }}
                 >
-                  <Gantt
-                    key={`${dark ? 'dark' : 'light'}:${i18n.language}:${ganttView}:${ganttTasks
-                      .map((task) => task.id)
-                      .join(':')}`}
+                  <StableProjectGantt
+                    key={`${resourceId}:${dark ? 'dark' : 'light'}:${i18n.language}:${ganttView}:${ganttView === 'fit' ? JSON.stringify(fittedGanttDisplay) : ''}`}
                     tasks={ganttTasks as never}
                     links={ganttLinks as never}
                     columns={ganttColumns}
                     taskTypes={ganttTaskTypes}
                     scales={ganttDisplay.scales as never}
-                    cellWidth={
-                      ganttViewport?.cellWidth ?? ganttDisplay.cellWidth
-                    }
+                    cellWidth={ganttDisplay.cellWidth}
                     autoScale={false}
                     highlightTime={(date, unit) => {
                       if (unit !== 'day' && unit !== 'hour') return '';
@@ -2223,39 +2186,10 @@ export function ProjectTaskManager({
                       return classes.join(' ');
                     }}
                     zoom={ganttZoom as never}
-                    init={(api) => {
-                      setGanttApi(api);
-                      api.on(
-                        'zoom-scale',
-                        () => {
-                          requestAnimationFrame(() => {
-                            const viewport = api.getState();
-                            setGanttViewport({
-                              level: viewport.zoom?.level ?? 0,
-                              cellWidth:
-                                viewport.cellWidth ?? ganttDisplay.cellWidth,
-                              scrollLeft: viewport.scrollLeft,
-                            });
-                          });
-                        },
-                        { tag: 'remember-project-gantt-viewport' },
-                      );
-                      api.on(
-                        'update-task',
-                        (event) => void persistGanttDates(event),
-                        { tag: 'persist-project-task-dates' },
-                      );
-                      api.on(
-                        'add-link',
-                        (event) => void persistGanttLink(event),
-                        { tag: 'persist-project-task-link' },
-                      );
-                      api.on(
-                        'delete-link',
-                        (event) => void deleteGanttLink(event),
-                        { tag: 'delete-project-task-link' },
-                      );
-                    }}
+                    init={setGanttApi}
+                    onUpdateTask={(event) => void persistGanttDates(event)}
+                    onAddLink={(event) => void persistGanttLink(event)}
+                    onDeleteLink={(event) => void deleteGanttLink(event)}
                   />
                 </Tooltip>
               </Locale>
