@@ -1,6 +1,6 @@
 /** Flat Explorer-style browser with drag/drop, context menus, and inline edits. */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Folder, Loader2 } from 'lucide-react';
+import { Folder, Loader2, UploadCloud } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { DragDropProvider } from '@dnd-kit/react';
@@ -61,6 +61,7 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
     request: Omit<InlineEdit, 'id' | 'pending' | 'error'> | null,
   ) => (request ? inline.start(request) : inline.cancel());
   const [dialog, setDialog] = useState<DialogState>(CLOSED);
+  const [externalDragActive, setExternalDragActive] = useState(false);
   const [navigationEdit, setNavigationEdit] = useState<NavigationEdit | null>(
     null,
   );
@@ -181,48 +182,77 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
           onRefresh: () => ops.refresh(rootDir, 'directory'),
         }}
       >
-        <ScrollArea
-          className="min-h-0 flex-1"
+        <div
+          className="relative min-h-0 flex-1"
+          onDragEnter={(event) => {
+            if (!event.dataTransfer.types.includes('Files')) return;
+            event.preventDefault();
+            setExternalDragActive(true);
+          }}
           onDragOver={(event) => {
-            if (event.dataTransfer.types.includes('Files'))
-              event.preventDefault();
+            if (!event.dataTransfer.types.includes('Files')) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            setExternalDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            if (
+              event.relatedTarget instanceof Node &&
+              event.currentTarget.contains(event.relatedTarget)
+            )
+              return;
+            setExternalDragActive(false);
           }}
           onDrop={(event) => {
             if (!event.dataTransfer.files.length) return;
             event.preventDefault();
+            setExternalDragActive(false);
             handleUpload(event.dataTransfer.files, rootDir);
           }}
         >
-          <DragDropProvider onDragEnd={handleDragEnd}>
-            <FlatDirectory
-              dirPath={rootDir}
-              selectedFile={selectedFile}
-              onFileClick={handleClick}
-              onDirClick={navigate}
-              openDialog={openDialog}
-              ops={ops}
-              onUpload={handleUpload}
-              edit={edit?.parentPath === rootDir ? edit : null}
-              setEdit={setEdit}
-              commitEdit={commitEdit}
-              navigationEdit={navigationEdit}
-              onNavigationReady={(kind) => {
-                setNavigationEdit(null);
-                setEdit({ kind, parentPath: rootDir });
-              }}
-              onNavigationFailed={() => {
-                if (navigationEdit && rootDir === navigationEdit.targetPath) {
-                  setRootDir(navigationEdit.previousRoot);
-                  selectFile(navigationEdit.previousSelection);
-                }
-                setNavigationEdit(null);
-                inline.cancel();
-                showSnackbar(t('Cannot load directories'), 'error');
-              }}
-              onRowCreate={startRowCreate}
-            />
-          </DragDropProvider>
-        </ScrollArea>
+          <ScrollArea className="h-full">
+            <DragDropProvider onDragEnd={handleDragEnd}>
+              <FlatDirectory
+                dirPath={rootDir}
+                selectedFile={selectedFile}
+                onFileClick={handleClick}
+                onDirClick={navigate}
+                openDialog={openDialog}
+                ops={ops}
+                onUpload={handleUpload}
+                edit={edit?.parentPath === rootDir ? edit : null}
+                setEdit={setEdit}
+                commitEdit={commitEdit}
+                navigationEdit={navigationEdit}
+                onNavigationReady={(kind) => {
+                  setNavigationEdit(null);
+                  setEdit({ kind, parentPath: rootDir });
+                }}
+                onNavigationFailed={() => {
+                  if (navigationEdit && rootDir === navigationEdit.targetPath) {
+                    setRootDir(navigationEdit.previousRoot);
+                    selectFile(navigationEdit.previousSelection);
+                  }
+                  setNavigationEdit(null);
+                  inline.cancel();
+                  showSnackbar(t('Cannot load directories'), 'error');
+                }}
+                onRowCreate={startRowCreate}
+              />
+            </DragDropProvider>
+          </ScrollArea>
+          {externalDragActive && (
+            <div className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary bg-background/90 text-center text-primary shadow-lg">
+              <UploadCloud className="h-8 w-8" />
+              <div className="px-4 text-sm font-medium">
+                {t('Drop files into this workspace')}
+              </div>
+              <div className="max-w-full truncate px-4 font-mono text-[10px] text-muted-foreground">
+                {rootDir}
+              </div>
+            </div>
+          )}
+        </div>
       </FileListingContextMenu>
       <input
         ref={uploadInputRef}
@@ -346,7 +376,8 @@ function FlatDirectory(props: FlatDirectoryProps) {
   useEffect(() => {
     if (!mountedNavigation || !navigationKind) return;
     if (isError) navigationHandlers.current.failed();
-    else if (!isFetching && data) navigationHandlers.current.ready(navigationKind);
+    else if (!isFetching && data)
+      navigationHandlers.current.ready(navigationKind);
   }, [mountedNavigation, navigationKind, isError, isFetching, data]);
 
   // The pending create row renders in every listing state. Creating does not

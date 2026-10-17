@@ -787,6 +787,14 @@ export function ThreadSidebar() {
                     workspaces: project.workspaces.filter(
                       (workspace) => workspace.id !== variables.workspaceId,
                     ),
+                    agentThreads: project.agentThreads?.map((thread) =>
+                      thread.workspacePath ===
+                      project.workspaces.find(
+                        (workspace) => workspace.id === variables.workspaceId,
+                      )?.path
+                        ? { ...thread, workspacePath: project.workspacePath }
+                        : thread,
+                    ),
                   }
                 : project,
             ),
@@ -1231,6 +1239,7 @@ export function ThreadSidebar() {
       />
       <ManageWorkspacesDialog
         project={workspaceProject ? null : managedProject}
+        simpleChats={simpleChatThreadsQuery.data?.threads ?? []}
         pending={
           createWorkspace.isPending ||
           setDefaultWorkspace.isPending ||

@@ -40,7 +40,12 @@ export class ProjectsService {
     Array<
       Project & {
         workspaces: ProjectWorkspace[];
-        agentThreads: Array<{ threadId: string; workspacePath: string }>;
+        agentThreads: Array<{
+          threadId: string;
+          workspacePath: string;
+          title: string;
+          archived: boolean;
+        }>;
       }
     >
   > {
@@ -48,6 +53,17 @@ export class ProjectsService {
     await this.migrateConversationAssociations();
     const workspaces = this.db.select().from(projectWorkspaces).all();
     const agents = this.db.select().from(projectAgentThreads).all();
+    const snapshot = await this.metadata.read().catch(() => null);
+    const snapshotEntries = snapshot?.entries ?? [];
+    const effectiveThreads = this.overrides.applyToThreads(
+      snapshotEntries.map((entry) => entry.thread),
+    );
+    const threadMetadata = new Map(
+      snapshotEntries.map((entry, index) => [
+        entry.thread.id,
+        { thread: effectiveThreads[index], archived: entry.archived },
+      ]),
+    );
     return this.db
       .select()
       .from(projects)
@@ -62,7 +78,18 @@ export class ProjectsService {
           .sort((a, b) => Number(b.primary) - Number(a.primary)),
         agentThreads: agents
           .filter((agent) => agent.projectId === project.id)
-          .map(({ threadId, workspacePath }) => ({ threadId, workspacePath })),
+          .map(({ threadId, workspacePath }) => {
+            const metadata = threadMetadata.get(threadId);
+            return {
+              threadId,
+              workspacePath,
+              title:
+                metadata?.thread.name?.trim() ||
+                metadata?.thread.preview?.trim() ||
+                `Agent ${threadId.slice(0, 8)}`,
+              archived: metadata?.archived ?? false,
+            };
+          }),
       }));
   }
 
@@ -201,17 +228,32 @@ export class ProjectsService {
         ),
       )
       .all();
-    if (agents.length)
-      this.overrides.setMany(
-        agents.map((row) => row.threadId),
+    const movedAgentIds = new Set<string>();
+    for (const agent of agents)
+      for (const threadId of await this.threads.setThreadCwd(
+        agent.threadId,
         project.workspacePath,
-      );
+      ))
+        movedAgentIds.add(threadId);
     const now = Date.now();
     this.db.transaction((tx) => {
-      for (const agent of agents)
-        tx.update(projectAgentThreads)
-          .set({ workspacePath: project.workspacePath, updatedAt: now })
-          .where(eq(projectAgentThreads.threadId, agent.threadId))
+      for (const threadId of movedAgentIds)
+        tx.insert(projectAgentThreads)
+          .values({
+            threadId,
+            projectId,
+            workspacePath: project.workspacePath,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: projectAgentThreads.threadId,
+            set: {
+              projectId,
+              workspacePath: project.workspacePath,
+              updatedAt: now,
+            },
+          })
           .run();
       for (const chat of tx
         .select()
