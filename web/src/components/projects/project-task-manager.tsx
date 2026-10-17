@@ -903,8 +903,32 @@ export function ProjectTaskManager({
         visiting.delete(item.title);
         return result;
       };
+      // Dates are initially calculated independently. Expand every parent
+      // before creation so that attaching its children cannot violate the
+      // server-side date-range invariant.
+      for (const suggestion of aiSuggestions) schedule(suggestion);
+      for (const parent of aiSuggestions.filter((item) => !item.parentTitle)) {
+        const children = aiSuggestions.filter(
+          (item) => item.parentTitle === parent.title,
+        );
+        if (!children.length) continue;
+        const parentDates = plannedDates.get(parent.title)!;
+        const childDates = children.map(
+          (child) => plannedDates.get(child.title)!,
+        );
+        plannedDates.set(parent.title, {
+          startAt: Math.min(
+            parentDates.startAt,
+            ...childDates.map((dates) => dates.startAt),
+          ),
+          dueAt: Math.max(
+            parentDates.dueAt,
+            ...childDates.map((dates) => dates.dueAt),
+          ),
+        });
+      }
       for (const suggestion of aiSuggestions) {
-        const dates = schedule(suggestion);
+        const dates = plannedDates.get(suggestion.title)!;
         const result = await projectsApi<{ task: ProjectTaskSummary }>(
           `/${projectId}/resources/${resourceId}/tasks`,
           {
