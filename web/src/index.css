@@ -3,6 +3,23 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
 
+.project-gantt-resize-preview {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: min(300px, calc(100vw - 16px));
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  pointer-events: none;
+  font-size: 0.8rem;
+}
+
 .project-gantt-today-cell {
   background: color-mix(in srgb, #ef4444 10%, transparent) !important;
   box-shadow:

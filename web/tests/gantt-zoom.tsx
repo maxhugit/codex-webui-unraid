@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Willow, type IApi } from '@svar-ui/react-gantt';
 import '@svar-ui/react-gantt/all.css';
+import '../src/i18n';
+import '../src/index.css';
 import { StableProjectGantt } from '../src/components/projects/stable-project-gantt';
 
 // Manual browser regression: zoom, resize either bar repeatedly, then check
@@ -10,6 +12,21 @@ function Test() {
   const [api, setApi] = useState<IApi | null>(null);
   const [saves, setSaves] = useState(0);
   const [measure, setMeasure] = useState('');
+  const [resizePreview, setResizePreview] = useState('');
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const text = document.querySelector(
+        '.project-gantt-resize-preview',
+      )?.textContent;
+      if (text) setResizePreview(text);
+    });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    return () => observer.disconnect();
+  }, []);
   const [tasks, setTasks] = useState([
     {
       id: 'a',
@@ -50,6 +67,7 @@ function Test() {
       </button>
       <p>Saves: {saves}</p>
       <pre>{measure}</pre>
+      <p>Last visible resize preview: {resizePreview}</p>
       <div style={{ height: 550 }}>
         <Willow>
           <StableProjectGantt
