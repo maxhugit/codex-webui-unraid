@@ -34,8 +34,11 @@ export interface WorkspaceGroup {
 }
 
 /** Display label for a thread: name → preview → truncated id. */
-export function threadLabel(thread: ThreadDto): string {
-  return thread.name?.trim() || thread.preview || thread.id.slice(0, 8);
+export function threadLabel(
+  thread: ThreadDto,
+  fallback = thread.id.slice(0, 8),
+): string {
+  return thread.name?.trim() || thread.preview || fallback;
 }
 
 /** Extract the last path segment from a cwd for display. */

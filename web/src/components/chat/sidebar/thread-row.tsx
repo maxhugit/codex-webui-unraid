@@ -147,7 +147,9 @@ export function ThreadRow({
         )}
       >
         {statusIcon}
-        <span className="truncate">{threadLabel(thread)}</span>
+        <span className="truncate">
+          {threadLabel(thread, t('New work agent'))}
+        </span>
         {pendingApprovalCount > 1 && (
           <span className="ml-auto rounded-full bg-yellow-500/15 px-1.5 py-0.5 text-[10px] font-medium leading-none text-yellow-600 dark:text-yellow-400">
             {badgeText}

@@ -200,6 +200,32 @@ export class ThreadMetadataService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /** Publishes a newly created empty conversation before app-server lists it. */
+  publishStartedThread(thread: v2.Thread): void {
+    if (thread.ephemeral) return;
+    this.prunePendingListing();
+    this.pendingListing.set(thread.id, Date.now() + PENDING_LISTING_TTL_MS);
+    if (!this.collection) {
+      this.invalidate();
+      return;
+    }
+    if (this.collection.entries.some((entry) => entry.thread.id === thread.id))
+      return;
+    this.collection = {
+      ...this.collection,
+      entries: [{ thread, archived: false }, ...this.collection.entries],
+    };
+    this.changed.next();
+  }
+
+  /** Returns the currently held snapshot without forcing an upstream walk. */
+  getHeldThread(threadId: string): v2.Thread | null {
+    return (
+      this.collection?.entries.find((entry) => entry.thread.id === threadId)
+        ?.thread ?? null
+    );
+  }
+
   /**
    * Replaces a field of one held conversation from an authoritative notification.
    *

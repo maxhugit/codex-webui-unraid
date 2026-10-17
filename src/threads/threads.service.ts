@@ -46,6 +46,7 @@ import {
   type ClientThreadReadResponse,
 } from '../turn-errors/turn-error-projection';
 import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
+import { ThreadMetadataService } from './thread-metadata.service';
 
 /** Maximum ancestors walked when a fork chain is not locally tracked. */
 const MAX_FORK_CHAIN_WALK = 32;
@@ -73,6 +74,7 @@ export class ThreadsService {
     private readonly history: ThreadHistoryService,
     private readonly overview: ThreadsOverviewService,
     private readonly workspaceOverrides: ThreadWorkspaceOverridesService,
+    private readonly metadata: ThreadMetadataService,
   ) {}
 
   /**
@@ -111,6 +113,7 @@ export class ThreadsService {
       settingsGeneration,
     );
     this.resumeRegistry.markResumed(response.thread.id);
+    this.metadata.publishStartedThread(response.thread);
     return response;
   }
 
@@ -293,6 +296,10 @@ export class ThreadsService {
    */
   async startTurn(params: v2.TurnStartParams): Promise<v2.TurnStartResponse> {
     this.deletionRegistry.assertMutable(params.threadId);
+    const beforeTurn = this.metadata.getHeldThread(params.threadId);
+    const shouldAutoName = Boolean(
+      beforeTurn && !beforeTurn.name?.trim() && !beforeTurn.preview?.trim(),
+    );
     // `thread/resume` does not reliably replace the cwd of an app-server
     // session that is already loaded. A sidebar workspace move is persisted
     // independently, so make that persisted choice authoritative for every
@@ -308,7 +315,31 @@ export class ThreadsService {
       response.turn.id,
       previewFromUserInput(params.input),
     );
+    if (shouldAutoName) {
+      const title = this.makeAutomaticThreadName(params.input);
+      if (title) void this.autoNameThreadIfStillUnnamed(params.threadId, title);
+    }
     return response;
+  }
+
+  private makeAutomaticThreadName(input: v2.UserInput[]): string {
+    const oneLine = previewFromUserInput(input).replace(/\s+/g, ' ').trim();
+    return oneLine.length <= 60 ? oneLine : `${oneLine.slice(0, 57)}…`;
+  }
+
+  private async autoNameThreadIfStillUnnamed(
+    threadId: string,
+    title: string,
+  ): Promise<void> {
+    try {
+      // A manual rename may have landed while turn/start was in flight.
+      if (this.metadata.getHeldThread(threadId)?.name?.trim()) return;
+      await this.setThreadName(threadId, title);
+    } catch (error) {
+      this.logger.warn(
+        `Could not automatically name new thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   /**

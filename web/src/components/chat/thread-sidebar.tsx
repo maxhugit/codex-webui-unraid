@@ -426,7 +426,11 @@ export function ThreadSidebar() {
   const createThread = useMutation({
     ...threadsStartThreadMutation(),
     onSuccess: (res) => {
-      void setActiveThread(res.thread.id, res.cwd, threadLabel(res.thread));
+      void setActiveThread(
+        res.thread.id,
+        res.cwd,
+        threadLabel(res.thread, t('New work agent')),
+      );
       invalidateThreads();
       void navigate({
         to: '/t/$threadId',

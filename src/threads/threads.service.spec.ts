@@ -9,6 +9,8 @@ import { ThreadsBranchingService } from './threads-branching.service';
 import { ThreadDeletionRegistryService } from '../thread-deletion/thread-deletion-registry.service';
 import { ThreadHistoryService } from './thread-history.service';
 import { ThreadsOverviewService } from './threads-overview.service';
+import { ThreadMetadataService } from './thread-metadata.service';
+import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 
 /** Branch state as the local-only service reports it for an untracked thread. */
 function localBranchState(threadId: string) {
@@ -59,6 +61,14 @@ describe('ThreadsService', () => {
   const mockOverview = {
     listOverview: vi.fn(),
   };
+  const mockMetadata = {
+    publishStartedThread: vi.fn(),
+    getHeldThread: vi.fn(),
+  };
+  const mockWorkspaceOverrides = {
+    get: vi.fn(),
+    setMany: vi.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -78,6 +88,11 @@ describe('ThreadsService', () => {
         },
         { provide: ThreadHistoryService, useValue: mockHistory },
         { provide: ThreadsOverviewService, useValue: mockOverview },
+        { provide: ThreadMetadataService, useValue: mockMetadata },
+        {
+          provide: ThreadWorkspaceOverridesService,
+          useValue: mockWorkspaceOverrides,
+        },
       ],
     }).compile();
 
@@ -90,6 +105,8 @@ describe('ThreadsService', () => {
     mockDeletionRegistry.assertMutable.mockReset();
     Object.values(mockHistory).forEach((mock) => mock.mockReset());
     mockOverview.listOverview.mockReset();
+    Object.values(mockMetadata).forEach((mock) => mock.mockReset());
+    Object.values(mockWorkspaceOverrides).forEach((mock) => mock.mockReset());
     mockBranches.hasKnownDescendants.mockReturnValue(false);
     mockBranches.hasForkEdge.mockReturnValue(false);
     mockBranches.listKnownTreeThreadIds.mockImplementation(
@@ -114,6 +131,9 @@ describe('ThreadsService', () => {
       historyMode: 'paginated',
     });
     expect(mockResumeRegistry.markResumed).toHaveBeenCalledWith('t1');
+    expect(mockMetadata.publishStartedThread).toHaveBeenCalledWith(
+      response.thread,
+    );
   });
 
   it('deletes a new thread when paginated history is not confirmed', async () => {
@@ -281,6 +301,49 @@ describe('ThreadsService', () => {
       't1',
       'turn1',
       'hello',
+    );
+  });
+
+  it('automatically names a new unnamed thread from its first message', async () => {
+    mockMetadata.getHeldThread.mockReturnValue({
+      id: 't1',
+      name: null,
+      preview: '',
+    });
+    mockCodex.request
+      .mockResolvedValueOnce({ turn: { id: 'turn1' } })
+      .mockResolvedValueOnce({});
+
+    await service.startTurn({
+      threadId: 't1',
+      input: [
+        { type: 'text', text: 'Planifier la migration du serveur' },
+      ] as never,
+    });
+    await vi.waitFor(() =>
+      expect(mockCodex.request).toHaveBeenCalledWith('thread/name/set', {
+        threadId: 't1',
+        name: 'Planifier la migration du serveur',
+      }),
+    );
+  });
+
+  it('preserves a name manually assigned before the first message', async () => {
+    mockMetadata.getHeldThread.mockReturnValue({
+      id: 't1',
+      name: 'Mon agent',
+      preview: '',
+    });
+    mockCodex.request.mockResolvedValue({ turn: { id: 'turn1' } });
+
+    await service.startTurn({
+      threadId: 't1',
+      input: [{ type: 'text', text: 'Premier message' }] as never,
+    });
+
+    expect(mockCodex.request).not.toHaveBeenCalledWith(
+      'thread/name/set',
+      expect.anything(),
     );
   });
 
