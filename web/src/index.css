@@ -39,6 +39,20 @@
   outline: none;
 }
 
+.task-form-actions [data-slot='button']:not(:disabled) {
+  cursor: pointer;
+}
+
+.task-form-actions [data-slot='button']:not(:disabled):hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+}
+
+.task-form-actions [data-slot='button']:disabled {
+  cursor: not-allowed;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 * {

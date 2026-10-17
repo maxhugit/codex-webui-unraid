@@ -2017,7 +2017,7 @@ export function ProjectTaskManager({
               </p>
             )}
           </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t bg-background/95 px-6 py-4 backdrop-blur">
+          <div className="task-form-actions flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t bg-background/95 px-6 py-4 backdrop-blur">
             <div>
               {editing && (
                 <Button variant="destructive" onClick={removeTask}>
