@@ -64,6 +64,8 @@ type Suggestion = {
   validationCriteria: string;
   parentTitle: string;
   dependsOnTitles: string[];
+  executionMode: 'manual' | 'agent';
+  assignmentReason: string;
 };
 const emptyDraft: Draft = {
   title: '',
@@ -166,6 +168,12 @@ export function ProjectTaskManager({
   const [aiSuggestions, setAiSuggestions] = useState<Suggestion[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [breakdownSuggestions, setBreakdownSuggestions] = useState<
+    Suggestion[]
+  >([]);
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [breakdownError, setBreakdownError] = useState('');
   const [agentBusy, setAgentBusy] = useState(false);
   const [taskTab, setTaskTab] = useState<string>('new');
   const [rootTaskId, setRootTaskId] = useState<string | null>(null);
@@ -470,7 +478,7 @@ export function ProjectTaskManager({
           method: 'PATCH',
           body: JSON.stringify({
             parentTaskId,
-            executionMode: 'manual',
+            executionMode: parentTaskId ? suggestion.executionMode : 'manual',
             dependencyIds: parentTaskId
               ? []
               : suggestion.dependsOnTitles
@@ -489,6 +497,87 @@ export function ProjectTaskManager({
       );
     } finally {
       setAiLoading(false);
+    }
+  };
+  const proposeSubtasks = async () => {
+    if (!draft.title.trim() || draft.parentTaskId) return;
+    setBreakdownLoading(true);
+    setBreakdownError('');
+    try {
+      let parent = editing;
+      if (parent) {
+        const result = await projectsApi<{ task: ProjectTaskSummary }>(
+          `/${projectId}/resources/${resourceId}/tasks/${parent.id}`,
+          { method: 'PATCH', body: JSON.stringify(payload()) },
+        );
+        parent = result.task;
+      } else {
+        const result = await projectsApi<{ task: ProjectTaskSummary }>(
+          `/${projectId}/resources/${resourceId}/tasks`,
+          { method: 'POST', body: JSON.stringify(payload()) },
+        );
+        parent = result.task;
+        setEditing(parent);
+        setRootTaskId(parent.id);
+        setTaskTab(parent.id);
+      }
+      const result = await projectsApi<{ tasks: Suggestion[] }>(
+        `/${projectId}/resources/${resourceId}/tasks/${parent.id}/ai-subtasks`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            title: draft.title,
+            description: draft.description,
+            validationCriteria: draft.validationCriteria,
+          }),
+        },
+      );
+      setBreakdownSuggestions(result.tasks);
+      if (!result.tasks.length)
+        setBreakdownError('L’IA n’a proposé aucune sous-tâche.');
+      await refresh();
+      setBreakdownOpen(true);
+    } catch (error) {
+      setBreakdownError(
+        error instanceof Error ? error.message : 'Découpage impossible.',
+      );
+      setBreakdownOpen(true);
+    } finally {
+      setBreakdownLoading(false);
+    }
+  };
+  const createProposedSubtasks = async () => {
+    const parentId = rootTaskId ?? editing?.id;
+    if (!parentId || !breakdownSuggestions.length) return;
+    setBreakdownLoading(true);
+    setBreakdownError('');
+    try {
+      for (const suggestion of breakdownSuggestions) {
+        if (!suggestion.title.trim()) continue;
+        await projectsApi(`/${projectId}/resources/${resourceId}/tasks`, {
+          method: 'POST',
+          body: JSON.stringify({
+            title: suggestion.title,
+            description: suggestion.description,
+            priority: suggestion.priority,
+            estimateMinutes: Math.round(suggestion.estimateHours * 60),
+            validationCriteria: suggestion.validationCriteria,
+            parentTaskId: parentId,
+            workspacePath: draft.workspacePath || board.project.workspacePath,
+            executionMode: suggestion.executionMode,
+            dependencyIds: [],
+          }),
+        });
+      }
+      await refresh();
+      setBreakdownOpen(false);
+      setBreakdownSuggestions([]);
+    } catch (error) {
+      setBreakdownError(
+        error instanceof Error ? error.message : 'Création impossible.',
+      );
+    } finally {
+      setBreakdownLoading(false);
     }
   };
   const runAgent = async () => {
@@ -1021,6 +1110,21 @@ export function ProjectTaskManager({
                 </div>
               </fieldset>
             )}
+            {!draft.parentTaskId && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!draft.title.trim() || breakdownLoading}
+                onClick={proposeSubtasks}
+              >
+                {breakdownLoading ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Sparkles />
+                )}
+                Découper avec l’IA
+              </Button>
+            )}
             {editing && (
               <div className="flex flex-wrap gap-2">
                 {editing.parentTaskId && editing.linkedThreadId && (
@@ -1085,6 +1189,161 @@ export function ProjectTaskManager({
                 Enregistrer
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={breakdownOpen} onOpenChange={setBreakdownOpen}>
+        <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden p-0 sm:max-w-3xl">
+          <DialogHeader className="shrink-0 px-6 pt-6">
+            <DialogTitle>Proposition de sous-tâches</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Ajustez les propositions et leur mode d’exécution avant de les
+              créer.
+            </p>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-6 py-3">
+            {breakdownError && (
+              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                {breakdownError}
+              </div>
+            )}
+            {breakdownSuggestions.map((suggestion, index) => {
+              const update = (values: Partial<Suggestion>) =>
+                setBreakdownSuggestions((items) =>
+                  items.map((item, itemIndex) =>
+                    itemIndex === index ? { ...item, ...values } : item,
+                  ),
+                );
+              return (
+                <section
+                  key={index}
+                  className="space-y-2 rounded-xl border p-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-muted px-2 py-1 text-xs">
+                      Sous-tâche {index + 1}
+                    </span>
+                    <div className="flex-1" />
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      title="Retirer cette proposition"
+                      onClick={() =>
+                        setBreakdownSuggestions((items) =>
+                          items.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                  <Input
+                    value={suggestion.title}
+                    placeholder="Titre de la sous-tâche"
+                    onChange={(event) => update({ title: event.target.value })}
+                  />
+                  <Textarea
+                    value={suggestion.description}
+                    placeholder="Description"
+                    onChange={(event) =>
+                      update({ description: event.target.value })
+                    }
+                  />
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <select
+                      className="h-8 rounded-lg border bg-background px-2 text-sm"
+                      value={suggestion.executionMode}
+                      onChange={(event) =>
+                        update({
+                          executionMode: event.target
+                            .value as Suggestion['executionMode'],
+                        })
+                      }
+                    >
+                      <option value="manual">Manuelle</option>
+                      <option value="agent">Agent IA</option>
+                    </select>
+                    <select
+                      className="h-8 rounded-lg border bg-background px-2 text-sm"
+                      value={suggestion.priority}
+                      onChange={(event) =>
+                        update({ priority: event.target.value })
+                      }
+                    >
+                      {Object.entries(priorities).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={suggestion.estimateHours}
+                      placeholder="Charge (heures)"
+                      onChange={(event) =>
+                        update({
+                          estimateHours: Math.max(
+                            0,
+                            Number(event.target.value) || 0,
+                          ),
+                        })
+                      }
+                    />
+                  </div>
+                  <Textarea
+                    value={suggestion.validationCriteria}
+                    placeholder="Conditions de validation"
+                    onChange={(event) =>
+                      update({ validationCriteria: event.target.value })
+                    }
+                  />
+                  {suggestion.assignmentReason && (
+                    <p className="text-xs text-muted-foreground">
+                      Recommandation IA : {suggestion.assignmentReason}
+                    </p>
+                  )}
+                </section>
+              );
+            })}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() =>
+                setBreakdownSuggestions((items) => [
+                  ...items,
+                  {
+                    title: '',
+                    description: '',
+                    priority: 'normal',
+                    estimateHours: 0,
+                    validationCriteria: '',
+                    parentTitle: draft.title,
+                    dependsOnTitles: [],
+                    executionMode: 'manual',
+                    assignmentReason: '',
+                  },
+                ])
+              }
+            >
+              <Plus /> Ajouter une sous-tâche
+            </Button>
+          </div>
+          <div className="flex shrink-0 justify-end gap-2 rounded-b-2xl border-t bg-background/95 px-6 py-4">
+            <Button variant="outline" onClick={() => setBreakdownOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              disabled={
+                breakdownLoading ||
+                !breakdownSuggestions.some((item) => item.title.trim())
+              }
+              onClick={createProposedSubtasks}
+            >
+              {breakdownLoading && <Loader2 className="animate-spin" />}
+              Créer les sous-tâches
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

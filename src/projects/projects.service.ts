@@ -1017,6 +1017,46 @@ export class ProjectsService {
     return { tasks: await this.simpleChat.suggestProjectTasks(request) };
   }
 
+  async suggestSubtasks(
+    projectId: string,
+    resourceId: string,
+    taskId: string,
+    input: {
+      title?: unknown;
+      description?: unknown;
+      validationCriteria?: unknown;
+    },
+  ) {
+    this.getResource(projectId, resourceId);
+    const task = this.requireTask(resourceId, taskId);
+    if (task.parentTaskId)
+      throw new BadRequestException(
+        'A subtask cannot be divided into subtasks',
+      );
+    const title = this.validateTaskText(
+      input.title ?? task.title,
+      'Task title',
+      200,
+    );
+    const description = String(input.description ?? task.description)
+      .trim()
+      .slice(0, 10_000);
+    const validationCriteria = String(
+      input.validationCriteria ?? task.validationCriteria,
+    )
+      .trim()
+      .slice(0, 10_000);
+    const prompt = `Découpe la tâche suivante en sous-tâches concrètes, suffisamment petites pour être exécutées et validées séparément. Ne retourne pas la tâche principale elle-même. Ne crée aucune dépendance entre les sous-tâches. Propose entre 2 et 10 sous-tâches. Pour chacune, détermine si un agent IA peut raisonnablement la réaliser seul ou si elle doit rester manuelle.\n\nTâche : ${title}\nDescription : ${description || 'Non précisée'}\nConditions de validation : ${validationCriteria || 'Non précisées'}`;
+    const suggestions = await this.simpleChat.suggestProjectTasks(prompt);
+    return {
+      tasks: suggestions.slice(0, 10).map((suggestion) => ({
+        ...suggestion,
+        parentTitle: title,
+        dependsOnTitles: [],
+      })),
+    };
+  }
+
   private requireTaskStatus(resourceId: string, statusId: string) {
     const status = this.db
       .select()

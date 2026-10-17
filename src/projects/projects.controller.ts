@@ -105,6 +105,21 @@ export class ProjectsController {
     return this.projects.suggestTasks(id, resourceId, body.prompt);
   }
 
+  @Post(':id/resources/:resourceId/tasks/:taskId/ai-subtasks')
+  suggestSubtasks(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Param('taskId') taskId: string,
+    @Body()
+    body: {
+      title?: unknown;
+      description?: unknown;
+      validationCriteria?: unknown;
+    },
+  ) {
+    return this.projects.suggestSubtasks(id, resourceId, taskId, body);
+  }
+
   @Patch(':id/resources/:resourceId/tasks/:taskId')
   updateTask(
     @Param('id') id: string,
