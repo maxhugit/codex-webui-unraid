@@ -18,6 +18,7 @@ import {
   ChevronUp,
   Clock3,
   FolderOpen,
+  History,
   Settings,
   GripVertical,
   ListFilter,
@@ -307,7 +308,7 @@ export function ProjectTaskManager({
       }),
     onSuccess: refresh,
   });
-  const [view, setView] = useState<'board' | 'planning'>('board');
+  const [view, setView] = useState<'board' | 'planning' | 'journal'>('board');
   const [search, setSearch] = useState('');
   const [priority, setPriority] = useState('all');
   const [dragged, setDragged] = useState<string | null>(null);
@@ -1306,6 +1307,13 @@ export function ProjectTaskManager({
             Planning
           </Button>
           <Button
+            variant={view === 'journal' ? 'default' : 'outline'}
+            onClick={() => setView('journal')}
+          >
+            <History />
+            Journal
+          </Button>
+          <Button
             variant="outline"
             onClick={() => {
               setAiError('');
@@ -1359,7 +1367,7 @@ export function ProjectTaskManager({
               ))}
             </select>
           </div>
-          <div className="flex min-w-max gap-3 pb-4">
+          <div className="flex w-full gap-3 overflow-x-auto pb-4">
             {board.statuses
               .filter(
                 (status) =>
@@ -1381,7 +1389,7 @@ export function ProjectTaskManager({
                 return (
                   <section
                     key={status.id}
-                    className={`w-[310px] shrink-0 rounded-xl border p-3 transition-all duration-150 ${
+                    className={`min-w-[310px] flex-1 rounded-xl border p-3 transition-all duration-150 ${
                       dragOverStatus === status.id
                         ? 'border-primary/70 bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary)/0.3),0_8px_24px_hsl(var(--primary)/0.12)]'
                         : 'bg-card/60'
@@ -1467,7 +1475,7 @@ export function ProjectTaskManager({
               })}
           </div>
         </>
-      ) : (
+      ) : view === 'planning' ? (
         <section className="h-[70vh] min-h-[480px] overflow-hidden rounded-xl border bg-card">
           <GanttTheme>
             <Locale words={ganttLocale}>
@@ -1647,6 +1655,8 @@ export function ProjectTaskManager({
             </div>
           )}
         </section>
+      ) : (
+        <TaskActivityJournal board={board} statuses={board.statuses} />
       )}
       <Dialog open={taskOpen} onOpenChange={setTaskOpen}>
         <DialogContent className="flex max-h-[92vh] flex-col overflow-hidden p-0 sm:max-w-2xl">
@@ -3000,6 +3010,139 @@ export function ProjectTaskManager({
         </DialogContent>
       </Dialog>
     </main>
+  );
+}
+
+function TaskActivityJournal({
+  board,
+  statuses,
+}: {
+  board: ProjectTaskBoard;
+  statuses: ProjectTaskStatusSummary[];
+}) {
+  const { i18n } = useTranslation();
+  const fieldLabels: Record<string, string> = {
+    title: 'Titre',
+    description: 'Description',
+    priority: 'Priorité',
+    statusId: 'Statut',
+    subtaskStatus: 'Statut de sous-tâche',
+    workspacePath: 'Workspace',
+    executionMode: 'Mode d’exécution',
+    agentState: 'État de l’agent',
+    estimateMinutes: 'Charge estimée',
+    progress: 'Avancement',
+    startAt: 'Date de début',
+    dueAt: 'Date de fin',
+    validationCriteria: 'Conditions de validation',
+    labels: 'Labels',
+    linkedFilePath: 'Fichier lié',
+    parentTaskId: 'Tâche parente',
+    position: 'Position',
+  };
+  const formatValue = (field: string, value: unknown) => {
+    if (value === null || value === undefined || value === '') return '—';
+    if (field === 'statusId')
+      return (
+        statuses.find((status) => status.id === value)?.name ?? String(value)
+      );
+    if (field === 'subtaskStatus')
+      return (
+        subtaskLabels[value as ProjectTaskSummary['subtaskStatus']] ??
+        String(value)
+      );
+    if (field === 'startAt' || field === 'dueAt')
+      return new Date(Number(value)).toLocaleDateString(i18n.language);
+    if (field === 'estimateMinutes') return `${Number(value) / 60} h`;
+    if (field === 'progress') return `${value} %`;
+    if (field === 'priority')
+      return (
+        priorities[value as ProjectTaskSummary['priority']] ?? String(value)
+      );
+    if (Array.isArray(value)) return value.join(', ') || '—';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
+  return (
+    <section className="overflow-hidden rounded-xl border bg-card">
+      <div className="border-b px-5 py-4">
+        <h2 className="font-semibold">Journal des modifications</h2>
+        <p className="text-sm text-muted-foreground">
+          Historique chronologique des tâches et des sous-tâches.
+        </p>
+      </div>
+      {!board.activity.length ? (
+        <div className="p-10 text-center text-sm text-muted-foreground">
+          Aucune modification enregistrée pour le moment.
+        </div>
+      ) : (
+        <div className="divide-y">
+          {board.activity.map((entry) => {
+            const changes = Object.entries(entry.changes);
+            return (
+              <article
+                key={entry.id}
+                className="grid gap-3 px-5 py-4 md:grid-cols-[11rem_minmax(12rem,1fr)_2fr]"
+              >
+                <time className="text-xs text-muted-foreground">
+                  {new Date(entry.createdAt).toLocaleString(i18n.language)}
+                </time>
+                <div className="min-w-0">
+                  <div
+                    className="truncate text-sm font-medium"
+                    title={entry.taskTitle}
+                  >
+                    {entry.taskTitle}
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{entry.parentTaskId ? 'Sous-tâche' : 'Tâche'}</span>
+                    <span>·</span>
+                    <span>
+                      {entry.action === 'created'
+                        ? 'Créée'
+                        : entry.action === 'deleted'
+                          ? 'Supprimée'
+                          : 'Modifiée'}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  {entry.action === 'created' && (
+                    <span className="text-muted-foreground">
+                      Création de l’élément
+                    </span>
+                  )}
+                  {entry.action === 'deleted' && (
+                    <span className="text-muted-foreground">
+                      Suppression de l’élément
+                    </span>
+                  )}
+                  {changes.map(([field, change]) => (
+                    <div
+                      key={field}
+                      className="grid gap-1 sm:grid-cols-[10rem_1fr]"
+                    >
+                      <span className="font-medium">
+                        {fieldLabels[field] ?? field}
+                      </span>
+                      <span className="min-w-0 break-words text-muted-foreground">
+                        <span className="line-through opacity-70">
+                          {formatValue(field, change.before)}
+                        </span>{' '}
+                        →{' '}
+                        <span className="text-foreground">
+                          {formatValue(field, change.after)}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

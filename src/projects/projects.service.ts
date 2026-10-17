@@ -13,6 +13,7 @@ import {
   projects,
   projectResources,
   projectTasks,
+  projectTaskActivity,
   projectTaskDependencies,
   projectTaskStatuses,
   projectAgentThreads,
@@ -643,6 +644,12 @@ export class ProjectsService {
         .all()
         .sort((a, b) => a.position - b.position),
       tasks,
+      activity: this.db
+        .select()
+        .from(projectTaskActivity)
+        .where(eq(projectTaskActivity.resourceId, resourceId))
+        .all()
+        .sort((a, b) => b.createdAt - a.createdAt),
       dependencies: this.db
         .select()
         .from(projectTaskDependencies)
@@ -819,6 +826,18 @@ export class ProjectsService {
     this.validateTaskDateRange(task.startAt, task.dueAt, parent);
     this.db.transaction((tx) => {
       tx.insert(projectTasks).values(task).run();
+      tx.insert(projectTaskActivity)
+        .values({
+          id: randomUUID(),
+          resourceId,
+          taskId: task.id,
+          taskTitle: task.title,
+          parentTaskId: task.parentTaskId,
+          action: 'created',
+          changes: {},
+          createdAt: now,
+        })
+        .run();
       for (const dependencyId of this.validateDependencyIds(
         resourceId,
         task.id,
@@ -1062,6 +1081,20 @@ export class ProjectsService {
         .set(updated)
         .where(eq(projectTasks.id, task.id))
         .run();
+      const changes = this.taskChanges(task, updated);
+      if (Object.keys(changes).length)
+        tx.insert(projectTaskActivity)
+          .values({
+            id: randomUUID(),
+            resourceId,
+            taskId: task.id,
+            taskTitle: updated.title,
+            parentTaskId: effectiveParentId,
+            action: 'updated',
+            changes,
+            createdAt: updated.updatedAt,
+          })
+          .run();
       if (
         !effectiveParentId &&
         (input.workspacePath !== undefined || input.priority !== undefined)
@@ -1141,6 +1174,19 @@ export class ProjectsService {
         );
     }
     this.db.transaction((tx) => {
+      for (const deletedTask of deletedTasks)
+        tx.insert(projectTaskActivity)
+          .values({
+            id: randomUUID(),
+            resourceId,
+            taskId: deletedTask.id,
+            taskTitle: deletedTask.title,
+            parentTaskId: deletedTask.parentTaskId,
+            action: 'deleted',
+            changes: {},
+            createdAt: Date.now(),
+          })
+          .run();
       tx.delete(projectTasks)
         .where(eq(projectTasks.parentTaskId, task.id))
         .run();
@@ -1149,6 +1195,20 @@ export class ProjectsService {
     if (task.parentTaskId)
       this.recalculateParentEstimate(resourceId, task.parentTaskId);
     return { ok: true };
+  }
+
+  private taskChanges(
+    before: ProjectTask,
+    after: ProjectTask,
+  ): Record<string, { before: unknown; after: unknown }> {
+    const ignored = new Set(['updatedAt', 'createdAt', 'resourceId']);
+    const changes: Record<string, { before: unknown; after: unknown }> = {};
+    for (const key of Object.keys(after) as Array<keyof ProjectTask>) {
+      if (ignored.has(key)) continue;
+      if (JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+        changes[key] = { before: before[key], after: after[key] };
+    }
+    return changes;
   }
 
   private recalculateAllParentEstimates(resourceId: string) {

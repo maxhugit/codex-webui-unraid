@@ -162,6 +162,13 @@
       "when": 1792256705537,
       "tag": "0022_task_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1792267284476,
+      "tag": "0023_yielding_peter_parker",
+      "breakpoints": true
     }
   ]
 }

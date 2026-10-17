@@ -412,6 +412,33 @@ export const projectTasks = sqliteTable(
 
 export type ProjectTask = typeof projectTasks.$inferSelect;
 
+export const projectTaskActivity = sqliteTable(
+  'project_task_activity',
+  {
+    id: text('id').primaryKey(),
+    resourceId: text('resource_id')
+      .notNull()
+      .references(() => projectResources.id, { onDelete: 'cascade' }),
+    taskId: text('task_id').notNull(),
+    taskTitle: text('task_title').notNull(),
+    parentTaskId: text('parent_task_id'),
+    action: text('action').notNull(),
+    changes: text('changes', { mode: 'json' })
+      .$type<Record<string, { before: unknown; after: unknown }>>()
+      .notNull()
+      .default({}),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    index('idx_project_task_activity_resource_created').on(
+      table.resourceId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export type ProjectTaskActivity = typeof projectTaskActivity.$inferSelect;
+
 export const projectTaskDependencies = sqliteTable(
   'project_task_dependencies',
   {

@@ -83,11 +83,23 @@ export interface ProjectTaskBoard {
   workspaces: ProjectWorkspaceSummary[];
   statuses: ProjectTaskStatusSummary[];
   tasks: ProjectTaskSummary[];
+  activity: ProjectTaskActivitySummary[];
   dependencies: Array<{
     taskId: string;
     dependsOnTaskId: string;
     createdAt: number;
   }>;
+}
+
+export interface ProjectTaskActivitySummary {
+  id: string;
+  resourceId: string;
+  taskId: string;
+  taskTitle: string;
+  parentTaskId: string | null;
+  action: 'created' | 'updated' | 'deleted';
+  changes: Record<string, { before: unknown; after: unknown }>;
+  createdAt: number;
 }
 
 export interface ProjectWorkspaceSummary {
