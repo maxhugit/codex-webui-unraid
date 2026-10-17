@@ -60,6 +60,7 @@ import { SimpleChatRow } from './sidebar/simple-chat-row';
 import { RenameDialog, ConfirmDialog } from './sidebar/sidebar-dialogs';
 import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
 import { DirectoryPickerDialog } from './sidebar/directory-picker-dialog';
+import { CreateProjectDialog } from './sidebar/create-project-dialog';
 import { useForkWithGoal } from '@/hooks/use-fork-with-goal';
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
@@ -169,6 +170,9 @@ export function ThreadSidebar() {
     useState<SimpleChatThread | null>(null);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createProjectValue, setCreateProjectValue] = useState('');
+  const [createProjectPath, setCreateProjectPath] = useState('/workspaces/');
+  const [createProjectPathCustomized, setCreateProjectPathCustomized] =
+    useState(false);
   const [renameProject, setRenameProject] = useState<ProjectSummary | null>(
     null,
   );
@@ -636,14 +640,22 @@ export function ThreadSidebar() {
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
   const createProject = useMutation({
-    mutationFn: (name: string) =>
+    mutationFn: ({
+      name,
+      workspacePath,
+    }: {
+      name: string;
+      workspacePath: string;
+    }) =>
       projectsApi<{ project: ProjectSummary }>('', {
         method: 'POST',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, workspacePath }),
       }),
     onSuccess: () => {
       setCreateProjectOpen(false);
       setCreateProjectValue('');
+      setCreateProjectPath('/workspaces/');
+      setCreateProjectPathCustomized(false);
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
@@ -1041,21 +1053,33 @@ export function ThreadSidebar() {
           a control pinned to the sidebar's own bottom edge disappears with the
           sidebar, which forced expanding to live somewhere else entirely. */}
 
-      <RenameDialog
+      <CreateProjectDialog
         open={createProjectOpen}
         pending={createProject.isPending}
-        value={createProjectValue}
-        onChange={setCreateProjectValue}
-        onSave={() => {
-          if (createProjectValue.trim())
-            createProject.mutate(createProjectValue.trim());
+        name={createProjectValue}
+        workspacePath={createProjectPath}
+        onNameChange={(value) => {
+          setCreateProjectValue(value);
+          if (!createProjectPathCustomized)
+            setCreateProjectPath(`/workspaces/${value.trim()}`);
         }}
-        onClose={() => setCreateProjectOpen(false)}
-        title={t('Create a project')}
-        description={t(
-          'A primary workspace folder will be created for this project.',
-        )}
-        saveLabel={t('Create')}
+        onWorkspacePathChange={(value) => {
+          setCreateProjectPath(value);
+          setCreateProjectPathCustomized(true);
+        }}
+        onSave={() => {
+          if (createProjectValue.trim() && createProjectPath.trim())
+            createProject.mutate({
+              name: createProjectValue.trim(),
+              workspacePath: createProjectPath.trim(),
+            });
+        }}
+        onClose={() => {
+          setCreateProjectOpen(false);
+          setCreateProjectValue('');
+          setCreateProjectPath('/workspaces/');
+          setCreateProjectPathCustomized(false);
+        }}
       />
       <DirectoryPickerDialog
         open={workspaceProject !== null}

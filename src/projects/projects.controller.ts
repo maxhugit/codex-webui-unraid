@@ -19,8 +19,10 @@ export class ProjectsController {
   }
 
   @Post()
-  async create(@Body() body: { name: string }) {
-    return { project: await this.projects.create(body.name) };
+  async create(@Body() body: { name: string; workspacePath?: string }) {
+    return {
+      project: await this.projects.create(body.name, body.workspacePath),
+    };
   }
 
   @Patch(':id')

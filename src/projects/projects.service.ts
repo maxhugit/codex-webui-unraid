@@ -116,18 +116,36 @@ export class ProjectsService {
     };
   }
 
-  async create(nameValue: string): Promise<Project> {
+  async create(
+    nameValue: string,
+    workspacePathValue?: string,
+  ): Promise<Project> {
     const name = this.validateName(nameValue);
-    const workspacePath = path.join('/workspaces', name);
-    const existing = this.db
+    const requestedPath =
+      workspacePathValue?.trim() || path.join('/workspaces', name);
+    if (!path.isAbsolute(requestedPath))
+      throw new BadRequestException('Workspace path must be absolute');
+
+    const existed = await this.files.directoryExists(requestedPath);
+    const workspacePath = existed
+      ? await this.files.resolveSafePath(requestedPath)
+      : await this.files.resolveSafeTargetPath(requestedPath, {
+          recursiveParent: true,
+        });
+    const existingProject = this.db
       .select()
       .from(projects)
       .where(eq(projects.workspacePath, workspacePath))
       .get();
-    if (existing)
+    const existingWorkspace = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(eq(projectWorkspaces.path, workspacePath))
+      .get();
+    if (existingProject || existingWorkspace) {
       throw new ConflictException('A project already uses this workspace');
-
-    await this.files.createDirectory(workspacePath, false, false);
+    }
+    if (!existed) await this.files.createDirectory(workspacePath, true, false);
     const now = Date.now();
     const project: Project = {
       id: randomUUID(),
@@ -153,9 +171,18 @@ export class ProjectsService {
       });
       return project;
     } catch (error) {
-      await this.files.deleteManagedWorkspace(workspacePath).catch(() => {});
+      if (!existed) await this.cleanupNewProjectDirectory(workspacePath);
       throw error;
     }
+  }
+
+  private async cleanupNewProjectDirectory(
+    workspacePath: string,
+  ): Promise<void> {
+    // The managed cleanup intentionally only accepts a direct child of
+    // /workspaces. For a custom path we leave an empty directory behind on the
+    // extremely rare database failure rather than risk deleting user data.
+    await this.files.deleteManagedWorkspace(workspacePath).catch(() => {});
   }
 
   async createWorkspace(
