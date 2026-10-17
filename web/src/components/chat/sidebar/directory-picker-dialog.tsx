@@ -1,5 +1,5 @@
 /** Dialog for selecting a workspace directory to create a new thread. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,18 +15,29 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSelect: (cwd: string) => void;
+  title?: string;
 }
 
 /** Uses the same directory tree and mutation menu as copy/move destinations. */
-export function DirectoryPickerDialog({ open, onClose, onSelect }: Props) {
+export function DirectoryPickerDialog({
+  open,
+  onClose,
+  onSelect,
+  title,
+}: Props) {
   const { t } = useTranslation();
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  useEffect(() => {
+    if (open) setSelectedPath(null);
+  }, [open]);
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
       {open && (
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('Select project directory')}</DialogTitle>
+            <DialogTitle>
+              {title ?? t('Select workspace directory')}
+            </DialogTitle>
           </DialogHeader>
           <DirectorySelectionTree
             selectedPath={selectedPath}

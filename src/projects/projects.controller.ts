@@ -31,10 +31,10 @@ export class ProjectsController {
   @Post(':id/workspaces')
   async createWorkspace(
     @Param('id') id: string,
-    @Body() body: { name: string },
+    @Body() body: { name?: string; path?: string },
   ) {
     return {
-      workspace: await this.projects.createWorkspace(id, body.name),
+      workspace: await this.projects.createWorkspace(id, body),
     };
   }
 

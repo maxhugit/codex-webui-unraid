@@ -59,6 +59,7 @@ import { WorkspaceDetail } from './sidebar/workspace-detail';
 import { SimpleChatRow } from './sidebar/simple-chat-row';
 import { RenameDialog, ConfirmDialog } from './sidebar/sidebar-dialogs';
 import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
+import { DirectoryPickerDialog } from './sidebar/directory-picker-dialog';
 import { useForkWithGoal } from '@/hooks/use-fork-with-goal';
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
@@ -177,7 +178,6 @@ export function ThreadSidebar() {
   );
   const [workspaceProject, setWorkspaceProject] =
     useState<WorkspaceGroup | null>(null);
-  const [workspaceName, setWorkspaceName] = useState('');
   const [pendingConversation, setPendingConversation] = useState<{
     kind: 'agent' | 'simple';
     group: WorkspaceGroup;
@@ -649,14 +649,13 @@ export function ThreadSidebar() {
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
   const createWorkspace = useMutation({
-    mutationFn: ({ projectId, name }: { projectId: string; name: string }) =>
+    mutationFn: ({ projectId, path }: { projectId: string; path: string }) =>
       projectsApi(`/${projectId}/workspaces`, {
         method: 'POST',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ path }),
       }),
     onSuccess: () => {
       setWorkspaceProject(null);
-      setWorkspaceName('');
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
@@ -1058,24 +1057,16 @@ export function ThreadSidebar() {
         )}
         saveLabel={t('Create')}
       />
-      <RenameDialog
+      <DirectoryPickerDialog
         open={workspaceProject !== null}
-        pending={createWorkspace.isPending}
-        value={workspaceName}
-        onChange={setWorkspaceName}
-        onSave={() => {
-          if (workspaceProject?.projectId && workspaceName.trim())
+        onClose={() => setWorkspaceProject(null)}
+        onSelect={(path) => {
+          if (workspaceProject?.projectId)
             createWorkspace.mutate({
               projectId: workspaceProject.projectId,
-              name: workspaceName.trim(),
+              path,
             });
         }}
-        onClose={() => setWorkspaceProject(null)}
-        title={t('Create a workspace')}
-        description={t(
-          'This workspace will provide a separate file and execution context inside the project.',
-        )}
-        saveLabel={t('Create')}
       />
       <AlertDialog
         open={pendingConversation !== null}

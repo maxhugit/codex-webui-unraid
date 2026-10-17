@@ -68,6 +68,7 @@
   "Primary workspace": "Workspace principal",
   "workspaces": "workspaces",
   "Select project directory": "Sélectionner le dossier du projet",
+  "Select workspace directory": "Sélectionner le dossier du workspace",
   "Delete this project?": "Supprimer ce projet ?",
   "All work agents, simple conversations, files and subfolders in this project will be permanently deleted.": "Tous les agents de travail, conversations simples, fichiers et sous-dossiers de ce projet seront définitivement supprimés.",
   "Delete permanently": "Supprimer définitivement",

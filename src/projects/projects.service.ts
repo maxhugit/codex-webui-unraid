@@ -89,12 +89,37 @@ export class ProjectsService {
 
   async createWorkspace(
     projectId: string,
-    nameValue: string,
+    input: { name?: string; path?: string },
   ): Promise<ProjectWorkspace> {
-    const project = this.get(projectId);
-    const name = this.validateName(nameValue);
-    const workspacePath = path.join(project.workspacePath, 'workspaces', name);
-    await this.files.createDirectory(workspacePath, true, false);
+    this.get(projectId);
+    const requestedPath = input.path?.trim();
+    const name = this.validateName(
+      input.name ?? (requestedPath ? path.basename(requestedPath) : ''),
+    );
+    // A workspace is an independent execution context. It is deliberately not
+    // nested below the project's primary workspace: projects group contexts,
+    // they do not own a filesystem subtree.
+    const workspacePath = requestedPath
+      ? await this.files.resolveSafePath(requestedPath)
+      : path.join('/workspaces', name);
+    const existing = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(eq(projectWorkspaces.path, workspacePath))
+      .get();
+    if (existing)
+      throw new ConflictException(
+        'This directory is already attached to a project',
+      );
+
+    let createdDirectory = false;
+    if (requestedPath) {
+      // Also validates that the selected safe path is a directory.
+      await this.files.readDirectory(workspacePath);
+    } else {
+      await this.files.createDirectory(workspacePath, false, false);
+      createdDirectory = true;
+    }
     const now = Date.now();
     const workspace: ProjectWorkspace = {
       id: randomUUID(),
@@ -109,7 +134,8 @@ export class ProjectsService {
       this.db.insert(projectWorkspaces).values(workspace).run();
       return workspace;
     } catch (error) {
-      await this.files.deletePath(workspacePath, true).catch(() => {});
+      if (createdDirectory)
+        await this.files.deleteManagedWorkspace(workspacePath).catch(() => {});
       throw error;
     }
   }
@@ -159,11 +185,16 @@ export class ProjectsService {
   private async importExistingWorkspaceDirectories(): Promise<void> {
     const entries = await this.files.readDirectory('/workspaces');
     const known = new Set(
-      this.db
-        .select({ workspacePath: projects.workspacePath })
-        .from(projects)
-        .all()
-        .map((project) => project.workspacePath),
+      [
+        ...this.db
+          .select({ path: projects.workspacePath })
+          .from(projects)
+          .all(),
+        ...this.db
+          .select({ path: projectWorkspaces.path })
+          .from(projectWorkspaces)
+          .all(),
+      ].map((entry) => entry.path),
     );
     const now = Date.now();
     for (const entry of entries) {
