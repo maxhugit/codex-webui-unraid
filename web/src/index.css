@@ -3,17 +3,11 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
 
-.project-gantt-today {
-  z-index: 20 !important;
-  width: 3px !important;
-  background: #ef4444 !important;
-  box-shadow: 0 0 0 1px rgb(239 68 68 / 25%);
-}
-
-.project-gantt-today > div {
-  color: white !important;
-  background: #ef4444 !important;
-  font-weight: 600;
+.project-gantt-today-cell {
+  background: color-mix(in srgb, #ef4444 10%, transparent) !important;
+  box-shadow:
+    inset 1px 0 0 rgb(239 68 68 / 70%),
+    inset -1px 0 0 rgb(239 68 68 / 70%);
 }
 
 .project-gantt-task-title {

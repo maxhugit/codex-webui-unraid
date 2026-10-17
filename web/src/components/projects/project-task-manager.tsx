@@ -1924,13 +1924,15 @@ export function ProjectTaskManager({
                       </span>
                     );
                   }}
-                  markers={[
-                    {
-                      start: new Date(),
-                      text: ganttFrench ? 'Aujourd’hui' : 'Today',
-                      css: 'project-gantt-today',
-                    },
-                  ]}
+                  highlightTime={(date, unit) => {
+                    if (unit !== 'day' && unit !== 'hour') return '';
+                    const today = new Date();
+                    return date.getFullYear() === today.getFullYear() &&
+                      date.getMonth() === today.getMonth() &&
+                      date.getDate() === today.getDate()
+                      ? 'project-gantt-today-cell'
+                      : '';
+                  }}
                   zoom
                   init={(api) => {
                     setGanttApi(api);
