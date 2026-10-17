@@ -91,6 +91,16 @@ const subtaskLabels: Record<ProjectTaskSummary['subtaskStatus'], string> = {
   done: 'Terminée',
   cancelled: 'Annulée',
 };
+const subtaskStatusStyle: Record<ProjectTaskSummary['subtaskStatus'], string> =
+  {
+    todo: 'bg-slate-200/70 text-slate-700 dark:bg-slate-700/45 dark:text-slate-200',
+    started: 'bg-sky-200/70 text-sky-800 dark:bg-sky-800/45 dark:text-sky-200',
+    review:
+      'bg-violet-200/70 text-violet-800 dark:bg-violet-800/45 dark:text-violet-200',
+    done: 'bg-emerald-200/70 text-emerald-800 dark:bg-emerald-800/45 dark:text-emerald-200',
+    cancelled:
+      'bg-rose-200/60 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200',
+  };
 const priorities = {
   low: 'Basse',
   normal: 'Normale',
@@ -1575,7 +1585,9 @@ function TaskCard({
                 >
                   {subtask.title}
                 </span>
-                <span className="shrink-0 text-[9px] text-muted-foreground">
+                <span
+                  className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium ${subtaskStatusStyle[subtask.subtaskStatus]}`}
+                >
                   {subtaskLabels[subtask.subtaskStatus]}
                 </span>
               </button>
