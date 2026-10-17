@@ -2527,7 +2527,7 @@ function TaskCard({
       <button
         type="button"
         onClick={onClick}
-        className="block w-full p-3 text-left hover:bg-accent/20"
+        className="block w-full cursor-pointer p-3 text-left hover:bg-accent/20"
       >
         <div className="flex gap-2">
           <span
@@ -2541,7 +2541,7 @@ function TaskCard({
             <GripVertical className="h-4 w-4" />
           </span>
           <span
-            className="min-w-0 flex-1 truncate whitespace-nowrap text-sm font-medium"
+            className="min-w-0 flex-1 cursor-pointer truncate whitespace-nowrap text-sm font-medium"
             title={task.title}
           >
             {task.title}
@@ -2623,7 +2623,7 @@ function TaskCard({
               <button
                 type="button"
                 key={subtask.id}
-                className="relative flex w-full items-center gap-2 rounded px-1 py-1 text-left text-xs hover:bg-accent/50"
+                className="relative flex w-full cursor-pointer items-center gap-2 rounded px-1 py-1 text-left text-xs hover:bg-accent/50"
                 onClick={() => onSubtaskClick(subtask)}
               >
                 <span className="absolute -left-3.5 top-1/2 w-3 border-t border-muted-foreground/30" />
@@ -2633,7 +2633,7 @@ function TaskCard({
                   <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 )}
                 <span
-                  className="min-w-0 flex-1 truncate whitespace-nowrap"
+                  className="min-w-0 flex-1 cursor-pointer truncate whitespace-nowrap"
                   title={subtask.title}
                 >
                   {subtask.title}
