@@ -1,15 +1,22 @@
 /** Right-hand explorer with a divider preview: dragging never reflows the transcript. */
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Folder, Star } from 'lucide-react';
 import { FileTree } from '@/components/files/file-tree';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { useFilesStore } from '@/stores/files-store';
 import { useLayoutStore } from '@/stores/layout-store';
 import { filesAddRoot } from '@/generated/api';
+import { pathIsWithin } from '@/lib/file-change-events';
+import { type ProjectSummary } from '@/lib/projects-api';
 
 interface Props {
   cwd: string | null;
+  project?: ProjectSummary;
+  defaultWorkspacePending?: boolean;
+  onDefaultWorkspaceChange?: (path: string) => void;
   desktop: boolean;
   mobileOpen: boolean;
   onMobileClose: () => void;
@@ -19,6 +26,9 @@ interface Props {
 /** Adapts only explorer presentation; the conversation and tab content keep their tree positions. */
 export function WorkspaceTree({
   cwd,
+  project,
+  defaultWorkspacePending = false,
+  onDefaultWorkspaceChange,
   desktop,
   mobileOpen,
   onMobileClose,
@@ -54,7 +64,7 @@ export function WorkspaceTree({
   const contents = (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-10 shrink-0 items-center border-b px-3 text-xs font-medium">
-        <span className="flex-1">{t('Explorer')}</span>
+        <span className="flex-1">{project ? project.name : t('Explorer')}</span>
         <button
           type="button"
           aria-label={t('Close explorer')}
@@ -63,6 +73,61 @@ export function WorkspaceTree({
           <X className="h-4 w-4" />
         </button>
       </div>
+      {project && (
+        <div className="shrink-0 space-y-1 border-b p-2">
+          {project.workspaces.map((workspace) => {
+            const selected = Boolean(
+              currentRoot && pathIsWithin(currentRoot, workspace.path),
+            );
+            const isDefault = workspace.path === cwd;
+            return (
+              <div
+                key={workspace.id}
+                className="flex min-w-0 items-center gap-1"
+              >
+                <Button
+                  type="button"
+                  variant={selected ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-7 min-w-0 flex-1 justify-start gap-2 px-2 text-xs"
+                  title={workspace.path}
+                  onClick={() =>
+                    useFilesStore.getState().setRootDir(workspace.path)
+                  }
+                >
+                  <Folder className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {workspace.primary
+                      ? t('Primary workspace')
+                      : workspace.name}
+                  </span>
+                  {isDefault && (
+                    <Badge
+                      variant="secondary"
+                      className="ml-auto px-1 text-[9px]"
+                    >
+                      {t('Default')}
+                    </Badge>
+                  )}
+                </Button>
+                {!isDefault && onDefaultWorkspaceChange && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={defaultWorkspacePending}
+                    title={t('Set as default workspace')}
+                    aria-label={t('Set as default workspace')}
+                    onClick={() => onDefaultWorkspaceChange(workspace.path)}
+                  >
+                    <Star className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {/* Never compare the browsed root to cwd: entering folders and going up
           both change it. The adoption receipt prevents showing a prior
           conversation's tree while this one's metadata/request is pending. */}

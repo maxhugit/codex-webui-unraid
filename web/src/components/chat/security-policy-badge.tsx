@@ -13,6 +13,8 @@
  * belongs. This control changes one conversation, and says so.
  */
 import { Loader2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,12 @@ import type {
 import { sandboxMode } from '@/stores/thread-policy-store';
 import { useTimelineStore } from '@/stores/timeline-store';
 import { cn } from '@/lib/utils';
+import {
+  projectForWorkspace,
+  projectsApi,
+  projectsQueryKey,
+  type ProjectSummary,
+} from '@/lib/projects-api';
 
 // Codex CLI >= 0.149.0 retired `untrusted` and `on-failure`; selecting either
 // would write a value the app-server rejects.
@@ -54,6 +62,7 @@ type SandboxPatch = NonNullable<PatchThreadSecurityPolicyDto['sandboxPolicy']>;
 function sandboxOptions(
   cwd: string | null,
   networkAccess: boolean | null,
+  projectWorkspacePaths: readonly string[],
 ): Array<{ label: string; value: SandboxPatch; risky?: boolean }> {
   return [
     // Both of these must state a network flag, so neither can be offered until
@@ -71,7 +80,9 @@ function sandboxOptions(
                   label: 'workspace-write',
                   value: {
                     type: 'workspaceWrite' as const,
-                    writableRoots: [],
+                    writableRoots: projectWorkspacePaths.filter(
+                      (workspacePath) => workspacePath !== cwd,
+                    ),
                     networkAccess,
                     excludeTmpdirEnvVar: false,
                     excludeSlashTmp: false,
@@ -105,7 +116,8 @@ function observedNetworkAccess(
 ): boolean | null {
   if (!policy) return null;
   if (policy.type === 'dangerFullAccess') return true;
-  if (policy.type === 'externalSandbox') return policy.networkAccess === 'enabled';
+  if (policy.type === 'externalSandbox')
+    return policy.networkAccess === 'enabled';
   return policy.networkAccess;
 }
 
@@ -127,6 +139,53 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
   const { t } = useTranslation();
   const policy = useThreadSecurityPolicy(threadId);
   const threadCwd = useTimelineStore((s) => s.threadCwd);
+  const projectsQuery = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
+  });
+  const project = projectForWorkspace(projectsQuery.data?.projects, threadCwd);
+  const projectWorkspacePaths =
+    project?.workspaces.map((workspace) => workspace.path) ??
+    (threadCwd ? [threadCwd] : []);
+  const desiredAdditionalRoots = projectWorkspacePaths.filter(
+    (workspacePath) => workspacePath !== threadCwd,
+  );
+  const reconciliationKey = `${threadId ?? ''}:${desiredAdditionalRoots
+    .slice()
+    .sort()
+    .join('|')}`;
+  const attemptedReconciliation = useRef<string | null>(null);
+  useEffect(() => {
+    const sandbox = policy.observed?.sandboxPolicy;
+    if (
+      !threadId ||
+      readOnly ||
+      !project ||
+      sandbox?.type !== 'workspaceWrite' ||
+      policy.pending ||
+      sandboxOptionIsActive(sandbox, {
+        ...sandbox,
+        writableRoots: desiredAdditionalRoots,
+      })
+    ) {
+      return;
+    }
+    if (attemptedReconciliation.current === reconciliationKey) return;
+    attemptedReconciliation.current = reconciliationKey;
+    policy.apply({
+      sandboxPolicy: {
+        ...sandbox,
+        writableRoots: desiredAdditionalRoots,
+      },
+    });
+  }, [
+    desiredAdditionalRoots,
+    policy,
+    project,
+    readOnly,
+    reconciliationKey,
+    threadId,
+  ]);
   if (!threadId) return null;
 
   const observedApproval = describeApproval(policy.observed?.approvalPolicy);
@@ -184,7 +243,9 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
             be read. */}
         {policy.stale && (
           <p className="rounded bg-muted/50 px-2 py-1.5 text-xs text-muted-foreground">
-            {t('Showing the last known policy — it could not be re-read just now.')}
+            {t(
+              'Showing the last known policy — it could not be re-read just now.',
+            )}
           </p>
         )}
 
@@ -197,8 +258,12 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
           <div className="space-y-1.5 rounded bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
             <p>
               {policy.outcome === 'unknown'
-                ? t('Could not confirm the policy change. Check the current value before sending.')
-                : t('The policy change did not take effect. This conversation is still on the settings shown above.')}
+                ? t(
+                    'Could not confirm the policy change. Check the current value before sending.',
+                  )
+                : t(
+                    'The policy change did not take effect. This conversation is still on the settings shown above.',
+                  )}
             </p>
             <div className="flex gap-2">
               {policy.pending && (
@@ -245,12 +310,18 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
           {sandboxOptions(
             threadCwd,
             observedNetworkAccess(policy.observed?.sandboxPolicy),
+            projectWorkspacePaths,
           ).map((option) => (
             <OptionRow
               key={option.label}
               label={option.label}
-              active={observedSandbox === option.value.type}
-              requested={policy.pending?.sandboxPolicy?.type === option.value.type}
+              active={sandboxOptionIsActive(
+                policy.observed?.sandboxPolicy,
+                option.value,
+              )}
+              requested={
+                policy.pending?.sandboxPolicy?.type === option.value.type
+              }
               risky={option.risky}
               disabled={readOnly || policy.isSettling}
               onClick={() => policy.apply({ sandboxPolicy: option.value })}
@@ -263,6 +334,19 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
         </p>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function sandboxOptionIsActive(
+  observed: ThreadSecurityPolicyDto['sandboxPolicy'] | undefined,
+  option: SandboxPatch,
+): boolean {
+  if (!observed || observed.type !== option.type) return false;
+  if (observed.type !== 'workspaceWrite' || option.type !== 'workspaceWrite')
+    return true;
+  return (
+    observed.writableRoots.length === option.writableRoots.length &&
+    option.writableRoots.every((root) => observed.writableRoots.includes(root))
   );
 }
 
@@ -301,7 +385,10 @@ function OptionRow({
     >
       {t(label)}
       {active && (
-        <Badge variant={risky ? 'destructive' : 'secondary'} className="text-[10px]">
+        <Badge
+          variant={risky ? 'destructive' : 'secondary'}
+          className="text-[10px]"
+        >
           {t('current')}
         </Badge>
       )}

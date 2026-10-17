@@ -8,7 +8,7 @@
  * its toolbar, leaving no way back — with a spinner nothing could clear.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { WorkspaceTree } from './workspace-tree';
 import { useFilesStore } from '@/stores/files-store';
 import { useLayoutStore } from '@/stores/layout-store';
@@ -122,5 +122,57 @@ describe('explorer readiness gate', () => {
     await screen.findByTestId('file-tree');
     await act(async () => finishOld());
     expect(screen.getByTestId('file-tree')).toHaveTextContent('/rejected');
+  });
+});
+
+describe('project workspaces', () => {
+  it('lists every project workspace and keeps default selection explicit', async () => {
+    const onDefaultWorkspaceChange = vi.fn();
+    render(
+      <WorkspaceTree
+        cwd="/workspaces/main"
+        project={{
+          id: 'project-1',
+          name: 'Test',
+          workspacePath: '/workspaces/main',
+          createdAt: 1,
+          updatedAt: 1,
+          workspaces: [
+            {
+              id: 'main',
+              projectId: 'project-1',
+              name: 'Principal',
+              path: '/workspaces/main',
+              primary: true,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+            {
+              id: 'docs',
+              projectId: 'project-1',
+              name: 'Documentation',
+              path: '/appdata/docs',
+              primary: false,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+          ],
+        }}
+        onDefaultWorkspaceChange={onDefaultWorkspaceChange}
+        desktop
+        mobileOpen={false}
+        onMobileClose={() => undefined}
+        onFile={() => undefined}
+      />,
+    );
+    await screen.findByTestId('file-tree');
+    expect(screen.getByText('Test')).toBeInTheDocument();
+    expect(screen.getByText('Documentation')).toBeInTheDocument();
+    expect(screen.getByText('Default')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Documentation'));
+    expect(screen.getByTestId('file-tree')).toHaveTextContent('/appdata/docs');
+    fireEvent.click(screen.getByLabelText('Set as default workspace'));
+    expect(onDefaultWorkspaceChange).toHaveBeenCalledWith('/appdata/docs');
   });
 });

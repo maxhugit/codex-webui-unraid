@@ -1,6 +1,7 @@
 /** Conversation workspace: one permanent transcript with sibling file and terminal views. */
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ChatHeader } from '@/components/chat/chat-header';
 import { useThemeStore } from '@/stores/theme-store';
@@ -35,6 +36,16 @@ import { useTerminalStore } from '@/stores/terminal-store';
 import { useTerminalViewStore } from '@/stores/terminal-view-store';
 import { useTerminalDiscovery } from '@/hooks/use-terminal-discovery';
 import { threadsListTurns, threadsReadThread } from '@/generated/api/sdk.gen';
+import {
+  projectForWorkspace,
+  projectsApi,
+  projectsQueryKey,
+  type ProjectSummary,
+} from '@/lib/projects-api';
+import { getAuthorizationHeader } from '@/auth-token';
+import { withBasePath } from '@/base-path';
+import { showSnackbar } from '@/stores/snackbar-store';
+import { useThreadSecurityPolicy } from '@/hooks/use-thread-security-policy';
 
 /** URL identity owns opening; tab identity controls only presentation and never subscription. */
 export function ThreadView() {
@@ -58,6 +69,54 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
   const cwd = useTimelineStore((s) =>
     s.threadId === threadId ? s.threadCwd : s.threadsById[threadId]?.threadCwd,
   );
+  const projectsQuery = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
+  });
+  const project = projectForWorkspace(
+    projectsQuery.data?.projects,
+    cwd ?? null,
+  );
+  const policy = useThreadSecurityPolicy(threadId);
+  const setDefaultWorkspace = useMutation({
+    mutationFn: async (nextCwd: string) => {
+      const authorization = getAuthorizationHeader();
+      const response = await fetch(
+        withBasePath(`/api/threads/${threadId}/cwd`),
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authorization ? { Authorization: authorization } : {}),
+          },
+          body: JSON.stringify({ cwd: nextCwd }),
+        },
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        message?: string;
+        threadIds?: string[];
+      };
+      if (!response.ok)
+        throw new Error(payload.message || `HTTP ${response.status}`);
+      return payload.threadIds?.length ? payload.threadIds : [threadId];
+    },
+    onSuccess: (threadIds, nextCwd) => {
+      const timeline = useTimelineStore.getState();
+      for (const id of threadIds) timeline.setThreadCwdForThread(id, nextCwd);
+      const sandbox = policy.observed?.sandboxPolicy;
+      if (sandbox?.type === 'workspaceWrite' && project) {
+        policy.apply({
+          sandboxPolicy: {
+            ...sandbox,
+            writableRoots: project.workspaces
+              .map((workspace) => workspace.path)
+              .filter((workspacePath) => workspacePath !== nextCwd),
+          },
+        });
+      }
+    },
+    onError: (error) => showSnackbar(getApiErrorMessage(error), 'error'),
+  });
   const running = useTimelineStore(
     (s) =>
       s.threadId === threadId &&
@@ -136,9 +195,7 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
       const current = useWorkspaceStore.getState().contexts[context];
       const tab = current?.tabs.find((entry) => entry.id === current.activeId);
       if (tab?.kind === 'file')
-        useWorkspaceStore
-          .getState()
-          .cancelReveal(fileViewId(context, tab.id));
+        useWorkspaceStore.getState().cancelReveal(fileViewId(context, tab.id));
     };
   }, [threadId, context, open]);
 
@@ -264,6 +321,9 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
       </div>
       <WorkspaceTree
         cwd={cwd ?? null}
+        project={project}
+        defaultWorkspacePending={setDefaultWorkspace.isPending}
+        onDefaultWorkspaceChange={(path) => setDefaultWorkspace.mutate(path)}
         desktop={desktop}
         mobileOpen={mobileTree}
         onMobileClose={() => setMobileTree(false)}

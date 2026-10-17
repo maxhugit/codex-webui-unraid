@@ -22,6 +22,17 @@ export interface ProjectWorkspaceSummary {
 
 export const projectsQueryKey = ['projects'] as const;
 
+/** Finds the project owning an exact conversation workspace path. */
+export function projectForWorkspace(
+  projects: readonly ProjectSummary[] | undefined,
+  cwd: string | null,
+): ProjectSummary | undefined {
+  if (!cwd) return undefined;
+  return projects?.find((project) =>
+    project.workspaces.some((workspace) => workspace.path === cwd),
+  );
+}
+
 export async function projectsApi<T>(
   path = '',
   init?: RequestInit,
