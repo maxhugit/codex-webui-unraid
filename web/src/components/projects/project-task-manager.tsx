@@ -1375,7 +1375,7 @@ export function ProjectTaskManager({
               ))}
             </select>
           </div>
-          <div className="flex w-full gap-3 overflow-x-auto pb-4">
+          <div className="flex h-[calc(100dvh-15rem)] min-h-[28rem] w-full items-start gap-3 overflow-auto pb-4">
             {board.statuses
               .filter(
                 (status) =>
@@ -1397,7 +1397,7 @@ export function ProjectTaskManager({
                 return (
                   <section
                     key={status.id}
-                    className={`min-w-[310px] flex-1 rounded-xl border p-3 transition-all duration-150 ${
+                    className={`min-h-full min-w-[310px] flex-1 rounded-xl border p-3 transition-all duration-150 ${
                       dragOverStatus === status.id
                         ? 'border-primary/70 bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary)/0.3),0_8px_24px_hsl(var(--primary)/0.12)]'
                         : 'bg-card/60'
@@ -1419,7 +1419,7 @@ export function ProjectTaskManager({
                     }}
                     onDrop={() => dropTask(status.id)}
                   >
-                    <div className="mb-3 flex items-center gap-2">
+                    <div className="sticky top-0 z-10 -mx-1 mb-3 flex items-center gap-2 rounded-lg border-b bg-card/95 px-1 py-2 backdrop-blur">
                       <span
                         className="h-2.5 w-2.5 rounded-full"
                         style={{
