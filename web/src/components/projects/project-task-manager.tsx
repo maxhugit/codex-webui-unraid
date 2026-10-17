@@ -195,7 +195,7 @@ export function ProjectTaskManager({
         labels: task.labels.join(', '),
         statusId: task.statusId,
         workspacePath: task.workspacePath ?? query.data!.project.workspacePath,
-        executionMode: task.executionMode,
+        executionMode: task.parentTaskId ? task.executionMode : 'manual',
         estimateHours: task.estimateMinutes
           ? String(task.estimateMinutes / 60)
           : '',
@@ -277,7 +277,7 @@ export function ProjectTaskManager({
       labels: task.labels.join(', '),
       statusId: task.statusId,
       workspacePath: task.workspacePath ?? board.project.workspacePath,
-      executionMode: task.executionMode,
+      executionMode: task.parentTaskId ? task.executionMode : 'manual',
       estimateHours: task.estimateMinutes
         ? String(task.estimateMinutes / 60)
         : '',
@@ -304,7 +304,7 @@ export function ProjectTaskManager({
       .filter(Boolean),
     statusId: draft.statusId,
     workspacePath: draft.workspacePath || board.project.workspacePath,
-    executionMode: draft.executionMode,
+    executionMode: draft.parentTaskId ? draft.executionMode : 'manual',
     estimateMinutes: Math.round((Number(draft.estimateHours) || 0) * 60),
     validationCriteria: draft.validationCriteria.trim(),
     linkedFilePath: draft.linkedFilePath.trim() || null,
@@ -470,6 +470,7 @@ export function ProjectTaskManager({
           method: 'PATCH',
           body: JSON.stringify({
             parentTaskId,
+            executionMode: 'manual',
             dependencyIds: parentTaskId
               ? []
               : suggestion.dependsOnTitles
@@ -748,15 +749,22 @@ export function ProjectTaskManager({
         <section className="h-[70vh] min-h-[480px] overflow-hidden rounded-xl border bg-card">
           <WillowDark>
             <Gantt
+              key={ganttTasks.map((task) => task.id).join(':')}
               tasks={ganttTasks as never}
               links={ganttLinks as never}
               zoom
               readonly
-              onselecttask={(event?: { id?: string | number }) => {
-                const task = board.tasks.find(
-                  (item) => item.id === String(event?.id ?? ''),
+              init={(api) => {
+                api.on(
+                  'select-task',
+                  (event) => {
+                    const task = board.tasks.find(
+                      (item) => item.id === String(event.id),
+                    );
+                    if (task) openEdit(task);
+                  },
+                  { tag: 'open-project-task' },
                 );
-                if (task) openEdit(task);
               }}
             />
           </WillowDark>
@@ -824,19 +832,25 @@ export function ProjectTaskManager({
               }
             />
             <div className="grid grid-cols-2 gap-2">
-              <select
-                className="h-8 rounded-lg border bg-background px-2 text-sm"
-                value={draft.executionMode}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    executionMode: e.target.value as Draft['executionMode'],
-                  })
-                }
-              >
-                <option value="manual">Tâche manuelle</option>
-                <option value="agent">Agent IA</option>
-              </select>
+              {draft.parentTaskId ? (
+                <select
+                  className="h-8 rounded-lg border bg-background px-2 text-sm"
+                  value={draft.executionMode}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      executionMode: e.target.value as Draft['executionMode'],
+                    })
+                  }
+                >
+                  <option value="manual">Sous-tâche manuelle</option>
+                  <option value="agent">Agent IA</option>
+                </select>
+              ) : (
+                <div className="flex h-8 items-center rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground">
+                  Tâche principale manuelle
+                </div>
+              )}
               <Input
                 type="number"
                 min="0"
@@ -1009,7 +1023,7 @@ export function ProjectTaskManager({
             )}
             {editing && (
               <div className="flex flex-wrap gap-2">
-                {editing.linkedThreadId && (
+                {editing.parentTaskId && editing.linkedThreadId && (
                   <Button
                     variant="outline"
                     onClick={() =>
@@ -1023,7 +1037,7 @@ export function ProjectTaskManager({
                     Ouvrir l’agent
                   </Button>
                 )}
-                {editing.agentState === 'review' && (
+                {editing.parentTaskId && editing.agentState === 'review' && (
                   <Button onClick={validateTask}>
                     <Check />
                     Valider et terminer

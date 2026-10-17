@@ -776,8 +776,10 @@ export class ProjectsService {
       parentTaskId: input.parentTaskId ?? null,
       subtaskStatus: 'todo',
       workspacePath: this.validateTaskWorkspace(projectId, input.workspacePath),
-      executionMode: input.executionMode === 'agent' ? 'agent' : 'manual',
-      agentState: input.executionMode === 'agent' ? 'ready' : 'manual',
+      executionMode:
+        parent && input.executionMode === 'agent' ? 'agent' : 'manual',
+      agentState:
+        parent && input.executionMode === 'agent' ? 'ready' : 'manual',
       estimateMinutes: Math.max(0, Math.trunc(input.estimateMinutes ?? 0)),
       startAt: input.startAt ?? null,
       dueAt: input.dueAt ?? null,
@@ -850,6 +852,10 @@ export class ProjectsService {
     }
     const effectiveParentId =
       input.parentTaskId !== undefined ? input.parentTaskId : task.parentTaskId;
+    if (input.executionMode === 'agent' && !effectiveParentId)
+      throw new BadRequestException(
+        'Only subtasks can be assigned to an agent',
+      );
     const subtaskStatuses = new Set([
       'todo',
       'started',
@@ -912,9 +918,12 @@ export class ProjectsService {
         : {}),
       ...(input.executionMode !== undefined
         ? {
-            executionMode: input.executionMode === 'agent' ? 'agent' : 'manual',
+            executionMode:
+              effectiveParentId && input.executionMode === 'agent'
+                ? 'agent'
+                : 'manual',
             agentState:
-              input.executionMode === 'agent'
+              effectiveParentId && input.executionMode === 'agent'
                 ? task.linkedThreadId
                   ? task.agentState
                   : 'ready'
