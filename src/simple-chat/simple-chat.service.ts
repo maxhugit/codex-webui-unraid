@@ -100,6 +100,75 @@ export class SimpleChatService {
     };
   }
 
+  async suggestProjectTasks(
+    prompt: string,
+  ): Promise<Array<{ title: string; description: string; priority: string }>> {
+    const response = await this.openAiRequest('/v1/responses', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: this.defaultModel,
+        input: prompt,
+        instructions:
+          'Tu es un chef de projet. Réponds uniquement avec un objet JSON contenant une clé tasks. tasks est une liste de 1 à 12 objets avec title, description et priority (low, normal, high ou urgent). Les tâches doivent être concrètes, concises et rédigées dans la langue de la demande.',
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'project_tasks',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                tasks: {
+                  type: 'array',
+                  minItems: 1,
+                  maxItems: 12,
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      title: { type: 'string' },
+                      description: { type: 'string' },
+                      priority: {
+                        type: 'string',
+                        enum: ['low', 'normal', 'high', 'urgent'],
+                      },
+                    },
+                    required: ['title', 'description', 'priority'],
+                  },
+                },
+              },
+              required: ['tasks'],
+            },
+          },
+        },
+        store: false,
+      }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as OpenAiResponse;
+    if (!response.ok)
+      throw BusinessException.internal(
+        ErrorCode.simpleChat.upstreamFailed,
+        payload.error?.message || `OpenAI API returned HTTP ${response.status}`,
+      );
+    const parsed = JSON.parse(this.extractText(payload) || '{}') as {
+      tasks?: Array<{
+        title?: string;
+        description?: string;
+        priority?: string;
+      }>;
+    };
+    return (parsed.tasks ?? []).map((task) => ({
+      title: task.title?.trim() || 'Nouvelle tâche',
+      description: task.description?.trim() || '',
+      priority: ['low', 'normal', 'high', 'urgent'].includes(
+        task.priority ?? '',
+      )
+        ? task.priority!
+        : 'normal',
+    }));
+  }
+
   saveApiKey(value: unknown) {
     const key = typeof value === 'string' ? value.trim() : '';
     if (!key || key.length < 20 || /\s/.test(key)) {

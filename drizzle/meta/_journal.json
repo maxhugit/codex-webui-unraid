@@ -134,6 +134,13 @@
       "when": 1792233497507,
       "tag": "0018_old_kate_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1792238858172,
+      "tag": "0019_tranquil_black_knight",
+      "breakpoints": true
     }
   ]
 }

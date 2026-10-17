@@ -8,5 +8,6 @@ import { SimpleChatService } from './simple-chat.service';
   imports: [DatabaseModule, FilesModule],
   controllers: [SimpleChatController],
   providers: [SimpleChatService],
+  exports: [SimpleChatService],
 })
 export class SimpleChatModule {}

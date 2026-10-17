@@ -347,6 +347,61 @@ export const projectResources = sqliteTable(
 export type ProjectResource = typeof projectResources.$inferSelect;
 export type InsertProjectResource = typeof projectResources.$inferInsert;
 
+export const projectTaskStatuses = sqliteTable(
+  'project_task_statuses',
+  {
+    id: text('id').primaryKey(),
+    resourceId: text('resource_id')
+      .notNull()
+      .references(() => projectResources.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    color: text('color').notNull().default('slate'),
+    position: integer('position').notNull(),
+    system: integer('is_system', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [index('idx_project_task_statuses_resource').on(table.resourceId)],
+);
+
+export type ProjectTaskStatus = typeof projectTaskStatuses.$inferSelect;
+
+export const projectTasks = sqliteTable(
+  'project_tasks',
+  {
+    id: text('id').primaryKey(),
+    resourceId: text('resource_id')
+      .notNull()
+      .references(() => projectResources.id, { onDelete: 'cascade' }),
+    statusId: text('status_id')
+      .notNull()
+      .references(() => projectTaskStatuses.id, { onDelete: 'restrict' }),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    priority: text('priority').notNull().default('normal'),
+    dueAt: integer('due_at'),
+    labels: text('labels', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    linkedThreadId: text('linked_thread_id'),
+    linkedSimpleChatId: text('linked_simple_chat_id'),
+    linkedFilePath: text('linked_file_path'),
+    position: integer('position').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    index('idx_project_tasks_resource').on(table.resourceId),
+    index('idx_project_tasks_status_position').on(
+      table.statusId,
+      table.position,
+    ),
+  ],
+);
+
+export type ProjectTask = typeof projectTasks.$inferSelect;
+
 /** Filesystem execution contexts attached to a user-facing project. */
 export const projectWorkspaces = sqliteTable(
   'project_workspaces',

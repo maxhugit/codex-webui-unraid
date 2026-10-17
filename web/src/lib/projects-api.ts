@@ -25,6 +25,41 @@ export interface ProjectResourceSummary {
   config: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
+  taskCount?: number;
+}
+
+export interface ProjectTaskStatusSummary {
+  id: string;
+  resourceId: string;
+  name: string;
+  color: string;
+  position: number;
+  system: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectTaskSummary {
+  id: string;
+  resourceId: string;
+  statusId: string;
+  title: string;
+  description: string;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  dueAt: number | null;
+  labels: string[];
+  linkedThreadId: string | null;
+  linkedSimpleChatId: string | null;
+  linkedFilePath: string | null;
+  position: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectTaskBoard {
+  resource: ProjectResourceSummary;
+  statuses: ProjectTaskStatusSummary[];
+  tasks: ProjectTaskSummary[];
 }
 
 export interface ProjectWorkspaceSummary {

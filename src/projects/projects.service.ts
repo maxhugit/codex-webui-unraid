@@ -12,12 +12,16 @@ import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
   projects,
   projectResources,
+  projectTasks,
+  projectTaskStatuses,
   projectAgentThreads,
   projectWorkspaces,
   simpleChatThreads,
   type Project,
   type ProjectWorkspace,
   type ProjectResource,
+  type ProjectTask,
+  type ProjectTaskStatus,
 } from '../database/schema';
 import { FilesService } from '../files/files.service';
 import { WorkspacesManagementService } from '../threads/workspaces-management.service';
@@ -25,6 +29,7 @@ import { ThreadMetadataService } from '../threads/thread-metadata.service';
 import { ThreadWorkspaceOverridesService } from '../threads/thread-workspace-overrides.service';
 import { ThreadsDeletionService } from '../threads/threads-deletion.service';
 import { ThreadsService } from '../threads/threads.service';
+import { SimpleChatService } from '../simple-chat/simple-chat.service';
 
 const ORPHAN_ASSOCIATION_GRACE_MS = 5 * 60_000;
 
@@ -37,6 +42,7 @@ export class ProjectsService {
     private readonly overrides: ThreadWorkspaceOverridesService,
     private readonly deletion: ThreadsDeletionService,
     private readonly threads: ThreadsService,
+    private readonly simpleChat: SimpleChatService,
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
   ) {}
 
@@ -547,8 +553,308 @@ export class ProjectsService {
       createdAt: now,
       updatedAt: now,
     };
-    this.db.insert(projectResources).values(resource).run();
+    const defaultStatuses = [
+      { name: 'Actions non assignées', color: 'slate', system: true },
+      { name: 'À faire', color: 'blue', system: false },
+      { name: 'En cours', color: 'amber', system: false },
+      { name: 'Bloqué', color: 'red', system: false },
+      { name: 'Terminé', color: 'green', system: false },
+    ];
+    this.db.transaction((tx) => {
+      tx.insert(projectResources).values(resource).run();
+      tx.insert(projectTaskStatuses)
+        .values(
+          defaultStatuses.map((status, position) => ({
+            id: randomUUID(),
+            resourceId: resource.id,
+            ...status,
+            position,
+            createdAt: now,
+            updatedAt: now,
+          })),
+        )
+        .run();
+    });
     return resource;
+  }
+
+  readTaskBoard(projectId: string, resourceId: string) {
+    const resource = this.getResource(projectId, resourceId);
+    return {
+      resource,
+      statuses: this.db
+        .select()
+        .from(projectTaskStatuses)
+        .where(eq(projectTaskStatuses.resourceId, resourceId))
+        .all()
+        .sort((a, b) => a.position - b.position),
+      tasks: this.db
+        .select()
+        .from(projectTasks)
+        .where(eq(projectTasks.resourceId, resourceId))
+        .all()
+        .sort((a, b) => a.position - b.position),
+    };
+  }
+
+  createTaskStatus(
+    projectId: string,
+    resourceId: string,
+    input: { name?: string; color?: string },
+  ): ProjectTaskStatus {
+    this.getResource(projectId, resourceId);
+    const name = this.validateTaskText(input.name, 'Status name', 80);
+    const statuses = this.db
+      .select()
+      .from(projectTaskStatuses)
+      .where(eq(projectTaskStatuses.resourceId, resourceId))
+      .all();
+    const now = Date.now();
+    const status: ProjectTaskStatus = {
+      id: randomUUID(),
+      resourceId,
+      name,
+      color: this.validateColor(input.color),
+      position: Math.max(-1, ...statuses.map((item) => item.position)) + 1,
+      system: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.db.insert(projectTaskStatuses).values(status).run();
+    return status;
+  }
+
+  updateTaskStatus(
+    projectId: string,
+    resourceId: string,
+    statusId: string,
+    input: { name?: string; color?: string; position?: number },
+  ): ProjectTaskStatus {
+    this.getResource(projectId, resourceId);
+    const status = this.requireTaskStatus(resourceId, statusId);
+    const updated: ProjectTaskStatus = {
+      ...status,
+      name:
+        input.name === undefined
+          ? status.name
+          : this.validateTaskText(input.name, 'Status name', 80),
+      color:
+        input.color === undefined
+          ? status.color
+          : this.validateColor(input.color),
+      position:
+        typeof input.position === 'number' && Number.isInteger(input.position)
+          ? Math.max(0, input.position)
+          : status.position,
+      updatedAt: Date.now(),
+    };
+    this.db
+      .update(projectTaskStatuses)
+      .set(updated)
+      .where(eq(projectTaskStatuses.id, statusId))
+      .run();
+    return updated;
+  }
+
+  deleteTaskStatus(projectId: string, resourceId: string, statusId: string) {
+    this.getResource(projectId, resourceId);
+    const status = this.requireTaskStatus(resourceId, statusId);
+    if (status.system)
+      throw new ConflictException('The unassigned status cannot be deleted');
+    const fallback = this.db
+      .select()
+      .from(projectTaskStatuses)
+      .where(eq(projectTaskStatuses.resourceId, resourceId))
+      .all()
+      .find((item) => item.system);
+    if (!fallback) throw new ConflictException('Unassigned status is missing');
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      tx.update(projectTasks)
+        .set({ statusId: fallback.id, updatedAt: now })
+        .where(eq(projectTasks.statusId, status.id))
+        .run();
+      tx.delete(projectTaskStatuses)
+        .where(eq(projectTaskStatuses.id, status.id))
+        .run();
+    });
+    return { ok: true, fallbackStatusId: fallback.id };
+  }
+
+  createTask(
+    projectId: string,
+    resourceId: string,
+    input: {
+      title?: string;
+      description?: string;
+      priority?: string;
+      dueAt?: number | null;
+      labels?: string[];
+      linkedFilePath?: string | null;
+    },
+  ): ProjectTask {
+    this.getResource(projectId, resourceId);
+    const fallback = this.db
+      .select()
+      .from(projectTaskStatuses)
+      .where(eq(projectTaskStatuses.resourceId, resourceId))
+      .all()
+      .find((item) => item.system);
+    if (!fallback) throw new ConflictException('Unassigned status is missing');
+    const tasks = this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.statusId, fallback.id))
+      .all();
+    const priorities = new Set(['low', 'normal', 'high', 'urgent']);
+    if (input.priority && !priorities.has(input.priority))
+      throw new BadRequestException('Invalid priority');
+    const now = Date.now();
+    const task: ProjectTask = {
+      id: randomUUID(),
+      resourceId,
+      statusId: fallback.id,
+      title: this.validateTaskText(input.title, 'Task title', 200),
+      description: input.description?.trim().slice(0, 10_000) ?? '',
+      priority: input.priority ?? 'normal',
+      dueAt: input.dueAt ?? null,
+      labels: (input.labels ?? [])
+        .map((label) => label.trim())
+        .filter(Boolean)
+        .slice(0, 20),
+      linkedThreadId: null,
+      linkedSimpleChatId: null,
+      linkedFilePath: input.linkedFilePath?.trim() || null,
+      position: Math.max(-1, ...tasks.map((item) => item.position)) + 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.db.insert(projectTasks).values(task).run();
+    return task;
+  }
+
+  updateTask(
+    projectId: string,
+    resourceId: string,
+    taskId: string,
+    input: Partial<{
+      title: string;
+      description: string;
+      priority: string;
+      dueAt: number | null;
+      labels: string[];
+      statusId: string;
+      position: number;
+      linkedThreadId: string | null;
+      linkedSimpleChatId: string | null;
+      linkedFilePath: string | null;
+    }>,
+  ): ProjectTask {
+    this.getResource(projectId, resourceId);
+    const task = this.requireTask(resourceId, taskId);
+    if (input.statusId) this.requireTaskStatus(resourceId, input.statusId);
+    const priorities = new Set(['low', 'normal', 'high', 'urgent']);
+    if (input.priority && !priorities.has(input.priority))
+      throw new BadRequestException('Invalid priority');
+    const updated: ProjectTask = {
+      ...task,
+      ...(input.title !== undefined
+        ? { title: this.validateTaskText(input.title, 'Task title', 200) }
+        : {}),
+      ...(input.description !== undefined
+        ? { description: input.description.trim().slice(0, 10_000) }
+        : {}),
+      ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
+      ...(input.labels !== undefined
+        ? {
+            labels: input.labels
+              .map((label) => label.trim())
+              .filter(Boolean)
+              .slice(0, 20),
+          }
+        : {}),
+      ...(input.statusId !== undefined ? { statusId: input.statusId } : {}),
+      ...(input.position !== undefined
+        ? { position: Math.max(0, Math.trunc(input.position)) }
+        : {}),
+      ...(input.linkedThreadId !== undefined
+        ? { linkedThreadId: input.linkedThreadId }
+        : {}),
+      ...(input.linkedSimpleChatId !== undefined
+        ? { linkedSimpleChatId: input.linkedSimpleChatId }
+        : {}),
+      ...(input.linkedFilePath !== undefined
+        ? { linkedFilePath: input.linkedFilePath?.trim() || null }
+        : {}),
+      updatedAt: Date.now(),
+    };
+    this.db
+      .update(projectTasks)
+      .set(updated)
+      .where(eq(projectTasks.id, task.id))
+      .run();
+    return updated;
+  }
+
+  deleteTask(projectId: string, resourceId: string, taskId: string) {
+    this.getResource(projectId, resourceId);
+    const task = this.requireTask(resourceId, taskId);
+    this.db.delete(projectTasks).where(eq(projectTasks.id, task.id)).run();
+    return { ok: true };
+  }
+
+  async suggestTasks(projectId: string, resourceId: string, prompt: unknown) {
+    this.getResource(projectId, resourceId);
+    const request = this.validateTaskText(
+      prompt,
+      'Task planning request',
+      4_000,
+    );
+    return { tasks: await this.simpleChat.suggestProjectTasks(request) };
+  }
+
+  private requireTaskStatus(resourceId: string, statusId: string) {
+    const status = this.db
+      .select()
+      .from(projectTaskStatuses)
+      .where(eq(projectTaskStatuses.id, statusId))
+      .get();
+    if (!status || status.resourceId !== resourceId)
+      throw new NotFoundException('Task status not found');
+    return status;
+  }
+
+  private requireTask(resourceId: string, taskId: string) {
+    const task = this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.id, taskId))
+      .get();
+    if (!task || task.resourceId !== resourceId)
+      throw new NotFoundException('Task not found');
+    return task;
+  }
+
+  private validateTaskText(value: unknown, label: string, max: number) {
+    const text = typeof value === 'string' ? value.trim() : '';
+    if (!text || text.length > max)
+      throw new BadRequestException(
+        `${label} must contain 1 to ${max} characters`,
+      );
+    return text;
+  }
+
+  private validateColor(value: unknown) {
+    const colors = new Set([
+      'slate',
+      'blue',
+      'amber',
+      'red',
+      'green',
+      'purple',
+    ]);
+    return typeof value === 'string' && colors.has(value) ? value : 'slate';
   }
 
   getResource(projectId: string, resourceId: string): ProjectResource {

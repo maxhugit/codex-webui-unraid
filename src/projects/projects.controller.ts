@@ -54,7 +54,74 @@ export class ProjectsController {
     @Param('id') id: string,
     @Param('resourceId') resourceId: string,
   ) {
-    return { resource: this.projects.getResource(id, resourceId) };
+    return this.projects.readTaskBoard(id, resourceId);
+  }
+
+  @Post(':id/resources/:resourceId/statuses')
+  createTaskStatus(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Body() body: { name?: string; color?: string },
+  ) {
+    return { status: this.projects.createTaskStatus(id, resourceId, body) };
+  }
+
+  @Patch(':id/resources/:resourceId/statuses/:statusId')
+  updateTaskStatus(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Param('statusId') statusId: string,
+    @Body() body: { name?: string; color?: string; position?: number },
+  ) {
+    return {
+      status: this.projects.updateTaskStatus(id, resourceId, statusId, body),
+    };
+  }
+
+  @Delete(':id/resources/:resourceId/statuses/:statusId')
+  deleteTaskStatus(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Param('statusId') statusId: string,
+  ) {
+    return this.projects.deleteTaskStatus(id, resourceId, statusId);
+  }
+
+  @Post(':id/resources/:resourceId/tasks')
+  createTask(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Body() body: Parameters<ProjectsService['createTask']>[2],
+  ) {
+    return { task: this.projects.createTask(id, resourceId, body) };
+  }
+
+  @Post(':id/resources/:resourceId/ai-plan')
+  suggestTasks(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Body() body: { prompt?: unknown },
+  ) {
+    return this.projects.suggestTasks(id, resourceId, body.prompt);
+  }
+
+  @Patch(':id/resources/:resourceId/tasks/:taskId')
+  updateTask(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Param('taskId') taskId: string,
+    @Body() body: Parameters<ProjectsService['updateTask']>[3],
+  ) {
+    return { task: this.projects.updateTask(id, resourceId, taskId, body) };
+  }
+
+  @Delete(':id/resources/:resourceId/tasks/:taskId')
+  deleteTask(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Param('taskId') taskId: string,
+  ) {
+    return this.projects.deleteTask(id, resourceId, taskId);
   }
 
   @Patch(':id/resources/:resourceId')
