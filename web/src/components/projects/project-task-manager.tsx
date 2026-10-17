@@ -1201,51 +1201,89 @@ export function ProjectTaskManager({
     setTaskOpen(false);
   };
   const ganttTasks = board.tasks
-    .filter((t) => t.startAt || t.dueAt)
-    .map((t) => {
-      const parent = t.parentTaskId
-        ? board.tasks.find((candidate) => candidate.id === t.parentTaskId)
-        : null;
-      const fallback = t.startAt ?? t.dueAt!;
-      const start = new Date(t.startAt ?? fallback);
-      const end = new Date(t.dueAt ?? fallback);
-      const priorityId = parent?.priority ?? t.priority;
-      return {
-        id: t.id,
-        text: t.title,
-        start,
+    .filter((task) => !task.parentTaskId)
+    .flatMap((task) => {
+      const children = board.tasks.filter(
+        (candidate) => candidate.parentTaskId === task.id,
+      );
+      const datedChildren = children.filter(
+        (child) => child.startAt || child.dueAt,
+      );
+      const childStarts = datedChildren.map(
+        (child) => child.startAt ?? child.dueAt!,
+      );
+      const childEnds = datedChildren.map(
+        (child) => child.dueAt ?? child.startAt!,
+      );
+      const parentStart =
+        task.startAt ??
+        task.dueAt ??
+        (childStarts.length ? Math.min(...childStarts) : null);
+      const parentEnd =
+        task.dueAt ??
+        task.startAt ??
+        (childEnds.length ? Math.max(...childEnds) : null);
+      if (parentStart === null || parentEnd === null) return [];
+      const priorityIndex = Math.max(
+        0,
+        settings.priorityOptions.findIndex(
+          (option) => option.id === task.priority,
+        ),
+      );
+      const toGanttTask = (
+        current: ProjectTaskSummary,
+        startValue: number,
+        endValue: number,
+        parent: string | number,
+        parentType = false,
+      ) => ({
+        id: current.id,
+        text: current.title,
+        start: new Date(startValue),
         duration: Math.max(
           1,
-          Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1,
+          Math.ceil((endValue - startValue) / 86400000) + 1,
         ),
-        progress: t.progress,
-        parent: t.parentTaskId ?? 0,
-        type: `priority-${Math.max(
-          0,
-          settings.priorityOptions.findIndex((option) => option.id === priorityId),
-        )}`,
+        progress: current.progress,
+        parent,
+        type: `priority-${priorityIndex}${parentType ? '-parent' : ''}`,
         open: false,
-      };
+      });
+      return [
+        toGanttTask(task, parentStart, parentEnd, 0, children.length > 0),
+        ...children.map((child) =>
+          toGanttTask(
+            child,
+            child.startAt ?? child.dueAt ?? parentStart,
+            child.dueAt ?? child.startAt ?? parentEnd,
+            task.id,
+          ),
+        ),
+      ];
     });
-  const ganttTaskTypes = settings.priorityOptions.map((option, index) => ({
-    id: `priority-${index}`,
-    label: option.name,
-  }));
+  const ganttTaskTypes = settings.priorityOptions.flatMap((option, index) => [
+    { id: `priority-${index}`, label: option.name },
+    { id: `priority-${index}-parent`, label: option.name },
+  ]);
   const ganttPriorityStyles = settings.priorityOptions
     .map((option, index) => {
       const color = palette[option.color ?? 'slate'];
-      return `.project-gantt-shell .wx-bar.wx-task.priority-${index}{background-color:color-mix(in srgb, ${color} 68%, white);border-color:${color}}.project-gantt-shell .wx-bar.wx-task.priority-${index} .wx-progress-percent{background-color:${color}}`;
+      return `.project-gantt-shell .wx-bar.wx-task.priority-${index},.project-gantt-shell .wx-bar.wx-task.priority-${index}-parent{background-color:color-mix(in srgb, ${color} 68%, white);border-color:${color}}.project-gantt-shell .wx-bar.wx-task.priority-${index} .wx-progress-percent,.project-gantt-shell .wx-bar.wx-task.priority-${index}-parent .wx-progress-percent{background-color:${color}}.project-gantt-shell .wx-bar.wx-task.priority-${index}-parent .wx-progress-marker{display:none}`;
     })
     .join('');
   const ganttRange = (() => {
-    if (!ganttTasks.length) return { start: new Date(), end: new Date(), days: 1 };
+    if (!ganttTasks.length)
+      return { start: new Date(), end: new Date(), days: 1 };
     const starts = ganttTasks.map((task) => task.start.getTime());
     const ends = ganttTasks.map(
       (task) => task.start.getTime() + Math.max(1, task.duration) * 86400000,
     );
     const start = new Date(Math.min(...starts));
     const end = new Date(Math.max(...ends));
-    const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    const days = Math.max(
+      1,
+      Math.ceil((end.getTime() - start.getTime()) / 86400000),
+    );
     return { start, end, days };
   })();
   const ganttDisplay = (() => {
@@ -1262,7 +1300,11 @@ export function ProjectTaskManager({
       return {
         scales: [
           { unit: 'month', step: 1, format: '%F %Y' },
-          { unit: 'week', step: 1, format: ganttFrench ? "'Sem.' %W" : "'Week' %W" },
+          {
+            unit: 'week',
+            step: 1,
+            format: ganttFrench ? "'Sem.' %W" : "'Week' %W",
+          },
         ],
         cellWidth: 90,
       };
@@ -1272,7 +1314,10 @@ export function ProjectTaskManager({
       if (ganttRange.days > 730) {
         return {
           scales: [{ unit: 'year', step: 1, format: '%Y' }],
-          cellWidth: Math.max(55, Math.floor(chartWidth / Math.ceil(ganttRange.days / 365))),
+          cellWidth: Math.max(
+            55,
+            Math.floor(chartWidth / Math.ceil(ganttRange.days / 365)),
+          ),
         };
       }
       if (ganttRange.days > 120) {
@@ -1281,15 +1326,25 @@ export function ProjectTaskManager({
             { unit: 'year', step: 1, format: '%Y' },
             { unit: 'month', step: 1, format: '%M' },
           ],
-          cellWidth: Math.max(28, Math.floor(chartWidth / Math.ceil(ganttRange.days / 30.44))),
+          cellWidth: Math.max(
+            28,
+            Math.floor(chartWidth / Math.ceil(ganttRange.days / 30.44)),
+          ),
         };
       }
       return {
         scales: [
           { unit: 'month', step: 1, format: '%F %Y' },
-          { unit: 'week', step: 1, format: ganttFrench ? "'Sem.' %W" : "'Week' %W" },
+          {
+            unit: 'week',
+            step: 1,
+            format: ganttFrench ? "'Sem.' %W" : "'Week' %W",
+          },
         ],
-        cellWidth: Math.max(34, Math.floor(chartWidth / Math.ceil(ganttRange.days / 7))),
+        cellWidth: Math.max(
+          34,
+          Math.floor(chartWidth / Math.ceil(ganttRange.days / 7)),
+        ),
       };
     }
     return {
@@ -1350,28 +1405,42 @@ export function ProjectTaskManager({
 
   const persistGanttDates = async (event: {
     id: string | number;
-    task: { start?: Date; duration?: number };
+    task: { start?: Date; duration?: number; progress?: number };
     inProgress?: boolean;
   }) => {
     if (event.inProgress) return;
-    const current = board.tasks.find(
-      (task) => task.id === String(event.id),
-    );
-    if (!current || !event.task.start) return;
-    const start = new Date(event.task.start);
-    start.setHours(12, 0, 0, 0);
-    const duration = Math.max(1, Math.round(event.task.duration ?? 1));
-    const due = new Date(start);
-    due.setDate(due.getDate() + duration - 1);
+    const current = board.tasks.find((task) => task.id === String(event.id));
+    if (!current) return;
+    const patch: { startAt?: number; dueAt?: number; progress?: number } = {};
+    if (event.task.start) {
+      const start = new Date(event.task.start);
+      start.setHours(12, 0, 0, 0);
+      const duration = Math.max(1, Math.round(event.task.duration ?? 1));
+      const due = new Date(start);
+      due.setDate(due.getDate() + duration - 1);
+      patch.startAt = start.getTime();
+      patch.dueAt = due.getTime();
+    }
+    if (event.task.progress !== undefined) {
+      const hasChildren = board.tasks.some(
+        (task) => task.parentTaskId === current.id,
+      );
+      if (!hasChildren)
+        patch.progress = Math.min(
+          100,
+          Math.max(0, Math.round(event.task.progress)),
+        );
+    }
+    if (!Object.keys(patch).length) {
+      await refresh();
+      return;
+    }
     try {
       await projectsApi(
         `/${projectId}/resources/${resourceId}/tasks/${current.id}`,
         {
           method: 'PATCH',
-          body: JSON.stringify({
-            startAt: start.getTime(),
-            dueAt: due.getTime(),
-          }),
+          body: JSON.stringify(patch),
         },
       );
       await refresh();
@@ -1872,189 +1941,193 @@ export function ProjectTaskManager({
             ref={ganttShellRef}
             className="project-gantt-shell min-h-0 flex-1 overflow-hidden rounded-xl border bg-card"
           >
-          <style>{ganttPriorityStyles}</style>
-          <GanttTheme>
-            <Locale words={ganttLocale}>
-              <Tooltip
-                api={ganttApi ?? undefined}
-                content={({ data }) => {
-                  if (!('task' in data)) return null;
-                  const task = board.tasks.find(
-                    (item) => item.id === String(data.task.id),
-                  );
-                  if (!task) return null;
-                  const status = board.statuses.find(
-                    (item) => item.id === task.statusId,
-                  );
-                  const statusColor =
-                    palette[paletteColor(status?.color, 'slate')];
-                  const subtasks = childrenFor(task.id);
-                  const dependencies = dependencyIdsFor(task.id)
-                    .map((id) => board.tasks.find((item) => item.id === id))
-                    .filter((item): item is ProjectTaskSummary =>
-                      Boolean(item),
+            <style>{ganttPriorityStyles}</style>
+            <GanttTheme>
+              <Locale words={ganttLocale}>
+                <Tooltip
+                  api={ganttApi ?? undefined}
+                  content={({ data }) => {
+                    if (!('task' in data)) return null;
+                    const task = board.tasks.find(
+                      (item) => item.id === String(data.task.id),
                     );
-                  const formatDate = (value: number | null) =>
-                    value
-                      ? new Intl.DateTimeFormat(undefined, {
-                          dateStyle: 'medium',
-                        }).format(value)
-                      : ganttFrench
-                        ? 'Non définie'
-                        : 'Not set';
-                  return (
-                    <div className="project-gantt-tooltip-content w-80 space-y-3 rounded-xl bg-popover p-3 text-sm text-popover-foreground">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 font-semibold leading-snug">
-                          {task.title}
-                        </div>
-                        <span
-                          className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
-                          style={{
-                            backgroundColor: `${statusColor}22`,
-                            color: statusColor,
-                          }}
-                        >
-                          {status?.name ??
-                            (ganttFrench ? 'Non défini' : 'Not set')}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">
-                            {ganttFrench
-                              ? 'Avancement global'
-                              : 'Overall progress'}
-                          </span>
-                          <span className="font-medium">{task.progress} %</span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-primary"
-                            style={{ width: `${task.progress}%` }}
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                        <span className="text-muted-foreground">
-                          {ganttFrench ? 'Priorité' : 'Priority'}
-                        </span>
-                        <span>{priorityName(task.priority)}</span>
-                        <span className="text-muted-foreground">
-                          {ganttFrench ? 'Début' : 'Start'}
-                        </span>
-                        <span>{formatDate(task.startAt)}</span>
-                        <span className="text-muted-foreground">
-                          {ganttFrench ? 'Fin' : 'End'}
-                        </span>
-                        <span>{formatDate(task.dueAt)}</span>
-                        <span className="text-muted-foreground">
-                          {ganttFrench ? 'Charge' : 'Workload'}
-                        </span>
-                        <span>{task.estimateMinutes / 60} h</span>
-                      </div>
-                      {subtasks.length > 0 && (
-                        <div className="space-y-1.5 border-t pt-2">
-                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {ganttFrench ? 'Sous-tâches' : 'Subtasks'} (
-                            {subtasks.length})
+                    if (!task) return null;
+                    const status = board.statuses.find(
+                      (item) => item.id === task.statusId,
+                    );
+                    const statusColor =
+                      palette[paletteColor(status?.color, 'slate')];
+                    const subtasks = childrenFor(task.id);
+                    const dependencies = dependencyIdsFor(task.id)
+                      .map((id) => board.tasks.find((item) => item.id === id))
+                      .filter((item): item is ProjectTaskSummary =>
+                        Boolean(item),
+                      );
+                    const formatDate = (value: number | null) =>
+                      value
+                        ? new Intl.DateTimeFormat(undefined, {
+                            dateStyle: 'medium',
+                          }).format(value)
+                        : ganttFrench
+                          ? 'Non définie'
+                          : 'Not set';
+                    return (
+                      <div className="project-gantt-tooltip-content w-80 space-y-3 rounded-xl bg-popover p-3 text-sm text-popover-foreground">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 font-semibold leading-snug">
+                            {task.title}
                           </div>
-                          <div className="space-y-1">
-                            {subtasks.slice(0, 5).map((subtask) => (
-                              <div
-                                key={subtask.id}
-                                className="flex items-center justify-between gap-2 text-xs"
-                              >
-                                <span className="truncate">
-                                  {subtask.title}
-                                </span>
-                                <span className="shrink-0 text-muted-foreground">
-                                  {subtaskLabels[subtask.subtaskStatus]}
-                                </span>
-                              </div>
-                            ))}
-                            {subtasks.length > 5 && (
-                              <div className="text-xs text-muted-foreground">
-                                +{subtasks.length - 5}{' '}
-                                {ganttFrench ? 'autres' : 'more'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {dependencies.length > 0 && (
-                        <div className="border-t pt-2 text-xs">
-                          <span className="font-medium text-muted-foreground">
-                            {ganttFrench ? 'Dépend de :' : 'Depends on:'}{' '}
-                          </span>
-                          <span>
-                            {dependencies.map((item) => item.title).join(', ')}
+                          <span
+                            className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                            style={{
+                              backgroundColor: `${statusColor}22`,
+                              color: statusColor,
+                            }}
+                          >
+                            {status?.name ??
+                              (ganttFrench ? 'Non défini' : 'Not set')}
                           </span>
                         </div>
-                      )}
-                      {task.labels.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {task.labels.map((label) => (
-                            <span
-                              key={label}
-                              className="rounded bg-muted px-2 py-0.5 text-xs"
-                            >
-                              {label}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {ganttFrench
+                                ? 'Avancement global'
+                                : 'Overall progress'}
                             </span>
-                          ))}
+                            <span className="font-medium">
+                              {task.progress} %
+                            </span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-primary"
+                              style={{ width: `${task.progress}%` }}
+                            />
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                }}
-              >
-                <Gantt
-                  key={`${dark ? 'dark' : 'light'}:${i18n.language}:${ganttTasks
-                    .map((task) => task.id)
-                    .join(':')}`}
-                  tasks={ganttTasks as never}
-                  links={ganttLinks as never}
-                  columns={ganttColumns}
-                  taskTypes={ganttTaskTypes}
-                  scales={ganttDisplay.scales as never}
-                  cellWidth={ganttDisplay.cellWidth}
-                  highlightTime={(date, unit) => {
-                    if (unit !== 'day' && unit !== 'hour') return '';
-                    const today = new Date();
-                    return date.getFullYear() === today.getFullYear() &&
-                      date.getMonth() === today.getMonth() &&
-                      date.getDate() === today.getDate()
-                      ? 'project-gantt-today-cell'
-                      : '';
+                        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                          <span className="text-muted-foreground">
+                            {ganttFrench ? 'Priorité' : 'Priority'}
+                          </span>
+                          <span>{priorityName(task.priority)}</span>
+                          <span className="text-muted-foreground">
+                            {ganttFrench ? 'Début' : 'Start'}
+                          </span>
+                          <span>{formatDate(task.startAt)}</span>
+                          <span className="text-muted-foreground">
+                            {ganttFrench ? 'Fin' : 'End'}
+                          </span>
+                          <span>{formatDate(task.dueAt)}</span>
+                          <span className="text-muted-foreground">
+                            {ganttFrench ? 'Charge' : 'Workload'}
+                          </span>
+                          <span>{task.estimateMinutes / 60} h</span>
+                        </div>
+                        {subtasks.length > 0 && (
+                          <div className="space-y-1.5 border-t pt-2">
+                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              {ganttFrench ? 'Sous-tâches' : 'Subtasks'} (
+                              {subtasks.length})
+                            </div>
+                            <div className="space-y-1">
+                              {subtasks.slice(0, 5).map((subtask) => (
+                                <div
+                                  key={subtask.id}
+                                  className="flex items-center justify-between gap-2 text-xs"
+                                >
+                                  <span className="truncate">
+                                    {subtask.title}
+                                  </span>
+                                  <span className="shrink-0 text-muted-foreground">
+                                    {subtaskLabels[subtask.subtaskStatus]}
+                                  </span>
+                                </div>
+                              ))}
+                              {subtasks.length > 5 && (
+                                <div className="text-xs text-muted-foreground">
+                                  +{subtasks.length - 5}{' '}
+                                  {ganttFrench ? 'autres' : 'more'}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {dependencies.length > 0 && (
+                          <div className="border-t pt-2 text-xs">
+                            <span className="font-medium text-muted-foreground">
+                              {ganttFrench ? 'Dépend de :' : 'Depends on:'}{' '}
+                            </span>
+                            <span>
+                              {dependencies
+                                .map((item) => item.title)
+                                .join(', ')}
+                            </span>
+                          </div>
+                        )}
+                        {task.labels.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {task.labels.map((label) => (
+                              <span
+                                key={label}
+                                className="rounded bg-muted px-2 py-0.5 text-xs"
+                              >
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
                   }}
-                  zoom={false}
-                  init={(api) => {
-                    setGanttApi(api);
-                    api.on(
-                      'update-task',
-                      (event) => void persistGanttDates(event),
-                      { tag: 'persist-project-task-dates' },
-                    );
-                    api.on(
-                      'add-link',
-                      (event) => void persistGanttLink(event),
-                      { tag: 'persist-project-task-link' },
-                    );
-                    api.on(
-                      'delete-link',
-                      (event) => void deleteGanttLink(event),
-                      { tag: 'delete-project-task-link' },
-                    );
-                  }}
-                />
-              </Tooltip>
-            </Locale>
-          </GanttTheme>
-          {!ganttTasks.length && (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              Ajoutez des dates pour afficher les tâches dans le planning.
-            </div>
-          )}
+                >
+                  <Gantt
+                    key={`${dark ? 'dark' : 'light'}:${i18n.language}:${ganttView}:${ganttDisplay.cellWidth}:${ganttTasks
+                      .map((task) => task.id)
+                      .join(':')}`}
+                    tasks={ganttTasks as never}
+                    links={ganttLinks as never}
+                    columns={ganttColumns}
+                    taskTypes={ganttTaskTypes}
+                    scales={ganttDisplay.scales as never}
+                    cellWidth={ganttDisplay.cellWidth}
+                    highlightTime={(date, unit) => {
+                      if (unit !== 'day' && unit !== 'hour') return '';
+                      const today = new Date();
+                      return date.getFullYear() === today.getFullYear() &&
+                        date.getMonth() === today.getMonth() &&
+                        date.getDate() === today.getDate()
+                        ? 'project-gantt-today-cell'
+                        : '';
+                    }}
+                    zoom
+                    init={(api) => {
+                      setGanttApi(api);
+                      api.on(
+                        'update-task',
+                        (event) => void persistGanttDates(event),
+                        { tag: 'persist-project-task-dates' },
+                      );
+                      api.on(
+                        'add-link',
+                        (event) => void persistGanttLink(event),
+                        { tag: 'persist-project-task-link' },
+                      );
+                      api.on(
+                        'delete-link',
+                        (event) => void deleteGanttLink(event),
+                        { tag: 'delete-project-task-link' },
+                      );
+                    }}
+                  />
+                </Tooltip>
+              </Locale>
+            </GanttTheme>
+            {!ganttTasks.length && (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                Ajoutez des dates pour afficher les tâches dans le planning.
+              </div>
+            )}
           </section>
         </div>
       ) : (

@@ -898,6 +898,13 @@ export class ProjectsService {
     const effectiveParent = effectiveParentId
       ? this.requireTask(resourceId, effectiveParentId)
       : null;
+    const hasChildren =
+      !effectiveParentId &&
+      this.db
+        .select({ id: projectTasks.id })
+        .from(projectTasks)
+        .where(eq(projectTasks.parentTaskId, task.id))
+        .all().length > 0;
     if (input.executionMode === 'agent' && !effectiveParentId)
       throw new BadRequestException(
         'Only subtasks can be assigned to an agent',
@@ -993,7 +1000,7 @@ export class ProjectsService {
       ...(input.estimateMinutes !== undefined
         ? { estimateMinutes: Math.max(0, Math.trunc(input.estimateMinutes)) }
         : {}),
-      ...(input.progress !== undefined
+      ...(input.progress !== undefined && !hasChildren
         ? {
             progress: Math.min(100, Math.max(0, Math.trunc(input.progress))),
           }
@@ -1252,11 +1259,34 @@ export class ProjectsService {
       parent.progress === progress
     )
       return;
-    this.db
-      .update(projectTasks)
-      .set({ estimateMinutes, progress, updatedAt: Date.now() })
-      .where(eq(projectTasks.id, parentTaskId))
-      .run();
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      tx.update(projectTasks)
+        .set({ estimateMinutes, progress, updatedAt: now })
+        .where(eq(projectTasks.id, parentTaskId))
+        .run();
+      const changes: Record<string, { before: unknown; after: unknown }> = {};
+      if (parent.estimateMinutes !== estimateMinutes)
+        changes.estimateMinutes = {
+          before: parent.estimateMinutes,
+          after: estimateMinutes,
+        };
+      if (parent.progress !== progress)
+        changes.progress = { before: parent.progress, after: progress };
+      if (Object.keys(changes).length)
+        tx.insert(projectTaskActivity)
+          .values({
+            id: randomUUID(),
+            resourceId,
+            taskId: parent.id,
+            taskTitle: parent.title,
+            parentTaskId: null,
+            action: 'updated',
+            changes,
+            createdAt: now,
+          })
+          .run();
+    });
   }
 
   private getTaskBoardTerminalSettings(resourceId: string) {
