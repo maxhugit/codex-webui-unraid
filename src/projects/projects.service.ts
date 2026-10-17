@@ -1197,7 +1197,7 @@ export class ProjectsService {
       validationCriteria?: unknown;
     },
   ) {
-    this.getResource(projectId, resourceId);
+    const resource = this.getResource(projectId, resourceId);
     const task = this.requireTask(resourceId, taskId);
     if (task.parentTaskId)
       throw new BadRequestException(
@@ -1216,11 +1216,46 @@ export class ProjectsService {
     )
       .trim()
       .slice(0, 10_000);
-    const prompt = `Découpe la tâche suivante en sous-tâches concrètes, suffisamment petites pour être exécutées et validées séparément. Ne retourne pas la tâche principale elle-même. Ne crée aucune dépendance entre les sous-tâches. Propose entre 2 et 10 sous-tâches. Pour chacune, détermine si un agent IA peut raisonnablement la réaliser seul ou si elle doit rester manuelle.\n\nTâche : ${title}\nDescription : ${description || 'Non précisée'}\nConditions de validation : ${validationCriteria || 'Non précisées'}`;
+    const taskBoardSettings =
+      resource.config &&
+      typeof resource.config === 'object' &&
+      !Array.isArray(resource.config) &&
+      resource.config.taskBoardSettings &&
+      typeof resource.config.taskBoardSettings === 'object' &&
+      !Array.isArray(resource.config.taskBoardSettings)
+        ? (resource.config.taskBoardSettings as Record<string, unknown>)
+        : {};
+    const configuredLabels = Array.isArray(taskBoardSettings.labels)
+      ? taskBoardSettings.labels
+          .map((label) =>
+            label &&
+            typeof label === 'object' &&
+            !Array.isArray(label) &&
+            typeof (label as Record<string, unknown>).name === 'string'
+              ? String((label as Record<string, unknown>).name).trim()
+              : '',
+          )
+          .filter(Boolean)
+          .slice(0, 100)
+      : [];
+    const allowedLabels = new Map(
+      configuredLabels.map((label) => [label.toLocaleLowerCase(), label]),
+    );
+    const labelsInstruction = configuredLabels.length
+      ? `\nLabels disponibles : ${configuredLabels.join(', ')}. Pour chaque sous-tâche, propose zéro, un ou plusieurs labels pertinents exclusivement parmi cette liste. N'invente aucun label.`
+      : `\nAucun label n'est configuré : retourne une liste labels vide pour chaque sous-tâche.`;
+    const prompt = `Découpe la tâche suivante en sous-tâches concrètes, suffisamment petites pour être exécutées et validées séparément. Ne retourne pas la tâche principale elle-même. Ne crée aucune dépendance entre les sous-tâches. Propose entre 2 et 10 sous-tâches. Pour chacune, détermine si un agent IA peut raisonnablement la réaliser seul ou si elle doit rester manuelle.${labelsInstruction}\n\nTâche : ${title}\nDescription : ${description || 'Non précisée'}\nConditions de validation : ${validationCriteria || 'Non précisées'}`;
     const suggestions = await this.simpleChat.suggestProjectTasks(prompt);
     return {
       tasks: suggestions.slice(0, 10).map((suggestion) => ({
         ...suggestion,
+        labels: [
+          ...new Set(
+            suggestion.labels
+              .map((label) => allowedLabels.get(label.toLocaleLowerCase()))
+              .filter((label): label is string => Boolean(label)),
+          ),
+        ],
         parentTitle: title,
         dependsOnTitles: [],
       })),

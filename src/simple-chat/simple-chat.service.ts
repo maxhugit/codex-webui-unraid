@@ -111,6 +111,7 @@ export class SimpleChatService {
       dependsOnTitles: string[];
       executionMode: 'manual' | 'agent';
       assignmentReason: string;
+      labels: string[];
     }>
   > {
     const response = await this.openAiRequest('/v1/responses', {
@@ -119,7 +120,7 @@ export class SimpleChatService {
         model: this.defaultModel,
         input: prompt,
         instructions:
-          'Tu es un chef de projet. Construis un plan concret en français. Utilise parentTitle pour créer des sous-tâches et dependsOnTitles pour les dépendances fin-vers-début. Les titres référencés doivent correspondre exactement à un autre titre de la liste. Pour chaque proposition, décide si elle peut être exécutée de façon fiable par un agent IA (agent) ou si elle nécessite une intervention humaine (manual), et explique brièvement ce choix dans assignmentReason. Une tâche principale doit toujours rester manuelle.',
+          'Tu es un chef de projet. Construis un plan concret en français. Utilise parentTitle pour créer des sous-tâches et dependsOnTitles pour les dépendances fin-vers-début. Les titres référencés doivent correspondre exactement à un autre titre de la liste. Pour chaque proposition, décide si elle peut être exécutée de façon fiable par un agent IA (agent) ou si elle nécessite une intervention humaine (manual), et explique brièvement ce choix dans assignmentReason. Une tâche principale doit toujours rester manuelle. Dans labels, utilise exclusivement les labels disponibles explicitement fournis dans la demande ; sinon retourne une liste vide.',
         text: {
           format: {
             type: 'json_schema',
@@ -155,6 +156,10 @@ export class SimpleChatService {
                         enum: ['manual', 'agent'],
                       },
                       assignmentReason: { type: 'string' },
+                      labels: {
+                        type: 'array',
+                        items: { type: 'string' },
+                      },
                     },
                     required: [
                       'title',
@@ -166,6 +171,7 @@ export class SimpleChatService {
                       'dependsOnTitles',
                       'executionMode',
                       'assignmentReason',
+                      'labels',
                     ],
                   },
                 },
@@ -194,6 +200,7 @@ export class SimpleChatService {
         dependsOnTitles?: string[];
         executionMode?: string;
         assignmentReason?: string;
+        labels?: string[];
       }>;
     };
     return (parsed.tasks ?? []).map((task) => ({
@@ -212,6 +219,7 @@ export class SimpleChatService {
         .filter(Boolean),
       executionMode: task.executionMode === 'agent' ? 'agent' : 'manual',
       assignmentReason: task.assignmentReason?.trim() || '',
+      labels: (task.labels ?? []).map((label) => label.trim()).filter(Boolean),
     }));
   }
 

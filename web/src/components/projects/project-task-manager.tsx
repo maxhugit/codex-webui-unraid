@@ -78,6 +78,7 @@ type Suggestion = {
   dependsOnTitles: string[];
   executionMode: 'manual' | 'agent';
   assignmentReason: string;
+  labels: string[];
 };
 type ReplanSuggestion = {
   taskId: string;
@@ -912,6 +913,7 @@ export function ProjectTaskManager({
             parentTaskId: parentId,
             workspacePath: draft.workspacePath || board.project.workspacePath,
             executionMode: suggestion.executionMode,
+            labels: suggestion.labels,
             dependencyIds: [],
           }),
         });
@@ -1875,6 +1877,45 @@ export function ProjectTaskManager({
                       update({ validationCriteria: event.target.value })
                     }
                   />
+                  {settings.labels.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Labels</div>
+                      <div className="flex flex-wrap gap-2">
+                        {settings.labels.map((label) => {
+                          const selected = suggestion.labels.includes(
+                            label.name,
+                          );
+                          return (
+                            <label
+                              key={label.id}
+                              className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(event) =>
+                                  update({
+                                    labels: event.target.checked
+                                      ? [...suggestion.labels, label.name]
+                                      : suggestion.labels.filter(
+                                          (name) => name !== label.name,
+                                        ),
+                                  })
+                                }
+                              />
+                              <span
+                                className="size-2.5 rounded-full"
+                                style={{
+                                  backgroundColor: palette[label.color],
+                                }}
+                              />
+                              {label.name}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {suggestion.assignmentReason && (
                     <p className="text-xs text-muted-foreground">
                       Recommandation IA : {suggestion.assignmentReason}
@@ -1899,6 +1940,7 @@ export function ProjectTaskManager({
                     dependsOnTitles: [],
                     executionMode: 'manual',
                     assignmentReason: '',
+                    labels: [],
                   },
                 ])
               }
