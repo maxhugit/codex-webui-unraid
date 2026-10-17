@@ -6,7 +6,9 @@ import {
   Bot,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock3,
   FolderOpen,
   Settings,
@@ -638,6 +640,29 @@ export function ProjectTaskManager({
       path: `/${projectId}/resources/${resourceId}/statuses/${status.id}`,
       method: 'DELETE',
     });
+  };
+  const moveStatus = async (index: number, offset: -1 | 1) => {
+    const targetIndex = index + offset;
+    const current = board.statuses[index];
+    const target = board.statuses[targetIndex];
+    if (!current || !target) return;
+    await Promise.all([
+      projectsApi(
+        `/${projectId}/resources/${resourceId}/statuses/${current.id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ position: targetIndex }),
+        },
+      ),
+      projectsApi(
+        `/${projectId}/resources/${resourceId}/statuses/${target.id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ position: index }),
+        },
+      ),
+    ]);
+    await refresh();
   };
   const generatePlan = async () => {
     setAiLoading(true);
@@ -1862,10 +1887,10 @@ export function ProjectTaskManager({
                 </Button>
               </div>
               <div className="divide-y rounded-lg border">
-                {board.statuses.map((status) => (
+                {board.statuses.map((status, statusIndex) => (
                   <div
                     key={status.id}
-                    className="grid grid-cols-[minmax(0,1fr)_5rem_9rem_2rem_2rem] items-center gap-2 px-3 py-2"
+                    className="grid grid-cols-[minmax(0,1fr)_5rem_9rem_4rem_2rem_2rem] items-center gap-2 px-3 py-2"
                   >
                     <span className="flex min-w-0 items-center gap-3">
                       <span
@@ -1901,6 +1926,26 @@ export function ProjectTaskManager({
                       />
                       Masquer si vide
                     </label>
+                    <span className="flex justify-center">
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        disabled={statusIndex === 0}
+                        title="Monter la colonne"
+                        onClick={() => moveStatus(statusIndex, -1)}
+                      >
+                        <ChevronUp />
+                      </Button>
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        disabled={statusIndex === board.statuses.length - 1}
+                        title="Descendre la colonne"
+                        onClick={() => moveStatus(statusIndex, 1)}
+                      >
+                        <ChevronDown />
+                      </Button>
+                    </span>
                     <Button
                       size="icon-xs"
                       variant="ghost"
