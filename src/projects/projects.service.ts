@@ -54,7 +54,7 @@ export class ProjectsService {
     this.ensurePrimaryWorkspaces();
     await this.migrateConversationAssociations();
     const workspaces = this.db.select().from(projectWorkspaces).all();
-    const agents = this.db.select().from(projectAgentThreads).all();
+    let agents = this.db.select().from(projectAgentThreads).all();
     const snapshot = await this.metadata.read().catch(() => null);
     const snapshotEntries = snapshot?.entries ?? [];
     const effectiveThreads = this.overrides.applyToThreads(
@@ -66,6 +66,29 @@ export class ProjectsService {
         { thread: effectiveThreads[index], archived: entry.archived },
       ]),
     );
+    // A thread cwd can also be changed through the generic thread endpoint or
+    // by Codex itself. Keep the explicit project association aligned with the
+    // effective cwd whenever it resolves to another workspace in that project.
+    const workspaceOwners = new Map(
+      workspaces.map((workspace) => [workspace.path, workspace]),
+    );
+    const now = Date.now();
+    for (const agent of agents) {
+      const cwd = threadMetadata.get(agent.threadId)?.thread.cwd;
+      const owner = cwd ? workspaceOwners.get(cwd) : undefined;
+      if (
+        !owner ||
+        owner.projectId !== agent.projectId ||
+        owner.path === agent.workspacePath
+      )
+        continue;
+      this.db
+        .update(projectAgentThreads)
+        .set({ workspacePath: owner.path, updatedAt: now })
+        .where(eq(projectAgentThreads.threadId, agent.threadId))
+        .run();
+    }
+    agents = this.db.select().from(projectAgentThreads).all();
     // Codex does not expose empty placeholders as conversations. Keep a short
     // grace period for a freshly-created agent, then discard only its WebUI
     // association when it never became visible or was deleted elsewhere.

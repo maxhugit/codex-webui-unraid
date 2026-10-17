@@ -50,7 +50,14 @@ import { invalidateThreadListSoon } from '@/lib/query-invalidation';
 
 /** URL identity owns opening; tab identity controls only presentation and never subscription. */
 export function ThreadView() {
-  const { threadId } = useParams({ strict: false }) as { threadId: string };
+  const params: unknown = useParams({ strict: false });
+  const threadId =
+    params &&
+    typeof params === 'object' &&
+    'threadId' in params &&
+    typeof params.threadId === 'string'
+      ? params.threadId
+      : '';
   return <ConversationWorkspace key={threadId} threadId={threadId} />;
 }
 
@@ -83,17 +90,19 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
   const setDefaultWorkspace = useMutation({
     mutationFn: async (nextCwd: string) => {
       const authorization = getAuthorizationHeader();
-      const response = await fetch(
-        withBasePath(`/api/threads/${threadId}/cwd`),
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(authorization ? { Authorization: authorization } : {}),
-          },
-          body: JSON.stringify({ cwd: nextCwd }),
+      const endpoint = project
+        ? `/api/projects/${project.id}/agents/${threadId}`
+        : `/api/threads/${threadId}/cwd`;
+      const response = await fetch(withBasePath(endpoint), {
+        method: project ? 'PUT' : 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authorization ? { Authorization: authorization } : {}),
         },
-      );
+        body: JSON.stringify(
+          project ? { workspacePath: nextCwd } : { cwd: nextCwd },
+        ),
+      });
       const payload = (await response.json().catch(() => ({}))) as {
         message?: string;
         threadIds?: string[];
@@ -105,6 +114,7 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
     onSuccess: (threadIds, nextCwd) => {
       const timeline = useTimelineStore.getState();
       for (const id of threadIds) timeline.setThreadCwdForThread(id, nextCwd);
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
       const sandbox = policy.observed?.sandboxPolicy;
       if (sandbox?.type === 'workspaceWrite' && project) {
         policy.apply({
