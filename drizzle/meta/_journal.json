@@ -106,6 +106,13 @@
       "when": 1792200952349,
       "tag": "0014_simple_chat_workspaces",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1792212937517,
+      "tag": "0015_crazy_justice",
+      "breakpoints": true
     }
   ]
 }

@@ -54,8 +54,8 @@ interface Props {
   onOpenWorkspaceDetail: (cwd: string) => void;
   onCreateAgentInWorkspace: (cwd: string) => void;
   onCreateSimpleChatInWorkspace: (cwd: string) => void;
-  onRenameWorkspace?: (cwd: string) => void;
-  onDeleteWorkspace?: (cwd: string) => void;
+  onRenameProject?: (group: WorkspaceGroup) => void;
+  onDeleteProject?: (group: WorkspaceGroup) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
   renderSimpleChatRow: (
     thread: WorkspaceGroup['simpleChats'][number],
@@ -73,8 +73,8 @@ export function WorkspaceOverview({
   onOpenWorkspaceDetail,
   onCreateAgentInWorkspace,
   onCreateSimpleChatInWorkspace,
-  onRenameWorkspace,
-  onDeleteWorkspace,
+  onRenameProject,
+  onDeleteProject,
   renderThreadRow,
   renderSimpleChatRow,
   movingThread,
@@ -174,7 +174,9 @@ export function WorkspaceOverview({
                 ) : (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform" />
                 )}
-                <span className="truncate">{workspaceLabel(group.cwd)}</span>
+                <span className="truncate">
+                  {group.name ?? workspaceLabel(group.cwd)}
+                </span>
               </button>
               <div className="flex shrink-0 items-center gap-0.5">
                 <Popover
@@ -219,7 +221,7 @@ export function WorkspaceOverview({
                       className="h-8 w-full justify-start gap-2 px-2 text-xs"
                       onClick={() => {
                         setOpenMenu(null);
-                        onRenameWorkspace?.(group.cwd);
+                        onRenameProject?.(group);
                       }}
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -230,7 +232,7 @@ export function WorkspaceOverview({
                       className="h-8 w-full justify-start gap-2 px-2 text-xs text-destructive hover:text-destructive"
                       onClick={() => {
                         setOpenMenu(null);
-                        onDeleteWorkspace?.(group.cwd);
+                        onDeleteProject?.(group);
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />

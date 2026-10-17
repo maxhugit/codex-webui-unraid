@@ -302,6 +302,28 @@ export type ConversationBranchActiveMember =
 export type InsertConversationBranchActiveMember =
   typeof conversationBranchActiveMembers.$inferInsert;
 
+/**
+ * User-facing projects. A project has a stable identity and display name while
+ * its primary workspace remains the filesystem execution context.
+ */
+export const projects = sqliteTable(
+  'projects',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    workspacePath: text('workspace_path').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('idx_projects_workspace_path').on(table.workspacePath),
+    index('idx_projects_name').on(table.name),
+  ],
+);
+
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = typeof projects.$inferInsert;
+
 /** Lightweight OpenAI API conversations, separate from Codex work threads. */
 export const simpleChatThreads = sqliteTable(
   'simple_chat_threads',

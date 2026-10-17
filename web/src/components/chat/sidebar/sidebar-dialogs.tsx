@@ -21,30 +21,54 @@ interface RenameDialogProps {
   onChange: (value: string) => void;
   onSave: () => void;
   onClose: () => void;
+  title?: string;
+  description?: string;
+  saveLabel?: string;
 }
 
 /** Dialog for renaming a thread. */
-export function RenameDialog({ open, pending, value, onChange, onSave, onClose }: RenameDialogProps) {
+export function RenameDialog({
+  open,
+  pending,
+  value,
+  onChange,
+  onSave,
+  onClose,
+  title,
+  description,
+  saveLabel,
+}: RenameDialogProps) {
   const { t } = useTranslation();
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && !pending && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('Rename thread')}</AlertDialogTitle>
-          <AlertDialogDescription>{t('Enter a non-empty thread name.')}</AlertDialogDescription>
+          <AlertDialogTitle>{title ?? t('Rename thread')}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {description ?? t('Enter a non-empty thread name.')}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && value.trim() && !pending) onSave(); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && value.trim() && !pending) onSave();
+          }}
           disabled={pending}
           autoFocus
         />
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>{t('Cancel')}</AlertDialogCancel>
-          <AlertDialogAction disabled={!value.trim() || pending} onClick={onSave}>
-            {pending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-            {t('Save')}
+          <AlertDialogCancel disabled={pending}>
+            {t('Cancel')}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={!value.trim() || pending}
+            onClick={onSave}
+          >
+            {pending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : null}
+            {saveLabel ?? t('Save')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -60,25 +84,41 @@ interface ConfirmDialogProps {
 }
 
 /** Dialog for confirming archive or compact actions. */
-export function ConfirmDialog({ action, pending, onConfirm, onClose }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  action,
+  pending,
+  onConfirm,
+  onClose,
+}: ConfirmDialogProps) {
   const { t } = useTranslation();
   return (
-    <AlertDialog open={action !== null} onOpenChange={(o) => !o && !pending && onClose()}>
+    <AlertDialog
+      open={action !== null}
+      onOpenChange={(o) => !o && !pending && onClose()}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {action?.type === 'compact' ? t('Compact this thread?') : t('Archive this thread?')}
+            {action?.type === 'compact'
+              ? t('Compact this thread?')
+              : t('Archive this thread?')}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {action?.type === 'compact'
-              ? t('Compaction permanently compresses context and cannot be undone.')
+              ? t(
+                  'Compaction permanently compresses context and cannot be undone.',
+                )
               : t('Archived threads move to the read-only archive group.')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>{t('Cancel')}</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>
+            {t('Cancel')}
+          </AlertDialogCancel>
           <AlertDialogAction disabled={pending} onClick={onConfirm}>
-            {pending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+            {pending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : null}
             {action?.type === 'compact' ? t('Compact') : t('Archive')}
           </AlertDialogAction>
         </AlertDialogFooter>

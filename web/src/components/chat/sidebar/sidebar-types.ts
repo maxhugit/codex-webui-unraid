@@ -24,6 +24,8 @@ export type ConfirmAction =
   | null;
 
 export interface WorkspaceGroup {
+  projectId?: string;
+  name?: string;
   cwd: string;
   threads: ThreadDto[];
   simpleChats: SimpleChatThreadSummary[];

@@ -22,6 +22,7 @@ import { ModelsModule } from './models/models.module';
 import { OnlyOfficeModule } from './onlyoffice/onlyoffice.module';
 import { PendingApprovalsModule } from './pending-approvals/pending-approvals.module';
 import { PluginsModule } from './plugins/plugins.module';
+import { ProjectsModule } from './projects/projects.module';
 import { SettingsModule } from './settings/settings.module';
 import { SkillsModule } from './skills/skills.module';
 import { SimpleChatModule } from './simple-chat/simple-chat.module';
@@ -128,6 +129,7 @@ const PINO_REDACT = {
     PendingApprovalsModule,
     TokenUsageModule,
     PluginsModule,
+    ProjectsModule,
     OnlyOfficeModule,
     TurnDiffModule,
     TurnErrorsModule,

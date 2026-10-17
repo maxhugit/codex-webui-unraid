@@ -30,13 +30,11 @@ import {
   threadsSetThreadNameMutation,
   threadsStartThreadMutation,
   threadsUnarchiveThreadMutation,
-  filesReadTreeOptions,
 } from '@/generated/api/@tanstack/react-query.gen';
 import type { ThreadDto } from '@/generated/api';
 import { selectSidebarRows } from '@/lib/sidebar-rows';
 import { useTimelineStore } from '@/stores/timeline-store';
 import { useLayoutStore } from '@/stores/layout-store';
-import { useFilesStore } from '@/stores/files-store';
 import { cn } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/api-error';
 import {
@@ -53,14 +51,13 @@ import {
   useDeletePreview,
   useDeleteThread,
 } from '@/hooks/use-thread-deletion';
-import type { ConfirmAction } from './sidebar/sidebar-types';
-import { threadLabel, groupByWorkspace } from './sidebar/sidebar-types';
+import type { ConfirmAction, WorkspaceGroup } from './sidebar/sidebar-types';
+import { threadLabel } from './sidebar/sidebar-types';
 import { ThreadRow } from './sidebar/thread-row';
 import { WorkspaceOverview } from './sidebar/workspace-overview';
 import { WorkspaceDetail } from './sidebar/workspace-detail';
 import { SimpleChatRow } from './sidebar/simple-chat-row';
 import { RenameDialog, ConfirmDialog } from './sidebar/sidebar-dialogs';
-import { DirectoryPickerDialog } from './sidebar/directory-picker-dialog';
 import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
 import { useForkWithGoal } from '@/hooks/use-fork-with-goal';
 import { getAuthorizationHeader } from '@/auth-token';
@@ -68,6 +65,11 @@ import { withBasePath } from '@/base-path';
 import type { SimpleChatThreadSummary } from '@/lib/simple-chat-api';
 import { simpleChatThreadsQueryKey } from '@/lib/simple-chat-api';
 import { useSimpleChatActivityStore } from '@/stores/simple-chat-activity-store';
+import {
+  projectsApi,
+  projectsQueryKey,
+  type ProjectSummary,
+} from '@/lib/projects-api';
 
 type SimpleChatThread = SimpleChatThreadSummary;
 
@@ -157,7 +159,6 @@ export function ThreadSidebar() {
   const [renameThread, setRenameThread] = useState<ThreadDto | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-  const [dirPickerOpen, setDirPickerOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [graphTargetId, setGraphTargetId] = useState<string | null>(null);
   const [renameSimpleThread, setRenameSimpleThread] =
@@ -165,9 +166,15 @@ export function ThreadSidebar() {
   const [renameSimpleValue, setRenameSimpleValue] = useState('');
   const [deleteSimpleThread, setDeleteSimpleThread] =
     useState<SimpleChatThread | null>(null);
-  const [renameWorkspace, setRenameWorkspace] = useState<string | null>(null);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [createProjectValue, setCreateProjectValue] = useState('');
+  const [renameProject, setRenameProject] = useState<ProjectSummary | null>(
+    null,
+  );
   const [renameWorkspaceValue, setRenameWorkspaceValue] = useState('');
-  const [deleteWorkspace, setDeleteWorkspace] = useState<string | null>(null);
+  const [deleteProject, setDeleteProject] = useState<ProjectSummary | null>(
+    null,
+  );
 
   // ── Queries ─────────────────────────────────────────────────────────
   // The sidebar reads one server-side projection. It used to join a paginated
@@ -227,9 +234,9 @@ export function ThreadSidebar() {
     queryKey: simpleChatThreadsQueryKey,
     queryFn: () => simpleChatApi<{ threads: SimpleChatThread[] }>('/threads'),
   });
-  const workspaceDirectoriesQuery = useQuery({
-    ...filesReadTreeOptions({ query: { root: '/workspaces' } }),
-    enabled: isHomeView,
+  const projectsQuery = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
   });
 
   // ── Deletion ────────────────────────────────────────────────────────
@@ -267,8 +274,25 @@ export function ThreadSidebar() {
     [rowsByView.archived],
   );
   const workspaceGroups = useMemo(() => {
-    const groups = groupByWorkspace(activeThreads);
+    const groups: WorkspaceGroup[] = (projectsQuery.data?.projects ?? []).map(
+      (project) => ({
+        projectId: project.id,
+        name: project.name,
+        cwd: project.workspacePath,
+        threads: [] as ThreadDto[],
+        simpleChats: [] as SimpleChatThread[],
+      }),
+    );
     const groupsByCwd = new Map(groups.map((group) => [group.cwd, group]));
+    for (const thread of activeThreads) {
+      let group = groupsByCwd.get(thread.cwd);
+      if (!group) {
+        group = { cwd: thread.cwd, threads: [], simpleChats: [] };
+        groups.push(group);
+        groupsByCwd.set(thread.cwd, group);
+      }
+      group.threads.push(thread);
+    }
     for (const simpleChat of simpleChatThreadsQuery.data?.threads ?? []) {
       let group = groupsByCwd.get(simpleChat.cwd);
       if (!group) {
@@ -278,18 +302,8 @@ export function ThreadSidebar() {
       }
       group.simpleChats.push(simpleChat);
     }
-    const known = new Set(groupsByCwd.keys());
-    for (const entry of workspaceDirectoriesQuery.data ?? []) {
-      if (entry.type !== 'directory' || known.has(entry.path)) continue;
-      groups.push({ cwd: entry.path, threads: [], simpleChats: [] });
-      known.add(entry.path);
-    }
     return groups;
-  }, [
-    activeThreads,
-    simpleChatThreadsQuery.data,
-    workspaceDirectoriesQuery.data,
-  ]);
+  }, [activeThreads, simpleChatThreadsQuery.data, projectsQuery.data]);
   const detailThreads = useMemo(
     () => rowsByView.detail.map((row) => row.thread),
     [rowsByView.detail],
@@ -598,79 +612,40 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
-  const renameWorkspaceMutation = useMutation({
-    mutationFn: async ({ cwd, newName }: { cwd: string; newName: string }) => {
-      const response = await fetch(withBasePath('/api/workspaces'), {
-        method: 'PATCH',
-        headers: simpleChatHeaders(true),
-        body: JSON.stringify({ cwd, newName }),
-      });
-      const result = (await response.json().catch(() => ({}))) as {
-        message?: string;
-        oldPath?: string;
-        newPath?: string;
-      };
-      if (!response.ok)
-        throw new Error(result.message || `HTTP ${response.status}`);
-      return result;
-    },
-    onSuccess: (result, variables) => {
-      const oldPath = result.oldPath ?? variables.cwd;
-      const newPath = result.newPath;
-      if (newPath) {
-        const remap = (value: string) =>
-          value === oldPath
-            ? newPath
-            : value.startsWith(`${oldPath}/`)
-              ? `${newPath}${value.slice(oldPath.length)}`
-              : null;
-        const timeline = useTimelineStore.getState();
-        const runtimeIds = new Set([
-          ...Object.keys(timeline.threadsById),
-          ...(timeline.threadId ? [timeline.threadId] : []),
-        ]);
-        for (const runtimeId of runtimeIds) {
-          const cwd = timeline.getThreadRuntime(runtimeId)?.threadCwd;
-          if (!cwd) continue;
-          const remapped = remap(cwd);
-          if (remapped) timeline.setThreadCwdForThread(runtimeId, remapped);
-        }
-        useFilesStore.getState().remapPaths(oldPath, newPath);
-        if (sidebarView.type === 'workspaceDetail') {
-          const remappedDetail = remap(sidebarView.cwd);
-          if (remappedDetail)
-            setSidebarView({
-              type: 'workspaceDetail',
-              cwd: remappedDetail,
-            });
-        }
-      }
-      setRenameWorkspace(null);
-      setRenameWorkspaceValue('');
-      void queryClient.invalidateQueries();
+  const createProject = useMutation({
+    mutationFn: (name: string) =>
+      projectsApi<{ project: ProjectSummary }>('', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      }),
+    onSuccess: () => {
+      setCreateProjectOpen(false);
+      setCreateProjectValue('');
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
-  const deleteWorkspaceMutation = useMutation({
-    mutationFn: async (cwd: string) => {
-      const name = cwd.split('/').filter(Boolean).at(-1) ?? '';
-      const response = await fetch(
-        withBasePath(`/api/workspaces/${encodeURIComponent(name)}`),
-        {
-          method: 'DELETE',
-          headers: simpleChatHeaders(true),
-          body: JSON.stringify({ confirmation: name }),
-        },
-      );
-      const result = (await response.json().catch(() => ({}))) as {
-        message?: string;
-      };
-      if (!response.ok)
-        throw new Error(result.message || `HTTP ${response.status}`);
-      return result;
-    },
+  const renameProjectMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      projectsApi<{ project: ProjectSummary }>(`/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name }),
+      }),
     onSuccess: () => {
-      setDeleteWorkspace(null);
+      setRenameProject(null);
+      setRenameWorkspaceValue('');
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
+  const deleteProjectMutation = useMutation({
+    mutationFn: (project: ProjectSummary) =>
+      projectsApi(`/${project.id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmation: project.name }),
+      }),
+    onSuccess: () => {
+      setDeleteProject(null);
       void queryClient.invalidateQueries();
       void navigate({ to: '/' });
     },
@@ -922,9 +897,9 @@ export function ThreadSidebar() {
           size="icon"
           variant="ghost"
           className="h-6 w-6"
-          aria-label={t('New project conversation')}
-          title={t('New project conversation')}
-          onClick={() => setDirPickerOpen(true)}
+          aria-label={t('New project')}
+          title={t('New project')}
+          onClick={() => setCreateProjectOpen(true)}
         >
           <Plus className="h-3.5 w-3.5" />
         </Button>
@@ -950,13 +925,27 @@ export function ThreadSidebar() {
               onCreateSimpleChatInWorkspace={(cwd) =>
                 createSimpleChatThread.mutate(cwd)
               }
-              onRenameWorkspace={(cwd) => {
-                setRenameWorkspace(cwd);
-                setRenameWorkspaceValue(
-                  cwd.split('/').filter(Boolean).at(-1) ?? '',
-                );
+              onRenameProject={(group) => {
+                if (!group.projectId) return;
+                setRenameProject({
+                  id: group.projectId,
+                  name: group.name ?? group.cwd,
+                  workspacePath: group.cwd,
+                  createdAt: 0,
+                  updatedAt: 0,
+                });
+                setRenameWorkspaceValue(group.name ?? '');
               }}
-              onDeleteWorkspace={setDeleteWorkspace}
+              onDeleteProject={(group) => {
+                if (!group.projectId) return;
+                setDeleteProject({
+                  id: group.projectId,
+                  name: group.name ?? group.cwd,
+                  workspacePath: group.cwd,
+                  createdAt: 0,
+                  updatedAt: 0,
+                });
+              }}
               renderThreadRow={renderThreadRow}
               renderSimpleChatRow={renderSimpleChatRow}
               movingThread={moveThread.isPending}
@@ -973,6 +962,13 @@ export function ThreadSidebar() {
                       ) ?? [])
                     : []
                   : []
+              }
+              projectName={
+                sidebarView.type === 'workspaceDetail'
+                  ? projectsQuery.data?.projects.find(
+                      (project) => project.workspacePath === sidebarView.cwd,
+                    )?.name
+                  : undefined
               }
               isLoading={detailQuery.isLoading}
               hasPrevious={cursorStack.length > 0}
@@ -992,18 +988,38 @@ export function ThreadSidebar() {
           sidebar, which forced expanding to live somewhere else entirely. */}
 
       <RenameDialog
-        open={renameWorkspace !== null}
-        pending={renameWorkspaceMutation.isPending}
+        open={createProjectOpen}
+        pending={createProject.isPending}
+        value={createProjectValue}
+        onChange={setCreateProjectValue}
+        onSave={() => {
+          if (createProjectValue.trim())
+            createProject.mutate(createProjectValue.trim());
+        }}
+        onClose={() => setCreateProjectOpen(false)}
+        title={t('Create a project')}
+        description={t(
+          'A primary workspace folder will be created for this project.',
+        )}
+        saveLabel={t('Create')}
+      />
+      <RenameDialog
+        open={renameProject !== null}
+        pending={renameProjectMutation.isPending}
         value={renameWorkspaceValue}
         onChange={setRenameWorkspaceValue}
         onSave={() => {
-          if (renameWorkspace && renameWorkspaceValue.trim())
-            renameWorkspaceMutation.mutate({
-              cwd: renameWorkspace,
-              newName: renameWorkspaceValue.trim(),
+          if (renameProject && renameWorkspaceValue.trim())
+            renameProjectMutation.mutate({
+              id: renameProject.id,
+              name: renameWorkspaceValue.trim(),
             });
         }}
-        onClose={() => setRenameWorkspace(null)}
+        onClose={() => setRenameProject(null)}
+        title={t('Rename project')}
+        description={t(
+          'The project name changes without renaming its workspace folder.',
+        )}
       />
       <RenameDialog
         open={renameThread !== null}
@@ -1058,11 +1074,9 @@ export function ThreadSidebar() {
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog
-        open={deleteWorkspace !== null}
+        open={deleteProject !== null}
         onOpenChange={(open) =>
-          !open &&
-          !deleteWorkspaceMutation.isPending &&
-          setDeleteWorkspace(null)
+          !open && !deleteProjectMutation.isPending && setDeleteProject(null)
         }
       >
         <AlertDialogContent>
@@ -1075,15 +1089,14 @@ export function ThreadSidebar() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteWorkspaceMutation.isPending}>
+            <AlertDialogCancel disabled={deleteProjectMutation.isPending}>
               {t('Cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={!deleteWorkspace || deleteWorkspaceMutation.isPending}
+              disabled={!deleteProject || deleteProjectMutation.isPending}
               onClick={() =>
-                deleteWorkspace &&
-                deleteWorkspaceMutation.mutate(deleteWorkspace)
+                deleteProject && deleteProjectMutation.mutate(deleteProject)
               }
             >
               {t('Delete permanently')}
@@ -1096,11 +1109,6 @@ export function ThreadSidebar() {
         pending={archiveThread.isPending || compactThread.isPending}
         onConfirm={confirmCurrentAction}
         onClose={() => setConfirmAction(null)}
-      />
-      <DirectoryPickerDialog
-        open={dirPickerOpen}
-        onClose={() => setDirPickerOpen(false)}
-        onSelect={(cwd) => createThread.mutate({ body: { cwd } })}
       />
       <ForkGoalDialog
         key={fork.prompt?.threadId ?? 'idle'}

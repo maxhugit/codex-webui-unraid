@@ -12,6 +12,7 @@ interface Props {
   sidebarView: SidebarView;
   threads: ThreadDto[];
   simpleChats: SimpleChatThreadSummary[];
+  projectName?: string;
   isLoading: boolean;
   hasPrevious: boolean;
   hasNext: boolean;
@@ -26,6 +27,7 @@ export function WorkspaceDetail({
   sidebarView,
   threads,
   simpleChats,
+  projectName,
   isLoading,
   hasPrevious,
   hasNext,
@@ -50,7 +52,7 @@ export function WorkspaceDetail({
       </button>
       <div className="px-2 text-sm font-medium text-foreground/80">
         {sidebarView.type === 'workspaceDetail'
-          ? workspaceLabel(sidebarView.cwd)
+          ? (projectName ?? workspaceLabel(sidebarView.cwd))
           : t('Archived')}
       </div>
       <div className="space-y-0.5">

@@ -76,6 +76,7 @@ import { WorkspacesManagementService } from './workspaces-management.service';
     ThreadMetadataService,
     ThreadExecutionInventoryService,
     ThreadWorkspaceOverridesService,
+    WorkspacesManagementService,
   ],
 })
 export class ThreadsModule {}
