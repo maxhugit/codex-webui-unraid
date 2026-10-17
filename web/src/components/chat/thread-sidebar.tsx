@@ -174,6 +174,9 @@ export function ThreadSidebar() {
   const [renameSimpleValue, setRenameSimpleValue] = useState('');
   const [deleteSimpleThread, setDeleteSimpleThread] =
     useState<SimpleChatThread | null>(null);
+  const [renameWorkspace, setRenameWorkspace] = useState<string | null>(null);
+  const [renameWorkspaceValue, setRenameWorkspaceValue] = useState('');
+  const [deleteWorkspace, setDeleteWorkspace] = useState<string | null>(null);
 
   // ── Queries ─────────────────────────────────────────────────────────
   // The sidebar reads one server-side projection. It used to join a paginated
@@ -581,6 +584,52 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
+  const renameWorkspaceMutation = useMutation({
+    mutationFn: async ({ cwd, newName }: { cwd: string; newName: string }) => {
+      const response = await fetch(withBasePath('/api/workspaces'), {
+        method: 'PATCH',
+        headers: simpleChatHeaders(true),
+        body: JSON.stringify({ cwd, newName }),
+      });
+      const result = (await response.json().catch(() => ({}))) as {
+        message?: string;
+      };
+      if (!response.ok)
+        throw new Error(result.message || `HTTP ${response.status}`);
+      return result;
+    },
+    onSuccess: () => {
+      setRenameWorkspace(null);
+      setRenameWorkspaceValue('');
+      void queryClient.invalidateQueries();
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
+  const deleteWorkspaceMutation = useMutation({
+    mutationFn: async (cwd: string) => {
+      const name = cwd.split('/').filter(Boolean).at(-1) ?? '';
+      const response = await fetch(
+        withBasePath(`/api/workspaces/${encodeURIComponent(name)}`),
+        {
+          method: 'DELETE',
+          headers: simpleChatHeaders(true),
+          body: JSON.stringify({ confirmation: name }),
+        },
+      );
+      const result = (await response.json().catch(() => ({}))) as {
+        message?: string;
+      };
+      if (!response.ok)
+        throw new Error(result.message || `HTTP ${response.status}`);
+      return result;
+    },
+    onSuccess: () => {
+      setDeleteWorkspace(null);
+      void queryClient.invalidateQueries();
+      void navigate({ to: '/' });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
 
   // ── View navigation helpers ─────────────────────────────────────────
 
@@ -892,6 +941,13 @@ export function ThreadSidebar() {
               onCreateSimpleChatInWorkspace={(cwd) =>
                 createSimpleChatThread.mutate(cwd)
               }
+              onRenameWorkspace={(cwd) => {
+                setRenameWorkspace(cwd);
+                setRenameWorkspaceValue(
+                  cwd.split('/').filter(Boolean).at(-1) ?? '',
+                );
+              }}
+              onDeleteWorkspace={setDeleteWorkspace}
               renderThreadRow={renderThreadRow}
               renderSimpleChatRow={renderSimpleChatRow}
               movingThread={moveThread.isPending}
@@ -926,6 +982,20 @@ export function ThreadSidebar() {
           a control pinned to the sidebar's own bottom edge disappears with the
           sidebar, which forced expanding to live somewhere else entirely. */}
 
+      <RenameDialog
+        open={renameWorkspace !== null}
+        pending={renameWorkspaceMutation.isPending}
+        value={renameWorkspaceValue}
+        onChange={setRenameWorkspaceValue}
+        onSave={() => {
+          if (renameWorkspace && renameWorkspaceValue.trim())
+            renameWorkspaceMutation.mutate({
+              cwd: renameWorkspace,
+              newName: renameWorkspaceValue.trim(),
+            });
+        }}
+        onClose={() => setRenameWorkspace(null)}
+      />
       <RenameDialog
         open={renameThread !== null}
         pending={updateThreadName.isPending}
@@ -974,6 +1044,40 @@ export function ThreadSidebar() {
               }
             >
               Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={deleteWorkspace !== null}
+        onOpenChange={(open) =>
+          !open &&
+          !deleteWorkspaceMutation.isPending &&
+          setDeleteWorkspace(null)
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('Delete this workspace?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'All work agents, simple conversations, files and subfolders in this workspace will be permanently deleted.',
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteWorkspaceMutation.isPending}>
+              {t('Cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={!deleteWorkspace || deleteWorkspaceMutation.isPending}
+              onClick={() =>
+                deleteWorkspace &&
+                deleteWorkspaceMutation.mutate(deleteWorkspace)
+              }
+            >
+              {t('Delete permanently')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

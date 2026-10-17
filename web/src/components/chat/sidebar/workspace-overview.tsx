@@ -6,11 +6,14 @@ import {
   ChevronRight,
   Eye,
   MessageCircle,
-  Plus,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDroppable } from '@dnd-kit/react';
 import { useTranslation } from 'react-i18next';
+import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -51,6 +54,8 @@ interface Props {
   onOpenWorkspaceDetail: (cwd: string) => void;
   onCreateAgentInWorkspace: (cwd: string) => void;
   onCreateSimpleChatInWorkspace: (cwd: string) => void;
+  onRenameWorkspace?: (cwd: string) => void;
+  onDeleteWorkspace?: (cwd: string) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
   renderSimpleChatRow: (
     thread: WorkspaceGroup['simpleChats'][number],
@@ -68,11 +73,14 @@ export function WorkspaceOverview({
   onOpenWorkspaceDetail,
   onCreateAgentInWorkspace,
   onCreateSimpleChatInWorkspace,
+  onRenameWorkspace,
+  onDeleteWorkspace,
   renderThreadRow,
   renderSimpleChatRow,
   movingThread,
 }: Props) {
   const { t } = useTranslation();
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const archivedCollapsed = collapsedGroups.has('__archived__');
 
   if (isLoading) {
@@ -169,22 +177,28 @@ export function WorkspaceOverview({
                 <span className="truncate">{workspaceLabel(group.cwd)}</span>
               </button>
               <div className="flex shrink-0 items-center gap-0.5">
-                <Popover>
+                <Popover
+                  open={openMenu === group.cwd}
+                  onOpenChange={(open) => setOpenMenu(open ? group.cwd : null)}
+                >
                   <PopoverTrigger asChild>
                     <button
                       type="button"
                       className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      aria-label={t('Add to this workspace')}
-                      title={t('Add to this workspace')}
+                      aria-label={t('Workspace actions')}
+                      title={t('Workspace actions')}
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <MoreHorizontal className="h-3.5 w-3.5" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent align="end" className="w-56 p-1">
                     <Button
                       variant="ghost"
                       className="h-8 w-full justify-start gap-2 px-2 text-xs"
-                      onClick={() => onCreateAgentInWorkspace(group.cwd)}
+                      onClick={() => {
+                        setOpenMenu(null);
+                        onCreateAgentInWorkspace(group.cwd);
+                      }}
                     >
                       <Bot className="h-3.5 w-3.5" />
                       {t('Work agent')}
@@ -192,10 +206,35 @@ export function WorkspaceOverview({
                     <Button
                       variant="ghost"
                       className="h-8 w-full justify-start gap-2 px-2 text-xs"
-                      onClick={() => onCreateSimpleChatInWorkspace(group.cwd)}
+                      onClick={() => {
+                        setOpenMenu(null);
+                        onCreateSimpleChatInWorkspace(group.cwd);
+                      }}
                     >
                       <MessageCircle className="h-3.5 w-3.5" />
                       {t('Simple conversation')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-full justify-start gap-2 px-2 text-xs"
+                      onClick={() => {
+                        setOpenMenu(null);
+                        onRenameWorkspace?.(group.cwd);
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      {t('Rename workspace')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-full justify-start gap-2 px-2 text-xs text-destructive hover:text-destructive"
+                      onClick={() => {
+                        setOpenMenu(null);
+                        onDeleteWorkspace?.(group.cwd);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {t('Delete workspace')}
                     </Button>
                   </PopoverContent>
                 </Popover>

@@ -25,6 +25,8 @@ import { ThreadMetadataService } from './thread-metadata.service';
 import { ThreadsOverviewService } from './threads-overview.service';
 import { ThreadsService } from './threads.service';
 import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
+import { WorkspacesManagementController } from './workspaces-management.controller';
+import { WorkspacesManagementService } from './workspaces-management.service';
 
 @Module({
   imports: [
@@ -42,6 +44,7 @@ import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.se
     ThreadsDeletionController,
     ThreadCommandsController,
     ThreadSecurityPolicyController,
+    WorkspacesManagementController,
   ],
   providers: [
     ThreadsService,
@@ -58,6 +61,7 @@ import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.se
     ThreadExecutionInventoryService,
     ThreadWorkspaceOverridesService,
     AutoResumeService,
+    WorkspacesManagementService,
   ],
   exports: [
     ThreadsService,

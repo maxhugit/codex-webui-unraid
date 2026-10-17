@@ -2,11 +2,11 @@
 import {
   Archive,
   ArchiveRestore,
+  Bot,
   GitFork,
   GripVertical,
   Loader2,
   MessageCircleQuestion,
-  MessageSquare,
   Minimize2,
   MoreHorizontal,
   Network,
@@ -89,7 +89,11 @@ export function ThreadRow({
 }: Props) {
   const { t } = useTranslation();
   const dragEnabled = draggable && !archived && !destructiveDisabled;
-  const { ref: dragRef, handleRef: dragHandleRef, isDragging } = useDraggable({
+  const {
+    ref: dragRef,
+    handleRef: dragHandleRef,
+    isDragging,
+  } = useDraggable({
     id: `thread-${thread.id}`,
     disabled: !dragEnabled,
     data: { kind: 'thread', threadId: thread.id, cwd: thread.cwd },
@@ -104,7 +108,7 @@ export function ThreadRow({
   ) : running ? (
     <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
   ) : (
-    <MessageSquare className="h-3 w-3 shrink-0" />
+    <Bot className="h-3 w-3 shrink-0" />
   );
 
   // Badge text: show count only when > 1 (single approval already indicated by icon)
