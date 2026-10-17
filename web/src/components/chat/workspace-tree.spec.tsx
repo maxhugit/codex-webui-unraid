@@ -137,6 +137,7 @@ describe('project workspaces', () => {
           workspacePath: '/workspaces/main',
           createdAt: 1,
           updatedAt: 1,
+          resources: [],
           workspaces: [
             {
               id: 'main',

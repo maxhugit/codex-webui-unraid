@@ -1182,6 +1182,7 @@ export function ThreadSidebar() {
                   createdAt: 0,
                   updatedAt: 0,
                   workspaces: group.workspaces ?? [],
+                  resources: group.resources ?? [],
                 });
                 setRenameWorkspaceValue(group.name ?? '');
               }}
@@ -1195,6 +1196,7 @@ export function ThreadSidebar() {
                   createdAt: 0,
                   updatedAt: 0,
                   workspaces: group.workspaces ?? [],
+                  resources: group.resources ?? [],
                 });
               }}
               renderThreadRow={renderThreadRow}
