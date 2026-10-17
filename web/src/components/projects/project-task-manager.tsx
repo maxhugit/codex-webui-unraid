@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Clock3,
   FolderOpen,
+  Settings,
   GripVertical,
   ListFilter,
   ListTodo,
@@ -98,36 +99,102 @@ const subtaskLabels: Record<ProjectTaskSummary['subtaskStatus'], string> = {
   done: 'Terminée',
   cancelled: 'Annulée',
 };
-const subtaskStatusStyle: Record<ProjectTaskSummary['subtaskStatus'], string> =
-  {
-    todo: 'bg-slate-200/70 text-slate-700 dark:bg-slate-700/45 dark:text-slate-200',
-    started: 'bg-sky-200/70 text-sky-800 dark:bg-sky-800/45 dark:text-sky-200',
-    review:
-      'bg-violet-200/70 text-violet-800 dark:bg-violet-800/45 dark:text-violet-200',
-    done: 'bg-emerald-200/70 text-emerald-800 dark:bg-emerald-800/45 dark:text-emerald-200',
-    cancelled:
-      'bg-zinc-200/80 text-zinc-600 dark:bg-zinc-700/55 dark:text-zinc-300',
-  };
 const priorities = {
   low: 'Basse',
   normal: 'Normale',
   high: 'Haute',
   urgent: 'Urgente',
 } as const;
-const priorityStyle = {
-  low: 'bg-slate-500/15 text-slate-400',
-  normal: 'bg-blue-500/15 text-blue-400',
-  high: 'bg-orange-500/15 text-orange-400',
-  urgent: 'bg-red-500/15 text-red-400',
+const palette = {
+  slate: '#64748b',
+  blue: '#3b82f6',
+  amber: '#f59e0b',
+  red: '#ef4444',
+  green: '#22c55e',
+  purple: '#a855f7',
+  teal: '#14b8a6',
+  pink: '#ec4899',
 } as const;
-const priorityCardStyle = {
-  low: 'border-emerald-200/80 bg-emerald-50/80 dark:border-emerald-900/60 dark:bg-emerald-950/25',
-  normal:
-    'border-sky-200/80 bg-sky-50/80 dark:border-sky-900/60 dark:bg-sky-950/25',
-  high: 'border-amber-200/80 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/25',
-  urgent:
-    'border-rose-200/80 bg-rose-50/80 dark:border-rose-900/60 dark:bg-rose-950/25',
-} as const;
+type PaletteColor = keyof typeof palette;
+type TaskBoardSettings = {
+  priorityColors: Record<ProjectTaskSummary['priority'], PaletteColor>;
+  subtaskColors: Record<ProjectTaskSummary['subtaskStatus'], PaletteColor>;
+  defaultStatusId: string;
+  defaultPriority: ProjectTaskSummary['priority'];
+  confirmDelete: boolean;
+  hideEmptyColumns: boolean;
+};
+const defaultTaskBoardSettings: TaskBoardSettings = {
+  priorityColors: {
+    low: 'green',
+    normal: 'blue',
+    high: 'amber',
+    urgent: 'red',
+  },
+  subtaskColors: {
+    todo: 'slate',
+    started: 'blue',
+    review: 'purple',
+    done: 'green',
+    cancelled: 'slate',
+  },
+  defaultStatusId: '',
+  defaultPriority: 'normal',
+  confirmDelete: true,
+  hideEmptyColumns: false,
+};
+const paletteColor = (value: unknown, fallback: PaletteColor): PaletteColor =>
+  typeof value === 'string' && value in palette
+    ? (value as PaletteColor)
+    : fallback;
+function readTaskBoardSettings(config: Record<string, unknown>) {
+  const raw =
+    config.taskBoardSettings &&
+    typeof config.taskBoardSettings === 'object' &&
+    !Array.isArray(config.taskBoardSettings)
+      ? (config.taskBoardSettings as Partial<TaskBoardSettings>)
+      : {};
+  const priorityColors = (raw.priorityColors ?? {}) as Partial<
+    TaskBoardSettings['priorityColors']
+  >;
+  const subtaskColors = (raw.subtaskColors ?? {}) as Partial<
+    TaskBoardSettings['subtaskColors']
+  >;
+  return {
+    ...defaultTaskBoardSettings,
+    ...raw,
+    priorityColors: Object.fromEntries(
+      Object.entries(defaultTaskBoardSettings.priorityColors).map(
+        ([key, fallback]) => [
+          key,
+          paletteColor(
+            priorityColors[key as ProjectTaskSummary['priority']],
+            fallback,
+          ),
+        ],
+      ),
+    ) as TaskBoardSettings['priorityColors'],
+    subtaskColors: Object.fromEntries(
+      Object.entries(defaultTaskBoardSettings.subtaskColors).map(
+        ([key, fallback]) => [
+          key,
+          paletteColor(
+            subtaskColors[key as ProjectTaskSummary['subtaskStatus']],
+            fallback,
+          ),
+        ],
+      ),
+    ) as TaskBoardSettings['subtaskColors'],
+    defaultPriority:
+      raw.defaultPriority && raw.defaultPriority in priorities
+        ? raw.defaultPriority
+        : 'normal',
+    defaultStatusId:
+      typeof raw.defaultStatusId === 'string' ? raw.defaultStatusId : '',
+    confirmDelete: raw.confirmDelete !== false,
+    hideEmptyColumns: raw.hideEmptyColumns === true,
+  } satisfies TaskBoardSettings;
+}
 const agentLabels: Record<string, string> = {
   ready: 'Agent prêt',
   running: 'Agent en cours',
@@ -191,6 +258,10 @@ export function ProjectTaskManager({
     useState<ProjectTaskStatusSummary | null>(null);
   const [statusName, setStatusName] = useState('');
   const [statusColor, setStatusColor] = useState('blue');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<TaskBoardSettings>(
+    defaultTaskBoardSettings,
+  );
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<Suggestion[]>([]);
@@ -272,6 +343,7 @@ export function ProjectTaskManager({
       </div>
     );
   const board = query.data;
+  const settings = readTaskBoardSettings(board.resource.config);
   const unassigned =
     board.statuses.find((s) => s.kind === 'unassigned') ?? board.statuses[0];
   const statusByKind = (kind: string) =>
@@ -299,7 +371,15 @@ export function ProjectTaskManager({
     setRootTaskId(parentTaskId || null);
     setDraft({
       ...emptyDraft,
-      statusId: unassigned?.id ?? '',
+      statusId:
+        (!parent &&
+          board.statuses.some(
+            (status) => status.id === settings.defaultStatusId,
+          ) &&
+          settings.defaultStatusId) ||
+        unassigned?.id ||
+        '',
+      priority: parent?.priority ?? settings.defaultPriority,
       workspacePath: parent?.workspacePath ?? board.project.workspacePath,
       parentTaskId,
       subtaskStatus: 'todo',
@@ -378,9 +458,10 @@ export function ProjectTaskManager({
   const removeTask = async () => {
     if (
       !editing ||
-      !window.confirm(
-        `Supprimer « ${editing.title} »${childrenFor(editing.id).length ? ' et dissocier ses sous-tâches' : ''} ?`,
-      )
+      (settings.confirmDelete &&
+        !window.confirm(
+          `Supprimer « ${editing.title} »${childrenFor(editing.id).length ? ' et dissocier ses sous-tâches' : ''} ?`,
+        ))
     )
       return;
     await request.mutateAsync({
@@ -429,6 +510,19 @@ export function ProjectTaskManager({
       body: { name: statusName.trim(), color: statusColor },
     });
     setStatusOpen(false);
+  };
+  const saveSettings = async () => {
+    await request.mutateAsync({
+      path: `/${projectId}/resources/${resourceId}`,
+      method: 'PATCH',
+      body: {
+        config: {
+          ...board.resource.config,
+          taskBoardSettings: settingsDraft,
+        },
+      },
+    });
+    setSettingsOpen(false);
   };
   const removeStatus = async (status: ProjectTaskStatusSummary) => {
     if (
@@ -776,21 +870,21 @@ export function ProjectTaskManager({
             <Sparkles />
             Planifier avec l’IA
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setEditingStatus(null);
-              setStatusName('');
-              setStatusColor('blue');
-              setStatusOpen(true);
-            }}
-          >
-            <Plus />
-            Statut
-          </Button>
           <Button onClick={() => openNew()}>
             <Plus />
             Nouvelle tâche
+          </Button>
+          <Button
+            size="icon"
+            variant="outline"
+            title="Paramètres du tableau"
+            aria-label="Paramètres du tableau"
+            onClick={() => {
+              setSettingsDraft(settings);
+              setSettingsOpen(true);
+            }}
+          >
+            <Settings />
           </Button>
         </div>
       </header>
@@ -818,7 +912,13 @@ export function ProjectTaskManager({
             </select>
           </div>
           <div className="flex min-w-max gap-3 pb-4">
-            {board.statuses.map((status) => {
+            {board.statuses
+              .filter(
+                (status) =>
+                  !settings.hideEmptyColumns ||
+                  filtered.some((task) => task.statusId === status.id),
+              )
+              .map((status) => {
               const tasks = filtered
                 .filter((t) => t.statusId === status.id)
                 .sort((a, b) => {
@@ -856,34 +956,21 @@ export function ProjectTaskManager({
                   onDrop={() => dropTask(status.id)}
                 >
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{
+                        backgroundColor:
+                          palette[
+                            paletteColor(status.color, 'slate')
+                          ],
+                      }}
+                    />
                     <h2 className="min-w-0 flex-1 truncate text-sm font-medium">
                       {status.name}
                     </h2>
                     <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
                       {tasks.length}
                     </span>
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      onClick={() => {
-                        setEditingStatus(status);
-                        setStatusName(status.name);
-                        setStatusColor(status.color);
-                        setStatusOpen(true);
-                      }}
-                    >
-                      <Pencil />
-                    </Button>
-                    {!status.system && (
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        onClick={() => removeStatus(status)}
-                      >
-                        <Trash2 className="text-destructive" />
-                      </Button>
-                    )}
                   </div>
                   <div className="space-y-2">
                     {tasks.map((task) => (
@@ -892,6 +979,7 @@ export function ProjectTaskManager({
                         task={task}
                         subtasks={childrenFor(task.id)}
                         blocked={blocked(task)}
+                        settings={settings}
                         dragging={dragged === task.id}
                         onDrag={() => setDragged(task.id)}
                         onDragEnd={() => {
@@ -1457,6 +1545,191 @@ export function ProjectTaskManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Paramètres du tableau</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">Statuts et colonnes</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Ajoutez, renommez, recolorez ou supprimez les colonnes.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingStatus(null);
+                    setStatusName('');
+                    setStatusColor('blue');
+                    setStatusOpen(true);
+                  }}
+                >
+                  <Plus /> Ajouter
+                </Button>
+              </div>
+              <div className="divide-y rounded-lg border">
+                {board.statuses.map((status) => (
+                  <div
+                    key={status.id}
+                    className="flex items-center gap-3 px-3 py-2"
+                  >
+                    <span
+                      className="h-3 w-3 rounded-full"
+                      style={{
+                        backgroundColor:
+                          palette[paletteColor(status.color, 'slate')],
+                      }}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {status.name}
+                    </span>
+                    {status.system && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Système
+                      </span>
+                    )}
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      title="Modifier"
+                      onClick={() => {
+                        setEditingStatus(status);
+                        setStatusName(status.name);
+                        setStatusColor(status.color);
+                        setStatusOpen(true);
+                      }}
+                    >
+                      <Pencil />
+                    </Button>
+                    {!status.system && (
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        title="Supprimer"
+                        onClick={() => removeStatus(status)}
+                      >
+                        <Trash2 className="text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <ColorSettingsSection
+              title="Couleurs des priorités"
+              labels={priorities}
+              values={settingsDraft.priorityColors}
+              onChange={(key, color) =>
+                setSettingsDraft((current) => ({
+                  ...current,
+                  priorityColors: {
+                    ...current.priorityColors,
+                    [key]: color,
+                  },
+                }))
+              }
+            />
+            <ColorSettingsSection
+              title="Couleurs des statuts de sous-tâches"
+              labels={subtaskLabels}
+              values={settingsDraft.subtaskColors}
+              onChange={(key, color) =>
+                setSettingsDraft((current) => ({
+                  ...current,
+                  subtaskColors: {
+                    ...current.subtaskColors,
+                    [key]: color,
+                  },
+                }))
+              }
+            />
+
+            <section className="space-y-3">
+              <h3 className="text-sm font-medium">Comportement par défaut</h3>
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                Statut des nouvelles tâches
+                <select
+                  className="h-9 rounded-lg border bg-background px-2 text-sm text-foreground"
+                  value={settingsDraft.defaultStatusId}
+                  onChange={(event) =>
+                    setSettingsDraft((current) => ({
+                      ...current,
+                      defaultStatusId: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">Actions non assignées</option>
+                  {board.statuses.map((status) => (
+                    <option key={status.id} value={status.id}>
+                      {status.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                Priorité des nouvelles tâches
+                <select
+                  className="h-9 rounded-lg border bg-background px-2 text-sm text-foreground"
+                  value={settingsDraft.defaultPriority}
+                  onChange={(event) =>
+                    setSettingsDraft((current) => ({
+                      ...current,
+                      defaultPriority: event.target
+                        .value as ProjectTaskSummary['priority'],
+                    }))
+                  }
+                >
+                  {Object.entries(priorities).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={settingsDraft.confirmDelete}
+                  onChange={(event) =>
+                    setSettingsDraft((current) => ({
+                      ...current,
+                      confirmDelete: event.target.checked,
+                    }))
+                  }
+                />
+                Demander confirmation avant de supprimer une tâche
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={settingsDraft.hideEmptyColumns}
+                  onChange={(event) =>
+                    setSettingsDraft((current) => ({
+                      ...current,
+                      hideEmptyColumns: event.target.checked,
+                    }))
+                  }
+                />
+                Masquer les colonnes vides
+              </label>
+            </section>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>
+              Annuler
+            </Button>
+            <Button disabled={request.isPending} onClick={saveSettings}>
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={statusOpen} onOpenChange={setStatusOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1474,8 +1747,10 @@ export function ProjectTaskManager({
             value={statusColor}
             onChange={(e) => setStatusColor(e.target.value)}
           >
-            {['slate', 'blue', 'amber', 'red', 'green', 'purple'].map((c) => (
-              <option key={c}>{c}</option>
+            {Object.keys(palette).map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
           <DialogFooter>
@@ -1548,10 +1823,56 @@ export function ProjectTaskManager({
   );
 }
 
+function ColorSettingsSection<K extends string>({
+  title,
+  labels,
+  values,
+  onChange,
+}: {
+  title: string;
+  labels: Record<K, string>;
+  values: Record<K, PaletteColor>;
+  onChange: (key: K, color: PaletteColor) => void;
+}) {
+  return (
+    <section className="space-y-3">
+      <h3 className="text-sm font-medium">{title}</h3>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {(Object.keys(labels) as K[]).map((key) => (
+          <label
+            key={key}
+            className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm"
+          >
+            <span
+              className="h-4 w-4 rounded-full"
+              style={{ backgroundColor: palette[values[key]] }}
+            />
+            <span className="min-w-0 flex-1 truncate">{labels[key]}</span>
+            <select
+              className="h-8 rounded-md border bg-background px-2 text-xs"
+              value={values[key]}
+              onChange={(event) =>
+                onChange(key, event.target.value as PaletteColor)
+              }
+            >
+              {Object.entries(palette).map(([color, hex]) => (
+                <option key={color} value={color}>
+                  {color} · {hex}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function TaskCard({
   task,
   subtasks,
   blocked,
+  settings,
   dragging,
   onDrag,
   onDragEnd,
@@ -1561,12 +1882,14 @@ function TaskCard({
   task: ProjectTaskSummary;
   subtasks: ProjectTaskSummary[];
   blocked: boolean;
+  settings: TaskBoardSettings;
   dragging: boolean;
   onDrag: (event: ReactDragEvent<HTMLSpanElement>) => void;
   onDragEnd: () => void;
   onClick: () => void;
   onSubtaskClick: (task: ProjectTaskSummary) => void;
 }) {
+  const priorityColor = palette[settings.priorityColors[task.priority]];
   const startDrag = (event: ReactDragEvent<HTMLSpanElement>) => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', task.id);
@@ -1596,9 +1919,13 @@ function TaskCard({
   return (
     <div
       data-task-card
-      className={`rounded-lg border shadow-sm transition-all ${priorityCardStyle[task.priority]} ${
+      className={`rounded-lg border shadow-sm transition-all ${
         dragging ? 'scale-[0.98] opacity-40' : ''
       }`}
+      style={{
+        borderColor: `${priorityColor}66`,
+        backgroundColor: `${priorityColor}18`,
+      }}
     >
       <button
         type="button"
@@ -1630,7 +1957,11 @@ function TaskCard({
         )}
         <div className="mt-3 flex flex-wrap gap-1.5">
           <span
-            className={`rounded px-1.5 py-0.5 text-[10px] ${priorityStyle[task.priority]}`}
+            className="rounded px-1.5 py-0.5 text-[10px]"
+            style={{
+              backgroundColor: `${priorityColor}24`,
+              color: priorityColor,
+            }}
           >
             {priorities[task.priority]}
           </span>
@@ -1681,7 +2012,14 @@ function TaskCard({
                   {subtask.title}
                 </span>
                 <span
-                  className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium ${subtaskStatusStyle[subtask.subtaskStatus]}`}
+                  className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium"
+                  style={{
+                    backgroundColor: `${
+                      palette[settings.subtaskColors[subtask.subtaskStatus]]
+                    }24`,
+                    color:
+                      palette[settings.subtaskColors[subtask.subtaskStatus]],
+                  }}
                 >
                   {subtaskLabels[subtask.subtaskStatus]}
                 </span>

@@ -1235,6 +1235,8 @@ export class ProjectsService {
       'red',
       'green',
       'purple',
+      'teal',
+      'pink',
     ]);
     return typeof value === 'string' && colors.has(value) ? value : 'slate';
   }
@@ -1258,7 +1260,11 @@ export class ProjectsService {
   updateResource(
     projectId: string,
     resourceId: string,
-    input: { name?: string; projectId?: string },
+    input: {
+      name?: string;
+      projectId?: string;
+      config?: Record<string, unknown>;
+    },
   ): ProjectResource {
     const resource = this.getResource(projectId, resourceId);
     const targetProjectId = input.projectId ?? projectId;
@@ -1267,13 +1273,31 @@ export class ProjectsService {
     if (!name) throw new BadRequestException('Resource name is required');
     if (name.length > 120)
       throw new BadRequestException('Resource name is too long');
+    const config =
+      input.config === undefined
+        ? resource.config
+        : this.validateResourceConfig(input.config);
     const updatedAt = Date.now();
     this.db
       .update(projectResources)
-      .set({ projectId: targetProjectId, name, updatedAt })
+      .set({ projectId: targetProjectId, name, config, updatedAt })
       .where(eq(projectResources.id, resourceId))
       .run();
-    return { ...resource, projectId: targetProjectId, name, updatedAt };
+    return {
+      ...resource,
+      projectId: targetProjectId,
+      name,
+      config,
+      updatedAt,
+    };
+  }
+
+  private validateResourceConfig(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      throw new BadRequestException('Resource config must be an object');
+    if (JSON.stringify(value).length > 20_000)
+      throw new BadRequestException('Resource config is too large');
+    return value as Record<string, unknown>;
   }
 
   deleteResource(projectId: string, resourceId: string) {

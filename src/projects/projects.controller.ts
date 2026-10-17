@@ -143,7 +143,12 @@ export class ProjectsController {
   updateResource(
     @Param('id') id: string,
     @Param('resourceId') resourceId: string,
-    @Body() body: { name?: string; projectId?: string },
+    @Body()
+    body: {
+      name?: string;
+      projectId?: string;
+      config?: Record<string, unknown>;
+    },
   ) {
     return {
       resource: this.projects.updateResource(id, resourceId, body),
