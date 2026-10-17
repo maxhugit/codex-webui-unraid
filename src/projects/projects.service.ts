@@ -567,6 +567,36 @@ export class ProjectsService {
     return resource;
   }
 
+  updateResource(
+    projectId: string,
+    resourceId: string,
+    input: { name?: string; projectId?: string },
+  ): ProjectResource {
+    const resource = this.getResource(projectId, resourceId);
+    const targetProjectId = input.projectId ?? projectId;
+    if (targetProjectId !== projectId) this.get(targetProjectId);
+    const name = input.name === undefined ? resource.name : input.name.trim();
+    if (!name) throw new BadRequestException('Resource name is required');
+    if (name.length > 120)
+      throw new BadRequestException('Resource name is too long');
+    const updatedAt = Date.now();
+    this.db
+      .update(projectResources)
+      .set({ projectId: targetProjectId, name, updatedAt })
+      .where(eq(projectResources.id, resourceId))
+      .run();
+    return { ...resource, projectId: targetProjectId, name, updatedAt };
+  }
+
+  deleteResource(projectId: string, resourceId: string) {
+    const resource = this.getResource(projectId, resourceId);
+    this.db
+      .delete(projectResources)
+      .where(eq(projectResources.id, resource.id))
+      .run();
+    return { ok: true };
+  }
+
   rename(id: string, nameValue: string): Project {
     const project = this.get(id);
     const name = this.validateName(nameValue);

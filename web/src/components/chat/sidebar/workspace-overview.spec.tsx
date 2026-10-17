@@ -31,6 +31,10 @@ describe('WorkspaceOverview creation menu', () => {
           onCreateSimpleChatInWorkspace={createSimpleChat}
           onCreateTaskBoard={createTaskBoard}
           onOpenResource={vi.fn()}
+          resourceActionPending={false}
+          onRenameResource={vi.fn()}
+          onMoveResource={vi.fn()}
+          onDeleteResource={vi.fn()}
           renderThreadRow={() => null}
           renderSimpleChatRow={() => null}
           movingThread={false}

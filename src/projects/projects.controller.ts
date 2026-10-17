@@ -57,6 +57,25 @@ export class ProjectsController {
     return { resource: this.projects.getResource(id, resourceId) };
   }
 
+  @Patch(':id/resources/:resourceId')
+  updateResource(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Body() body: { name?: string; projectId?: string },
+  ) {
+    return {
+      resource: this.projects.updateResource(id, resourceId, body),
+    };
+  }
+
+  @Delete(':id/resources/:resourceId')
+  deleteResource(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+  ) {
+    return this.projects.deleteResource(id, resourceId);
+  }
+
   @Patch(':id/workspaces/:workspaceId/default')
   setDefaultWorkspace(
     @Param('id') id: string,

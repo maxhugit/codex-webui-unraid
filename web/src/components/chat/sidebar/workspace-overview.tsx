@@ -26,7 +26,9 @@ import {
 import type { ThreadDto } from '@/generated/api';
 import { cn } from '@/lib/utils';
 import type { WorkspaceGroup } from './sidebar-types';
+import type { ProjectResourceSummary } from '@/lib/projects-api';
 import { workspaceLabel } from './sidebar-types';
+import { ProjectResourceRow } from './project-resource-row';
 
 const collapseVariants = {
   open: { height: 'auto', opacity: 1 },
@@ -58,6 +60,11 @@ interface Props {
   onCreateSimpleChatInWorkspace: (group: WorkspaceGroup) => void;
   onCreateTaskBoard: (group: WorkspaceGroup) => void;
   onOpenResource: (projectId: string, resourceId: string) => void;
+  activeResourceId?: string;
+  resourceActionPending: boolean;
+  onRenameResource: (resource: ProjectResourceSummary) => void;
+  onMoveResource: (resource: ProjectResourceSummary) => void;
+  onDeleteResource: (resource: ProjectResourceSummary) => void;
   onManageWorkspaces?: (group: WorkspaceGroup) => void;
   onRenameProject?: (group: WorkspaceGroup) => void;
   onDeleteProject?: (group: WorkspaceGroup) => void;
@@ -80,6 +87,11 @@ export function WorkspaceOverview({
   onCreateSimpleChatInWorkspace,
   onCreateTaskBoard,
   onOpenResource,
+  activeResourceId,
+  resourceActionPending,
+  onRenameResource,
+  onMoveResource,
+  onDeleteResource,
   onManageWorkspaces,
   onRenameProject,
   onDeleteProject,
@@ -302,18 +314,19 @@ export function WorkspaceOverview({
                 >
                   <div className="space-y-0.5">
                     {group.resources?.map((resource) => (
-                      <button
+                      <ProjectResourceRow
                         key={resource.id}
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-md px-4 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                        onClick={() =>
+                        resource={resource}
+                        active={resource.id === activeResourceId}
+                        pending={resourceActionPending}
+                        onOpen={() =>
                           group.projectId &&
                           onOpenResource(group.projectId, resource.id)
                         }
-                      >
-                        <ListTodo className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{resource.name}</span>
-                      </button>
+                        onRename={() => onRenameResource(resource)}
+                        onMove={() => onMoveResource(resource)}
+                        onDelete={() => onDeleteResource(resource)}
+                      />
                     ))}
                     {group.threads
                       .slice(0, 5)

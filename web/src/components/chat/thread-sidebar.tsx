@@ -71,6 +71,7 @@ import { useSimpleChatActivityStore } from '@/stores/simple-chat-activity-store'
 import {
   projectsApi,
   projectsQueryKey,
+  type ProjectResourceSummary,
   type ProjectSummary,
 } from '@/lib/projects-api';
 
@@ -126,6 +127,12 @@ export function ThreadSidebar() {
   const activeView = useActiveView();
   const activeSimpleThreadId = useRouterState({
     select: (state) => (state.location.search as { thread?: string }).thread,
+  });
+  const activeResourceId = useRouterState({
+    select: (state) =>
+      state.location.pathname.match(
+        /\/projects\/[^/]+\/resources\/([^/]+)/,
+      )?.[1],
   });
   const { t } = useTranslation();
   const threadId = useTimelineStore((s) => s.threadId);
@@ -184,6 +191,13 @@ export function ThreadSidebar() {
   const [workspaceProject, setWorkspaceProject] =
     useState<ProjectSummary | null>(null);
   const [manageProjectId, setManageProjectId] = useState<string | null>(null);
+  const [renameResource, setRenameResource] =
+    useState<ProjectResourceSummary | null>(null);
+  const [renameResourceValue, setRenameResourceValue] = useState('');
+  const [moveResource, setMoveResource] =
+    useState<ProjectResourceSummary | null>(null);
+  const [deleteResource, setDeleteResource] =
+    useState<ProjectResourceSummary | null>(null);
   const [pendingConversation, setPendingConversation] = useState<{
     kind: 'agent' | 'simple';
     group: WorkspaceGroup;
@@ -853,6 +867,61 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
+  const renameProjectResource = useMutation({
+    mutationFn: ({
+      resource,
+      name,
+    }: {
+      resource: ProjectResourceSummary;
+      name: string;
+    }) =>
+      projectsApi<{ resource: ProjectResourceSummary }>(
+        `/${resource.projectId}/resources/${resource.id}`,
+        { method: 'PATCH', body: JSON.stringify({ name }) },
+      ),
+    onSuccess: () => {
+      setRenameResource(null);
+      setRenameResourceValue('');
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ['project-resource'] });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
+  const moveProjectResource = useMutation({
+    mutationFn: ({
+      resource,
+      projectId,
+    }: {
+      resource: ProjectResourceSummary;
+      projectId: string;
+    }) =>
+      projectsApi<{ resource: ProjectResourceSummary }>(
+        `/${resource.projectId}/resources/${resource.id}`,
+        { method: 'PATCH', body: JSON.stringify({ projectId }) },
+      ),
+    onSuccess: ({ resource }) => {
+      setMoveResource(null);
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+      if (activeResourceId === resource.id)
+        void navigate({
+          to: '/projects/$projectId/resources/$resourceId',
+          params: { projectId: resource.projectId, resourceId: resource.id },
+        });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
+  const deleteProjectResource = useMutation({
+    mutationFn: (resource: ProjectResourceSummary) =>
+      projectsApi(`/${resource.projectId}/resources/${resource.id}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_result, resource) => {
+      setDeleteResource(null);
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+      if (activeResourceId === resource.id) void navigate({ to: '/' });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
 
   // ── View navigation helpers ─────────────────────────────────────────
 
@@ -1170,6 +1239,18 @@ export function ThreadSidebar() {
                   params: { projectId, resourceId },
                 })
               }
+              activeResourceId={activeResourceId}
+              resourceActionPending={
+                renameProjectResource.isPending ||
+                moveProjectResource.isPending ||
+                deleteProjectResource.isPending
+              }
+              onRenameResource={(resource) => {
+                setRenameResource(resource);
+                setRenameResourceValue(resource.name);
+              }}
+              onMoveResource={setMoveResource}
+              onDeleteResource={setDeleteResource}
               onManageWorkspaces={(group) =>
                 group.projectId && setManageProjectId(group.projectId)
               }
@@ -1335,6 +1416,21 @@ export function ThreadSidebar() {
         </AlertDialogContent>
       </AlertDialog>
       <RenameDialog
+        open={renameResource !== null}
+        pending={renameProjectResource.isPending}
+        value={renameResourceValue}
+        onChange={setRenameResourceValue}
+        onSave={() => {
+          if (renameResource && renameResourceValue.trim())
+            renameProjectResource.mutate({
+              resource: renameResource,
+              name: renameResourceValue.trim(),
+            });
+        }}
+        onClose={() => setRenameResource(null)}
+        title={t('Rename task manager')}
+      />
+      <RenameDialog
         open={renameProject !== null}
         pending={renameProjectMutation.isPending}
         value={renameWorkspaceValue}
@@ -1352,6 +1448,87 @@ export function ThreadSidebar() {
           'The project name changes without renaming its workspace folder.',
         )}
       />
+      <AlertDialog
+        open={moveResource !== null}
+        onOpenChange={(open) =>
+          !open && !moveProjectResource.isPending && setMoveResource(null)
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('Move to another project')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'Choose the destination project. The task board and its data will be preserved.',
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid max-h-72 gap-2 overflow-auto">
+            {(projectsQuery.data?.projects ?? [])
+              .filter((project) => project.id !== moveResource?.projectId)
+              .map((project) => (
+                <Button
+                  key={project.id}
+                  variant="outline"
+                  className="justify-start"
+                  disabled={moveProjectResource.isPending}
+                  onClick={() =>
+                    moveResource &&
+                    moveProjectResource.mutate({
+                      resource: moveResource,
+                      projectId: project.id,
+                    })
+                  }
+                >
+                  {project.name}
+                </Button>
+              ))}
+            {(projectsQuery.data?.projects.length ?? 0) <= 1 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                {t('No other project is available.')}
+              </p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={moveProjectResource.isPending}>
+              {t('Cancel')}
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={deleteResource !== null}
+        onOpenChange={(open) =>
+          !open && !deleteProjectResource.isPending && setDeleteResource(null)
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('Delete this task manager?')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'This task board and all of its future tasks will be permanently deleted.',
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteProjectResource.isPending}>
+              {t('Cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={!deleteResource || deleteProjectResource.isPending}
+              onClick={() =>
+                deleteResource && deleteProjectResource.mutate(deleteResource)
+              }
+            >
+              {t('Delete permanently')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <RenameDialog
         open={renameThread !== null}
         pending={updateThreadName.isPending}
