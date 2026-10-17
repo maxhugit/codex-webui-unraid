@@ -122,7 +122,7 @@ type TaskBoardSettings = {
   defaultStatusId: string;
   defaultPriority: ProjectTaskSummary['priority'];
   confirmDelete: boolean;
-  hideEmptyColumns: boolean;
+  hiddenEmptyStatusIds: string[];
   labels: Array<{ id: string; name: string; color: PaletteColor }>;
 };
 const defaultTaskBoardSettings: TaskBoardSettings = {
@@ -142,7 +142,7 @@ const defaultTaskBoardSettings: TaskBoardSettings = {
   defaultStatusId: '',
   defaultPriority: 'normal',
   confirmDelete: true,
-  hideEmptyColumns: false,
+  hiddenEmptyStatusIds: [],
   labels: [],
 };
 const paletteColor = (value: unknown, fallback: PaletteColor): PaletteColor =>
@@ -194,7 +194,11 @@ function readTaskBoardSettings(config: Record<string, unknown>) {
     defaultStatusId:
       typeof raw.defaultStatusId === 'string' ? raw.defaultStatusId : '',
     confirmDelete: raw.confirmDelete !== false,
-    hideEmptyColumns: raw.hideEmptyColumns === true,
+    hiddenEmptyStatusIds: Array.isArray(raw.hiddenEmptyStatusIds)
+      ? raw.hiddenEmptyStatusIds.filter(
+          (id): id is string => typeof id === 'string',
+        )
+      : [],
     labels: Array.isArray(raw.labels)
       ? raw.labels
           .filter(
@@ -267,6 +271,7 @@ export function ProjectTaskManager({
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [taskOpen, setTaskOpen] = useState(false);
   const [taskError, setTaskError] = useState('');
+  const [savingTask, setSavingTask] = useState(false);
   const [editing, setEditing] = useState<ProjectTaskSummary | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [folderOpen, setFolderOpen] = useState(false);
@@ -469,21 +474,39 @@ export function ProjectTaskManager({
   const saveTask = async () => {
     if (!draft.title.trim()) return;
     setTaskError('');
+    setSavingTask(true);
     try {
-      await request.mutateAsync({
-        path: editing
+      const result = await projectsApi<{ task: ProjectTaskSummary }>(
+        editing
           ? `/${projectId}/resources/${resourceId}/tasks/${editing.id}`
           : `/${projectId}/resources/${resourceId}/tasks`,
-        method: editing ? 'PATCH' : 'POST',
-        body: payload(),
+        {
+          method: editing ? 'PATCH' : 'POST',
+          body: JSON.stringify(payload()),
+        },
+      );
+      client.setQueryData<ProjectTaskBoard>(key, (current) => {
+        if (!current) return current;
+        const exists = current.tasks.some((task) => task.id === result.task.id);
+        return {
+          ...current,
+          tasks: exists
+            ? current.tasks.map((task) =>
+                task.id === result.task.id ? result.task : task,
+              )
+            : [...current.tasks, result.task],
+        };
       });
       setTaskOpen(false);
+      void refresh();
     } catch (error) {
       setTaskError(
         error instanceof Error
           ? error.message
           : "Impossible d'enregistrer la tâche.",
       );
+    } finally {
+      setSavingTask(false);
     }
   };
   const removeTask = async () => {
@@ -961,7 +984,7 @@ export function ProjectTaskManager({
             {board.statuses
               .filter(
                 (status) =>
-                  !settings.hideEmptyColumns ||
+                  !settings.hiddenEmptyStatusIds.includes(status.id) ||
                   filtered.some((task) => task.statusId === status.id),
               )
               .map((status) => {
@@ -1479,8 +1502,9 @@ export function ProjectTaskManager({
                 )}
               <Button
                 onClick={saveTask}
-                disabled={!draft.title.trim() || request.isPending}
+                disabled={!draft.title.trim() || savingTask}
               >
+                {savingTask && <Loader2 className="animate-spin" />}
                 Enregistrer
               </Button>
             </div>
@@ -1703,6 +1727,28 @@ export function ProjectTaskManager({
                         Système
                       </span>
                     )}
+                    <label className="flex items-center gap-1.5 whitespace-nowrap text-[11px] text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={settingsDraft.hiddenEmptyStatusIds.includes(
+                          status.id,
+                        )}
+                        onChange={(event) =>
+                          setSettingsDraft((current) => ({
+                            ...current,
+                            hiddenEmptyStatusIds: event.target.checked
+                              ? [
+                                  ...current.hiddenEmptyStatusIds,
+                                  status.id,
+                                ]
+                              : current.hiddenEmptyStatusIds.filter(
+                                  (id) => id !== status.id,
+                                ),
+                          }))
+                        }
+                      />
+                      Masquer si vide
+                    </label>
                     <Button
                       size="icon-xs"
                       variant="ghost"
@@ -1917,19 +1963,6 @@ export function ProjectTaskManager({
                   }
                 />
                 Demander confirmation avant de supprimer une tâche
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={settingsDraft.hideEmptyColumns}
-                  onChange={(event) =>
-                    setSettingsDraft((current) => ({
-                      ...current,
-                      hideEmptyColumns: event.target.checked,
-                    }))
-                  }
-                />
-                Masquer les colonnes vides
               </label>
             </section>
           </div>
