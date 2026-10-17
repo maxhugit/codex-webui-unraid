@@ -36,9 +36,9 @@
 /* SVAR's Gantt root uses height: 100%. Its theme wrapper must therefore fill
    the constrained planning pane; otherwise the widget grows with its rows and
    the surrounding page becomes the scroll container. */
-.project-gantt-shell > .wx-willow-theme,
-.project-gantt-shell > .wx-willow-dark-theme,
-.project-gantt-shell > .wx-material-theme {
+.project-gantt-shell .wx-willow-theme,
+.project-gantt-shell .wx-willow-dark-theme,
+.project-gantt-shell .wx-material-theme {
   height: 100%;
   min-height: 0;
   overflow: hidden;
