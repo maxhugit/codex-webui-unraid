@@ -350,6 +350,8 @@ export function ProjectTaskManager({
   const [ganttApi, setGanttApi] = useState<IApi | null>(null);
   const [taskTab, setTaskTab] = useState<string>('new');
   const [rootTaskId, setRootTaskId] = useState<string | null>(null);
+  const [parentToComplete, setParentToComplete] = useState<string | null>(null);
+  const [completionStatusOpen, setCompletionStatusOpen] = useState(false);
   const openedInitialTask = useRef<string | null>(null);
   useEffect(() => {
     if (
@@ -555,6 +557,18 @@ export function ProjectTaskManager({
     ...(draft.parentTaskId ? { subtaskStatus: draft.subtaskStatus } : {}),
     dependencyIds: draft.parentTaskId ? [] : draft.dependencyIds,
   });
+  const completeParent = async (parentId: string, statusId: string) => {
+    await projectsApi(
+      `/${projectId}/resources/${resourceId}/tasks/${parentId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ statusId }),
+      },
+    );
+    setCompletionStatusOpen(false);
+    setParentToComplete(null);
+    await refresh();
+  };
   const saveTask = async () => {
     if (!draft.title.trim()) return;
     setTaskError('');
@@ -582,6 +596,30 @@ export function ProjectTaskManager({
         };
       });
       setTaskOpen(false);
+      const parentId = result.task.parentTaskId;
+      const becameTerminal =
+        parentId &&
+        isTerminalSubtask(result.task.subtaskStatus) &&
+        (!editing || !isTerminalSubtask(editing.subtaskStatus));
+      if (parentId && becameTerminal) {
+        const parent = board.tasks.find((task) => task.id === parentId);
+        const allChildrenTerminal = board.tasks
+          .filter((task) => task.parentTaskId === parentId)
+          .map((task) => (task.id === result.task.id ? result.task : task))
+          .every((task) => isTerminalSubtask(task.subtaskStatus));
+        if (
+          parent &&
+          !isTerminalStatus(parent.statusId) &&
+          allChildrenTerminal
+        ) {
+          if (terminalStatusIds.length === 1) {
+            await completeParent(parentId, terminalStatusIds[0]);
+          } else if (terminalStatusIds.length > 1) {
+            setParentToComplete(parentId);
+            setCompletionStatusOpen(true);
+          }
+        }
+      }
       void refresh();
     } catch (error) {
       setTaskError(
@@ -2307,6 +2345,47 @@ export function ProjectTaskManager({
               {breakdownLoading && <Loader2 className="animate-spin" />}
               Créer les sous-tâches
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={completionStatusOpen}
+        onOpenChange={(open) => {
+          setCompletionStatusOpen(open);
+          if (!open) setParentToComplete(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Terminer la tâche</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Toutes les sous-tâches sont terminées. Choisissez le statut de fin
+              à appliquer à la tâche parente.
+            </p>
+          </DialogHeader>
+          <div className="grid gap-2">
+            {board.statuses
+              .filter((status) => terminalStatusIds.includes(status.id))
+              .map((status) => (
+                <Button
+                  key={status.id}
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => {
+                    if (parentToComplete)
+                      void completeParent(parentToComplete, status.id);
+                  }}
+                >
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{
+                      backgroundColor:
+                        palette[paletteColor(status.color, 'slate')],
+                    }}
+                  />
+                  {status.name}
+                </Button>
+              ))}
           </div>
         </DialogContent>
       </Dialog>
