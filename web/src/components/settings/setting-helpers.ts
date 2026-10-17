@@ -55,6 +55,7 @@ export function sectionLabel(section: string): string {
   if (section === 'simpleChat') return 'Chat simple';
   const labels: Record<string, string> = {
     general: 'General',
+    people: 'People',
     account: 'Account',
     codex: 'Codex',
     terminal: 'Terminal',

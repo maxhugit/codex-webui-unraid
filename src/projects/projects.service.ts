@@ -21,6 +21,8 @@ import {
   projectAgentThreads,
   projectWorkspaces,
   simpleChatThreads,
+  people,
+  projectParticipants,
   type Project,
   type ProjectWorkspace,
   type ProjectResource,
@@ -99,6 +101,186 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     if (this.automationTimer) clearInterval(this.automationTimer);
+  }
+
+  listPeople() {
+    return this.db
+      .select()
+      .from(people)
+      .all()
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  savePerson(
+    input: {
+      reference?: unknown;
+      name?: unknown;
+      email?: unknown;
+      active?: unknown;
+    },
+    id?: string,
+  ) {
+    const existing = id
+      ? this.db.select().from(people).where(eq(people.id, id)).get()
+      : undefined;
+    if (id && !existing) throw new NotFoundException('Person not found');
+    const reference = this.validateTaskText(
+      input.reference ?? existing?.reference,
+      'Manual reference',
+      80,
+    );
+    const name = this.validateTaskText(
+      input.name ?? existing?.name,
+      'Display name',
+      160,
+    );
+    const rawEmail = input.email !== undefined ? input.email : existing?.email;
+    if (rawEmail != null && typeof rawEmail !== 'string')
+      throw new BadRequestException('Invalid email');
+    const email =
+      typeof rawEmail === 'string'
+        ? rawEmail.trim().toLowerCase() || null
+        : null;
+    if (
+      email &&
+      (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    )
+      throw new BadRequestException('Invalid email');
+    if (input.active !== undefined && typeof input.active !== 'boolean')
+      throw new BadRequestException('Invalid active state');
+    const all = this.listPeople();
+    if (
+      all.some(
+        (p) =>
+          p.id !== id && p.reference.toLowerCase() === reference.toLowerCase(),
+      )
+    )
+      throw new ConflictException('Manual reference already exists');
+    if (email && all.some((p) => p.id !== id && p.email === email))
+      throw new ConflictException('Email already exists');
+    const person = {
+      id: existing?.id ?? randomUUID(),
+      reference,
+      name,
+      email,
+      active:
+        typeof input.active === 'boolean'
+          ? input.active
+          : (existing?.active ?? true),
+      createdAt: existing?.createdAt ?? Date.now(),
+      updatedAt: Date.now(),
+    };
+    if (existing)
+      this.db
+        .update(people)
+        .set(person)
+        .where(eq(people.id, existing.id))
+        .run();
+    else this.db.insert(people).values(person).run();
+    return person;
+  }
+
+  participants(projectId: string) {
+    this.get(projectId);
+    const members = this.db
+      .select()
+      .from(projectParticipants)
+      .where(eq(projectParticipants.projectId, projectId))
+      .all();
+    const resourceIds = new Set(
+      this.db
+        .select()
+        .from(projectResources)
+        .where(eq(projectResources.projectId, projectId))
+        .all()
+        .map((r) => r.id),
+    );
+    const tasks = this.db
+      .select()
+      .from(projectTasks)
+      .all()
+      .filter((task) => resourceIds.has(task.resourceId));
+    const terminal = new Map(
+      [...resourceIds].map((id) => [
+        id,
+        new Set(this.getTaskBoardTerminalSettings(id).taskStatusIds),
+      ]),
+    );
+    return members.map((member) => ({
+      ...member,
+      assignmentCount: tasks.filter(
+        (task) => task.assigneeId === member.personId,
+      ).length,
+      openAssignmentCount: tasks.filter(
+        (task) =>
+          task.assigneeId === member.personId &&
+          (task.parentTaskId
+            ? !['done', 'cancelled'].includes(task.subtaskStatus)
+            : !terminal.get(task.resourceId)?.has(task.statusId)),
+      ).length,
+    }));
+  }
+
+  addParticipant(projectId: string, personId: string) {
+    this.get(projectId);
+    if (typeof personId !== 'string' || !personId)
+      throw new BadRequestException('Select an active person');
+    const person = this.db
+      .select()
+      .from(people)
+      .where(eq(people.id, personId))
+      .get();
+    if (!person?.active)
+      throw new BadRequestException('Select an active person');
+    this.db
+      .insert(projectParticipants)
+      .values({ projectId, personId, createdAt: Date.now() })
+      .onConflictDoNothing()
+      .run();
+    return { ok: true };
+  }
+
+  removeParticipant(projectId: string, personId: string) {
+    this.get(projectId);
+    this.db
+      .delete(projectParticipants)
+      .where(
+        and(
+          eq(projectParticipants.projectId, projectId),
+          eq(projectParticipants.personId, personId),
+        ),
+      )
+      .run();
+    // Existing assignments are historical information and remain attached.
+    return { ok: true };
+  }
+
+  private validateAssignee(projectId: string, id: unknown): string | null {
+    if (id === null || id === '') return null;
+    if (typeof id !== 'string')
+      throw new BadRequestException('Invalid responsible person');
+    const person = this.db.select().from(people).where(eq(people.id, id)).get();
+    const member = this.db
+      .select()
+      .from(projectParticipants)
+      .where(
+        and(
+          eq(projectParticipants.projectId, projectId),
+          eq(projectParticipants.personId, id),
+        ),
+      )
+      .get();
+    if (!person?.active || !member)
+      throw new BadRequestException(
+        'The responsible person must be an active project participant',
+      );
+    return id;
+  }
+
+  private assigneeLabel(id: string | null) {
+    if (!id) return null;
+    const person = this.db.select().from(people).where(eq(people.id, id)).get();
+    return person ? `${person.name} (${person.reference})` : id;
   }
 
   async dashboard() {
@@ -859,6 +1041,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     projectId: string,
     resourceId: string,
     input: {
+      assigneeId?: string | null;
       title?: string;
       description?: string;
       priority?: string;
@@ -902,6 +1085,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       id: randomUUID(),
       resourceId,
       statusId: parent?.statusId ?? fallback.id,
+      assigneeId: this.validateAssignee(projectId, input.assigneeId ?? null),
       title: this.validateTaskText(input.title, 'Task title', 200),
       description: input.description?.trim().slice(0, 10_000) ?? '',
       priority: parent ? parent.priority : (input.priority ?? 'normal'),
@@ -942,7 +1126,14 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           taskTitle: task.title,
           parentTaskId: task.parentTaskId,
           action: 'created',
-          changes: {},
+          changes: task.assigneeId
+            ? {
+                assigneeId: {
+                  before: null,
+                  after: this.assigneeLabel(task.assigneeId),
+                },
+              }
+            : {},
           createdAt: now,
         })
         .run();
@@ -969,6 +1160,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     resourceId: string,
     taskId: string,
     input: Partial<{
+      assigneeId: string | null;
       title: string;
       description: string;
       priority: string;
@@ -993,6 +1185,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   ): Promise<ProjectTask> {
     this.getResource(projectId, resourceId);
     const task = this.requireTask(resourceId, taskId);
+    if (input.assigneeId !== undefined && input.assigneeId !== task.assigneeId)
+      this.validateAssignee(projectId, input.assigneeId);
     if (input.statusId) this.requireTaskStatus(resourceId, input.statusId);
     if (input.parentTaskId) {
       if (input.parentTaskId === task.id)
@@ -1114,6 +1308,9 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           }
         : {}),
       ...(input.startAt !== undefined ? { startAt: input.startAt } : {}),
+      ...(input.assigneeId !== undefined
+        ? { assigneeId: input.assigneeId || null }
+        : {}),
       ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
       ...(input.validationCriteria !== undefined
         ? {
@@ -1323,6 +1520,11 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       if (JSON.stringify(before[key]) !== JSON.stringify(after[key]))
         changes[key] = { before: before[key], after: after[key] };
     }
+    if (changes.assigneeId)
+      changes.assigneeId = {
+        before: this.assigneeLabel(before.assigneeId),
+        after: this.assigneeLabel(after.assigneeId),
+      };
     return changes;
   }
 

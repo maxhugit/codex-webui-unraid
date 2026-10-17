@@ -1,12 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import {
-  Tooltip,
-  Willow,
-  WillowDark,
-  type IApi,
-} from '@svar-ui/react-gantt';
+import { Tooltip, Willow, WillowDark, type IApi } from '@svar-ui/react-gantt';
 import { Locale } from '@svar-ui/react-core';
+import { usePeople, useParticipants, personLabel } from '@/lib/people-api';
+import { ResponsiblePerson } from './people-manager';
 import { StableProjectGantt } from './stable-project-gantt';
 import '@svar-ui/react-gantt/all.css';
 import {
@@ -66,6 +63,7 @@ import {
 } from '@/lib/projects-api';
 
 type Draft = {
+  assigneeId: string;
   title: string;
   description: string;
   priority: ProjectTaskSummary['priority'];
@@ -125,6 +123,7 @@ type GanttDisplay = {
   cellWidth: number;
 };
 const emptyDraft: Draft = {
+  assigneeId: '',
   title: '',
   description: '',
   priority: 'normal',
@@ -302,6 +301,8 @@ export function ProjectTaskManager({
   initialTaskId?: string;
 }) {
   const { t, i18n } = useTranslation();
+  const people = usePeople();
+  const participants = useParticipants(projectId);
   const client = useQueryClient();
   const navigate = useNavigate();
   const dark = useThemeStore((state) => state.dark);
@@ -431,6 +432,7 @@ export function ProjectTaskManager({
       setEditing(task);
       setRootTaskId(task.parentTaskId ?? task.id);
       setDraft({
+        assigneeId: task.assigneeId ?? '',
         title: task.title,
         description: task.description,
         priority: parent?.priority ?? task.priority,
@@ -475,8 +477,7 @@ export function ProjectTaskManager({
     const dayClass = (date: Date) =>
       date.getDay() === 0 || date.getDay() === 6 ? 'project-gantt-weekend' : '';
     return {
-      level:
-        (ganttView === 'years' ? 0 : ganttView === 'months' ? 1 : 2),
+      level: ganttView === 'years' ? 0 : ganttView === 'months' ? 1 : 2,
       minCellWidth: 30,
       maxCellWidth: 180,
       levels: [
@@ -621,6 +622,7 @@ export function ProjectTaskManager({
     setTaskError('');
     setRootTaskId(rootId ?? task.parentTaskId ?? task.id);
     setDraft({
+      assigneeId: task.assigneeId ?? '',
       title: task.title,
       description: task.description,
       priority: parent?.priority ?? task.priority,
@@ -644,6 +646,7 @@ export function ProjectTaskManager({
     setTaskOpen(true);
   };
   const payload = () => ({
+    assigneeId: draft.assigneeId || null,
     title: draft.title.trim(),
     description: draft.description.trim(),
     priority: draft.priority,
@@ -2257,6 +2260,62 @@ export function ProjectTaskManager({
               />
             </label>
             <label className="grid gap-1 text-xs text-muted-foreground">
+              {t('Responsible person')}
+              <select
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground"
+                value={draft.assigneeId}
+                disabled={
+                  people.isPending ||
+                  participants.isPending ||
+                  people.isError ||
+                  participants.isError
+                }
+                onChange={(e) =>
+                  setDraft({ ...draft, assigneeId: e.target.value })
+                }
+              >
+                <option value="">{t('Unassigned person')}</option>
+                {(people.data?.people ?? [])
+                  .filter(
+                    (person) =>
+                      person.id === draft.assigneeId ||
+                      (person.active &&
+                        participants.data?.participants.some(
+                          (member) => member.personId === person.id,
+                        )),
+                  )
+                  .map((person) => {
+                    const eligible =
+                      person.active &&
+                      participants.data?.participants.some(
+                        (member) => member.personId === person.id,
+                      );
+                    return (
+                      <option key={person.id} value={person.id}>
+                        {personLabel(person)}
+                        {!eligible
+                          ? ` · ${t('Inactive or outside this project')}`
+                          : ''}
+                      </option>
+                    );
+                  })}
+              </select>
+              {draft.assigneeId &&
+                !people.data?.people.some(
+                  (person) => person.id === draft.assigneeId,
+                ) && <span>{t('Loading responsible person…')}</span>}
+              {(people.isError || participants.isError) && (
+                <span role="alert" className="text-destructive">
+                  {t('Unable to load people.')}
+                </span>
+              )}
+              <span>
+                {t(
+                  'Add eligible people using the project’s Manage participants menu.',
+                )}
+              </span>
+            </label>
+            <label className="grid gap-1 text-xs text-muted-foreground">
               {t('Description')}
               <DictatedTextarea
                 placeholder={t('Detailed description')}
@@ -3584,7 +3643,7 @@ function TaskActivityJournal({
   board: ProjectTaskBoard;
   statuses: ProjectTaskStatusSummary[];
 }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const fieldLabels: Record<string, string> = {
     title: 'Titre',
     description: 'Description',
@@ -3603,6 +3662,7 @@ function TaskActivityJournal({
     linkedFilePath: 'Fichier lié',
     parentTaskId: 'Tâche parente',
     position: 'Position',
+    assigneeId: t('Responsible person'),
   };
   const formatValue = (field: string, value: unknown) => {
     if (value === null || value === undefined || value === '') return '—';
@@ -4014,6 +4074,7 @@ function TaskCard({
               {task.estimateMinutes / 60} h
             </span>
           )}
+          <ResponsiblePerson id={task.assigneeId} />
           {task.dueAt && (
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <CalendarDays className="h-3 w-3" />
@@ -4047,14 +4108,17 @@ function TaskCard({
                     aria-label="Sous-tâche manuelle"
                   />
                 )}
-                <button
-                  type="button"
-                  onClick={() => onSubtaskClick(subtask)}
-                  className="min-w-0 flex-1 cursor-pointer truncate whitespace-nowrap text-left hover:underline"
-                  title={subtask.title}
-                >
-                  {subtask.title}
-                </button>
+                <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => onSubtaskClick(subtask)}
+                    className="block w-full cursor-pointer truncate whitespace-nowrap text-left hover:underline"
+                    title={subtask.title}
+                  >
+                    {subtask.title}
+                  </button>
+                  <ResponsiblePerson id={subtask.assigneeId} />
+                </div>
                 <span className="flex w-14 shrink-0 items-center gap-1 text-[9px] text-muted-foreground">
                   <span className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
                     <span

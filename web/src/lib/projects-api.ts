@@ -45,6 +45,7 @@ export interface ProjectTaskStatusSummary {
 }
 
 export interface ProjectTaskSummary {
+  assigneeId: string | null;
   id: string;
   resourceId: string;
   statusId: string;

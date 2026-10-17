@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Pencil,
   FolderCog,
+  Users,
   ListTodo,
   Zap,
   Trash2,
@@ -67,6 +68,7 @@ interface Props {
   onRenameResource: (resource: ProjectResourceSummary) => void;
   onDeleteResource: (resource: ProjectResourceSummary) => void;
   onManageWorkspaces?: (group: WorkspaceGroup) => void;
+  onManageParticipants?: (group: WorkspaceGroup) => void;
   onRenameProject?: (group: WorkspaceGroup) => void;
   onDeleteProject?: (group: WorkspaceGroup) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
@@ -94,6 +96,7 @@ export function WorkspaceOverview({
   onRenameResource,
   onDeleteResource,
   onManageWorkspaces,
+  onManageParticipants,
   onRenameProject,
   onDeleteProject,
   renderThreadRow,
@@ -277,6 +280,17 @@ export function WorkspaceOverview({
                     >
                       <FolderCog className="h-3.5 w-3.5" />
                       {t('Manage workspaces')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-full justify-start gap-2 px-2 text-xs"
+                      onClick={() => {
+                        setOpenMenu(null);
+                        onManageParticipants?.(group);
+                      }}
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      {t('Manage participants')}
                     </Button>
                     <Button
                       variant="ghost"

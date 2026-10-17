@@ -15,6 +15,42 @@ import { ProjectsService } from './projects.service';
 export class ProjectsController {
   constructor(private readonly projects: ProjectsService) {}
 
+  @Get('people')
+  people() {
+    return { people: this.projects.listPeople() };
+  }
+
+  @Post('people')
+  createPerson(@Body() body: Parameters<ProjectsService['savePerson']>[0]) {
+    return { person: this.projects.savePerson(body) };
+  }
+
+  @Patch('people/:personId')
+  updatePerson(
+    @Param('personId') id: string,
+    @Body() body: Parameters<ProjectsService['savePerson']>[0],
+  ) {
+    return { person: this.projects.savePerson(body, id) };
+  }
+
+  @Get(':id/participants')
+  participants(@Param('id') id: string) {
+    return { participants: this.projects.participants(id) };
+  }
+
+  @Post(':id/participants')
+  addParticipant(@Param('id') id: string, @Body() body: { personId: string }) {
+    return this.projects.addParticipant(id, body.personId);
+  }
+
+  @Delete(':id/participants/:personId')
+  removeParticipant(
+    @Param('id') id: string,
+    @Param('personId') personId: string,
+  ) {
+    return this.projects.removeParticipant(id, personId);
+  }
+
   @Get('dashboard')
   dashboard() {
     return this.projects.dashboard();

@@ -23,9 +23,11 @@ import { SimpleChatSettings } from './simple-chat-settings';
 import { PluginsTab } from '@/components/integrations/plugins-tab';
 import { AppsTab } from '@/components/integrations/apps-tab';
 import { McpsTab } from '@/components/integrations/mcps-tab';
+import { PeopleManager } from '@/components/projects/people-manager';
 
 const SECTIONS = [
   'general',
+  'people',
   'account',
   'codex',
   'simpleChat',
@@ -105,6 +107,7 @@ export function SettingsPage() {
           />
         )}
         {section === 'account' && <AccountSettings />}
+        {section === 'people' && <PeopleManager />}
         {section === 'codex' && (
           <>
             <CodexSettings />

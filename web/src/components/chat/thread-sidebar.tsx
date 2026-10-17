@@ -62,6 +62,7 @@ import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
 import { DirectoryPickerDialog } from './sidebar/directory-picker-dialog';
 import { CreateProjectDialog } from './sidebar/create-project-dialog';
 import { ManageWorkspacesDialog } from './sidebar/manage-workspaces-dialog';
+import { ProjectParticipantsDialog } from '@/components/projects/people-manager';
 import { useForkWithGoal } from '@/hooks/use-fork-with-goal';
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
@@ -125,6 +126,9 @@ function useActiveView():
 }
 
 export function ThreadSidebar() {
+  const [participantProjectId, setParticipantProjectId] = useState<
+    string | null
+  >(null);
   const navigate = useNavigate();
   const activeView = useActiveView();
   const activeSimpleThreadId = useRouterState({
@@ -1326,6 +1330,9 @@ export function ThreadSidebar() {
               onManageWorkspaces={(group) =>
                 group.projectId && setManageProjectId(group.projectId)
               }
+              onManageParticipants={(group) => {
+                if (group.projectId) setParticipantProjectId(group.projectId);
+              }}
               onRenameProject={(group) => {
                 if (!group.projectId) return;
                 setRenameProject({
@@ -1425,6 +1432,10 @@ export function ThreadSidebar() {
           setCreateProjectPath('/workspaces/');
           setCreateProjectPathCustomized(false);
         }}
+      />
+      <ProjectParticipantsDialog
+        projectId={participantProjectId}
+        onClose={() => setParticipantProjectId(null)}
       />
       <ManageWorkspacesDialog
         project={workspaceProject ? null : managedProject}

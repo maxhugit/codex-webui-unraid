@@ -325,6 +325,30 @@ export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
 
 /** Extensible project tools (task boards today, other skills later). */
+export const people = sqliteTable('people', {
+  id: text('id').primaryKey(),
+  reference: text('reference').notNull().unique(),
+  name: text('name').notNull(),
+  email: text('email').unique(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export const projectParticipants = sqliteTable(
+  'project_participants',
+  {
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    personId: text('person_id')
+      .notNull()
+      .references(() => people.id, { onDelete: 'restrict' }),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.projectId, table.personId] })],
+);
+
 export const projectResources = sqliteTable(
   'project_resources',
   {
@@ -381,6 +405,9 @@ export const projectTasks = sqliteTable(
     description: text('description').notNull().default(''),
     priority: text('priority').notNull().default('normal'),
     parentTaskId: text('parent_task_id'),
+    assigneeId: text('assignee_id').references(() => people.id, {
+      onDelete: 'set null',
+    }),
     subtaskStatus: text('subtask_status').notNull().default('todo'),
     workspacePath: text('workspace_path'),
     executionMode: text('execution_mode').notNull().default('manual'),
