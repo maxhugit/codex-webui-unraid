@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Gantt, WillowDark } from '@svar-ui/react-gantt';
+import { Gantt, Willow, WillowDark } from '@svar-ui/react-gantt';
 import '@svar-ui/react-gantt/all.css';
 import {
   Bot,
@@ -38,6 +38,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DirectorySelectionTree } from '@/components/files/directory-selection-tree';
 import { threadsStartThread, threadsStartTurn } from '@/generated/api/sdk.gen';
+import { useThemeStore } from '@/stores/theme-store';
 import {
   projectsApi,
   type ProjectTaskBoard,
@@ -149,6 +150,8 @@ export function ProjectTaskManager({
 }) {
   const client = useQueryClient();
   const navigate = useNavigate();
+  const dark = useThemeStore((state) => state.dark);
+  const GanttTheme = dark ? WillowDark : Willow;
   const key = ['project-resource', projectId, resourceId];
   const query = useQuery({
     queryKey: key,
@@ -920,9 +923,11 @@ export function ProjectTaskManager({
         </>
       ) : (
         <section className="h-[70vh] min-h-[480px] overflow-hidden rounded-xl border bg-card">
-          <WillowDark>
+          <GanttTheme>
             <Gantt
-              key={ganttTasks.map((task) => task.id).join(':')}
+              key={`${dark ? 'dark' : 'light'}:${ganttTasks
+                .map((task) => task.id)
+                .join(':')}`}
               tasks={ganttTasks as never}
               links={ganttLinks as never}
               zoom
@@ -940,7 +945,7 @@ export function ProjectTaskManager({
                 );
               }}
             />
-          </WillowDark>
+          </GanttTheme>
           {!ganttTasks.length && (
             <div className="p-8 text-center text-sm text-muted-foreground">
               Ajoutez des dates pour afficher les tâches dans le planning.
