@@ -103,6 +103,14 @@ const priorityStyle = {
   high: 'bg-orange-500/15 text-orange-400',
   urgent: 'bg-red-500/15 text-red-400',
 } as const;
+const priorityCardStyle = {
+  low: 'border-emerald-200/80 bg-emerald-50/80 dark:border-emerald-900/60 dark:bg-emerald-950/25',
+  normal:
+    'border-sky-200/80 bg-sky-50/80 dark:border-sky-900/60 dark:bg-sky-950/25',
+  high: 'border-amber-200/80 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/25',
+  urgent:
+    'border-rose-200/80 bg-rose-50/80 dark:border-rose-900/60 dark:bg-rose-950/25',
+} as const;
 const agentLabels: Record<string, string> = {
   ready: 'Agent prêt',
   running: 'Agent en cours',
@@ -1491,7 +1499,9 @@ function TaskCard({
   onSubtaskClick: (task: ProjectTaskSummary) => void;
 }) {
   return (
-    <div className="rounded-lg border bg-background/80 shadow-sm">
+    <div
+      className={`rounded-lg border shadow-sm ${priorityCardStyle[task.priority]}`}
+    >
       <button
         type="button"
         draggable
