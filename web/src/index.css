@@ -39,6 +39,17 @@
   outline: none;
 }
 
+.project-gantt-tooltip {
+  --wx-tooltip-background: var(--popover);
+  --wx-tooltip-font-color: var(--popover-foreground);
+  --wx-tooltip-border: 1px solid var(--border);
+  --wx-tooltip-padding: 0;
+
+  color: var(--popover-foreground);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 18%);
+}
+
 .task-form-actions [data-slot='button']:not(:disabled) {
   cursor: pointer;
 }

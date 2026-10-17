@@ -1435,6 +1435,7 @@ export function ProjectTaskManager({
             <Locale words={ganttLocale}>
               <Tooltip
                 api={ganttApi ?? undefined}
+                css="project-gantt-tooltip"
                 content={({ data }) => {
                   if (!('task' in data)) return null;
                   const task = board.tasks.find(
