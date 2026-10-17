@@ -4,6 +4,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  Zap,
 } from 'lucide-react';
 import { Feedback } from '@dnd-kit/dom';
 import { useDraggable } from '@dnd-kit/react';
@@ -74,7 +75,11 @@ export function ProjectResourceRow({
         onClick={onOpen}
         title={resource.name}
       >
-        <ListTodo className="h-3 w-3 shrink-0" />
+        {resource.type === 'automation_board' ? (
+          <Zap className="h-3 w-3 shrink-0" />
+        ) : (
+          <ListTodo className="h-3 w-3 shrink-0" />
+        )}
         <span className="truncate">{resource.name}</span>
       </button>
       <Popover>

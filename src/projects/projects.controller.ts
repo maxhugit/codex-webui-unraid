@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -54,7 +55,68 @@ export class ProjectsController {
     @Param('id') id: string,
     @Param('resourceId') resourceId: string,
   ) {
-    return this.projects.readTaskBoard(id, resourceId);
+    return this.projects.readResource(id, resourceId);
+  }
+
+  @Post(':id/resources/:resourceId/automations')
+  createAutomation(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Body() body: Parameters<ProjectsService['upsertAutomation']>[2],
+  ) {
+    return { automation: this.projects.upsertAutomation(id, resourceId, body) };
+  }
+
+  @Patch(':id/resources/:resourceId/automations/:automationId')
+  updateAutomation(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Param('automationId') automationId: string,
+    @Body() body: Parameters<ProjectsService['upsertAutomation']>[2],
+  ) {
+    return {
+      automation: this.projects.upsertAutomation(
+        id,
+        resourceId,
+        body,
+        automationId,
+      ),
+    };
+  }
+
+  @Delete(':id/resources/:resourceId/automations/:automationId')
+  deleteAutomation(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Param('automationId') automationId: string,
+  ) {
+    return this.projects.deleteAutomation(id, resourceId, automationId);
+  }
+
+  @Post(':id/resources/:resourceId/automations/:automationId/run')
+  runAutomation(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Param('automationId') automationId: string,
+  ) {
+    return this.projects.runAutomation(id, resourceId, automationId);
+  }
+
+  @Patch(':id/resources/:resourceId/automation-runs/:runId')
+  reviewAutomationRun(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Param('runId') runId: string,
+    @Body() body: { decision: 'approved' | 'rejected' },
+  ) {
+    if (!['approved', 'rejected'].includes(body.decision))
+      throw new BadRequestException('Invalid automation decision');
+    return this.projects.reviewAutomationRun(
+      id,
+      resourceId,
+      runId,
+      body.decision,
+    );
   }
 
   @Post(':id/resources/:resourceId/statuses')

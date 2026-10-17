@@ -10,6 +10,7 @@ import {
   Pencil,
   FolderCog,
   ListTodo,
+  Zap,
   Trash2,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -59,6 +60,7 @@ interface Props {
   onCreateAgentInWorkspace: (group: WorkspaceGroup) => void;
   onCreateSimpleChatInWorkspace: (group: WorkspaceGroup) => void;
   onCreateTaskBoard: (group: WorkspaceGroup) => void;
+  onCreateAutomationBoard?: (group: WorkspaceGroup) => void;
   onOpenResource: (projectId: string, resourceId: string) => void;
   activeResourceId?: string;
   resourceActionPending: boolean;
@@ -85,6 +87,7 @@ export function WorkspaceOverview({
   onCreateAgentInWorkspace,
   onCreateSimpleChatInWorkspace,
   onCreateTaskBoard,
+  onCreateAutomationBoard,
   onOpenResource,
   activeResourceId,
   resourceActionPending,
@@ -251,6 +254,19 @@ export function WorkspaceOverview({
                       <ListTodo className="h-3.5 w-3.5" />
                       {t('Task manager')}
                     </Button>
+                    {onCreateAutomationBoard && (
+                      <Button
+                        variant="ghost"
+                        className="h-8 w-full justify-start gap-2 px-2 text-xs"
+                        onClick={() => {
+                          setOpenMenu(null);
+                          onCreateAutomationBoard(group);
+                        }}
+                      >
+                        <Zap className="h-3.5 w-3.5" />
+                        Automatisations
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       className="h-8 w-full justify-start gap-2 px-2 text-xs"

@@ -931,6 +931,25 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
+  const createAutomationBoard = useMutation({
+    mutationFn: (projectId: string) =>
+      projectsApi<{ resource: ProjectSummary['resources'][number] }>(
+        `/${projectId}/resources`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ type: 'automation_board' }),
+        },
+      ),
+    onSuccess: ({ resource }) => {
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+      void navigate({
+        to: '/projects/$projectId/resources/$resourceId',
+        params: { projectId: resource.projectId, resourceId: resource.id },
+        search: { task: undefined },
+      });
+    },
+    onError: (err) => addSystemError(getApiErrorMessage(err)),
+  });
   const renameProjectResource = useMutation({
     mutationFn: ({
       resource,
@@ -1260,6 +1279,9 @@ export function ThreadSidebar() {
               }
               onCreateTaskBoard={(group) =>
                 group.projectId && createTaskBoard.mutate(group.projectId)
+              }
+              onCreateAutomationBoard={(group) =>
+                group.projectId && createAutomationBoard.mutate(group.projectId)
               }
               onOpenResource={(projectId, resourceId) =>
                 void navigate({

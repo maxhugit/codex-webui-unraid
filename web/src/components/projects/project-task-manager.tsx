@@ -17,6 +17,7 @@ import {
   ChevronRight,
   ChevronUp,
   Clock3,
+  Columns3,
   FolderOpen,
   History,
   Lightbulb,
@@ -118,6 +119,10 @@ type ReplanSuggestion = {
   reason: string;
 };
 type GanttView = 'years' | 'months' | 'weeks' | 'fit';
+type GanttDisplay = {
+  scales: Array<{ unit: string; step: number; format: string }>;
+  cellWidth: number;
+};
 const emptyDraft: Draft = {
   title: '',
   description: '',
@@ -378,6 +383,8 @@ export function ProjectTaskManager({
   const [ganttApi, setGanttApi] = useState<IApi | null>(null);
   const [ganttView, setGanttView] = useState<GanttView>('months');
   const [ganttWidth, setGanttWidth] = useState(900);
+  const [fittedGanttDisplay, setFittedGanttDisplay] =
+    useState<GanttDisplay | null>(null);
   const ganttShellRef = useRef<HTMLElement | null>(null);
   const [taskTab, setTaskTab] = useState<string>('new');
   const [rootTaskId, setRootTaskId] = useState<string | null>(null);
@@ -1347,7 +1354,45 @@ export function ProjectTaskManager({
     );
     return { start, end, days };
   })();
-  const ganttDisplay = (() => {
+  const calculatedFitDisplay: GanttDisplay = (() => {
+    const chartWidth = Math.max(260, ganttWidth - 395);
+    if (ganttRange.days > 730) {
+      return {
+        scales: [{ unit: 'year', step: 1, format: '%Y' }],
+        cellWidth: Math.max(
+          55,
+          Math.floor(chartWidth / Math.ceil(ganttRange.days / 365)),
+        ),
+      };
+    }
+    if (ganttRange.days > 120) {
+      return {
+        scales: [
+          { unit: 'year', step: 1, format: '%Y' },
+          { unit: 'month', step: 1, format: '%M' },
+        ],
+        cellWidth: Math.max(
+          28,
+          Math.floor(chartWidth / Math.ceil(ganttRange.days / 30.44)),
+        ),
+      };
+    }
+    return {
+      scales: [
+        { unit: 'month', step: 1, format: '%F %Y' },
+        {
+          unit: 'week',
+          step: 1,
+          format: ganttFrench ? "'Sem.' %W" : "'Week' %W",
+        },
+      ],
+      cellWidth: Math.max(
+        34,
+        Math.floor(chartWidth / Math.ceil(ganttRange.days / 7)),
+      ),
+    };
+  })();
+  const ganttDisplay: GanttDisplay = (() => {
     if (ganttView === 'years') {
       return {
         scales: [
@@ -1371,42 +1416,7 @@ export function ProjectTaskManager({
       };
     }
     if (ganttView === 'fit') {
-      const chartWidth = Math.max(260, ganttWidth - 395);
-      if (ganttRange.days > 730) {
-        return {
-          scales: [{ unit: 'year', step: 1, format: '%Y' }],
-          cellWidth: Math.max(
-            55,
-            Math.floor(chartWidth / Math.ceil(ganttRange.days / 365)),
-          ),
-        };
-      }
-      if (ganttRange.days > 120) {
-        return {
-          scales: [
-            { unit: 'year', step: 1, format: '%Y' },
-            { unit: 'month', step: 1, format: '%M' },
-          ],
-          cellWidth: Math.max(
-            28,
-            Math.floor(chartWidth / Math.ceil(ganttRange.days / 30.44)),
-          ),
-        };
-      }
-      return {
-        scales: [
-          { unit: 'month', step: 1, format: '%F %Y' },
-          {
-            unit: 'week',
-            step: 1,
-            format: ganttFrench ? "'Sem.' %W" : "'Week' %W",
-          },
-        ],
-        cellWidth: Math.max(
-          34,
-          Math.floor(chartWidth / Math.ceil(ganttRange.days / 7)),
-        ),
-      };
+      return fittedGanttDisplay ?? calculatedFitDisplay;
     }
     return {
       scales: [
@@ -1610,6 +1620,7 @@ export function ProjectTaskManager({
             variant={view === 'board' ? 'default' : 'outline'}
             onClick={() => setView('board')}
           >
+            <Columns3 />
             Tableau
           </Button>
           <Button
@@ -1991,7 +2002,10 @@ export function ProjectTaskManager({
               type="button"
               size="sm"
               variant={ganttView === 'fit' ? 'default' : 'ghost'}
-              onClick={() => setGanttView('fit')}
+              onClick={() => {
+                setFittedGanttDisplay(calculatedFitDisplay);
+                setGanttView('fit');
+              }}
               aria-pressed={ganttView === 'fit'}
             >
               <Maximize2 className="size-4" />

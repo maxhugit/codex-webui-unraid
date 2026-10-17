@@ -24,7 +24,7 @@ export interface ProjectSummary {
 export interface ProjectResourceSummary {
   id: string;
   projectId: string;
-  type: 'task_board';
+  type: 'task_board' | 'automation_board';
   name: string;
   config: Record<string, unknown>;
   createdAt: number;

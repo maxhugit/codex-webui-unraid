@@ -100,6 +100,18 @@ export class SimpleChatService {
     };
   }
 
+  async runProjectAutomation(prompt: string): Promise<string> {
+    const response = await this.createResponse(this.defaultModel, [
+      {
+        role: 'user',
+        content: prompt.slice(0, 30_000),
+      },
+    ]);
+    const text = this.extractText(response).trim();
+    if (!text) throw new Error('OpenAI returned an empty automation result');
+    return text;
+  }
+
   async suggestProjectTasks(prompt: string): Promise<
     Array<{
       title: string;

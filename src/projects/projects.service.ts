@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -35,8 +37,45 @@ import { SimpleChatService } from '../simple-chat/simple-chat.service';
 
 const ORPHAN_ASSOCIATION_GRACE_MS = 5 * 60_000;
 
+export type AutomationSchedule = 'manual' | 'daily' | 'weekly' | 'monthly';
+export type ProjectAutomation = {
+  id: string;
+  name: string;
+  instructions: string;
+  schedule: AutomationSchedule;
+  time: string;
+  weekday: number;
+  monthday: number;
+  targetType: 'task_board' | 'workspace';
+  targetId: string;
+  mode: 'analysis' | 'proposal' | 'action';
+  approvalRequired: boolean;
+  active: boolean;
+  lastRunAt: number | null;
+  nextRunAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+};
+export type AutomationRun = {
+  id: string;
+  automationId: string;
+  status:
+    | 'running'
+    | 'success'
+    | 'pending_approval'
+    | 'approved'
+    | 'rejected'
+    | 'error';
+  result: string;
+  error: string;
+  startedAt: number;
+  finishedAt: number | null;
+};
+
 @Injectable()
-export class ProjectsService {
+export class ProjectsService implements OnModuleInit, OnModuleDestroy {
+  private automationTimer?: NodeJS.Timeout;
+  private readonly runningAutomationIds = new Set<string>();
   constructor(
     private readonly files: FilesService,
     private readonly workspaces: WorkspacesManagementService,
@@ -47,6 +86,19 @@ export class ProjectsService {
     private readonly simpleChat: SimpleChatService,
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
   ) {}
+
+  onModuleInit() {
+    this.automationTimer = setInterval(
+      () => void this.runDueAutomations(),
+      60_000,
+    );
+    this.automationTimer.unref();
+    void this.runDueAutomations();
+  }
+
+  onModuleDestroy() {
+    if (this.automationTimer) clearInterval(this.automationTimer);
+  }
 
   async list(): Promise<
     Array<
@@ -541,7 +593,7 @@ export class ProjectsService {
     input: { type: string; name?: string },
   ): ProjectResource {
     this.get(projectId);
-    if (input.type !== 'task_board')
+    if (!['task_board', 'automation_board'].includes(input.type))
       throw new BadRequestException('Unsupported project resource type');
     const siblings = this.db
       .select()
@@ -553,10 +605,12 @@ export class ProjectsService {
         ),
       )
       .all();
+    const label =
+      input.type === 'automation_board'
+        ? 'Automatisations'
+        : 'Gestionnaire de tâches';
     const defaultName =
-      siblings.length === 0
-        ? 'Gestionnaire de tâches'
-        : `Gestionnaire de tâches ${siblings.length + 1}`;
+      siblings.length === 0 ? label : `${label} ${siblings.length + 1}`;
     const name = input.name?.trim() || defaultName;
     if (name.length > 120)
       throw new BadRequestException('Resource name is too long');
@@ -566,7 +620,8 @@ export class ProjectsService {
       projectId,
       type: input.type,
       name,
-      config: {},
+      config:
+        input.type === 'automation_board' ? { automations: [], runs: [] } : {},
       createdAt: now,
       updatedAt: now,
     };
@@ -585,6 +640,7 @@ export class ProjectsService {
     ];
     this.db.transaction((tx) => {
       tx.insert(projectResources).values(resource).run();
+      if (input.type !== 'task_board') return;
       tx.insert(projectTaskStatuses)
         .values(
           defaultStatuses.map((status, position) => ({
@@ -599,6 +655,28 @@ export class ProjectsService {
         .run();
     });
     return resource;
+  }
+
+  async readResource(projectId: string, resourceId: string) {
+    const resource = this.getResource(projectId, resourceId);
+    if (resource.type === 'automation_board')
+      return {
+        resource,
+        project: this.get(projectId),
+        workspaces: this.db
+          .select()
+          .from(projectWorkspaces)
+          .where(eq(projectWorkspaces.projectId, projectId))
+          .all(),
+        targets: this.db
+          .select()
+          .from(projectResources)
+          .where(eq(projectResources.projectId, projectId))
+          .all()
+          .filter((item) => item.type === 'task_board'),
+        ...this.automationConfig(resource),
+      };
+    return this.readTaskBoard(projectId, resourceId);
   }
 
   async readTaskBoard(projectId: string, resourceId: string) {
@@ -1715,6 +1793,241 @@ export class ProjectsService {
         })
         .where(eq(projectTasks.id, task.id))
         .run();
+    }
+  }
+
+  private automationConfig(resource: ProjectResource): {
+    automations: ProjectAutomation[];
+    runs: AutomationRun[];
+  } {
+    const config = resource.config;
+    return {
+      automations: Array.isArray(config.automations)
+        ? (config.automations as ProjectAutomation[])
+        : [],
+      runs: Array.isArray(config.runs) ? (config.runs as AutomationRun[]) : [],
+    };
+  }
+
+  private saveAutomationConfig(
+    resource: ProjectResource,
+    automations: ProjectAutomation[],
+    runs: AutomationRun[],
+  ) {
+    const updatedAt = Date.now();
+    const config = {
+      ...resource.config,
+      automations,
+      runs: runs.slice(0, 100),
+    };
+    this.db
+      .update(projectResources)
+      .set({ config, updatedAt })
+      .where(eq(projectResources.id, resource.id))
+      .run();
+    return config;
+  }
+
+  private nextAutomationRun(item: ProjectAutomation, from = new Date()) {
+    if (!item.active || item.schedule === 'manual') return null;
+    const [hour, minute] = item.time.split(':').map(Number);
+    const next = new Date(from);
+    next.setSeconds(0, 0);
+    next.setHours(
+      Number.isFinite(hour) ? hour : 8,
+      Number.isFinite(minute) ? minute : 0,
+      0,
+      0,
+    );
+    if (item.schedule === 'daily') {
+      if (next <= from) next.setDate(next.getDate() + 1);
+    } else if (item.schedule === 'weekly') {
+      const delta = (item.weekday - next.getDay() + 7) % 7;
+      next.setDate(next.getDate() + delta);
+      if (next <= from) next.setDate(next.getDate() + 7);
+    } else {
+      next.setDate(Math.max(1, Math.min(28, item.monthday)));
+      if (next <= from) next.setMonth(next.getMonth() + 1);
+    }
+    return next.getTime();
+  }
+
+  upsertAutomation(
+    projectId: string,
+    resourceId: string,
+    input: Partial<ProjectAutomation>,
+    automationId?: string,
+  ) {
+    const resource = this.getResource(projectId, resourceId);
+    if (resource.type !== 'automation_board')
+      throw new BadRequestException('Not an automation resource');
+    const { automations, runs } = this.automationConfig(resource);
+    const existing = automationId
+      ? automations.find((item) => item.id === automationId)
+      : undefined;
+    if (automationId && !existing)
+      throw new NotFoundException('Automation not found');
+    const now = Date.now();
+    const schedule: AutomationSchedule = [
+      'daily',
+      'weekly',
+      'monthly',
+    ].includes(String(input.schedule))
+      ? (input.schedule as AutomationSchedule)
+      : 'manual';
+    const item: ProjectAutomation = {
+      id: existing?.id ?? randomUUID(),
+      name: this.validateTaskText(
+        input.name ?? existing?.name,
+        'Automation name',
+        120,
+      ),
+      instructions: this.validateTaskText(
+        input.instructions ?? existing?.instructions,
+        'Automation instructions',
+        6_000,
+      ),
+      schedule,
+      time: /^\d{2}:\d{2}$/.test(String(input.time))
+        ? String(input.time)
+        : (existing?.time ?? '08:00'),
+      weekday: Math.max(
+        0,
+        Math.min(6, Number(input.weekday ?? existing?.weekday ?? 1)),
+      ),
+      monthday: Math.max(
+        1,
+        Math.min(28, Number(input.monthday ?? existing?.monthday ?? 1)),
+      ),
+      targetType: input.targetType === 'workspace' ? 'workspace' : 'task_board',
+      targetId: String(input.targetId ?? existing?.targetId ?? '').trim(),
+      mode: ['proposal', 'action'].includes(String(input.mode))
+        ? (input.mode as 'proposal' | 'action')
+        : 'analysis',
+      approvalRequired:
+        input.mode === 'analysis' ? false : input.approvalRequired !== false,
+      active: input.active ?? existing?.active ?? true,
+      lastRunAt: existing?.lastRunAt ?? null,
+      nextRunAt: null,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    item.nextRunAt = this.nextAutomationRun(item);
+    const next = existing
+      ? automations.map((value) => (value.id === item.id ? item : value))
+      : [...automations, item];
+    this.saveAutomationConfig(resource, next, runs);
+    return item;
+  }
+
+  deleteAutomation(
+    projectId: string,
+    resourceId: string,
+    automationId: string,
+  ) {
+    const resource = this.getResource(projectId, resourceId);
+    const { automations, runs } = this.automationConfig(resource);
+    this.saveAutomationConfig(
+      resource,
+      automations.filter((item) => item.id !== automationId),
+      runs.filter((run) => run.automationId !== automationId),
+    );
+    return { ok: true };
+  }
+
+  async runAutomation(
+    projectId: string,
+    resourceId: string,
+    automationId: string,
+  ) {
+    let resource = this.getResource(projectId, resourceId);
+    const config = this.automationConfig(resource);
+    const item = config.automations.find((value) => value.id === automationId);
+    if (!item) throw new NotFoundException('Automation not found');
+    if (this.runningAutomationIds.has(automationId))
+      throw new ConflictException('Automation already running');
+    this.runningAutomationIds.add(automationId);
+    const run: AutomationRun = {
+      id: randomUUID(),
+      automationId,
+      status: 'running',
+      result: '',
+      error: '',
+      startedAt: Date.now(),
+      finishedAt: null,
+    };
+    this.saveAutomationConfig(resource, config.automations, [
+      run,
+      ...config.runs,
+    ]);
+    try {
+      let context = '';
+      if (item.targetType === 'task_board') {
+        const board = await this.readTaskBoard(projectId, item.targetId);
+        context = JSON.stringify({
+          statuses: board.statuses,
+          tasks: board.tasks,
+          dependencies: board.dependencies,
+        });
+      } else {
+        const workspace = this.requireWorkspace(projectId, item.targetId);
+        context = `Workspace autorisé : ${workspace.path}. Aucun contenu de fichier n'est transmis automatiquement.`;
+      }
+      run.result = await this.simpleChat.runProjectAutomation(
+        `Automatisation du projet « ${this.get(projectId).name} ».\nMode : ${item.mode}.\nInstruction : ${item.instructions}\nContexte : ${context}\nProduis un rapport clair en français. Ne prétends pas avoir appliqué de modification.`,
+      );
+      run.status = item.mode === 'analysis' ? 'success' : 'pending_approval';
+    } catch (error) {
+      run.status = 'error';
+      run.error = error instanceof Error ? error.message : 'Automation failed';
+    } finally {
+      this.runningAutomationIds.delete(automationId);
+    }
+    run.finishedAt = Date.now();
+    item.lastRunAt = run.finishedAt;
+    item.nextRunAt = this.nextAutomationRun(item, new Date(run.finishedAt));
+    item.updatedAt = run.finishedAt;
+    resource = this.getResource(projectId, resourceId);
+    const latest = this.automationConfig(resource);
+    this.saveAutomationConfig(
+      resource,
+      latest.automations.map((value) => (value.id === item.id ? item : value)),
+      [run, ...latest.runs.filter((value) => value.id !== run.id)],
+    );
+    return { run };
+  }
+
+  reviewAutomationRun(
+    projectId: string,
+    resourceId: string,
+    runId: string,
+    decision: 'approved' | 'rejected',
+  ) {
+    const resource = this.getResource(projectId, resourceId);
+    if (resource.type !== 'automation_board')
+      throw new BadRequestException('Not an automation resource');
+    const { automations, runs } = this.automationConfig(resource);
+    const run = runs.find((value) => value.id === runId);
+    if (!run) throw new NotFoundException('Automation run not found');
+    if (run.status !== 'pending_approval')
+      throw new ConflictException('Automation run is not awaiting approval');
+    run.status = decision;
+    this.saveAutomationConfig(resource, automations, runs);
+    return { run };
+  }
+
+  private async runDueAutomations() {
+    const now = Date.now();
+    for (const resource of this.db.select().from(projectResources).all()) {
+      if (resource.type !== 'automation_board') continue;
+      const { automations } = this.automationConfig(resource);
+      for (const item of automations)
+        if (item.active && item.nextRunAt && item.nextRunAt <= now)
+          await this.runAutomation(
+            resource.projectId,
+            resource.id,
+            item.id,
+          ).catch(() => undefined);
     }
   }
 
