@@ -215,6 +215,106 @@ export class SimpleChatService {
     }));
   }
 
+  async suggestProjectReplan(prompt: string): Promise<
+    Array<{
+      taskId: string;
+      priority: string;
+      estimateHours: number;
+      startDate: string;
+      dueDate: string;
+      dependencyIds: string[];
+      reason: string;
+    }>
+  > {
+    const response = await this.openAiRequest('/v1/responses', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: this.defaultModel,
+        input: prompt,
+        instructions:
+          'Tu es un chef de projet prudent. Replanifie uniquement les tâches principales fournies. Conserve exactement leurs identifiants. Propose des dates au format YYYY-MM-DD, une charge réaliste et des dépendances fin-vers-début cohérentes. Ne crée ni ne supprime aucune tâche. Retourne toutes les tâches, y compris celles que tu proposes de laisser inchangées, et justifie brièvement chaque choix.',
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'project_replan',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                tasks: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      taskId: { type: 'string' },
+                      priority: {
+                        type: 'string',
+                        enum: ['low', 'normal', 'high', 'urgent'],
+                      },
+                      estimateHours: { type: 'number', minimum: 0 },
+                      startDate: { type: 'string' },
+                      dueDate: { type: 'string' },
+                      dependencyIds: {
+                        type: 'array',
+                        items: { type: 'string' },
+                      },
+                      reason: { type: 'string' },
+                    },
+                    required: [
+                      'taskId',
+                      'priority',
+                      'estimateHours',
+                      'startDate',
+                      'dueDate',
+                      'dependencyIds',
+                      'reason',
+                    ],
+                  },
+                },
+              },
+              required: ['tasks'],
+            },
+          },
+        },
+        store: false,
+      }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as OpenAiResponse;
+    if (!response.ok)
+      throw BusinessException.internal(
+        ErrorCode.simpleChat.upstreamFailed,
+        payload.error?.message || `OpenAI API returned HTTP ${response.status}`,
+      );
+    const parsed = JSON.parse(this.extractText(payload) || '{}') as {
+      tasks?: Array<{
+        taskId?: string;
+        priority?: string;
+        estimateHours?: number;
+        startDate?: string;
+        dueDate?: string;
+        dependencyIds?: string[];
+        reason?: string;
+      }>;
+    };
+    return (parsed.tasks ?? []).map((task) => ({
+      taskId: task.taskId?.trim() || '',
+      priority: ['low', 'normal', 'high', 'urgent'].includes(
+        task.priority ?? '',
+      )
+        ? task.priority!
+        : 'normal',
+      estimateHours: Math.max(0, Number(task.estimateHours) || 0),
+      startDate: task.startDate?.trim() || '',
+      dueDate: task.dueDate?.trim() || '',
+      dependencyIds: (task.dependencyIds ?? [])
+        .map((id) => id.trim())
+        .filter(Boolean),
+      reason: task.reason?.trim() || '',
+    }));
+  }
+
   saveApiKey(value: unknown) {
     const key = typeof value === 'string' ? value.trim() : '';
     if (!key || key.length < 20 || /\s/.test(key)) {

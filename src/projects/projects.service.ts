@@ -1036,10 +1036,7 @@ export class ProjectsService {
     });
     if (task.parentTaskId)
       this.recalculateParentEstimate(resourceId, task.parentTaskId);
-    if (
-      effectiveParentId &&
-      effectiveParentId !== task.parentTaskId
-    )
+    if (effectiveParentId && effectiveParentId !== task.parentTaskId)
       this.recalculateParentEstimate(resourceId, effectiveParentId);
     if (!effectiveParentId)
       this.recalculateParentEstimate(resourceId, task.id, false);
@@ -1114,6 +1111,69 @@ export class ProjectsService {
       4_000,
     );
     return { tasks: await this.simpleChat.suggestProjectTasks(request) };
+  }
+
+  async replanTasks(projectId: string, resourceId: string, prompt: unknown) {
+    this.getResource(projectId, resourceId);
+    const request = String(prompt ?? '')
+      .trim()
+      .slice(0, 4_000);
+    const tasks = this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.resourceId, resourceId))
+      .all()
+      .filter((task) => !task.parentTaskId);
+    if (!tasks.length) return { tasks: [] };
+    const ids = new Set(tasks.map((task) => task.id));
+    const dependencies = this.db.select().from(projectTaskDependencies).all();
+    const iso = (value: number | null) =>
+      value ? new Date(value).toISOString().slice(0, 10) : '';
+    const context = tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      priority: task.priority,
+      estimateHours: task.estimateMinutes / 60,
+      startDate: iso(task.startAt),
+      dueDate: iso(task.dueAt),
+      progress: task.progress,
+      dependencyIds: dependencies
+        .filter((dependency) => dependency.taskId === task.id)
+        .map((dependency) => dependency.dependsOnTaskId)
+        .filter((id) => ids.has(id)),
+    }));
+    const suggestions = await this.simpleChat.suggestProjectReplan(
+      `Objectif ou contraintes complémentaires : ${request || 'Optimiser le planning existant sans contrainte supplémentaire.'}\n\nTâches existantes :\n${JSON.stringify(context, null, 2)}`,
+    );
+    const date = (value: string) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+      const parsed = new Date(`${value}T12:00:00`).getTime();
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    return {
+      tasks: suggestions
+        .filter((suggestion) => ids.has(suggestion.taskId))
+        .map((suggestion) => {
+          const task = tasks.find((item) => item.id === suggestion.taskId)!;
+          const hasSubtasks =
+            this.db
+              .select()
+              .from(projectTasks)
+              .where(eq(projectTasks.parentTaskId, task.id))
+              .all().length > 0;
+          return {
+            ...suggestion,
+            estimateHours: hasSubtasks
+              ? task.estimateMinutes / 60
+              : suggestion.estimateHours,
+            startAt: date(suggestion.startDate),
+            dueAt: date(suggestion.dueDate),
+            dependencyIds: suggestion.dependencyIds.filter(
+              (id) => ids.has(id) && id !== suggestion.taskId,
+            ),
+          };
+        }),
+    };
   }
 
   async suggestSubtasks(
@@ -1354,10 +1414,12 @@ export class ProjectsService {
         : this.validateResourceConfig(input.config);
     const updatedAt = Date.now();
     const labelRenames = new Map(
-      (input.labelRenames ?? []).slice(0, 50).map((change) => [
-        this.validateOptionalLabel(change.from),
-        this.validateOptionalLabel(change.to),
-      ]),
+      (input.labelRenames ?? [])
+        .slice(0, 50)
+        .map((change) => [
+          this.validateOptionalLabel(change.from),
+          this.validateOptionalLabel(change.to),
+        ]),
     );
     const removedLabels = new Set(
       (input.removedLabels ?? [])

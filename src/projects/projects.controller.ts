@@ -105,6 +105,15 @@ export class ProjectsController {
     return this.projects.suggestTasks(id, resourceId, body.prompt);
   }
 
+  @Post(':id/resources/:resourceId/ai-replan')
+  replanTasks(
+    @Param('id') id: string,
+    @Param('resourceId') resourceId: string,
+    @Body() body: { prompt?: unknown },
+  ) {
+    return this.projects.replanTasks(id, resourceId, body.prompt);
+  }
+
   @Post(':id/resources/:resourceId/tasks/:taskId/ai-subtasks')
   suggestSubtasks(
     @Param('id') id: string,

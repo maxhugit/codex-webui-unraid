@@ -55,6 +55,7 @@ describe('ThreadsOverviewService', () => {
       { listEdges } as unknown as ConversationBranchMutationsService,
       { listActiveMembers } as unknown as ConversationBranchesService,
       { listPending } as unknown as PendingApprovalsService,
+      { applyToThreads: (threads: unknown[]) => threads } as never,
     );
   });
 

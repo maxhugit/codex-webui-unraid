@@ -76,6 +76,15 @@ type Suggestion = {
   executionMode: 'manual' | 'agent';
   assignmentReason: string;
 };
+type ReplanSuggestion = {
+  taskId: string;
+  priority: ProjectTaskSummary['priority'];
+  estimateHours: number;
+  startAt: number | null;
+  dueAt: number | null;
+  dependencyIds: string[];
+  reason: string;
+};
 const emptyDraft: Draft = {
   title: '',
   description: '',
@@ -204,14 +213,16 @@ function readTaskBoardSettings(config: Record<string, unknown>) {
     labels: Array.isArray(raw.labels)
       ? raw.labels
           .filter(
-            (label): label is { id: string; name: string; color: PaletteColor } =>
+            (
+              label,
+            ): label is { id: string; name: string; color: PaletteColor } =>
               Boolean(
                 label &&
-                  typeof label.id === 'string' &&
-                  typeof label.name === 'string' &&
-                  label.name.trim() &&
-                  typeof label.color === 'string' &&
-                  label.color in palette,
+                typeof label.id === 'string' &&
+                typeof label.name === 'string' &&
+                label.name.trim() &&
+                typeof label.color === 'string' &&
+                label.color in palette,
               ),
           )
           .map((label) => ({ ...label, name: label.name.trim() }))
@@ -288,8 +299,15 @@ export function ProjectTaskManager({
     defaultTaskBoardSettings,
   );
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiMode, setAiMode] = useState<'create' | 'replan'>('create');
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<Suggestion[]>([]);
+  const [replanSuggestions, setReplanSuggestions] = useState<
+    ReplanSuggestion[]
+  >([]);
+  const [selectedReplanTasks, setSelectedReplanTasks] = useState<Set<string>>(
+    new Set(),
+  );
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -483,9 +501,7 @@ export function ProjectTaskManager({
       ? null
       : draft.linkedFilePath.trim() || null,
     parentTaskId: draft.parentTaskId || null,
-    ...(draft.parentTaskId
-      ? { subtaskStatus: draft.subtaskStatus }
-      : {}),
+    ...(draft.parentTaskId ? { subtaskStatus: draft.subtaskStatus } : {}),
     dependencyIds: draft.parentTaskId ? [] : draft.dependencyIds,
   });
   const saveTask = async () => {
@@ -636,6 +652,74 @@ export function ProjectTaskManager({
     } catch (error) {
       setAiError(
         error instanceof Error ? error.message : 'La planification a échoué.',
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  };
+  const generateReplan = async () => {
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const result = await projectsApi<{ tasks: ReplanSuggestion[] }>(
+        `/${projectId}/resources/${resourceId}/ai-replan`,
+        { method: 'POST', body: JSON.stringify({ prompt: aiPrompt }) },
+      );
+      const changed = result.tasks.filter((suggestion) => {
+        const task = board.tasks.find((item) => item.id === suggestion.taskId);
+        if (!task) return false;
+        const currentDependencies = board.dependencies
+          .filter((dependency) => dependency.taskId === task.id)
+          .map((dependency) => dependency.dependsOnTaskId)
+          .sort();
+        return (
+          task.priority !== suggestion.priority ||
+          task.estimateMinutes !== Math.round(suggestion.estimateHours * 60) ||
+          dateValue(task.startAt) !== dateValue(suggestion.startAt) ||
+          dateValue(task.dueAt) !== dateValue(suggestion.dueAt) ||
+          currentDependencies.join('|') !==
+            [...suggestion.dependencyIds].sort().join('|')
+        );
+      });
+      setReplanSuggestions(changed);
+      setSelectedReplanTasks(new Set(changed.map((item) => item.taskId)));
+      if (!changed.length)
+        setAiError('L’IA ne propose aucune modification du planning actuel.');
+    } catch (error) {
+      setAiError(
+        error instanceof Error ? error.message : 'La replanification a échoué.',
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  };
+  const applyReplan = async () => {
+    setAiLoading(true);
+    setAiError('');
+    try {
+      for (const suggestion of replanSuggestions) {
+        if (!selectedReplanTasks.has(suggestion.taskId)) continue;
+        await projectsApi(
+          `/${projectId}/resources/${resourceId}/tasks/${suggestion.taskId}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({
+              priority: suggestion.priority,
+              estimateMinutes: Math.round(suggestion.estimateHours * 60),
+              startAt: suggestion.startAt,
+              dueAt: suggestion.dueAt,
+              dependencyIds: suggestion.dependencyIds,
+            }),
+          },
+        );
+      }
+      await refresh();
+      setAiOpen(false);
+      setReplanSuggestions([]);
+      setAiPrompt('');
+    } catch (error) {
+      setAiError(
+        error instanceof Error ? error.message : 'Application impossible.',
       );
     } finally {
       setAiLoading(false);
@@ -950,6 +1034,8 @@ export function ProjectTaskManager({
             onClick={() => {
               setAiError('');
               setAiSuggestions([]);
+              setReplanSuggestions([]);
+              setAiMode('create');
               setAiOpen(true);
             }}
           >
@@ -1005,94 +1091,92 @@ export function ProjectTaskManager({
                   filtered.some((task) => task.statusId === status.id),
               )
               .map((status) => {
-              const tasks = filtered
-                .filter((t) => t.statusId === status.id)
-                .sort((a, b) => {
-                  const aDue = a.dueAt
-                    ? new Date(a.dueAt).getTime()
-                    : Number.POSITIVE_INFINITY;
-                  const bDue = b.dueAt
-                    ? new Date(b.dueAt).getTime()
-                    : Number.POSITIVE_INFINITY;
-                  return aDue - bDue || a.position - b.position;
-                });
-              return (
-                <section
-                  key={status.id}
-                  className={`w-[310px] shrink-0 rounded-xl border p-3 transition-all duration-150 ${
-                    dragOverStatus === status.id
-                      ? 'border-primary/70 bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary)/0.3),0_8px_24px_hsl(var(--primary)/0.12)]'
-                      : 'bg-card/60'
-                  }`}
-                  onDragEnter={() => {
-                    if (dragged) setDragOverStatus(status.id);
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    if (dragged && dragOverStatus !== status.id) {
-                      setDragOverStatus(status.id);
-                    }
-                  }}
-                  onDragLeave={(e) => {
-                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                      setDragOverStatus(null);
-                    }
-                  }}
-                  onDrop={() => dropTask(status.id)}
-                >
-                  <div className="mb-3 flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{
-                        backgroundColor:
-                          palette[
-                            paletteColor(status.color, 'slate')
-                          ],
-                      }}
-                    />
-                    <h2 className="min-w-0 flex-1 truncate text-sm font-medium">
-                      {status.name}
-                    </h2>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                      {tasks.length}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {tasks.map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        subtasks={childrenFor(task.id)}
-                        blocked={blocked(task)}
-                        settings={settings}
-                        dragging={dragged === task.id}
-                        onDrag={() => setDragged(task.id)}
-                        onDragEnd={() => {
-                          setDragged(null);
-                          setDragOverStatus(null);
+                const tasks = filtered
+                  .filter((t) => t.statusId === status.id)
+                  .sort((a, b) => {
+                    const aDue = a.dueAt
+                      ? new Date(a.dueAt).getTime()
+                      : Number.POSITIVE_INFINITY;
+                    const bDue = b.dueAt
+                      ? new Date(b.dueAt).getTime()
+                      : Number.POSITIVE_INFINITY;
+                    return aDue - bDue || a.position - b.position;
+                  });
+                return (
+                  <section
+                    key={status.id}
+                    className={`w-[310px] shrink-0 rounded-xl border p-3 transition-all duration-150 ${
+                      dragOverStatus === status.id
+                        ? 'border-primary/70 bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary)/0.3),0_8px_24px_hsl(var(--primary)/0.12)]'
+                        : 'bg-card/60'
+                    }`}
+                    onDragEnter={() => {
+                      if (dragged) setDragOverStatus(status.id);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dragged && dragOverStatus !== status.id) {
+                        setDragOverStatus(status.id);
+                      }
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setDragOverStatus(null);
+                      }
+                    }}
+                    onDrop={() => dropTask(status.id)}
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{
+                          backgroundColor:
+                            palette[paletteColor(status.color, 'slate')],
                         }}
-                        onClick={() => openEdit(task)}
-                        onSubtaskClick={openEdit}
                       />
-                    ))}
-                    {(!tasks.length || dragOverStatus === status.id) && (
-                      <div
-                        className={`rounded-lg border border-dashed p-4 text-center text-xs transition-all ${
-                          dragOverStatus === status.id
-                            ? 'border-primary bg-primary/15 font-medium text-primary'
-                            : 'text-muted-foreground'
-                        }`}
-                      >
-                        {dragOverStatus === status.id
-                          ? 'Relâchez pour déplacer la tâche'
-                          : 'Déposez une tâche ici'}
-                      </div>
-                    )}
-                  </div>
-                </section>
-              );
-            })}
+                      <h2 className="min-w-0 flex-1 truncate text-sm font-medium">
+                        {status.name}
+                      </h2>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                        {tasks.length}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {tasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          subtasks={childrenFor(task.id)}
+                          blocked={blocked(task)}
+                          settings={settings}
+                          dragging={dragged === task.id}
+                          onDrag={() => setDragged(task.id)}
+                          onDragEnd={() => {
+                            setDragged(null);
+                            setDragOverStatus(null);
+                          }}
+                          onClick={() => openEdit(task)}
+                          onSubtaskClick={openEdit}
+                        />
+                      ))}
+                      {(!tasks.length || dragOverStatus === status.id) && (
+                        <div
+                          className={`rounded-lg border border-dashed p-4 text-center text-xs transition-all ${
+                            dragOverStatus === status.id
+                              ? 'border-primary bg-primary/15 font-medium text-primary'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          {dragOverStatus === status.id
+                            ? 'Relâchez pour déplacer la tâche'
+                            : 'Déposez une tâche ici'}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                );
+              })}
           </div>
         </>
       ) : (
@@ -1217,8 +1301,8 @@ export function ProjectTaskManager({
                   value={draft.estimateHours}
                   disabled={Boolean(
                     editing &&
-                      !editing.parentTaskId &&
-                      childrenFor(editing.id).length > 0,
+                    !editing.parentTaskId &&
+                    childrenFor(editing.id).length > 0,
                   )}
                   onChange={(e) =>
                     setDraft({ ...draft, estimateHours: e.target.value })
@@ -1242,8 +1326,8 @@ export function ProjectTaskManager({
                   value={draft.progress}
                   disabled={Boolean(
                     editing &&
-                      !editing.parentTaskId &&
-                      childrenFor(editing.id).length > 0,
+                    !editing.parentTaskId &&
+                    childrenFor(editing.id).length > 0,
                   )}
                   onChange={(event) =>
                     setDraft({ ...draft, progress: event.target.value })
@@ -1258,8 +1342,8 @@ export function ProjectTaskManager({
                   value={draft.progress}
                   disabled={Boolean(
                     editing &&
-                      !editing.parentTaskId &&
-                      childrenFor(editing.id).length > 0,
+                    !editing.parentTaskId &&
+                    childrenFor(editing.id).length > 0,
                   )}
                   onChange={(event) =>
                     setDraft({ ...draft, progress: event.target.value })
@@ -1751,11 +1835,11 @@ export function ProjectTaskManager({
         </DialogContent>
       </Dialog>
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+          <DialogHeader className="shrink-0 px-6 pb-4 pt-6">
             <DialogTitle>Paramètres du tableau des tâches</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 pb-6">
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -1808,10 +1892,7 @@ export function ProjectTaskManager({
                           setSettingsDraft((current) => ({
                             ...current,
                             hiddenEmptyStatusIds: event.target.checked
-                              ? [
-                                  ...current.hiddenEmptyStatusIds,
-                                  status.id,
-                                ]
+                              ? [...current.hiddenEmptyStatusIds, status.id]
                               : current.hiddenEmptyStatusIds.filter(
                                   (id) => id !== status.id,
                                 ),
@@ -2038,7 +2119,7 @@ export function ProjectTaskManager({
               </label>
             </section>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t bg-background/95 px-6 py-4">
             <Button variant="outline" onClick={() => setSettingsOpen(false)}>
               Annuler
             </Button>
@@ -2088,13 +2169,39 @@ export function ProjectTaskManager({
         </DialogContent>
       </Dialog>
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Planification assistée par IA</DialogTitle>
           </DialogHeader>
+          <div className="grid grid-cols-2 rounded-lg border bg-muted/40 p-1">
+            <Button
+              variant={aiMode === 'create' ? 'default' : 'ghost'}
+              onClick={() => {
+                setAiMode('create');
+                setAiError('');
+                setReplanSuggestions([]);
+              }}
+            >
+              Créer un plan
+            </Button>
+            <Button
+              variant={aiMode === 'replan' ? 'default' : 'ghost'}
+              onClick={() => {
+                setAiMode('replan');
+                setAiError('');
+                setAiSuggestions([]);
+              }}
+            >
+              Replanifier le projet
+            </Button>
+          </div>
           <Textarea
             rows={5}
-            placeholder="Décrivez l’objectif, les contraintes et le résultat attendu…"
+            placeholder={
+              aiMode === 'create'
+                ? 'Décrivez l’objectif, les contraintes et le résultat attendu…'
+                : 'Ajoutez éventuellement de nouvelles contraintes : échéance, disponibilité, ordre de priorité…'
+            }
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
           />
@@ -2109,7 +2216,7 @@ export function ProjectTaskManager({
               {aiError}
             </div>
           )}
-          {aiSuggestions.length > 0 && (
+          {aiMode === 'create' && aiSuggestions.length > 0 && (
             <div className="max-h-72 space-y-2 overflow-auto">
               {aiSuggestions.map((s, i) => (
                 <div key={`${s.title}-${i}`} className="rounded-lg border p-3">
@@ -2127,22 +2234,138 @@ export function ProjectTaskManager({
               ))}
             </div>
           )}
+          {aiMode === 'replan' && replanSuggestions.length > 0 && (
+            <div className="max-h-[55vh] space-y-3 overflow-auto pr-1">
+              <p className="text-sm text-muted-foreground">
+                Vérifiez les changements proposés. Seules les tâches cochées
+                seront modifiées.
+              </p>
+              {replanSuggestions.map((suggestion) => {
+                const task = board.tasks.find(
+                  (item) => item.id === suggestion.taskId,
+                );
+                if (!task) return null;
+                const oldDependencies =
+                  board.dependencies
+                    .filter((dependency) => dependency.taskId === task.id)
+                    .map((dependency) =>
+                      board.tasks.find(
+                        (item) => item.id === dependency.dependsOnTaskId,
+                      ),
+                    )
+                    .filter(Boolean)
+                    .map((item) => item!.title)
+                    .join(', ') || 'Aucune';
+                const newDependencies =
+                  suggestion.dependencyIds
+                    .map((id) => board.tasks.find((item) => item.id === id))
+                    .filter(Boolean)
+                    .map((item) => item!.title)
+                    .join(', ') || 'Aucune';
+                const rows = [
+                  task.priority !== suggestion.priority && [
+                    'Priorité',
+                    priorities[task.priority],
+                    priorities[suggestion.priority],
+                  ],
+                  task.estimateMinutes !==
+                    Math.round(suggestion.estimateHours * 60) && [
+                    'Charge',
+                    `${task.estimateMinutes / 60} h`,
+                    `${suggestion.estimateHours} h`,
+                  ],
+                  dateValue(task.startAt) !== dateValue(suggestion.startAt) && [
+                    'Début',
+                    dateValue(task.startAt) || 'Non défini',
+                    dateValue(suggestion.startAt) || 'Non défini',
+                  ],
+                  dateValue(task.dueAt) !== dateValue(suggestion.dueAt) && [
+                    'Fin',
+                    dateValue(task.dueAt) || 'Non définie',
+                    dateValue(suggestion.dueAt) || 'Non définie',
+                  ],
+                  oldDependencies !== newDependencies && [
+                    'Dépendances',
+                    oldDependencies,
+                    newDependencies,
+                  ],
+                ].filter(Boolean) as string[][];
+                return (
+                  <label
+                    key={task.id}
+                    className="block cursor-pointer rounded-lg border p-3"
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={selectedReplanTasks.has(task.id)}
+                        onChange={(event) =>
+                          setSelectedReplanTasks((current) => {
+                            const next = new Set(current);
+                            if (event.target.checked) next.add(task.id);
+                            else next.delete(task.id);
+                            return next;
+                          })
+                        }
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium">{task.title}</div>
+                        <div className="mt-2 grid gap-1 text-xs">
+                          {rows.map(([name, before, after]) => (
+                            <div
+                              key={name}
+                              className="grid grid-cols-[7rem_1fr_auto_1fr] gap-2"
+                            >
+                              <span className="text-muted-foreground">
+                                {name}
+                              </span>
+                              <span>{before}</span>
+                              <span>→</span>
+                              <span className="font-medium">{after}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {suggestion.reason && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {suggestion.reason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
           <DialogFooter>
-            {aiSuggestions.length ? (
+            {aiMode === 'create' && aiSuggestions.length ? (
               <Button disabled={aiLoading} onClick={addSuggestions}>
                 Créer les {aiSuggestions.length} tâches
               </Button>
+            ) : aiMode === 'replan' && replanSuggestions.length ? (
+              <Button
+                disabled={aiLoading || selectedReplanTasks.size === 0}
+                onClick={applyReplan}
+              >
+                Appliquer {selectedReplanTasks.size} modification
+                {selectedReplanTasks.size > 1 ? 's' : ''}
+              </Button>
             ) : (
               <Button
-                disabled={!aiPrompt.trim() || aiLoading}
-                onClick={generatePlan}
+                disabled={
+                  (aiMode === 'create' && !aiPrompt.trim()) || aiLoading
+                }
+                onClick={aiMode === 'create' ? generatePlan : generateReplan}
               >
                 {aiLoading ? (
                   <Loader2 className="animate-spin" />
                 ) : (
                   <Sparkles />
                 )}
-                Générer le plan
+                {aiMode === 'create'
+                  ? 'Générer le plan'
+                  : 'Analyser le planning'}
               </Button>
             )}
           </DialogFooter>
