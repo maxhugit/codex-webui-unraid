@@ -12,7 +12,7 @@ import {
 import { getApiToken } from '@/auth-token';
 import { LoginRoute } from './login-route';
 import { AuthenticatedLayout } from './authenticated-layout';
-import { ChatView } from './chat-view';
+import { HomeRoute } from './home-route';
 import { ThreadView } from './thread-view';
 import { FilesRoute } from './files-route';
 import { TerminalRoute } from './terminal-route';
@@ -83,11 +83,11 @@ const authenticatedRoute = createRoute({
   component: AuthenticatedLayout,
 });
 
-/** Index route — empty chat state (no thread selected). */
+/** Index route — cross-project overview. */
 const indexRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/',
-  component: ChatView,
+  component: HomeRoute,
 });
 
 /** Thread route — specific thread by id. */

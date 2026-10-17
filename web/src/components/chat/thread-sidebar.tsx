@@ -5,7 +5,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
-import { FolderOpen, Plus, Terminal } from 'lucide-react';
+import { FolderOpen, House, Plus, Terminal } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -104,6 +104,7 @@ async function simpleChatApi<T>(path: string, init?: RequestInit): Promise<T> {
 /** Derives the active "view" from the current route path. */
 function useActiveView():
   | 'chat'
+  | 'home'
   | 'simpleChat'
   | 'files'
   | 'terminal'
@@ -118,7 +119,8 @@ function useActiveView():
   if (pathname.startsWith('/integrations')) return 'integrations';
   if (pathname.startsWith('/settings')) return 'settings';
   if (pathname.startsWith('/simple-chat')) return 'simpleChat';
-  if (pathname === '/' || pathname.startsWith('/t/')) return 'chat';
+  if (pathname === '/') return 'home';
+  if (pathname.startsWith('/t/')) return 'chat';
   return 'other';
 }
 
@@ -1217,6 +1219,19 @@ export function ThreadSidebar() {
     <div className="flex h-full flex-col bg-card/80">
       {/* Global actions */}
       <div className="space-y-0.5 px-2 py-2">
+        <button
+          type="button"
+          onClick={() => void navigate({ to: '/' })}
+          className={cn(
+            'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
+            activeView === 'home'
+              ? 'bg-accent text-accent-foreground'
+              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+          )}
+        >
+          <House className="h-4 w-4 shrink-0" />
+          {t('Home')}
+        </button>
         <button
           type="button"
           onClick={() => void navigate({ to: '/files' })}

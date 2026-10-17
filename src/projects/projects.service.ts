@@ -34,6 +34,7 @@ import { ThreadWorkspaceOverridesService } from '../threads/thread-workspace-ove
 import { ThreadsDeletionService } from '../threads/threads-deletion.service';
 import { ThreadsService } from '../threads/threads.service';
 import { SimpleChatService } from '../simple-chat/simple-chat.service';
+import { summarizeProjects } from './project-dashboard';
 
 const ORPHAN_ASSOCIATION_GRACE_MS = 5 * 60_000;
 
@@ -98,6 +99,35 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     if (this.automationTimer) clearInterval(this.automationTimer);
+  }
+
+  async dashboard() {
+    const agents = this.db.select().from(projectAgentThreads).all();
+    const chats = this.db.select().from(simpleChatThreads).all();
+    const snapshot = await this.metadata.read().catch(() => null);
+    const updated = new Map(
+      (snapshot?.entries ?? []).map((entry) => [
+        entry.thread.id,
+        entry.thread.updatedAt < 1_000_000_000_000
+          ? entry.thread.updatedAt * 1000
+          : entry.thread.updatedAt,
+      ]),
+    );
+    return summarizeProjects({
+      projects: this.db.select().from(projects).all(),
+      resources: this.db.select().from(projectResources).all(),
+      tasks: this.db.select().from(projectTasks).all(),
+      statuses: this.db.select().from(projectTaskStatuses).all(),
+      activity: [
+        ...agents.map((a) => ({
+          projectId: a.projectId,
+          updatedAt: Math.max(a.updatedAt, updated.get(a.threadId) ?? 0),
+        })),
+        ...chats
+          .filter((c) => c.projectId)
+          .map((c) => ({ projectId: c.projectId!, updatedAt: c.updatedAt })),
+      ],
+    });
   }
 
   async list(): Promise<

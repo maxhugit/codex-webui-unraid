@@ -15,6 +15,11 @@ import { ProjectsService } from './projects.service';
 export class ProjectsController {
   constructor(private readonly projects: ProjectsService) {}
 
+  @Get('dashboard')
+  dashboard() {
+    return this.projects.dashboard();
+  }
+
   @Get()
   async list() {
     return { projects: await this.projects.list() };
