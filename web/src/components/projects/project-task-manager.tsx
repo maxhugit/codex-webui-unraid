@@ -1362,61 +1362,69 @@ export function ProjectTaskManager({
     }).format(date);
   const ganttDayClass = (date: Date) =>
     date.getDay() === 0 || date.getDay() === 6 ? 'project-gantt-weekend' : '';
-  const ganttZoom =
-    ganttView === 'fit'
-      ? true
-      : {
-          level: ganttView === 'years' ? 0 : ganttView === 'months' ? 1 : 2,
-          minCellWidth: 30,
-          maxCellWidth: 180,
-          levels: [
-            {
-              minCellWidth: 70,
-              maxCellWidth: 160,
-              scales: [
-                { unit: 'year', step: 1, format: '%Y' },
-                {
-                  unit: 'quarter',
-                  step: 1,
-                  format: ganttFrench ? "'T'%Q" : "'Q'%Q",
-                },
-              ],
-            },
-            {
-              minCellWidth: 70,
-              maxCellWidth: 150,
-              scales: [
-                { unit: 'year', step: 1, format: '%Y' },
-                { unit: 'month', step: 1, format: '%F' },
-              ],
-            },
-            {
-              minCellWidth: 55,
-              maxCellWidth: 130,
-              scales: [
-                { unit: 'month', step: 1, format: '%F %Y' },
-                {
-                  unit: 'week',
-                  step: 1,
-                  format: ganttFrench ? "'Sem.' %W" : "'Week' %W",
-                },
-              ],
-            },
-            {
-              minCellWidth: 72,
-              maxCellWidth: 140,
-              scales: [
-                { unit: 'month', step: 1, format: '%F %Y' },
-                {
-                  unit: 'day',
-                  step: 1,
-                  format: ganttDayFormat,
-                  css: ganttDayClass,
-                },
-              ],
-            },
-          ],
-        };
+  const ganttZoom = {
+    level:
+      ganttView === 'years'
+        ? 0
+        : ganttView === 'months'
+          ? 1
+          : ganttView === 'fit'
+            ? ganttRange.days > 730
+              ? 0
+              : ganttRange.days > 120
+                ? 1
+                : 2
+            : 2,
+    minCellWidth: 30,
+    maxCellWidth: 180,
+    levels: [
+      {
+        minCellWidth: 70,
+        maxCellWidth: 160,
+        scales: [
+          { unit: 'year', step: 1, format: '%Y' },
+          {
+            unit: 'quarter',
+            step: 1,
+            format: ganttFrench ? "'T'%Q" : "'Q'%Q",
+          },
+        ],
+      },
+      {
+        minCellWidth: 70,
+        maxCellWidth: 150,
+        scales: [
+          { unit: 'year', step: 1, format: '%Y' },
+          { unit: 'month', step: 1, format: '%F' },
+        ],
+      },
+      {
+        minCellWidth: 55,
+        maxCellWidth: 130,
+        scales: [
+          { unit: 'month', step: 1, format: '%F %Y' },
+          {
+            unit: 'week',
+            step: 1,
+            format: ganttFrench ? "'Sem.' %W" : "'Week' %W",
+          },
+        ],
+      },
+      {
+        minCellWidth: 72,
+        maxCellWidth: 140,
+        scales: [
+          { unit: 'month', step: 1, format: '%F %Y' },
+          {
+            unit: 'day',
+            step: 1,
+            format: ganttDayFormat,
+            css: ganttDayClass,
+          },
+        ],
+      },
+    ],
+  };
   const ganttLinks = board.dependencies.map((d) => ({
     id: `${d.dependsOnTaskId}:${d.taskId}`,
     source: d.dependsOnTaskId,
@@ -2156,11 +2164,18 @@ export function ProjectTaskManager({
                     highlightTime={(date, unit) => {
                       if (unit !== 'day' && unit !== 'hour') return '';
                       const today = new Date();
-                      return date.getFullYear() === today.getFullYear() &&
+                      const classes: string[] = [];
+                      if (date.getDay() === 0 || date.getDay() === 6) {
+                        classes.push('project-gantt-weekend');
+                      }
+                      if (
+                        date.getFullYear() === today.getFullYear() &&
                         date.getMonth() === today.getMonth() &&
                         date.getDate() === today.getDate()
-                        ? 'project-gantt-today-cell'
-                        : '';
+                      ) {
+                        classes.push('project-gantt-today-cell');
+                      }
+                      return classes.join(' ');
                     }}
                     zoom={ganttZoom as never}
                     init={(api) => {
