@@ -89,6 +89,8 @@ export class ThreadMetadataService implements OnModuleInit, OnModuleDestroy {
   private acquisitionPatches: Map<string, MetadataPatch> | null = null;
   /** Started conversations not yet listable upstream, with an expiry. */
   private readonly pendingListing = new Map<string, number>();
+  /** Empty conversations created here but not returned by thread/list yet. */
+  private readonly provisionalThreads = new Map<string, v2.Thread>();
 
   constructor(
     private readonly codex: CodexService,
@@ -127,6 +129,8 @@ export class ThreadMetadataService implements OnModuleInit, OnModuleDestroy {
         notification.method === 'thread/closed'
       ) {
         this.pendingListing.delete(notification.params.threadId);
+        if (notification.method === 'thread/deleted')
+          this.provisionalThreads.delete(notification.params.threadId);
       }
       if (this.patchInPlace(notification)) return;
       if (METADATA_CHANGES.has(notification.method)) {
@@ -149,6 +153,7 @@ export class ThreadMetadataService implements OnModuleInit, OnModuleDestroy {
       // A replaced child re-lists whatever is stored; anything still waiting to
       // become listable belonged to the previous process's in-flight work.
       this.pendingListing.clear();
+      this.provisionalThreads.clear();
       this.changed.next();
       if (event.type === 'appServerReady') this.schedule(0);
     });
@@ -205,6 +210,7 @@ export class ThreadMetadataService implements OnModuleInit, OnModuleDestroy {
     if (thread.ephemeral) return;
     this.prunePendingListing();
     this.pendingListing.set(thread.id, Date.now() + PENDING_LISTING_TTL_MS);
+    this.provisionalThreads.set(thread.id, thread);
     if (!this.collection) {
       this.invalidate();
       return;
@@ -241,6 +247,9 @@ export class ThreadMetadataService implements OnModuleInit, OnModuleDestroy {
    */
   private patchInPlace(notification: ServerNotification): boolean {
     const patch = (threadId: string, fields: MetadataPatch): void => {
+      const provisional = this.provisionalThreads.get(threadId);
+      if (provisional)
+        this.provisionalThreads.set(threadId, { ...provisional, ...fields });
       if (this.acquisitionPatches) {
         this.acquisitionPatches.set(threadId, {
           ...this.acquisitionPatches.get(threadId),
@@ -405,25 +414,33 @@ export class ThreadMetadataService implements OnModuleInit, OnModuleDestroy {
           } while (cursor);
         }
         if (this.stopped) return;
-        this.collection = {
-          entries: entries.map((entry) => {
+        const provisionalEntries = [...this.provisionalThreads.values()]
+          .filter((thread) => !ids.has(thread.id))
+          .map((thread) => ({ thread, archived: false }));
+        const publishedEntries = [...provisionalEntries, ...entries].map(
+          (entry) => {
             const patch = patches.get(entry.thread.id);
             return patch
               ? { ...entry, thread: { ...entry.thread, ...patch } }
               : entry;
-          }),
+          },
+        );
+        this.collection = {
+          entries: publishedEntries,
           generation,
           refreshedAt: Date.now(),
         };
         // Anything this walk found is listable now, so its turns stop being
         // urgent. Whatever it did not find keeps its expiry and its urgency.
-        for (const entry of entries)
+        for (const entry of entries) {
           this.pendingListing.delete(entry.thread.id);
+          this.provisionalThreads.delete(entry.thread.id);
+        }
         this.failed = false;
         this.dirty = staleSequence !== this.staleSequence;
         this.changed.next();
         this.logger.debug(
-          { generation, threads: entries.length },
+          { generation, threads: publishedEntries.length },
           'Published conversation metadata',
         );
       } catch (error) {

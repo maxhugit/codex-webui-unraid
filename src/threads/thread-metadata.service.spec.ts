@@ -88,6 +88,25 @@ describe('ThreadMetadataService', () => {
     expect(request).toHaveBeenCalledTimes(3);
   });
 
+  it('keeps a newly created empty thread visible until thread/list persists it', async () => {
+    await service.read();
+    const provisional = makeThreadFixture({
+      id: 'new-empty',
+      name: null,
+      preview: '',
+    });
+
+    service.publishStartedThread(provisional);
+    expect(
+      (await service.read()).entries.map((entry) => entry.thread.id),
+    ).toContain('new-empty');
+
+    await service.refresh();
+    expect(
+      (await service.read()).entries.map((entry) => entry.thread.id),
+    ).toContain('new-empty');
+  });
+
   it('retains the entire previous collection when one partition fails', async () => {
     const before = await service.read();
     request
