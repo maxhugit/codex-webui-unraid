@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { Gantt, Tooltip, Willow, WillowDark } from '@svar-ui/react-gantt';
+import { Locale } from '@svar-ui/react-core';
 import '@svar-ui/react-gantt/all.css';
 import {
   Bot,
@@ -43,6 +44,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { DirectorySelectionTree } from '@/components/files/directory-selection-tree';
 import { threadsStartThread, threadsStartTurn } from '@/generated/api/sdk.gen';
 import { useThemeStore } from '@/stores/theme-store';
+import { englishGanttLocale, frenchGanttLocale } from '@/lib/gantt-locales';
 import {
   projectsApi,
   type ProjectTaskBoard,
@@ -258,6 +260,8 @@ export function ProjectTaskManager({
   const navigate = useNavigate();
   const dark = useThemeStore((state) => state.dark);
   const GanttTheme = dark ? WillowDark : Willow;
+  const ganttFrench = i18n.language.startsWith('fr');
+  const ganttLocale = ganttFrench ? frenchGanttLocale : englishGanttLocale;
   const key = ['project-resource', projectId, resourceId];
   const query = useQuery({
     queryKey: key,
@@ -1045,12 +1049,155 @@ export function ProjectTaskManager({
         open: true,
       };
     });
-  const ganttLinks = board.dependencies.map((d, index) => ({
-    id: index + 1,
+  const ganttLinks = board.dependencies.map((d) => ({
+    id: `${d.dependsOnTaskId}:${d.taskId}`,
     source: d.dependsOnTaskId,
     target: d.taskId,
     type: 'e2s',
   }));
+  const ganttColumns = [
+    {
+      id: 'text',
+      header: ganttFrench ? 'Tâche' : 'Task',
+      flexgrow: 1,
+      minWidth: 190,
+      resize: true,
+      sort: true,
+      cell: (({ row }: { row: { id: string; text?: string } }) => (
+        <button
+          type="button"
+          className="project-gantt-task-title"
+          title={row.text}
+          onClick={(event) => {
+            event.stopPropagation();
+            const task = board.tasks.find(
+              (candidate) => candidate.id === String(row.id),
+            );
+            if (task) openEdit(task);
+          }}
+        >
+          {row.text}
+        </button>
+      )) as never,
+    },
+    {
+      id: 'start',
+      header: ganttFrench ? 'Début' : 'Start',
+      width: 115,
+      align: 'center' as const,
+      resize: true,
+      sort: true,
+    },
+    {
+      id: 'duration',
+      header: ganttFrench ? 'Durée' : 'Duration',
+      width: 90,
+      align: 'center' as const,
+      resize: true,
+      sort: true,
+    },
+  ];
+
+  const persistGanttDates = async (event: {
+    id: string | number;
+    task: { start?: Date; duration?: number };
+    inProgress?: boolean;
+  }) => {
+    if (event.inProgress) return;
+    const current = board.tasks.find(
+      (task) => task.id === String(event.id) && !task.parentTaskId,
+    );
+    if (!current || !event.task.start) return;
+    const start = new Date(event.task.start);
+    start.setHours(12, 0, 0, 0);
+    const duration = Math.max(1, Math.round(event.task.duration ?? 1));
+    const due = new Date(start);
+    due.setDate(due.getDate() + duration - 1);
+    try {
+      await projectsApi(
+        `/${projectId}/resources/${resourceId}/tasks/${current.id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            startAt: start.getTime(),
+            dueAt: due.getTime(),
+          }),
+        },
+      );
+      await refresh();
+    } catch (error) {
+      await refresh();
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : ganttFrench
+            ? 'Impossible de modifier les dates.'
+            : 'Unable to update dates.',
+      );
+    }
+  };
+
+  const persistGanttLink = async (event: {
+    link: { source?: string | number; target?: string | number };
+  }) => {
+    const source = String(event.link.source ?? '');
+    const target = String(event.link.target ?? '');
+    const targetTask = board.tasks.find(
+      (task) => task.id === target && !task.parentTaskId,
+    );
+    if (!source || !targetTask || source === target) return;
+    const dependencyIds = Array.from(
+      new Set([...dependencyIdsFor(target), source]),
+    );
+    try {
+      await projectsApi(
+        `/${projectId}/resources/${resourceId}/tasks/${target}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ dependencyIds }),
+        },
+      );
+      await refresh();
+    } catch (error) {
+      await refresh();
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : ganttFrench
+            ? 'Impossible de créer cette dépendance.'
+            : 'Unable to create this dependency.',
+      );
+    }
+  };
+
+  const deleteGanttLink = async (event: { id: string | number }) => {
+    const link = ganttLinks.find(
+      (candidate) => candidate.id === String(event.id),
+    );
+    if (!link) return;
+    const dependencyIds = dependencyIdsFor(link.target).filter(
+      (id) => id !== link.source,
+    );
+    try {
+      await projectsApi(
+        `/${projectId}/resources/${resourceId}/tasks/${link.target}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ dependencyIds }),
+        },
+      );
+      await refresh();
+    } catch (error) {
+      await refresh();
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : ganttFrench
+            ? 'Impossible de supprimer cette dépendance.'
+            : 'Unable to remove this dependency.',
+      );
+    }
+  };
 
   return (
     <main className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
@@ -1247,89 +1394,113 @@ export function ProjectTaskManager({
       ) : (
         <section className="h-[70vh] min-h-[480px] overflow-hidden rounded-xl border bg-card">
           <GanttTheme>
-            <Tooltip
-              content={({ data }) => {
-                if (!('task' in data)) return null;
-                const task = board.tasks.find(
-                  (item) => item.id === String(data.task.id),
-                );
-                if (!task) return null;
-                const status = board.statuses.find(
-                  (item) => item.id === task.statusId,
-                );
-                const formatDate = (value: number | null) =>
-                  value
-                    ? new Intl.DateTimeFormat(undefined, {
-                        dateStyle: 'medium',
-                      }).format(value)
-                    : 'Non définie';
-                return (
-                  <div className="min-w-64 space-y-2 p-3 text-sm">
-                    <div className="font-semibold">{task.title}</div>
-                    {task.description && (
-                      <div className="max-w-80 text-muted-foreground">
-                        {task.description}
+            <Locale words={ganttLocale}>
+              <Tooltip
+                content={({ data }) => {
+                  if (!('task' in data)) return null;
+                  const task = board.tasks.find(
+                    (item) => item.id === String(data.task.id),
+                  );
+                  if (!task) return null;
+                  const status = board.statuses.find(
+                    (item) => item.id === task.statusId,
+                  );
+                  const formatDate = (value: number | null) =>
+                    value
+                      ? new Intl.DateTimeFormat(undefined, {
+                          dateStyle: 'medium',
+                        }).format(value)
+                      : ganttFrench
+                        ? 'Non définie'
+                        : 'Not set';
+                  return (
+                    <div className="min-w-64 space-y-2 p-3 text-sm">
+                      <div className="font-semibold">{task.title}</div>
+                      {task.description && (
+                        <div className="max-w-80 text-muted-foreground">
+                          {task.description}
+                        </div>
+                      )}
+                      <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                        <span className="text-muted-foreground">
+                          {ganttFrench ? 'Statut' : 'Status'}
+                        </span>
+                        <span>
+                          {status?.name ??
+                            (ganttFrench ? 'Non défini' : 'Not set')}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {ganttFrench ? 'Priorité' : 'Priority'}
+                        </span>
+                        <span>{priorities[task.priority]}</span>
+                        <span className="text-muted-foreground">
+                          {ganttFrench ? 'Début' : 'Start'}
+                        </span>
+                        <span>{formatDate(task.startAt)}</span>
+                        <span className="text-muted-foreground">
+                          {ganttFrench ? 'Fin' : 'End'}
+                        </span>
+                        <span>{formatDate(task.dueAt)}</span>
+                        <span className="text-muted-foreground">
+                          {ganttFrench ? 'Charge' : 'Workload'}
+                        </span>
+                        <span>{task.estimateMinutes / 60} h</span>
+                        <span className="text-muted-foreground">
+                          {ganttFrench ? 'Avancement' : 'Progress'}
+                        </span>
+                        <span>{task.progress} %</span>
                       </div>
-                    )}
-                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                      <span className="text-muted-foreground">Statut</span>
-                      <span>{status?.name ?? 'Non défini'}</span>
-                      <span className="text-muted-foreground">Priorité</span>
-                      <span>{priorities[task.priority]}</span>
-                      <span className="text-muted-foreground">Début</span>
-                      <span>{formatDate(task.startAt)}</span>
-                      <span className="text-muted-foreground">Fin</span>
-                      <span>{formatDate(task.dueAt)}</span>
-                      <span className="text-muted-foreground">Charge</span>
-                      <span>{task.estimateMinutes / 60} h</span>
-                      <span className="text-muted-foreground">Avancement</span>
-                      <span>{task.progress} %</span>
+                      {task.labels.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {task.labels.map((label) => (
+                            <span
+                              key={label}
+                              className="rounded bg-muted px-2 py-0.5 text-xs"
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {task.labels.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {task.labels.map((label) => (
-                          <span
-                            key={label}
-                            className="rounded bg-muted px-2 py-0.5 text-xs"
-                          >
-                            {label}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              }}
-            >
-              <Gantt
-                key={`${dark ? 'dark' : 'light'}:${ganttTasks
-                  .map((task) => task.id)
-                  .join(':')}`}
-                tasks={ganttTasks as never}
-                links={ganttLinks as never}
-                markers={[
-                  {
-                    start: new Date(),
-                    text: 'Aujourd’hui',
-                    css: 'project-gantt-today',
-                  },
-                ]}
-                zoom
-                readonly
-                init={(api) => {
-                  api.on(
-                    'select-task',
-                    (event) => {
-                      const task = board.tasks.find(
-                        (item) => item.id === String(event.id),
-                      );
-                      if (task) openEdit(task);
-                    },
-                    { tag: 'open-project-task' },
                   );
                 }}
-              />
-            </Tooltip>
+              >
+                <Gantt
+                  key={`${dark ? 'dark' : 'light'}:${i18n.language}:${ganttTasks
+                    .map((task) => task.id)
+                    .join(':')}`}
+                  tasks={ganttTasks as never}
+                  links={ganttLinks as never}
+                  columns={ganttColumns}
+                  markers={[
+                    {
+                      start: new Date(),
+                      text: ganttFrench ? 'Aujourd’hui' : 'Today',
+                      css: 'project-gantt-today',
+                    },
+                  ]}
+                  zoom
+                  init={(api) => {
+                    api.on(
+                      'update-task',
+                      (event) => void persistGanttDates(event),
+                      { tag: 'persist-project-task-dates' },
+                    );
+                    api.on(
+                      'add-link',
+                      (event) => void persistGanttLink(event),
+                      { tag: 'persist-project-task-link' },
+                    );
+                    api.on(
+                      'delete-link',
+                      (event) => void deleteGanttLink(event),
+                      { tag: 'delete-project-task-link' },
+                    );
+                  }}
+                />
+              </Tooltip>
+            </Locale>
           </GanttTheme>
           {!ganttTasks.length && (
             <div className="p-8 text-center text-sm text-muted-foreground">

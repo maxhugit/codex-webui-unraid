@@ -3,6 +3,42 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
 
+.project-gantt-today {
+  z-index: 20 !important;
+  width: 3px !important;
+  background: #ef4444 !important;
+  box-shadow: 0 0 0 1px rgb(239 68 68 / 25%);
+}
+
+.project-gantt-today > div {
+  color: white !important;
+  background: #ef4444 !important;
+  font-weight: 600;
+}
+
+.project-gantt-task-title {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.25rem;
+  padding: 0.2rem 0.35rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.project-gantt-task-title:hover,
+.project-gantt-task-title:focus-visible {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  text-decoration: underline;
+  outline: none;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 * {
