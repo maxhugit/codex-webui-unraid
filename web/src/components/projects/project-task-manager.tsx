@@ -1915,9 +1915,12 @@ export function ProjectTaskManager({
                             `1px solid ${color}`,
                           );
                         }}
-                        className="block w-full truncate px-2"
+                        className="flex w-full items-center justify-between gap-2 px-2"
                       >
-                        {data.text}
+                        <span className="min-w-0 truncate">{data.text}</span>
+                        <span className="shrink-0 text-[11px] font-semibold tabular-nums">
+                          {Math.round(Number(data.progress) || 0)} %
+                        </span>
                       </span>
                     );
                   }}
