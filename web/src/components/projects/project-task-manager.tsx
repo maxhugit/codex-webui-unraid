@@ -167,7 +167,8 @@ export function ProjectTaskManager({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   const [agentBusy, setAgentBusy] = useState(false);
-  const [taskTab, setTaskTab] = useState<'details' | 'subtasks'>('details');
+  const [taskTab, setTaskTab] = useState<string>('new');
+  const [rootTaskId, setRootTaskId] = useState<string | null>(null);
   const openedInitialTask = useRef<string | null>(null);
   useEffect(() => {
     if (
@@ -184,6 +185,7 @@ export function ProjectTaskManager({
       .map((dependency) => dependency.dependsOnTaskId);
     queueMicrotask(() => {
       setEditing(task);
+      setRootTaskId(task.parentTaskId ?? task.id);
       setDraft({
         title: task.title,
         description: task.description,
@@ -203,7 +205,7 @@ export function ProjectTaskManager({
         subtaskStatus: task.subtaskStatus,
         dependencyIds,
       });
-      setTaskTab('details');
+      setTaskTab(task.id);
       setTaskOpen(true);
     });
   }, [initialTaskId, query.data]);
@@ -238,6 +240,9 @@ export function ProjectTaskManager({
       .map((d) => d.dependsOnTaskId);
   const childrenFor = (id: string) =>
     board.tasks.filter((t) => t.parentTaskId === id);
+  const rootTask = rootTaskId
+    ? (board.tasks.find((task) => task.id === rootTaskId) ?? null)
+    : null;
   const blocked = (task: ProjectTaskSummary) =>
     dependencyIdsFor(task.id).some(
       (id) =>
@@ -249,6 +254,7 @@ export function ProjectTaskManager({
       ? board.tasks.find((task) => task.id === parentTaskId)
       : null;
     setEditing(null);
+    setRootTaskId(parentTaskId || null);
     setDraft({
       ...emptyDraft,
       statusId: unassigned?.id ?? '',
@@ -256,11 +262,12 @@ export function ProjectTaskManager({
       parentTaskId,
       subtaskStatus: 'todo',
     });
-    setTaskTab('details');
+    setTaskTab('new');
     setTaskOpen(true);
   };
-  const openEdit = (task: ProjectTaskSummary) => {
+  const openEdit = (task: ProjectTaskSummary, rootId?: string) => {
     setEditing(task);
+    setRootTaskId(rootId ?? task.parentTaskId ?? task.id);
     setDraft({
       title: task.title,
       description: task.description,
@@ -280,7 +287,7 @@ export function ProjectTaskManager({
       subtaskStatus: task.subtaskStatus,
       dependencyIds: dependencyIdsFor(task.id),
     });
-    setTaskTab(task.parentTaskId ? 'details' : 'details');
+    setTaskTab(task.id);
     setTaskOpen(true);
   };
   const payload = () => ({
@@ -765,334 +772,306 @@ export function ProjectTaskManager({
           <DialogHeader>
             <DialogTitle className="px-6 pt-6">
               {editing
-                ? 'Modifier la tâche'
+                ? editing.parentTaskId
+                  ? 'Modifier la sous-tâche'
+                  : 'Modifier la tâche'
                 : draft.parentTaskId
                   ? 'Nouvelle sous-tâche'
                   : 'Nouvelle tâche'}
             </DialogTitle>
           </DialogHeader>
-          {editing && !editing.parentTaskId && (
-            <div className="flex gap-1 border-b px-6">
+          {rootTask && (
+            <div className="flex shrink-0 gap-1 overflow-x-auto border-b px-6">
               <button
                 type="button"
-                className={`border-b-2 px-3 py-2 text-sm ${taskTab === 'details' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
-                onClick={() => setTaskTab('details')}
+                className={`shrink-0 border-b-2 px-3 py-2 text-sm ${taskTab === rootTask.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
+                onClick={() => openEdit(rootTask, rootTask.id)}
               >
-                Détails
+                Tâche principale
               </button>
+              {childrenFor(rootTask.id).map((child) => (
+                <button
+                  key={child.id}
+                  type="button"
+                  title={child.title}
+                  className={`max-w-52 shrink-0 truncate border-b-2 px-3 py-2 text-sm ${taskTab === child.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
+                  onClick={() => openEdit(child, rootTask.id)}
+                >
+                  {child.title}
+                </button>
+              ))}
               <button
                 type="button"
-                className={`border-b-2 px-3 py-2 text-sm ${taskTab === 'subtasks' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
-                onClick={() => setTaskTab('subtasks')}
+                className={`flex shrink-0 items-center gap-1 border-b-2 px-3 py-2 text-sm ${taskTab === 'new' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
+                onClick={() => openNew(rootTask.id)}
               >
-                Sous-tâches ({childrenFor(editing.id).length})
+                <Plus className="h-3.5 w-3.5" /> Ajouter
               </button>
             </div>
           )}
-          {taskTab === 'details' || !editing || editing.parentTaskId ? (
-            <div className="grid min-h-0 gap-3 overflow-y-auto px-6 py-3">
-              <Input
-                autoFocus
-                placeholder="Titre"
-                value={draft.title}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              />
-              <Textarea
-                placeholder="Description détaillée"
-                value={draft.description}
+          <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-6 py-3">
+            <Input
+              autoFocus
+              placeholder="Titre"
+              value={draft.title}
+              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+            />
+            <Textarea
+              placeholder="Description détaillée"
+              value={draft.description}
+              onChange={(e) =>
+                setDraft({ ...draft, description: e.target.value })
+              }
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                className="h-8 rounded-lg border bg-background px-2 text-sm"
+                value={draft.executionMode}
                 onChange={(e) =>
-                  setDraft({ ...draft, description: e.target.value })
+                  setDraft({
+                    ...draft,
+                    executionMode: e.target.value as Draft['executionMode'],
+                  })
+                }
+              >
+                <option value="manual">Tâche manuelle</option>
+                <option value="agent">Agent IA</option>
+              </select>
+              <Input
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder="Charge estimée (heures)"
+                value={draft.estimateHours}
+                onChange={(e) =>
+                  setDraft({ ...draft, estimateHours: e.target.value })
                 }
               />
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  className="h-8 rounded-lg border bg-background px-2 text-sm"
-                  value={draft.executionMode}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      executionMode: e.target.value as Draft['executionMode'],
-                    })
-                  }
-                >
-                  <option value="manual">Tâche manuelle</option>
-                  <option value="agent">Agent IA</option>
-                </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs text-muted-foreground">
+                Début
                 <Input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  placeholder="Charge estimée (heures)"
-                  value={draft.estimateHours}
+                  type="date"
+                  value={draft.startAt}
                   onChange={(e) =>
-                    setDraft({ ...draft, estimateHours: e.target.value })
+                    setDraft({ ...draft, startAt: e.target.value })
                   }
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs text-muted-foreground">
-                  Début
-                  <Input
-                    type="date"
-                    value={draft.startAt}
-                    onChange={(e) =>
-                      setDraft({ ...draft, startAt: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="text-xs text-muted-foreground">
-                  Fin prévue
-                  <Input
-                    type="date"
-                    value={draft.dueAt}
-                    onChange={(e) =>
-                      setDraft({ ...draft, dueAt: e.target.value })
-                    }
-                  />
-                </label>
-              </div>
-              <Textarea
-                placeholder="Conditions de validation / recette"
-                value={draft.validationCriteria}
+              </label>
+              <label className="text-xs text-muted-foreground">
+                Fin prévue
+                <Input
+                  type="date"
+                  value={draft.dueAt}
+                  onChange={(e) =>
+                    setDraft({ ...draft, dueAt: e.target.value })
+                  }
+                />
+              </label>
+            </div>
+            <Textarea
+              placeholder="Conditions de validation / recette"
+              value={draft.validationCriteria}
+              onChange={(e) =>
+                setDraft({ ...draft, validationCriteria: e.target.value })
+              }
+            />
+            <button
+              type="button"
+              className="flex h-9 items-center gap-2 rounded-lg border px-3 text-left text-sm"
+              onClick={() => {
+                setFolderSelection(
+                  draft.workspacePath || board.project.workspacePath,
+                );
+                setFolderOpen(true);
+              }}
+            >
+              <FolderOpen className="h-4 w-4" />
+              <span className="min-w-0 flex-1 truncate">
+                {draft.workspacePath || 'Choisir un dossier'}
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                className="h-8 rounded-lg border bg-background px-2 text-sm"
+                value={draft.priority}
                 onChange={(e) =>
-                  setDraft({ ...draft, validationCriteria: e.target.value })
+                  setDraft({
+                    ...draft,
+                    priority: e.target.value as Draft['priority'],
+                  })
                 }
-              />
-              <button
-                type="button"
-                className="flex h-9 items-center gap-2 rounded-lg border px-3 text-left text-sm"
-                onClick={() => {
-                  setFolderSelection(
-                    draft.workspacePath || board.project.workspacePath,
-                  );
-                  setFolderOpen(true);
-                }}
               >
-                <FolderOpen className="h-4 w-4" />
-                <span className="min-w-0 flex-1 truncate">
-                  {draft.workspacePath || 'Choisir un dossier'}
-                </span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
-              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(priorities).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              {editing && !editing.parentTaskId && (
                 <select
                   className="h-8 rounded-lg border bg-background px-2 text-sm"
-                  value={draft.priority}
+                  value={draft.statusId}
                   onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      priority: e.target.value as Draft['priority'],
-                    })
+                    setDraft({ ...draft, statusId: e.target.value })
                   }
                 >
-                  {Object.entries(priorities).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
+                  {board.statuses.map((s) => (
+                    <option
+                      key={s.id}
+                      value={s.id}
+                      disabled={
+                        s.kind === 'done' &&
+                        childrenFor(editing.id).some(
+                          (child) =>
+                            !['done', 'cancelled'].includes(
+                              child.subtaskStatus,
+                            ),
+                        )
+                      }
+                    >
+                      {s.name}
                     </option>
                   ))}
                 </select>
-                {editing && !editing.parentTaskId && (
-                  <select
-                    className="h-8 rounded-lg border bg-background px-2 text-sm"
-                    value={draft.statusId}
-                    onChange={(e) =>
-                      setDraft({ ...draft, statusId: e.target.value })
-                    }
-                  >
-                    {board.statuses.map((s) => (
-                      <option
-                        key={s.id}
-                        value={s.id}
-                        disabled={
-                          s.kind === 'done' &&
-                          childrenFor(editing.id).some(
-                            (child) =>
-                              !['done', 'cancelled'].includes(
-                                child.subtaskStatus,
-                              ),
-                          )
-                        }
-                      >
-                        {s.name}
+              )}
+              {editing?.parentTaskId && (
+                <select
+                  className="h-8 rounded-lg border bg-background px-2 text-sm"
+                  value={draft.subtaskStatus}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      subtaskStatus: e.target
+                        .value as ProjectTaskSummary['subtaskStatus'],
+                    })
+                  }
+                >
+                  {Object.entries(subtaskLabels)
+                    .filter(
+                      ([value]) =>
+                        value !== 'review' || draft.executionMode === 'agent',
+                    )
+                    .map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
                       </option>
                     ))}
-                  </select>
-                )}
-                {editing?.parentTaskId && (
-                  <select
-                    className="h-8 rounded-lg border bg-background px-2 text-sm"
-                    value={draft.subtaskStatus}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        subtaskStatus: e.target
-                          .value as ProjectTaskSummary['subtaskStatus'],
+                </select>
+              )}
+            </div>
+            <Input
+              placeholder="Étiquettes séparées par des virgules"
+              value={draft.labels}
+              onChange={(e) => setDraft({ ...draft, labels: e.target.value })}
+            />
+            <Input
+              placeholder="Fichier lié (facultatif)"
+              value={draft.linkedFilePath}
+              onChange={(e) =>
+                setDraft({ ...draft, linkedFilePath: e.target.value })
+              }
+            />
+            {!draft.parentTaskId && (
+              <fieldset className="rounded-lg border p-3">
+                <legend className="px-1 text-xs text-muted-foreground">
+                  Dépend de
+                </legend>
+                <div className="max-h-28 space-y-1 overflow-auto">
+                  {board.tasks
+                    .filter((t) => !t.parentTaskId && t.id !== editing?.id)
+                    .map((task) => (
+                      <label
+                        key={task.id}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={draft.dependencyIds.includes(task.id)}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              dependencyIds: e.target.checked
+                                ? [...draft.dependencyIds, task.id]
+                                : draft.dependencyIds.filter(
+                                    (id) => id !== task.id,
+                                  ),
+                            })
+                          }
+                        />
+                        {task.title}
+                      </label>
+                    ))}
+                </div>
+              </fieldset>
+            )}
+            {editing && (
+              <div className="flex flex-wrap gap-2">
+                {editing.linkedThreadId && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      navigate({
+                        to: '/t/$threadId',
+                        params: { threadId: editing.linkedThreadId! },
                       })
                     }
                   >
-                    {Object.entries(subtaskLabels)
-                      .filter(
-                        ([value]) =>
-                          value !== 'review' || draft.executionMode === 'agent',
-                      )
-                      .map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                  </select>
+                    <Bot />
+                    Ouvrir l’agent
+                  </Button>
+                )}
+                {editing.agentState === 'review' && (
+                  <Button onClick={validateTask}>
+                    <Check />
+                    Valider et terminer
+                  </Button>
                 )}
               </div>
-              <Input
-                placeholder="Étiquettes séparées par des virgules"
-                value={draft.labels}
-                onChange={(e) => setDraft({ ...draft, labels: e.target.value })}
-              />
-              <Input
-                placeholder="Fichier lié (facultatif)"
-                value={draft.linkedFilePath}
-                onChange={(e) =>
-                  setDraft({ ...draft, linkedFilePath: e.target.value })
-                }
-              />
-              {!draft.parentTaskId && (
-                <fieldset className="rounded-lg border p-3">
-                  <legend className="px-1 text-xs text-muted-foreground">
-                    Dépend de
-                  </legend>
-                  <div className="max-h-28 space-y-1 overflow-auto">
-                    {board.tasks
-                      .filter((t) => !t.parentTaskId && t.id !== editing?.id)
-                      .map((task) => (
-                        <label
-                          key={task.id}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={draft.dependencyIds.includes(task.id)}
-                            onChange={(e) =>
-                              setDraft({
-                                ...draft,
-                                dependencyIds: e.target.checked
-                                  ? [...draft.dependencyIds, task.id]
-                                  : draft.dependencyIds.filter(
-                                      (id) => id !== task.id,
-                                    ),
-                              })
-                            }
-                          />
-                          {task.title}
-                        </label>
-                      ))}
-                  </div>
-                </fieldset>
-              )}
-              {editing && (
-                <div className="flex flex-wrap gap-2">
-                  {!editing.parentTaskId && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setTaskOpen(false);
-                        openNew(editing.id);
-                      }}
-                    >
-                      <Plus />
-                      Sous-tâche
-                    </Button>
-                  )}
-                  {editing.linkedThreadId && (
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        navigate({
-                          to: '/t/$threadId',
-                          params: { threadId: editing.linkedThreadId! },
-                        })
-                      }
-                    >
-                      <Bot />
-                      Ouvrir l’agent
-                    </Button>
-                  )}
-                  {editing.agentState === 'review' && (
-                    <Button onClick={validateTask}>
-                      <Check />
-                      Valider et terminer
-                    </Button>
-                  )}
-                </div>
-              )}
-              {editing && blocked(editing) && (
-                <p className="text-xs text-amber-500">
-                  Cette tâche est bloquée par une dépendance non terminée.
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-6 py-4">
-              <Button
-                variant="outline"
-                className="mb-2 w-full"
-                onClick={() => openNew(editing.id)}
-              >
-                <Plus /> Nouvelle sous-tâche
-              </Button>
-              {childrenFor(editing.id).map((child) => (
-                <button
-                  type="button"
-                  key={child.id}
-                  className="flex w-full items-center gap-3 rounded-lg border p-3 text-left hover:border-primary/50"
-                  onClick={() => openEdit(child)}
-                >
-                  {child.executionMode === 'agent' ? (
-                    <Bot className="h-4 w-4 shrink-0 text-primary" />
-                  ) : (
-                    <Check className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {child.title}
-                  </span>
-                  <span className="rounded bg-muted px-2 py-1 text-[10px]">
-                    {subtaskLabels[child.subtaskStatus]}
-                  </span>
-                </button>
-              ))}
-              {!childrenFor(editing.id).length && (
-                <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  Aucune sous-tâche.
-                </p>
-              )}
-            </div>
-          )}
-          <DialogFooter className="shrink-0 border-t bg-background px-6 py-4">
-            {editing && (
-              <Button variant="destructive" onClick={removeTask}>
-                <Trash2 />
-                Supprimer
-              </Button>
             )}
-            {editing &&
-              draft.executionMode === 'agent' &&
-              editing.agentState !== 'running' &&
-              editing.agentState !== 'review' && (
-                <Button
-                  variant="secondary"
-                  disabled={agentBusy || blocked(editing)}
-                  onClick={runAgent}
-                >
-                  {agentBusy ? <Loader2 className="animate-spin" /> : <Play />}
-                  Exécuter avec un agent
+            {editing && blocked(editing) && (
+              <p className="text-xs text-amber-500">
+                Cette tâche est bloquée par une dépendance non terminée.
+              </p>
+            )}
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t bg-background/95 px-6 py-4 backdrop-blur">
+            <div>
+              {editing && (
+                <Button variant="destructive" onClick={removeTask}>
+                  <Trash2 />
+                  Supprimer
                 </Button>
               )}
-            <Button
-              onClick={saveTask}
-              disabled={!draft.title.trim() || request.isPending}
-            >
-              Enregistrer
-            </Button>
-          </DialogFooter>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {editing &&
+                draft.executionMode === 'agent' &&
+                editing.agentState !== 'running' &&
+                editing.agentState !== 'review' && (
+                  <Button
+                    variant="secondary"
+                    disabled={agentBusy || blocked(editing)}
+                    onClick={runAgent}
+                  >
+                    {agentBusy ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <Play />
+                    )}
+                    Exécuter avec un agent
+                  </Button>
+                )}
+              <Button
+                onClick={saveTask}
+                disabled={!draft.title.trim() || request.isPending}
+              >
+                Enregistrer
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog open={folderOpen} onOpenChange={setFolderOpen}>
