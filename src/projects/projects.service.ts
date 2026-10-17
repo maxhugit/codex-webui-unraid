@@ -24,6 +24,8 @@ import { ThreadWorkspaceOverridesService } from '../threads/thread-workspace-ove
 import { ThreadsDeletionService } from '../threads/threads-deletion.service';
 import { ThreadsService } from '../threads/threads.service';
 
+const ORPHAN_ASSOCIATION_GRACE_MS = 5 * 60_000;
+
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -64,6 +66,21 @@ export class ProjectsService {
         { thread: effectiveThreads[index], archived: entry.archived },
       ]),
     );
+    // Codex does not expose empty placeholders as conversations. Keep a short
+    // grace period for a freshly-created agent, then discard only its WebUI
+    // association when it never became visible or was deleted elsewhere.
+    if (snapshot) {
+      const orphanCutoff = Date.now() - ORPHAN_ASSOCIATION_GRACE_MS;
+      for (const agent of agents)
+        if (
+          !threadMetadata.has(agent.threadId) &&
+          agent.updatedAt < orphanCutoff
+        )
+          this.db
+            .delete(projectAgentThreads)
+            .where(eq(projectAgentThreads.threadId, agent.threadId))
+            .run();
+    }
     return this.db
       .select()
       .from(projects)
@@ -77,17 +94,19 @@ export class ProjectsService {
           .filter((workspace) => workspace.projectId === project.id)
           .sort((a, b) => Number(b.primary) - Number(a.primary)),
         agentThreads: agents
-          .filter((agent) => agent.projectId === project.id)
+          .filter(
+            (agent) =>
+              agent.projectId === project.id &&
+              threadMetadata.has(agent.threadId),
+          )
           .map(({ threadId, workspacePath }) => {
-            const metadata = threadMetadata.get(threadId);
+            const metadata = threadMetadata.get(threadId)!;
             return {
               threadId,
               workspacePath,
               title:
-                metadata?.thread.name?.trim() ||
-                metadata?.thread.preview?.trim() ||
-                `Agent ${threadId.slice(0, 8)}`,
-              archived: metadata?.archived ?? false,
+                metadata.thread.name?.trim() || metadata.thread.preview.trim(),
+              archived: metadata.archived,
             };
           }),
       }));
