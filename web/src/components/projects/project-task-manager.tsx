@@ -19,7 +19,13 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type DragEvent as ReactDragEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -171,6 +177,7 @@ export function ProjectTaskManager({
   const [search, setSearch] = useState('');
   const [priority, setPriority] = useState('all');
   const [dragged, setDragged] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [taskOpen, setTaskOpen] = useState(false);
   const [editing, setEditing] = useState<ProjectTaskSummary | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -381,7 +388,11 @@ export function ProjectTaskManager({
   };
   const dropTask = async (statusId: string) => {
     const task = board.tasks.find((t) => t.id === dragged);
-    if (!task || task.parentTaskId || task.statusId === statusId) return;
+    setDragOverStatus(null);
+    if (!task || task.parentTaskId || task.statusId === statusId) {
+      setDragged(null);
+      return;
+    }
     const target = board.statuses.find((status) => status.id === statusId);
     if (
       target?.kind === 'done' &&
@@ -807,12 +818,38 @@ export function ProjectTaskManager({
             {board.statuses.map((status) => {
               const tasks = filtered
                 .filter((t) => t.statusId === status.id)
-                .sort((a, b) => a.position - b.position);
+                .sort((a, b) => {
+                  const aDue = a.dueAt
+                    ? new Date(a.dueAt).getTime()
+                    : Number.POSITIVE_INFINITY;
+                  const bDue = b.dueAt
+                    ? new Date(b.dueAt).getTime()
+                    : Number.POSITIVE_INFINITY;
+                  return aDue - bDue || a.position - b.position;
+                });
               return (
                 <section
                   key={status.id}
-                  className="w-[310px] shrink-0 rounded-xl border bg-card/60 p-3"
-                  onDragOver={(e) => e.preventDefault()}
+                  className={`w-[310px] shrink-0 rounded-xl border p-3 transition-all duration-150 ${
+                    dragOverStatus === status.id
+                      ? 'border-primary/70 bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary)/0.3),0_8px_24px_hsl(var(--primary)/0.12)]'
+                      : 'bg-card/60'
+                  }`}
+                  onDragEnter={() => {
+                    if (dragged) setDragOverStatus(status.id);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragged && dragOverStatus !== status.id) {
+                      setDragOverStatus(status.id);
+                    }
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setDragOverStatus(null);
+                    }
+                  }}
                   onDrop={() => dropTask(status.id)}
                 >
                   <div className="mb-3 flex items-center gap-2">
@@ -852,14 +889,27 @@ export function ProjectTaskManager({
                         task={task}
                         subtasks={childrenFor(task.id)}
                         blocked={blocked(task)}
+                        dragging={dragged === task.id}
                         onDrag={() => setDragged(task.id)}
+                        onDragEnd={() => {
+                          setDragged(null);
+                          setDragOverStatus(null);
+                        }}
                         onClick={() => openEdit(task)}
                         onSubtaskClick={openEdit}
                       />
                     ))}
-                    {!tasks.length && (
-                      <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-                        Déposez une tâche ici
+                    {(!tasks.length || dragOverStatus === status.id) && (
+                      <div
+                        className={`rounded-lg border border-dashed p-4 text-center text-xs transition-all ${
+                          dragOverStatus === status.id
+                            ? 'border-primary bg-primary/15 font-medium text-primary'
+                            : 'text-muted-foreground'
+                        }`}
+                      >
+                        {dragOverStatus === status.id
+                          ? 'Relâchez pour déplacer la tâche'
+                          : 'Déposez une tâche ici'}
                       </div>
                     )}
                   </div>
@@ -1497,30 +1547,70 @@ function TaskCard({
   task,
   subtasks,
   blocked,
+  dragging,
   onDrag,
+  onDragEnd,
   onClick,
   onSubtaskClick,
 }: {
   task: ProjectTaskSummary;
   subtasks: ProjectTaskSummary[];
   blocked: boolean;
-  onDrag: () => void;
+  dragging: boolean;
+  onDrag: (event: ReactDragEvent<HTMLSpanElement>) => void;
+  onDragEnd: () => void;
   onClick: () => void;
   onSubtaskClick: (task: ProjectTaskSummary) => void;
 }) {
+  const startDrag = (event: ReactDragEvent<HTMLSpanElement>) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', task.id);
+    const card = event.currentTarget.closest<HTMLElement>('[data-task-card]');
+    if (card) {
+      const preview = card.cloneNode(true) as HTMLElement;
+      const bounds = card.getBoundingClientRect();
+      Object.assign(preview.style, {
+        position: 'fixed',
+        top: '-10000px',
+        left: '-10000px',
+        width: `${bounds.width}px`,
+        opacity: '0.94',
+        transform: 'rotate(1deg)',
+        boxShadow: '0 18px 45px rgba(0, 0, 0, 0.38)',
+        pointerEvents: 'none',
+        zIndex: '9999',
+      });
+      preview.classList.add('ring-2', 'ring-primary/50');
+      document.body.appendChild(preview);
+      event.dataTransfer.setDragImage(preview, 24, 20);
+      window.setTimeout(() => preview.remove(), 0);
+    }
+    onDrag(event);
+  };
+
   return (
     <div
-      className={`rounded-lg border shadow-sm ${priorityCardStyle[task.priority]}`}
+      data-task-card
+      className={`rounded-lg border shadow-sm transition-all ${priorityCardStyle[task.priority]} ${
+        dragging ? 'scale-[0.98] opacity-40' : ''
+      }`}
     >
       <button
         type="button"
-        draggable
-        onDragStart={onDrag}
         onClick={onClick}
         className="block w-full p-3 text-left hover:bg-accent/20"
       >
         <div className="flex gap-2">
-          <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <span
+            draggable
+            onDragStart={startDrag}
+            onDragEnd={onDragEnd}
+            onClick={(event) => event.stopPropagation()}
+            title="Déplacer la tâche"
+            className="mt-0.5 flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
+          >
+            <GripVertical className="h-4 w-4" />
+          </span>
           <span
             className="min-w-0 flex-1 truncate whitespace-nowrap text-sm font-medium"
             title={task.title}
