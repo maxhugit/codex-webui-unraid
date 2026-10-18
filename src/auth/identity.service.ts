@@ -76,7 +76,9 @@ export class IdentityService {
           .from(people)
           .where(and(eq(people.email, email), isNull(people.identitySubject)))
           .get();
-        if (candidate?.active) {
+        // An administrator must be explicitly bound by a deployment operator:
+        // an email assertion alone must never be enough to claim admin access.
+        if (candidate?.active && candidate.role === 'standard') {
           this.db
             .update(people)
             .set({ identitySubject: subject, updatedAt: Date.now() })

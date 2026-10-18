@@ -29,6 +29,7 @@ it('enforces person roles on real Socket.IO terminal events and rechecks a downg
         phone: '0600000000',
         email: `${role}@example.com`,
         role: role as 'standard' | 'administrator',
+        identitySubject: role === 'administrator' ? role : null,
         createdAt: 1,
         updatedAt: 1,
       })),

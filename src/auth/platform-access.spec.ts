@@ -95,6 +95,7 @@ beforeEach(() => {
         phone: '0600000001',
         email: 'admin@example.com',
         role: 'administrator',
+        identitySubject: 'admin-subject',
         createdAt: now,
         updatedAt: now,
       },
@@ -165,6 +166,22 @@ it('refuses unknown and disabled accounts without bootstrapping an administrator
   expect(() => guard.canActivate(http('/projects').context)).toThrow(
     'active person',
   );
+});
+
+it('never grants the first administrator login from an email match alone', () => {
+  database.db
+    .update(people)
+    .set({ identitySubject: null })
+    .where(eq(people.id, 'admin'))
+    .run();
+  expect(
+    identities.resolve(headers('claiming-admin-email', 'admin@example.com'))
+      .active,
+  ).toBe(false);
+  expect(
+    database.db.select().from(people).where(eq(people.id, 'admin')).get()
+      ?.identitySubject,
+  ).toBeNull();
 });
 
 it.each([

@@ -34,11 +34,15 @@ complétés avant leur prochaine modification.
 
 Le proxy Nginx récupère l’identifiant stable et l’e-mail depuis la réponse de son
 propre contrôle Authentik, puis écrase les en-têtes d’identité du navigateur.
-À la première connexion, une fiche active préalablement créée peut être liée par
+À la première connexion, une fiche standard active préalablement créée peut être liée par
 égalité de l’e-mail, sans tenir compte de la casse. Ensuite seul l’identifiant
-stable sert à reconnaître la personne. Aucune fiche et aucun rôle administrateur
+stable sert à reconnaître la personne. Les connexions administrateurs exigent
+toujours une liaison explicite par identifiant stable via l’outil serveur décrit
+ci-dessous : une simple égalité d’e-mail ne suffit pas. Aucune fiche et aucun rôle administrateur
 ne sont créés automatiquement. Une fiche déjà liée ne peut pas être récupérée
-par un autre identifiant présentant le même e-mail.
+par un autre identifiant présentant le même e-mail. Une fiche standard déjà liée
+peut être promue administrateur par un administrateur existant, après vérification
+de la personne : son identifiant stable est alors déjà connu.
 
 En déploiement Unraid, `WEBUI_REQUIRE_IDENTITY=true` refuse toute session humaine
 sans identité du proxy. Le backend ne doit pas publier son port sur le réseau

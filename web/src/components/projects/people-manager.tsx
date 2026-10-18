@@ -181,7 +181,7 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
                   </span>
                 </div>
                 <p className="break-all text-xs text-muted-foreground">
-                  {person.email || t('No email')} ·{' '}
+                  {!projectId && <>{person.email || t('No email')} · </>}
                   {t(person.active ? 'Active' : 'Inactive')}
                   {!projectId && (
                     <>
@@ -273,7 +273,7 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
             </DialogTitle>
             <DialogDescription>
               {t(
-                'The verified Authentik login is linked by email on first connection, then by its stable identifier. Roles are enforced on the server.',
+                'The Authentik login uses a stable identifier. Standard users can be linked by email on first connection. Roles are enforced on the server.',
               )}
             </DialogDescription>
           </DialogHeader>
@@ -364,6 +364,15 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
                   'Standard users can use simple chat and manual tasks. Server settings, agents, automations and terminals require an administrator.',
                 )}
               </p>
+              {form.role === 'administrator' &&
+                !people.data?.people.find((person) => person.id === editing)
+                  ?.identityLinked && (
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      'Administrator logins must be explicitly linked using the server provisioning tool. Email matching alone never grants administrator access.',
+                    )}
+                  </p>
+                )}
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

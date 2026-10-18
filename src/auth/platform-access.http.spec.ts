@@ -46,6 +46,8 @@ beforeEach(async () => {
         email: `${role}@example.com`,
         phone: '0600000000',
         role: role as 'standard' | 'administrator',
+        identitySubject:
+          role === 'administrator' ? `${role}@example.com` : null,
         createdAt: 1,
         updatedAt: 1,
       })),
