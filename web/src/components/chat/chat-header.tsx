@@ -36,6 +36,7 @@ import { McpStatusBadge } from './mcp-status-badge';
 
 /** Mobile overflow menu — closes after each action. */
 function MobileOverflowMenu({
+  onSettings,
   onDiagnostics,
   onToggleDark,
   onToggleLanguage,
@@ -43,6 +44,7 @@ function MobileOverflowMenu({
   dark,
   t,
 }: {
+  onSettings: () => void;
   onDiagnostics: () => void;
   onToggleDark: () => void;
   onToggleLanguage: () => void;
@@ -60,6 +62,9 @@ function MobileOverflowMenu({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" side="bottom" className="w-48 p-1">
+        <button type="button" onClick={() => act(onSettings)} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
+          <Settings className="h-4 w-4" /> {t('Settings')}
+        </button>
         <button type="button" onClick={() => act(onDiagnostics)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
           <Activity className="h-4 w-4" /> {t('Diagnostics')}
         </button>
@@ -349,6 +354,7 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
         ) : (
           /* Mobile/Tablet: overflow menu popover */
           <MobileOverflowMenu
+            onSettings={() => void navigate({ to: '/settings' })}
             onDiagnostics={handleDiagnosticsToggle}
             onToggleDark={onToggleDark}
             onToggleLanguage={toggleLanguage}
