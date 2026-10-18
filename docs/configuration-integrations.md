@@ -73,7 +73,9 @@ ni une gestion d’autorisations par projet.
 
 Une désactivation ou un changement de rôle déconnecte les sockets de la personne.
 Le navigateur revérifie aussi périodiquement son identité. Le dernier
-administrateur actif ne peut pas être désactivé ou rétrogradé depuis le formulaire.
+administrateur actif disposant d’une connexion liée ne peut pas être désactivé ou
+rétrogradé depuis le formulaire s’il n’existe aucun autre administrateur actif
+déjà lié. Une fiche administrateur encore non liée ne constitue pas une relève.
 
 ### Initialisation et récupération administrateur
 

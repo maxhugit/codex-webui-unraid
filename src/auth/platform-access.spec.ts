@@ -418,4 +418,13 @@ it('requires person contact fields, computes the name server-side and protects t
   expect(() => service.savePerson({ role: 'standard' }, 'admin')).toThrow(
     'last active administrator',
   );
+  service.savePerson({
+    ...input,
+    reference: 'UNLINKED-ADMIN',
+    email: 'unlinked-admin@example.com',
+    role: 'administrator',
+  });
+  expect(() => service.savePerson({ role: 'standard' }, 'admin')).toThrow(
+    'last active administrator',
+  );
 });

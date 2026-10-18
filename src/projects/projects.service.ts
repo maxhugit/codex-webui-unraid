@@ -178,7 +178,13 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       existing?.role === 'administrator' &&
       existing.active &&
       (role !== 'administrator' || input.active === false) &&
-      !all.some((p) => p.id !== id && p.active && p.role === 'administrator')
+      !all.some(
+        (p) =>
+          p.id !== id &&
+          p.active &&
+          p.role === 'administrator' &&
+          p.identitySubject,
+      )
     )
       throw new BadRequestException(
         'The last active administrator cannot be disabled or demoted',
