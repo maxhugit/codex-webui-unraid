@@ -24,13 +24,90 @@ Chaque rubrique de réglage dispose d’un lien `/settings?section=…`.
 Sur mobile, le bouton de navigation de l’en-tête ouvre le
 même menu et la sélection d’une rubrique le referme.
 
-Cette séparation prépare un espace réservé aux administrateurs : les futurs
-utilisateurs standards ne devront accéder ni aux réglages serveur ni aux outils
-globaux. **Elle ne constitue pas encore un contrôle de rôles** : l’authentification
-actuelle utilise une session commune. Les personnes déclarées pour affecter des
-tâches ne sont pas encore des comptes de connexion. L’introduction des rôles
-devra associer l’identité authentifiée à une personne et contrôler les accès côté
-serveur (API et WebSocket), pas seulement masquer les liens.
+## Personnes, connexion et rôles
+
+Une fiche exige une référence manuelle unique, un prénom, un nom, une adresse
+e-mail unique et un numéro de téléphone. Le nom complet est calculé côté serveur
+(`Prénom Nom`) ; il n’est pas saisissable. Le rôle par défaut est **Standard**.
+Les anciennes fiches sont conservées ; leurs nouveaux champs doivent être
+complétés avant leur prochaine modification.
+
+Le proxy Nginx récupère l’identifiant stable et l’e-mail depuis la réponse de son
+propre contrôle Authentik, puis écrase les en-têtes d’identité du navigateur.
+À la première connexion, une fiche active préalablement créée peut être liée par
+égalité de l’e-mail, sans tenir compte de la casse. Ensuite seul l’identifiant
+stable sert à reconnaître la personne. Aucune fiche et aucun rôle administrateur
+ne sont créés automatiquement. Une fiche déjà liée ne peut pas être récupérée
+par un autre identifiant présentant le même e-mail.
+
+En déploiement Unraid, `WEBUI_REQUIRE_IDENTITY=true` refuse toute session humaine
+sans identité du proxy. Le backend ne doit pas publier son port sur le réseau
+externe. Le jeton technique de déploiement reste un secret administrateur, réservé
+aux services internes ; il n’est ni transmis au navigateur ni aux utilisateurs.
+Un déploiement local sans cette option conserve le mode historique à clé API,
+qui est un accès technique administrateur, pas un compte utilisateur standard.
+
+Les rôles sont relus en base pour chaque requête. Les réglages, intégrations,
+informations de compte serveur, journaux techniques et modifications des personnes
+sont réservés aux administrateurs côté API, en plus de la protection des pages.
+Les listes de personnes servies aux standards ne contiennent pas les coordonnées
+ni les identifiants de connexion. Les requêtes de fichiers standards restent
+limitées aux workspaces des projets, avec vérification des liens symboliques.
+`WEBUI_PROTECTED_PATHS` exclut en plus les répertoires privés du serveur, même
+si un projet référence un parent trop large. Adapter en particulier l’alias
+`/appdata/codex-web` si le dossier d’installation change ; les secrets et la base
+ne doivent jamais devenir des fichiers de projet accessibles aux standards.
+
+Sans isolation système par utilisateur, un répertoire de travail n’est pas une
+barrière de sécurité pour un shell ou un agent. Les exécutions d’agents,
+automatisations serveur et terminaux (globaux et de conversation) sont donc
+réservées aux administrateurs dans ce premier lot. Les standards peuvent utiliser
+le chat simple et gérer les tâches manuelles. Leurs appels directs d’exécution
+sont refusés côté REST et WebSocket, pas seulement masqués par l’interface.
+Ce contrôle de rôles ne remplace pas une future isolation système des agents,
+ni une gestion d’autorisations par projet.
+
+Une désactivation ou un changement de rôle déconnecte les sockets de la personne.
+Le navigateur revérifie aussi périodiquement son identité. Le dernier
+administrateur actif ne peut pas être désactivé ou rétrogradé depuis le formulaire.
+
+### Initialisation et récupération administrateur
+
+Après démarrage de l’image (et migration de la base), un administrateur Unraid
+peut provisionner la première fiche depuis un fichier JSON **privé, hors Git** :
+
+```json
+{
+  "reference": "ADM-001",
+  "firstName": "Prénom",
+  "lastName": "Nom",
+  "email": "admin@example.com",
+  "phone": "+33600000000",
+  "role": "administrator",
+  "active": true
+}
+```
+
+```sh
+docker exec -i codex-webui node /app/scripts/provision-person.cjs < personne-privee.json
+```
+
+Ce programme requiert un accès privilégié au conteneur et réutilise la validation
+du serveur. Il ne journalise pas les coordonnées. Sauvegarder d’abord la base et
+protéger puis retirer le fichier privé après utilisation. En cas de différence
+entre l’e-mail de la fiche et celui d’Authentik, ne pas forcer une correspondance
+depuis le navigateur : un administrateur peut fournir au même programme le champ
+`identitySubject`, lu sur la page `/api/auth/me` après authentification. Cette
+liaison explicite doit être vérifiée humainement. Un identifiant déjà lié à une
+autre personne est refusé.
+
+### Prévisualisation des documents
+
+Les prévisualisations interactives utilisent `/api/files/preview` et restent
+authentifiées par Authentik. OnlyOffice télécharge via `/api/files/serve` avec un
+jeton signé valable une heure, limité au chemin du document. Le jeton général de
+l’application n’apparaît plus dans la configuration de l’éditeur. Le retour de
+sauvegarde OnlyOffice conserve sa validation JWT et son état signé.
 
 ## Authentik
 

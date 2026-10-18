@@ -9,6 +9,7 @@ import { AppsModule } from './apps/apps.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ApiKeyGuard } from './auth/api-key.guard';
+import { PlatformAccessGuard } from './auth/platform-access.guard';
 import { ArchiveModule } from './archive/archive.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
@@ -53,6 +54,12 @@ const PINO_REDACT = {
   paths: [
     'req.headers["authorization"]',
     'req.headers["cookie"]',
+    'req.headers["x-webui-auth-subject"]',
+    'req.headers["x-webui-auth-email"]',
+    'req.headers["x-authentik-email"]',
+    'req.headers["x-authentik-uid"]',
+    'req.headers["x-authentik-username"]',
+    'req.headers["x-authentik-name"]',
     // File preview URLs may carry RFC 6750 query tokens
     'req.query.access_token',
     'req.query["access_token"]',
@@ -144,6 +151,7 @@ const PINO_REDACT = {
       provide: APP_GUARD,
       useClass: ApiKeyGuard,
     },
+    { provide: APP_GUARD, useClass: PlatformAccessGuard },
   ],
 })
 export class AppModule {}

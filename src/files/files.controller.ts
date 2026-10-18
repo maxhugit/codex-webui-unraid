@@ -14,6 +14,8 @@ import {
 } from '@nestjs/common';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
+import { IdentityService } from '../auth/identity.service';
+import type { IdentityRequest } from '../auth/platform-access.guard';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -79,7 +81,10 @@ interface MultipartFilesRequest {
 @ApiNotFoundResponse({ type: ApiErrorResponseDto })
 @Controller('files')
 export class FilesController {
-  constructor(private readonly filesService: FilesService) {}
+  constructor(
+    private readonly filesService: FilesService,
+    private readonly identities: IdentityService,
+  ) {}
 
   @Get('tree')
   @ApiOperation({ summary: 'Read directory tree (one level, lazy load)' })
@@ -277,6 +282,16 @@ export class FilesController {
     });
   }
 
+  /** Interactive previews retain Authentik authentication, unlike signed document-server transfers. */
+  @Get('preview')
+  async previewFile(
+    @Query('path') path: string,
+    @Req() request: FastifyRequest,
+    @Res() reply: FastifyReply,
+  ) {
+    return this.serveFile(path, request, reply);
+  }
+
   @Get('download')
   @ApiOperation({ summary: 'Download a file' })
   @ApiQuery({ name: 'path', required: true, description: 'File path' })
@@ -301,7 +316,11 @@ export class FilesController {
     summary: 'List configured workspace roots and home directory',
   })
   @ApiOkResponse({ type: WorkspaceRootsResponseDto })
-  getRoots() {
+  getRoots(@Req() request: IdentityRequest) {
+    if (request.platformIdentity?.role !== 'administrator') {
+      const roots = this.identities.workspaceRoots();
+      return { roots, homeDir: roots[0] ?? '' };
+    }
     return {
       roots: this.filesService.getWorkspaceRoots(),
       homeDir: this.filesService.getHomeDir(),

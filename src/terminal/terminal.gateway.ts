@@ -18,6 +18,7 @@ import { TerminalService } from './terminal.service';
 import { TerminalExceptionFilter, terminalErrorAck } from './terminal-errors';
 import { BusinessException } from '../common/business.exception';
 import { ApiKeyGuard } from '../auth/api-key.guard';
+import { PlatformAccessGuard } from '../auth/platform-access.guard';
 import { ErrorCode } from '../common/error-codes';
 import type {
   TerminalAck,
@@ -40,7 +41,7 @@ import type {
 // The filter is gateway-scoped so the guard's refusal still reaches the caller's
 // acknowledgement with its code intact.
 @UseFilters(TerminalExceptionFilter)
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyGuard, PlatformAccessGuard)
 export class TerminalGateway
   implements OnGatewayInit, OnGatewayDisconnect, OnModuleDestroy
 {

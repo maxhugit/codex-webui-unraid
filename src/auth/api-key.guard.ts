@@ -101,6 +101,8 @@ export class ApiKeyGuard implements CanActivate {
     return (
       url.startsWith('/api/files/serve?') ||
       url === '/api/files/serve' ||
+      url.startsWith('/api/files/preview?') ||
+      url === '/api/files/preview' ||
       url.startsWith('/api/files/archive/entry?') ||
       url === '/api/files/archive/entry'
     );

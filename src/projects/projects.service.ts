@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { identityEvents } from '../auth/identity-events';
 import * as path from 'node:path';
 import { and, eq } from 'drizzle-orm';
 import { Inject } from '@nestjs/common';
@@ -115,6 +116,10 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     input: {
       reference?: unknown;
       name?: unknown;
+      firstName?: unknown;
+      lastName?: unknown;
+      phone?: unknown;
+      role?: unknown;
       email?: unknown;
       active?: unknown;
     },
@@ -129,11 +134,30 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       'Manual reference',
       80,
     );
-    const name = this.validateTaskText(
-      input.name ?? existing?.name,
-      'Display name',
-      160,
+    const firstName = this.validateTaskText(
+      input.firstName ?? existing?.firstName,
+      'First name',
+      80,
     );
+    const lastName = this.validateTaskText(
+      input.lastName ?? existing?.lastName,
+      'Last name',
+      80,
+    );
+    const name = `${firstName} ${lastName}`;
+    const phone = this.validateTaskText(
+      input.phone ?? existing?.phone,
+      'Phone number',
+      40,
+    );
+    if (
+      !/^\+?[0-9 ().-]{6,40}$/.test(phone) ||
+      phone.replace(/\D/g, '').length < 8
+    )
+      throw new BadRequestException('Invalid phone number');
+    const role = input.role ?? existing?.role ?? 'standard';
+    if (role !== 'standard' && role !== 'administrator')
+      throw new BadRequestException('Invalid platform role');
     const rawEmail = input.email !== undefined ? input.email : existing?.email;
     if (rawEmail != null && typeof rawEmail !== 'string')
       throw new BadRequestException('Invalid email');
@@ -141,6 +165,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       typeof rawEmail === 'string'
         ? rawEmail.trim().toLowerCase() || null
         : null;
+    if (!email) throw new BadRequestException('Email is required');
     if (
       email &&
       (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
@@ -149,6 +174,15 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     if (input.active !== undefined && typeof input.active !== 'boolean')
       throw new BadRequestException('Invalid active state');
     const all = this.listPeople();
+    if (
+      existing?.role === 'administrator' &&
+      existing.active &&
+      (role !== 'administrator' || input.active === false) &&
+      !all.some((p) => p.id !== id && p.active && p.role === 'administrator')
+    )
+      throw new BadRequestException(
+        'The last active administrator cannot be disabled or demoted',
+      );
     if (
       all.some(
         (p) =>
@@ -163,13 +197,17 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       reference,
       name,
       email,
+      firstName,
+      lastName,
+      phone,
+      role,
       active:
         typeof input.active === 'boolean'
           ? input.active
           : (existing?.active ?? true),
       createdAt: existing?.createdAt ?? Date.now(),
       updatedAt: Date.now(),
-    };
+    } satisfies typeof people.$inferInsert;
     if (existing)
       this.db
         .update(people)
@@ -177,6 +215,11 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         .where(eq(people.id, existing.id))
         .run();
     else this.db.insert(people).values(person).run();
+    if (
+      existing &&
+      (existing.role !== person.role || existing.active !== person.active)
+    )
+      identityEvents.emit('changed', person.id);
     return person;
   }
 

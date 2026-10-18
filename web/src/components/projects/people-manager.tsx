@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { projectsApi } from '@/lib/projects-api';
+import { platformSessionKey } from '@/lib/platform-session';
 import {
   usePeople,
   useParticipants,
@@ -48,7 +49,10 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<{
     reference: string;
-    name: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    role: 'standard' | 'administrator';
     email: string;
     active: boolean;
   } | null>(null);
@@ -74,6 +78,7 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
     onSuccess: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: peopleKey }),
+        client.invalidateQueries({ queryKey: platformSessionKey }),
         client.invalidateQueries({ queryKey: ['project-participants'] }),
       ]);
       setForm(null);
@@ -115,7 +120,15 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
             onClick={() => {
               mutation.reset();
               setEditing(null);
-              setForm({ reference: '', name: '', email: '', active: true });
+              setForm({
+                reference: '',
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                role: 'standard',
+                active: true,
+              });
             }}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -170,6 +183,23 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
                 <p className="break-all text-xs text-muted-foreground">
                   {person.email || t('No email')} ·{' '}
                   {t(person.active ? 'Active' : 'Inactive')}
+                  {!projectId && (
+                    <>
+                      {' '}
+                      ·{' '}
+                      {t(
+                        person.role === 'administrator'
+                          ? 'Administrator'
+                          : 'Standard user',
+                      )}{' '}
+                      · {person.phone} ·{' '}
+                      {t(
+                        person.identityLinked
+                          ? 'Login linked'
+                          : 'Login not linked',
+                      )}
+                    </>
+                  )}
                 </p>
                 {member && (
                   <p className="text-xs text-muted-foreground">
@@ -213,7 +243,10 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
                     setEditing(person.id);
                     setForm({
                       reference: person.reference,
-                      name: person.name,
+                      firstName: person.firstName ?? '',
+                      lastName: person.lastName ?? '',
+                      phone: person.phone ?? '',
+                      role: person.role ?? 'standard',
                       email: person.email ?? '',
                       active: person.active,
                     });
@@ -239,7 +272,9 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
               {t(editing ? 'Edit person' : 'New person')}
             </DialogTitle>
             <DialogDescription>
-              {t('A person is a contact record, not a login account.')}
+              {t(
+                'The verified Authentik login is linked by email on first connection, then by its stable identifier. Roles are enforced on the server.',
+              )}
             </DialogDescription>
           </DialogHeader>
           {form && (
@@ -256,23 +291,79 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
                 />
               </label>
               <label className="grid gap-1 text-sm">
-                {t('Display name')} *
+                {t('First name')} *
                 <Input
                   required
-                  maxLength={160}
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  maxLength={80}
+                  autoComplete="given-name"
+                  value={form.firstName}
+                  onChange={(e) =>
+                    setForm({ ...form, firstName: e.target.value })
+                  }
                 />
               </label>
               <label className="grid gap-1 text-sm">
-                {t('Email (optional)')}
+                {t('Last name')} *
                 <Input
+                  required
+                  maxLength={80}
+                  autoComplete="family-name"
+                  value={form.lastName}
+                  onChange={(e) =>
+                    setForm({ ...form, lastName: e.target.value })
+                  }
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                {t('Full name')}
+                <Input
+                  readOnly
+                  value={`${form.firstName.trim()} ${form.lastName.trim()}`.trim()}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                {t('Email')} *
+                <Input
+                  required
                   type="email"
+                  autoComplete="email"
                   maxLength={254}
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
               </label>
+              <label className="grid gap-1 text-sm">
+                {t('Phone number')} *
+                <Input
+                  required
+                  type="tel"
+                  autoComplete="tel"
+                  maxLength={40}
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                {t('Platform role')} *
+                <select
+                  className="h-10 rounded-md border bg-background px-3"
+                  value={form.role}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      role: e.target.value as 'standard' | 'administrator',
+                    })
+                  }
+                >
+                  <option value="standard">{t('Standard user')}</option>
+                  <option value="administrator">{t('Administrator')}</option>
+                </select>
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  'Standard users can use simple chat and manual tasks. Server settings, agents, automations and terminals require an administrator.',
+                )}
+              </p>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

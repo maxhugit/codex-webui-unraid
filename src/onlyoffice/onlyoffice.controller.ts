@@ -33,6 +33,7 @@ import { Readable, Transform } from 'node:stream';
 import { sign, verify } from 'jsonwebtoken';
 import { ApiErrorResponseDto } from '../common/dto/api-responses.dto';
 import { FilesService } from '../files/files.service';
+import { AuthService } from '../auth/auth.service';
 import { Public } from '../auth/public.decorator';
 import { GENERAL_SETTING_KEYS } from '../settings/settings.definitions';
 import { SettingsService } from '../settings/settings.service';
@@ -74,6 +75,7 @@ export class OnlyOfficeController {
   constructor(
     private readonly filesService: FilesService,
     private readonly settingsService: SettingsService,
+    private readonly authService: AuthService,
   ) {}
 
   // ── Config endpoint ─────────────────────────────────────────────────
@@ -130,7 +132,7 @@ export class OnlyOfficeController {
       metadata.size,
     );
     const baseUrl = this.resolveBaseUrl(request);
-    const documentUrl = this.buildDocumentUrl(baseUrl, metadata.path, request);
+    const documentUrl = this.buildDocumentUrl(baseUrl, metadata.path);
     const callbackUrl = this.buildCallbackUrl(
       baseUrl,
       metadata.path,
@@ -548,16 +550,10 @@ export class OnlyOfficeController {
   }
 
   /** Builds an absolute file-serving URL reachable by the OnlyOffice Document Server. */
-  private buildDocumentUrl(
-    baseUrl: string,
-    filePath: string,
-    request?: FastifyRequest,
-  ): string {
+  private buildDocumentUrl(baseUrl: string, filePath: string): string {
     const params = new URLSearchParams({ path: filePath });
-    const token = request
-      ? this.extractBearerToken(request.headers.authorization)
-      : null;
-    if (token) params.set('access_token', token);
+    // Never disclose the deployment credential in the editor config/browser.
+    params.set('access_token', this.authService.signFileAccess(filePath));
     return this.joinUrl(baseUrl, `/api/files/serve?${params.toString()}`);
   }
 

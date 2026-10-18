@@ -330,6 +330,14 @@ export const people = sqliteTable('people', {
   reference: text('reference').notNull().unique(),
   name: text('name').notNull(),
   email: text('email').unique(),
+  firstName: text('first_name').notNull().default(''),
+  lastName: text('last_name').notNull().default(''),
+  phone: text('phone').notNull().default(''),
+  role: text('role')
+    .$type<'standard' | 'administrator'>()
+    .notNull()
+    .default('standard'),
+  identitySubject: text('identity_subject').unique(),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),

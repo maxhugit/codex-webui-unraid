@@ -5,6 +5,11 @@ export interface Person {
   id: string;
   reference: string;
   name: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  role: 'standard' | 'administrator';
+  identityLinked?: boolean;
   email: string | null;
   active: boolean;
   createdAt: number;

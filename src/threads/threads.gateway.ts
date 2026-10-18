@@ -13,10 +13,14 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { Logger, OnModuleDestroy } from '@nestjs/common';
+import { Logger, OnModuleDestroy, UseGuards } from '@nestjs/common';
 import { merge, Subscription } from 'rxjs';
 import { Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
+import { IdentityService } from '../auth/identity.service';
+import { ApiKeyGuard } from '../auth/api-key.guard';
+import { PlatformAccessGuard } from '../auth/platform-access.guard';
+import { identityEvents } from '../auth/identity-events';
 import { CodexProcessManager } from '../codex/codex-process-manager.service';
 import type { ServerNotification } from '../codex/codex-schema';
 import { PendingApprovalsService } from '../pending-approvals/pending-approvals.service';
@@ -53,6 +57,7 @@ export type CodexSocketLifecycleEvent =
     };
 
 @WebSocketGateway({ namespace: '/ws', cors: { origin: '*' } })
+@UseGuards(ApiKeyGuard, PlatformAccessGuard)
 export class ThreadsGateway
   implements OnGatewayInit, OnGatewayConnection, OnModuleDestroy
 {
@@ -76,9 +81,29 @@ export class ThreadsGateway
     private readonly metadata: ThreadMetadataService,
     private readonly branches: ConversationBranchesService,
     private readonly branchMutations: ConversationBranchMutationsService,
+    private readonly identities: IdentityService,
   ) {}
 
   afterInit(): void {
+    const revoke = (personId: string) => {
+      void this.server
+        .in(AUTHENTICATED_ROOM)
+        .fetchSockets()
+        .then((sockets) => {
+          for (const socket of sockets) {
+            if (
+              this.identities.resolve(socket.handshake.headers).personId ===
+              personId
+            )
+              socket.disconnect(true);
+          }
+        })
+        .catch(() =>
+          this.logger.warn('Could not revoke changed identity sockets'),
+        );
+    };
+    identityEvents.on('changed', revoke);
+    this.changes.add(() => identityEvents.off('changed', revoke));
     this.changes.add(
       merge(
         this.metadata.changes,
@@ -168,6 +193,14 @@ export class ThreadsGateway
     }
 
     if (client.disconnected) return;
+    try {
+      this.identities.requireActive(
+        this.identities.resolve(client.handshake.headers),
+      );
+    } catch {
+      client.disconnect(true);
+      return;
+    }
     await client.join(AUTHENTICATED_ROOM);
     // A reconnect may have missed every lifecycle event. These initial signals
     // request current baselines without replaying events or restoring transcripts.

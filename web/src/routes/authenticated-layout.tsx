@@ -27,8 +27,7 @@ import { cn } from '@/lib/utils';
 import { clearApiToken } from '@/auth-token';
 import { resetSocket } from '@/socket';
 import { filesGetRoots, filesAddRoot } from '@/generated/api';
-import { settingsListSettings } from '@/generated/api/sdk.gen';
-import { settingsListSettingsQueryKey } from '@/generated/api/@tanstack/react-query.gen';
+import { readAuthResource, usePlatformSession } from '@/lib/platform-session';
 
 /**
  * Bound on retained per-conversation state.
@@ -38,27 +37,62 @@ import { settingsListSettingsQueryKey } from '@/generated/api/@tanstack/react-qu
  * than one. What it actually bounds now is the runtime cache — including the
  * conversations attention delivery creates state for without ever opening.
  */
-const MAX_IDLE_SUBSCRIPTIONS_KEY = 'general.maxIdleSubscriptions';
 const DEFAULT_MAX_IDLE_SUBSCRIPTIONS = 30;
 const IDLE_SUBSCRIPTION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
-function readMaxIdleSubscriptions(
-  settings: Array<{ key: string; value: unknown }> | undefined,
-): number {
-  const value = settings?.find(
-    (setting) => setting.key === MAX_IDLE_SUBSCRIPTIONS_KEY,
-  )?.value;
-  return typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : DEFAULT_MAX_IDLE_SUBSCRIPTIONS;
+export function AuthenticatedLayout() {
+  const session = usePlatformSession();
+  const { t } = useTranslation();
+  if (session.isPending)
+    return <div className="p-6">{t('Verifying identity…')}</div>;
+  if (session.isError || !session.data?.active)
+    return (
+      <main className="mx-auto max-w-xl space-y-4 p-6">
+        <h1 className="text-xl font-semibold">{t('Access unavailable')}</h1>
+        <p>
+          {t(
+            session.isError
+              ? 'Unable to verify your identity'
+              : 'Your login is not linked to an active person. Contact an administrator.',
+          )}
+        </p>
+        {session.data?.email && <p>{session.data.email}</p>}
+        {session.data?.subject && (
+          <p className="break-all text-xs">
+            {t('Authentication reference')}: {session.data.subject}
+          </p>
+        )}
+        <button
+          className="cursor-pointer rounded-md border px-4 py-2 hover:bg-accent"
+          onClick={() => void session.refetch()}
+        >
+          {t('Retry')}
+        </button>
+      </main>
+    );
+  return (
+    <AuthenticatedWorkspace
+      key={session.data.personId ?? session.data.kind}
+      isAdministrator={session.isAdministrator}
+    />
+  );
 }
 
-export function AuthenticatedLayout() {
+function AuthenticatedWorkspace({
+  isAdministrator,
+}: {
+  isAdministrator: boolean;
+}) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const administrationView = ['/settings', '/files', '/terminal'].some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
+  const adminOnlyView =
+    administrationView ||
+    ['/integrations', '/diagnostics'].some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    );
   const [filesDefaultRoot, setFilesDefaultRoot] = useState<string | null>(null);
 
   const setMaxIdleSubscriptions = useTimelineStore(
@@ -71,18 +105,13 @@ export function AuthenticatedLayout() {
   const dark = useThemeStore((s) => s.dark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
   const generalSettingsQuery = useQuery({
-    queryKey: settingsListSettingsQueryKey({ query: { category: 'general' } }),
-    queryFn: async () => {
-      const { data } = await settingsListSettings({
-        query: { category: 'general' },
-        throwOnError: true,
-      });
-      return data;
-    },
+    queryKey: ['platform-client-config'],
+    queryFn: () =>
+      readAuthResource<{ maxIdleSubscriptions: number }>('client-config'),
   });
-  const maxIdleSubscriptions = readMaxIdleSubscriptions(
-    generalSettingsQuery.data?.settings,
-  );
+  const maxIdleSubscriptions =
+    generalSettingsQuery.data?.maxIdleSubscriptions ??
+    DEFAULT_MAX_IDLE_SUBSCRIPTIONS;
 
   useCodexSocket(true);
 
@@ -209,7 +238,11 @@ export function AuthenticatedLayout() {
             )}
           >
             <div className="flex h-full w-64 flex-col">
-              {administrationView ? <SettingsSidebar /> : <ThreadSidebar />}
+              {administrationView && isAdministrator ? (
+                <SettingsSidebar />
+              ) : (
+                <ThreadSidebar />
+              )}
             </div>
           </aside>
         )}
@@ -223,7 +256,11 @@ export function AuthenticatedLayout() {
               showCloseButton={false}
             >
               <SheetTitle className="sr-only">{t('Navigation')}</SheetTitle>
-              {administrationView ? <SettingsSidebar /> : <ThreadSidebar />}
+              {administrationView && isAdministrator ? (
+                <SettingsSidebar />
+              ) : (
+                <ThreadSidebar />
+              )}
             </SheetContent>
           </Sheet>
         )}
@@ -244,8 +281,16 @@ export function AuthenticatedLayout() {
           )}
           <CodexStatusBanner />
           <DetachedDocumentRecovery />
-          <Outlet />
-          <GlobalFilesHost active={pathname === '/files'} />
+          {adminOnlyView && !isAdministrator ? (
+            <div role="alert" className="p-6">
+              {t('Administrator access required')}
+            </div>
+          ) : (
+            <Outlet />
+          )}
+          {isAdministrator && (
+            <GlobalFilesHost active={pathname === '/files'} />
+          )}
         </div>
       </div>
       <TerminalHost />

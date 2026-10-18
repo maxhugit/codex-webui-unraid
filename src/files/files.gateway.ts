@@ -11,6 +11,7 @@ import { OnModuleDestroy, UseFilters, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { FilesExceptionFilter } from './files-ws-errors';
 import { ApiKeyGuard } from '../auth/api-key.guard';
+import { PlatformAccessGuard } from '../auth/platform-access.guard';
 import {
   FileWatchCoordinatorService,
   type FileWatchChange,
@@ -22,7 +23,7 @@ interface WatchPathMessage {
 }
 
 @WebSocketGateway({ namespace: '/ws', cors: { origin: '*' } })
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyGuard, PlatformAccessGuard)
 @UseFilters(FilesExceptionFilter)
 export class FilesGateway implements OnGatewayDisconnect, OnModuleDestroy {
   @WebSocketServer()

@@ -1,5 +1,19 @@
 import { useState } from 'react';
-import { Activity, Check, Edit3, EllipsisVertical, Languages, Menu, Moon, Network, PanelLeftClose, PanelLeftOpen, Settings, Sun, X } from 'lucide-react';
+import {
+  Activity,
+  Check,
+  Edit3,
+  EllipsisVertical,
+  Languages,
+  Menu,
+  Moon,
+  Network,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+  Sun,
+  X,
+} from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -33,9 +47,11 @@ import {
 import { BranchGraphDialog } from '@/components/branches/branch-graph-dialog';
 import { AccountRateLimitBadge } from './account-rate-limit-badge';
 import { McpStatusBadge } from './mcp-status-badge';
+import { usePlatformSession } from '@/lib/platform-session';
 
 /** Mobile overflow menu — closes after each action. */
 function MobileOverflowMenu({
+  administrator,
   onSettings,
   onDiagnostics,
   onToggleDark,
@@ -44,6 +60,7 @@ function MobileOverflowMenu({
   dark,
   t,
 }: {
+  administrator: boolean;
   onSettings: () => void;
   onDiagnostics: () => void;
   onToggleDark: () => void;
@@ -53,26 +70,54 @@ function MobileOverflowMenu({
   t: (key: string) => string;
 }) {
   const [open, setOpen] = useState(false);
-  const act = (fn: () => void) => { fn(); setOpen(false); };
+  const act = (fn: () => void) => {
+    fn();
+    setOpen(false);
+  };
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button size="icon" variant="ghost" className="h-9 w-9" aria-label={t('More actions')}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-9 w-9"
+          aria-label={t('More actions')}
+        >
           <EllipsisVertical className="h-5 w-5" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" side="bottom" className="w-48 p-1">
-        <button type="button" onClick={() => act(onSettings)} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
-          <Settings className="h-4 w-4" /> {t('Settings')}
-        </button>
-        <button type="button" onClick={() => act(onDiagnostics)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
-          <Activity className="h-4 w-4" /> {t('Diagnostics')}
-        </button>
-        <button type="button" onClick={() => act(onToggleDark)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
+        {administrator && (
+          <button
+            type="button"
+            onClick={() => act(onSettings)}
+            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+          >
+            <Settings className="h-4 w-4" /> {t('Settings')}
+          </button>
+        )}
+        {administrator && (
+          <button
+            type="button"
+            onClick={() => act(onDiagnostics)}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+          >
+            <Activity className="h-4 w-4" /> {t('Diagnostics')}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => act(onToggleDark)}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+        >
           {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           {dark ? t('Light mode') : t('Dark mode')}
         </button>
-        <button type="button" onClick={() => act(onToggleLanguage)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent">
+        <button
+          type="button"
+          onClick={() => act(onToggleLanguage)}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+        >
           <Languages className="h-4 w-4" /> {languageLabel}
         </button>
       </PopoverContent>
@@ -87,6 +132,7 @@ interface Props {
 }
 
 export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
+  const { isAdministrator } = usePlatformSession();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -114,8 +160,12 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
   const breakpoint = useBreakpoint();
   const isDesktop = breakpoint === 'desktop';
   const toggleSidebarOpen = useLayoutStore((s) => s.toggleSidebarOpen);
-  const desktopSidebarCollapsed = useLayoutStore((s) => s.desktopSidebarCollapsed);
-  const toggleDesktopSidebarCollapsed = useLayoutStore((s) => s.toggleDesktopSidebarCollapsed);
+  const desktopSidebarCollapsed = useLayoutStore(
+    (s) => s.desktopSidebarCollapsed,
+  );
+  const toggleDesktopSidebarCollapsed = useLayoutStore(
+    (s) => s.toggleDesktopSidebarCollapsed,
+  );
 
   const isDiagnostics = useRouterState({
     select: (s) => s.location.pathname.startsWith('/diagnostics'),
@@ -138,7 +188,9 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
     onSuccess: (_res, variables) => {
       setThreadTitle(variables.body.name.trim());
       setEditing(false);
-      void queryClient.invalidateQueries({ queryKey: threadsListThreadsQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: threadsListThreadsQueryKey(),
+      });
     },
   });
 
@@ -235,10 +287,21 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
                     className="h-8 max-w-sm"
                     autoFocus
                   />
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveName} disabled={!draftName.trim()}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={saveName}
+                    disabled={!draftName.trim()}
+                  >
                     <Check className="h-4 w-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(false)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => setEditing(false)}
+                  >
                     <X className="h-4 w-4" />
                   </Button>
                 </>
@@ -252,7 +315,13 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
                   >
                     {threadTitle || visibleThreadId.slice(0, 8)}
                   </button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={startEditing} title={t('Rename')}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    onClick={startEditing}
+                    title={t('Rename')}
+                  >
                     <Edit3 className="h-3.5 w-3.5" />
                   </Button>
                   {isTracked && (
@@ -287,21 +356,23 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
               {simpleChatTitle}
             </h1>
           ) : (
-            <h1 className="text-lg font-semibold tracking-tight">Codex WebUI</h1>
+            <h1 className="text-lg font-semibold tracking-tight">
+              Codex WebUI
+            </h1>
           )}
         </div>
         {/* Always visible badges */}
         <McpStatusBadge mode="header" />
-        <span className="hidden sm:inline-flex"><AccountRateLimitBadge /></span>
+        <span className="hidden sm:inline-flex">
+          <AccountRateLimitBadge />
+        </span>
         <Badge
           variant={connected ? 'default' : 'secondary'}
           className="text-xs transition-colors duration-300"
         >
           <span
             className={`inline-block h-1.5 w-1.5 rounded-full sm:mr-1.5 ${
-              connected
-                ? 'animate-pulse bg-green-400'
-                : 'bg-muted-foreground'
+              connected ? 'animate-pulse bg-green-400' : 'bg-muted-foreground'
             }`}
           />
           <span className="hidden sm:inline">
@@ -312,14 +383,21 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
         {/* Desktop: inline action buttons */}
         {isDesktop ? (
           <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleDiagnosticsToggle}>
-                  <Activity className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('Diagnostics')}</TooltipContent>
-            </Tooltip>
+            {isAdministrator && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={handleDiagnosticsToggle}
+                  >
+                    <Activity className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('Diagnostics')}</TooltipContent>
+              </Tooltip>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -334,26 +412,45 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
               </TooltipTrigger>
               <TooltipContent>{languageLabel}</TooltipContent>
             </Tooltip>
+            {isAdministrator && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => void navigate({ to: '/settings' })}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('Settings')}</TooltipContent>
+              </Tooltip>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => void navigate({ to: '/settings' })}>
-                  <Settings className="h-4 w-4" />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={onToggleDark}
+                >
+                  {dark ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{t('Settings')}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onToggleDark}>
-                  {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{dark ? t('Light mode') : t('Dark mode')}</TooltipContent>
+              <TooltipContent>
+                {dark ? t('Light mode') : t('Dark mode')}
+              </TooltipContent>
             </Tooltip>
           </>
         ) : (
           /* Mobile/Tablet: overflow menu popover */
           <MobileOverflowMenu
+            administrator={isAdministrator}
             onSettings={() => void navigate({ to: '/settings' })}
             onDiagnostics={handleDiagnosticsToggle}
             onToggleDark={onToggleDark}

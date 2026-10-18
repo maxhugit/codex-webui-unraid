@@ -2,6 +2,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { APP_GUARD } from '@nestjs/core';
+import { IdentityService } from '../auth/identity.service';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -143,6 +144,13 @@ it('preserves authorization codes over the wire and shares recovery when one cal
         },
       },
       { provide: APP_GUARD, useClass: ApiKeyGuard },
+      {
+        provide: IdentityService,
+        useValue: {
+          resolve: () => ({ active: true, role: 'administrator' }),
+          requireActive: () => undefined,
+        },
+      },
     ],
   }).compile();
   const app = module.createNestApplication(new FastifyAdapter(), {

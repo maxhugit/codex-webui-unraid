@@ -68,8 +68,10 @@ describe('people and task responsibility', () => {
   afterEach(() => database.sqlite.close());
   const person = (reference = 'MD-001', name = 'Marie Dupont') => ({
     reference,
-    name,
-    email: '',
+    firstName: name.split(' ')[0],
+    lastName: name.split(' ').slice(1).join(' ') || 'Test',
+    email: `${reference.toLowerCase()}@example.com`,
+    phone: '0600000000',
   });
 
   it('migrates existing tasks with a nullable assignee and enforces identity uniqueness', () => {

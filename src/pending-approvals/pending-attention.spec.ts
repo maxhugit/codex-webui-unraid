@@ -50,6 +50,10 @@ describe('global human attention', () => {
       changes as unknown as ThreadMetadataService,
       changes as unknown as ConversationBranchesService,
       changes as unknown as ConversationBranchMutationsService,
+      {
+        resolve: () => ({ active: true }),
+        requireActive: () => undefined,
+      } as never,
     );
     gateway.server = {
       to: (room: string) => ({

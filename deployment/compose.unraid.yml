@@ -22,6 +22,8 @@ services:
       HOME: /home/codex
       CODEX_HOME: /home/codex/.codex
       WEBUI_DB_PATH: /home/codex/.codex/codex-webui.sqlite
+      WEBUI_REQUIRE_IDENTITY: "true"
+      WEBUI_PROTECTED_PATHS: /home/codex,/run/secrets,/app,/proc,/sys,/dev,/etc,/root,/appdata/codex-web
       WORKSPACE_ROOTS: /workspaces,/appdata
       LOG_LEVEL: info
       OPENAI_API_KEY_FILE: /run/secrets/openai_api_key

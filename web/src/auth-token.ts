@@ -36,5 +36,5 @@ export function buildFileServeUrl(filePath: string): string {
   const token = getApiToken();
   const params = new URLSearchParams({ path: filePath });
   if (token) params.set('access_token', token);
-  return `${withBasePath('/api/files/serve')}?${params.toString()}`;
+  return `${withBasePath('/api/files/preview')}?${params.toString()}`;
 }

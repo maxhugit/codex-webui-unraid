@@ -24,7 +24,7 @@ it('streams exact byte ranges with hardened headers and returns 416 for invalid 
     onChange: () => () => undefined,
   } as unknown as SettingsService;
   const service = new FilesService(settings);
-  const controller = new FilesController(service);
+  const controller = new FilesController(service, {} as never);
   const app = Fastify();
   app.get('/serve', (request, reply) =>
     controller.serveFile(file, request, reply),

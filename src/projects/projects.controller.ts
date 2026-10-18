@@ -8,16 +8,30 @@ import {
   Patch,
   Post,
   Put,
+  Req,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
+import type { IdentityRequest } from '../auth/platform-access.guard';
 
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projects: ProjectsService) {}
 
   @Get('people')
-  people() {
-    return { people: this.projects.listPeople() };
+  people(@Req() request: IdentityRequest) {
+    const rows = this.projects.listPeople();
+    return {
+      people: rows.map(({ identitySubject, ...person }) =>
+        request.platformIdentity?.role === 'administrator'
+          ? { ...person, identityLinked: !!identitySubject }
+          : {
+              id: person.id,
+              reference: person.reference,
+              name: person.name,
+              active: person.active,
+            },
+      ),
+    };
   }
 
   @Post('people')

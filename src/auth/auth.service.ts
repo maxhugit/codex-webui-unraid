@@ -5,6 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { sign, verify } from 'jsonwebtoken';
 
 const JWT_SUBJECT = 'webui';
 const JWT_TTL_SECONDS = 24 * 60 * 60;
@@ -29,6 +30,27 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly apiKey: string;
   private readonly jwtSecret: string;
+
+  signFileAccess(path: string): string {
+    return sign({ purpose: 'file-download', path }, this.jwtSecret, {
+      algorithm: 'HS256',
+      expiresIn: '1h',
+    });
+  }
+
+  verifyFileAccess(token: unknown, path: unknown): boolean {
+    if (typeof token !== 'string' || typeof path !== 'string') return false;
+    try {
+      const payload = verify(token, this.jwtSecret, { algorithms: ['HS256'] });
+      return (
+        typeof payload !== 'string' &&
+        payload.purpose === 'file-download' &&
+        payload.path === path
+      );
+    } catch {
+      return false;
+    }
+  }
 
   constructor(
     configService: ConfigService,

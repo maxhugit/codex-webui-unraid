@@ -4,6 +4,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Get,
   Post,
   Req,
 } from '@nestjs/common';
@@ -22,6 +23,8 @@ import { ApiErrorResponseDto } from '../common/dto/api-responses.dto';
 import { AuthService } from './auth.service';
 import { LoginRequestDto, LoginResponseDto } from './dto/auth.dto';
 import { Public } from './public.decorator';
+import { IdentityService } from './identity.service';
+import type { IdentityRequest } from './platform-access.guard';
 
 function getRequestId(request: FastifyRequest): string | undefined {
   const id = (request as unknown as { id?: unknown }).id;
@@ -31,7 +34,21 @@ function getRequestId(request: FastifyRequest): string | undefined {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly identities: IdentityService,
+  ) {}
+
+  @Get('me')
+  me(@Req() request: IdentityRequest) {
+    return request.platformIdentity ?? this.identities.resolve(request.headers);
+  }
+
+  /** Deliberately exposes only a non-sensitive client setting, never the settings catalog. */
+  @Get('client-config')
+  clientConfig() {
+    return this.identities.clientConfig();
+  }
 
   /** Exchanges the deployment API key for a short-lived JWT. */
   @Public()
