@@ -1,4 +1,7 @@
 {
+  "Refresh blocked: edits or session to preserve": "Actualisation bloquée : saisies ou session à préserver",
+  "Release to refresh": "Relâchez pour actualiser",
+  "Pull to refresh": "Tirez pour actualiser",
   "The Authentik login uses a stable identifier. Standard users can be linked by email on first connection. Roles are enforced on the server.": "La connexion Authentik utilise un identifiant stable. Les utilisateurs standards peuvent être liés par e-mail lors de la première connexion. Les rôles sont contrôlés côté serveur.",
   "Administrator logins must be explicitly linked using the server provisioning tool. Email matching alone never grants administrator access.": "Une connexion administrateur doit être liée explicitement avec l’outil d’administration du serveur. Une simple correspondance d’e-mail ne donne jamais les droits administrateur.",
   "Standard users can use simple chat and manual tasks. Server settings, agents, automations and terminals require an administrator.": "Les utilisateurs standards ont accès au chat simple et aux tâches manuelles. Les réglages serveur, agents, automatisations et terminaux sont réservés aux administrateurs.",

@@ -5,7 +5,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
-import { FolderOpen, House, Plus } from 'lucide-react';
+import { FolderKanban, FolderOpen, House, Plus } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -1242,7 +1242,8 @@ export function ThreadSidebar() {
 
       {/* Thread list header */}
       <div className="flex shrink-0 items-center justify-between px-3 py-2">
-        <span className="text-xs font-medium text-muted-foreground">
+        <span className="flex items-center gap-2 text-sm font-semibold text-foreground/90">
+          <FolderKanban aria-hidden="true" className="h-4 w-4 shrink-0" />
           {t('Projects')}
         </span>
         <Button

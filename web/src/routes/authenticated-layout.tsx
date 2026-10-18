@@ -28,6 +28,7 @@ import { clearApiToken } from '@/auth-token';
 import { resetSocket } from '@/socket';
 import { filesGetRoots, filesAddRoot } from '@/generated/api';
 import { readAuthResource, usePlatformSession } from '@/lib/platform-session';
+import { MobileRefresh } from '@/components/mobile-refresh';
 
 /**
  * Bound on retained per-conversation state.
@@ -227,6 +228,7 @@ function AuthenticatedWorkspace({
 
   return (
     <TooltipProvider>
+      <MobileRefresh />
       <div className="flex h-full overflow-hidden bg-background">
         {/* Desktop: inline sidebar with collapse animation */}
         {isDesktop && (
