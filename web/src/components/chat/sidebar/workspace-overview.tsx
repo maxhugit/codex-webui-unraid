@@ -51,6 +51,7 @@ function ThreadSkeleton() {
 }
 
 interface Props {
+  projectsHeader: React.ReactNode;
   archivedThreads: ThreadDto[];
   workspaceGroups: WorkspaceGroup[];
   collapsedGroups: Set<string>;
@@ -79,6 +80,7 @@ interface Props {
 }
 
 export function WorkspaceOverview({
+  projectsHeader,
   archivedThreads,
   workspaceGroups,
   collapsedGroups,
@@ -127,23 +129,30 @@ export function WorkspaceOverview({
     <div className="space-y-3 pb-2">
       {/* Pinned archive group */}
       <section>
-        <div className="mb-0.5 flex items-center gap-1 px-2">
+        <div className="flex items-center gap-1 px-1 py-2">
           <button
             type="button"
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-sm font-medium text-foreground/80 hover:text-foreground"
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-sm font-semibold text-foreground/90 hover:text-foreground"
             onClick={() => onToggleCollapse('__archived__')}
+            aria-expanded={!archivedCollapsed}
           >
+            <Archive aria-hidden="true" className="h-4 w-4 shrink-0" />
+            {t('Archived projects')}
             {archivedCollapsed ? (
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform" />
+              <ChevronRight
+                aria-hidden="true"
+                className="ml-auto h-3.5 w-3.5 shrink-0 transition-transform"
+              />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform" />
+              <ChevronDown
+                aria-hidden="true"
+                className="ml-auto h-3.5 w-3.5 shrink-0 transition-transform"
+              />
             )}
-            <Archive className="h-3.5 w-3.5 shrink-0" />
-            {t('Archived')}
           </button>
           <button
             type="button"
-            className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+            className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             onClick={onOpenArchivedDetail}
             aria-label={t('View more')}
             title={t('View more')}
@@ -174,6 +183,8 @@ export function WorkspaceOverview({
           )}
         </AnimatePresence>
       </section>
+
+      {projectsHeader}
 
       {/* Workspace groups */}
       {workspaceGroups.map((group) => {

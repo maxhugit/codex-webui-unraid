@@ -1218,6 +1218,25 @@ export function ThreadSidebar() {
     setPendingConversation({ kind, group });
   };
 
+  const projectsHeader = (
+    <div className="flex shrink-0 items-center justify-between px-1 py-2">
+      <span className="flex items-center gap-2 text-sm font-semibold text-foreground/90">
+        <FolderKanban aria-hidden="true" className="h-4 w-4 shrink-0" />
+        {t('Projects')}
+      </span>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-6 w-6"
+        aria-label={t('New project')}
+        title={t('New project')}
+        onClick={() => setCreateProjectOpen(true)}
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+
   // ── Render ──────────────────────────────────────────────────────────
   return (
     <div className="flex h-full min-h-0 flex-col bg-card/80">
@@ -1240,28 +1259,12 @@ export function ThreadSidebar() {
 
       <Separator />
 
-      {/* Thread list header */}
-      <div className="flex shrink-0 items-center justify-between px-3 py-2">
-        <span className="flex items-center gap-2 text-sm font-semibold text-foreground/90">
-          <FolderKanban aria-hidden="true" className="h-4 w-4 shrink-0" />
-          {t('Projects')}
-        </span>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6"
-          aria-label={t('New project')}
-          title={t('New project')}
-          onClick={() => setCreateProjectOpen(true)}
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-
       <ScrollArea className="min-h-0 flex-1 px-2 [&_[data-slot=scroll-area-viewport]>div]:block!">
         <DragDropProvider onDragEnd={handleThreadDragEnd}>
+          {sidebarView.type !== 'overview' && projectsHeader}
           {sidebarView.type === 'overview' ? (
             <WorkspaceOverview
+              projectsHeader={projectsHeader}
               archivedThreads={archivedThreads}
               workspaceGroups={workspaceGroups}
               collapsedGroups={collapsedGroups}

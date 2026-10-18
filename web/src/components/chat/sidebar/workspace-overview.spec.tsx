@@ -18,6 +18,7 @@ describe('WorkspaceOverview creation menu', () => {
     render(
       <DragDropProvider>
         <WorkspaceOverview
+          projectsHeader={<h2>Projects</h2>}
           archivedThreads={[]}
           workspaceGroups={[
             { cwd: '/workspaces/Unraid', threads: [], simpleChats: [] },
@@ -40,6 +41,15 @@ describe('WorkspaceOverview creation menu', () => {
         />
       </DragDropProvider>,
     );
+
+    const archive = screen.getByRole('button', { name: 'Archived projects' });
+    const projects = screen.getByRole('heading', { name: 'Projects' });
+    expect(
+      archive.compareDocumentPosition(projects) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(archive).toHaveClass('text-sm', 'font-semibold', 'gap-2');
+    expect(archive).toHaveAttribute('aria-expanded', 'true');
 
     await user.click(screen.getByRole('button', { name: 'Project actions' }));
     expect(screen.getByRole('button', { name: 'Work agent' })).toBeVisible();

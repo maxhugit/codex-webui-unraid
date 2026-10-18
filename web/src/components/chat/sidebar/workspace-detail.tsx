@@ -53,7 +53,7 @@ export function WorkspaceDetail({
       <div className="px-2 text-sm font-medium text-foreground/80">
         {sidebarView.type === 'workspaceDetail'
           ? (projectName ?? workspaceLabel(sidebarView.cwd))
-          : t('Archived')}
+          : t('Archived projects')}
       </div>
       <div className="space-y-0.5">
         {isLoading ? (
