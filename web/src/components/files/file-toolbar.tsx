@@ -2,10 +2,17 @@
  * File tree toolbar: breadcrumb (up + dir name), refresh all, upload buttons.
  */
 import { useRef } from 'react';
-import { ChevronUp, FilePlus, FolderPlus, FolderUp, RefreshCw, Upload } from 'lucide-react';
+import {
+  ChevronUp,
+  FilePlus,
+  FolderPlus,
+  FolderUp,
+  RefreshCw,
+  Upload,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { useFilesStore } from '@/stores/files-store';
+import { useFileBrowserState as useFilesStore } from './file-browser-context';
 
 interface FileToolbarProps {
   /** Called when user selects files or folder to upload into current root. */
@@ -14,7 +21,11 @@ interface FileToolbarProps {
   onNewFolder: () => void;
 }
 
-export function FileToolbar({ onUpload, onNewFile, onNewFolder }: FileToolbarProps) {
+export function FileToolbar({
+  onUpload,
+  onNewFile,
+  onNewFolder,
+}: FileToolbarProps) {
   const { t } = useTranslation();
   const rootDir = useFilesStore((s) => s.rootDir);
   const navigateUp = useFilesStore((s) => s.navigateUp);

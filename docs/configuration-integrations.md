@@ -10,6 +10,16 @@ fichiers et du terminal, la sécurité et les intégrations.
 terminal global. Ces deux outils ne figurent plus dans la navigation des projets.
 Les explorateurs et terminaux des conversations ne sont pas modifiés.
 
+Pendant la session du navigateur, quitter puis rouvrir **Fichiers** conserve
+son dossier, le document affiché et la vue (dont le défilement). L’explorateur
+global dispose d’un état séparé de ceux des conversations. La vue conservée est
+masquée et inactive quand une autre page est affichée. Les changements de nom
+et suppressions de fichiers continuent à être répercutés.
+**Terminal** conserve déjà ses onglets, la sélection et ses instances attachées
+au niveau de la session authentifiée ; naviguer vers une autre page ne ferme
+pas les shells. Cette conservation ne garantit pas la survie d’un shell après
+redémarrage du serveur ou fermeture complète du navigateur.
+
 Chaque rubrique de réglage dispose d’un lien `/settings?section=…`.
 Sur mobile, le bouton de navigation de l’en-tête ouvre le
 même menu et la sélection d’une rubrique le referme.

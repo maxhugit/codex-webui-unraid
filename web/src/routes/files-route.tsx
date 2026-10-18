@@ -1,6 +1,5 @@
 /** Global files view route component. */
-import { FilesPanel } from '@/components/files/files-panel';
-
 export function FilesRoute() {
-  return <FilesPanel />;
+  // AuthenticatedLayout retains the global browser across route changes.
+  return null;
 }

@@ -6,7 +6,7 @@ import {
   filesReadFileQueryKey,
   filesGetMetadataQueryKey,
 } from '@/generated/api/@tanstack/react-query.gen';
-import { useFilesStore } from '@/stores/files-store';
+import { useFilesStore, useGlobalFilesStore } from '@/stores/files-store';
 import { getApiErrorCode } from '@/lib/api-error';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import {
@@ -94,12 +94,14 @@ export function applyFileChange(
   for (const fact of filePathChanges(change)) {
     if (fact.kind === 'rename') {
       useFilesStore.getState().remapPaths(fact.oldPath, fact.newPath);
+      useGlobalFilesStore.getState().remapPaths(fact.oldPath, fact.newPath);
       remapDocuments(fact.oldPath, fact.newPath);
       useWorkspaceStore.getState().syncDocumentPaths();
       paths.add(fact.oldPath);
       paths.add(fact.newPath);
     } else if (fact.kind === 'delete') {
       useFilesStore.getState().removePaths(fact.path);
+      useGlobalFilesStore.getState().removePaths(fact.path);
       markDocumentsDeleted(fact.path);
       useWorkspaceStore.getState().syncDocumentPaths();
       deletedPaths.add(fact.path);

@@ -3,7 +3,7 @@ import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { applyFileChange, reconcileExternalPaths } from './file-reconciler';
 import { emitFileChange, subscribeFileChanges } from './file-change-events';
-import { useFilesStore } from '@/stores/files-store';
+import { useFilesStore, useGlobalFilesStore } from '@/stores/files-store';
 import { useDocumentStore } from '@/stores/document-store';
 import {
   filesGetMetadataQueryKey,
@@ -18,6 +18,7 @@ vi.mock('@/generated/api', async (original) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   useDocumentStore.setState({ documents: {}, pathIndex: {} });
+  useGlobalFilesStore.setState({ rootDir: null, selectedFile: null });
   useFilesStore.setState({
     rootDir: '/work/a/sub',
     selectedFile: '/work/ab/file.ts',
@@ -34,6 +35,34 @@ it('repairs the browser directory but leaves a string-prefix sibling alone', () 
   expect(useFilesStore.getState()).toMatchObject({
     rootDir: '/work/b/sub',
     selectedFile: '/work/ab/file.ts',
+  });
+});
+
+it('repairs a retained global browser on rename and deletion without replacing conversation navigation', () => {
+  useGlobalFilesStore.setState({
+    rootDir: '/global/sub',
+    selectedFile: '/global/sub/report.pdf',
+  });
+  const client = new QueryClient();
+  applyFileChange(client, {
+    source: 'local',
+    kind: 'rename',
+    oldPath: '/global',
+    newPath: '/renamed',
+  });
+  expect(useGlobalFilesStore.getState()).toMatchObject({
+    rootDir: '/renamed/sub',
+    selectedFile: '/renamed/sub/report.pdf',
+  });
+  expect(useFilesStore.getState().rootDir).toBe('/work/a/sub');
+  applyFileChange(client, {
+    source: 'local',
+    kind: 'delete',
+    path: '/renamed/sub/report.pdf',
+  });
+  expect(useGlobalFilesStore.getState()).toMatchObject({
+    rootDir: '/renamed/sub',
+    selectedFile: null,
   });
 });
 

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useDocumentStore } from '@/stores/document-store';
-import { useFilesStore } from '@/stores/files-store';
+import { useFileBrowserState as useFilesStore } from './file-browser-context';
 import { FileTree } from './file-tree';
 import { FileViewer } from './file-viewer';
 import { fileViewId } from '@/stores/workspace-store';
@@ -39,7 +39,7 @@ function FileTreeSidebar({
   );
 }
 
-export function FilesPanel() {
+export function FilesPanel({ active = true }: { active?: boolean }) {
   const { t } = useTranslation();
   const selectedFile = useFilesStore((s) => s.selectedFile);
   const documentId = useDocumentStore((state) =>
@@ -50,6 +50,7 @@ export function FilesPanel() {
   const breakpoint = useBreakpoint();
   const isDesktop = breakpoint === 'desktop';
   const [treeSheetOpen, setTreeSheetOpen] = useState(false);
+  if (!active && treeSheetOpen) setTreeSheetOpen(false);
 
   // Mobile: select file and close the tree Sheet
   const handleMobileFileClick = (filePath: string) => {
@@ -63,6 +64,7 @@ export function FilesPanel() {
       filePath={selectedFile}
       documentId={documentId}
       viewId={fileViewId('files', documentId ?? selectedFile)}
+      active={active}
     />
   ) : (
     <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
@@ -102,7 +104,7 @@ export function FilesPanel() {
       </div>
       <div className="flex min-w-0 flex-1 flex-col">{viewerContent}</div>
 
-      <Sheet open={treeSheetOpen} onOpenChange={setTreeSheetOpen}>
+      <Sheet open={active && treeSheetOpen} onOpenChange={setTreeSheetOpen}>
         <SheetContent
           side="left"
           className="!w-[280px] p-0 sm:!max-w-[320px]"

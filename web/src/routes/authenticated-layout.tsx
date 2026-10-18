@@ -17,7 +17,8 @@ import { SnackbarContainer } from '@/components/snackbar/snackbar-container';
 import { CodexStatusBanner } from '@/components/codex-status-banner';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useCodexSocket } from '@/hooks/use-codex-socket';
-import { useFilesStore } from '@/stores/files-store';
+import { useGlobalFilesStore } from '@/stores/files-store';
+import { GlobalFilesHost } from '@/components/files/global-files-host';
 import { installFileReconciler } from '@/lib/file-reconciler';
 import { SIDEBAR_REGION_ID, useLayoutStore } from '@/stores/layout-store';
 import { useTimelineStore } from '@/stores/timeline-store';
@@ -66,7 +67,7 @@ export function AuthenticatedLayout() {
   const cleanupIdleThreadSubscriptions = useTimelineStore(
     (s) => s.cleanupIdleThreadSubscriptions,
   );
-  const setRootDir = useFilesStore((s) => s.setRootDir);
+  const setRootDir = useGlobalFilesStore((s) => s.setRootDir);
   const dark = useThemeStore((s) => s.dark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
   const generalSettingsQuery = useQuery({
@@ -143,12 +144,12 @@ export function AuthenticatedLayout() {
   // handles the standalone browser only, so late metadata cannot reset browsing.
   useEffect(() => {
     let cancelled = false;
-    const dir = pathname.startsWith('/files') ? filesDefaultRoot : null;
-    // `setRootDir` resets the expansion set and the selection, so it must only
-    // be reached when the root genuinely changes — navigating between two
-    // conversations that share a working directory would otherwise collapse
-    // the whole tree on every hop. The store's own equality guard does the
-    // rest; clearing first would defeat it.
+    const dir =
+      pathname.startsWith('/files') && !useGlobalFilesStore.getState().rootDir
+        ? filesDefaultRoot
+        : null;
+    // Initialize only an empty standalone browser. A route change must never
+    // replace the user's browsed folder or clear its selected document.
     if (dir) {
       // A rejected root is still shown: the tree reports the directory it
       // cannot read, instead of silently leaving the previous one on screen.
@@ -158,16 +159,14 @@ export function AuthenticatedLayout() {
         meta: { silent: true },
       })
         .then(() => {
-          if (!cancelled) setRootDir(dir);
+          if (!cancelled && !useGlobalFilesStore.getState().rootDir)
+            setRootDir(dir);
         })
         .catch(() => {
-          if (!cancelled) setRootDir(dir);
+          if (!cancelled && !useGlobalFilesStore.getState().rootDir)
+            setRootDir(dir);
         });
-    } else if (!pathname.startsWith('/t/')) {
-      setRootDir(null);
     }
-    // Retain the tree cache when entering a conversation; its keyed explorer
-    // withholds presentation until its own cwd adoption completes.
     return () => {
       cancelled = true;
     };
@@ -246,6 +245,7 @@ export function AuthenticatedLayout() {
           <CodexStatusBanner />
           <DetachedDocumentRecovery />
           <Outlet />
+          <GlobalFilesHost active={pathname === '/files'} />
         </div>
       </div>
       <TerminalHost />

@@ -6,7 +6,10 @@ import { useTranslation } from 'react-i18next';
 import { DragDropProvider } from '@dnd-kit/react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { filesReadTreeOptions } from '@/generated/api/@tanstack/react-query.gen';
-import { useFilesStore } from '@/stores/files-store';
+import {
+  useFileBrowserState as useFilesStore,
+  useFileBrowserStoreApi,
+} from './file-browser-context';
 import { useFileOperations } from '@/hooks/use-file-operations';
 import {
   useInlineFileEdit,
@@ -48,6 +51,7 @@ interface FileTreeProps {
 
 /** Owns flat navigation and delegates layout-independent edits and entry actions. */
 export function FileTree({ onFileClick }: FileTreeProps = {}) {
+  const browserStore = useFileBrowserStoreApi();
   const { t } = useTranslation();
   const rootDir = useFilesStore((s) => s.rootDir);
   const setRootDir = useFilesStore((s) => s.setRootDir);
@@ -67,14 +71,14 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
   );
   useEffect(
     () =>
-      useFilesStore.subscribe((next, previous) => {
+      browserStore.subscribe((next, previous) => {
         if (next.rootDir === previous.rootDir) return;
         cancel();
         setNavigationEdit((pending) =>
           pending?.targetPath === next.rootDir ? pending : null,
         );
       }),
-    [cancel],
+    [browserStore, cancel],
   );
 
   const openDialog = (
