@@ -5,6 +5,7 @@ import { Locale } from '@svar-ui/react-core';
 import { usePeople, useParticipants, personLabel } from '@/lib/people-api';
 import { ResponsiblePerson } from './people-manager';
 import { StableProjectGantt } from './stable-project-gantt';
+import { TaskManagerToolbar } from './task-manager-toolbar';
 import '@svar-ui/react-gantt/all.css';
 import {
   Bot,
@@ -14,16 +15,11 @@ import {
   ChevronRight,
   ChevronUp,
   Clock3,
-  Columns3,
   FolderOpen,
-  History,
-  Lightbulb,
   Maximize2,
-  Settings,
   GripVertical,
   Hand,
   ListFilter,
-  ListTodo,
   Loader2,
   Pencil,
   Play,
@@ -556,11 +552,6 @@ export function ProjectTaskManager({
     terminalStatusIds.includes(statusId);
   const isTerminalSubtask = (status: ProjectTaskSummary['subtaskStatus']) =>
     settings.terminalSubtaskStatuses.includes(status);
-  const openActionCount = board.tasks.filter((task) =>
-    task.parentTaskId
-      ? !isTerminalSubtask(task.subtaskStatus)
-      : !isTerminalStatus(task.statusId),
-  ).length;
   const dependencyIdsFor = (id: string) =>
     board.dependencies
       .filter((d) => d.taskId === id)
@@ -1595,618 +1586,570 @@ export function ProjectTaskManager({
   };
 
   return (
-    <main
-      className={`min-h-0 flex-1 p-4 md:p-6 ${
-        view === 'planning' ? 'flex flex-col overflow-hidden' : 'overflow-auto'
-      }`}
-    >
-      <header className="mb-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-primary/10 p-2 text-primary">
-            <ListTodo className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold">{board.resource.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {openActionCount} action{openActionCount !== 1 ? 's' : ''} ouverte
-              {openActionCount !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={view === 'advice' ? 'default' : 'outline'}
-            onClick={() => setView('advice')}
-          >
-            <Lightbulb />
-            Conseils
-          </Button>
-          <Button
-            variant={view === 'board' ? 'default' : 'outline'}
-            onClick={() => setView('board')}
-          >
-            <Columns3 />
-            Tableau
-          </Button>
-          <Button
-            variant={view === 'planning' ? 'default' : 'outline'}
-            onClick={() => setView('planning')}
-          >
-            <CalendarDays />
-            Planning
-          </Button>
-          <Button
-            variant={view === 'journal' ? 'default' : 'outline'}
-            onClick={() => setView('journal')}
-          >
-            <History />
-            Journal
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setAiError('');
-              setAiSuggestions([]);
-              setReplanSuggestions([]);
-              setAiMode('create');
-              setAiOpen(true);
-            }}
-          >
-            <Sparkles />
-            Planifier avec l’IA
-          </Button>
-          <Button onClick={() => openNew()}>
-            <Plus />
-            Nouvelle tâche
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            title="Paramètres du tableau"
-            aria-label="Paramètres du tableau"
-            onClick={() => {
-              setSettingsDraft(settings);
-              setSettingsOpen(true);
-            }}
-          >
-            <Settings />
-          </Button>
-        </div>
-      </header>
-      {view === 'advice' ? (
-        <div className="grid min-h-0 gap-4 overflow-auto pb-4 xl:grid-cols-2">
-          <section className="space-y-4 rounded-xl border bg-card p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="flex items-center gap-2 font-semibold">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Analyse générale du projet
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Détecte les alertes, les blocages et les pistes d’amélioration
-                  sans modifier le planning.
-                </p>
-              </div>
-              <Button
-                onClick={() => void generateAdvice('analysis')}
-                disabled={adviceLoading !== null}
-              >
-                {adviceLoading === 'analysis' ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Sparkles />
-                )}
-                Analyser le projet
-              </Button>
-            </div>
-            {adviceResult && (
-              <>
-                <div className="rounded-lg border bg-muted/35 p-4">
-                  <div className="mb-1 flex items-center gap-2 text-sm font-medium">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${
-                        adviceResult.health === 'good'
-                          ? 'bg-green-500'
-                          : adviceResult.health === 'at_risk'
-                            ? 'bg-red-500'
-                            : 'bg-amber-500'
-                      }`}
-                    />
-                    Synthèse
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {adviceResult.summary}
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <TaskManagerToolbar
+        view={view}
+        onViewChange={setView}
+        panelId={`task-board-view-${resourceId}`}
+        onPlan={() => {
+          setAiError('');
+          setAiSuggestions([]);
+          setReplanSuggestions([]);
+          setAiMode('create');
+          setAiOpen(true);
+        }}
+        onNewTask={() => openNew()}
+        onSettings={() => {
+          setSettingsDraft(settings);
+          setSettingsOpen(true);
+        }}
+      />
+      <div
+        id={`task-board-view-${resourceId}`}
+        role="tabpanel"
+        aria-labelledby={`task-board-view-${resourceId}-${view}`}
+        tabIndex={0}
+        className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 md:p-6"
+      >
+        {view === 'advice' ? (
+          <div className="grid min-h-0 gap-4 overflow-auto pb-4 xl:grid-cols-2">
+            <section className="space-y-4 rounded-xl border bg-card p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="flex items-center gap-2 font-semibold">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Analyse générale du projet
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Détecte les alertes, les blocages et les pistes
+                    d’amélioration sans modifier le planning.
                   </p>
                 </div>
-                <div className="space-y-3">
-                  {adviceResult.advice.map((item, index) => (
-                    <article
-                      key={`${item.title}:${index}`}
-                      className={`rounded-lg border-l-4 bg-muted/20 p-4 ${
-                        item.severity === 'alert'
-                          ? 'border-l-red-500'
-                          : item.severity === 'opportunity'
-                            ? 'border-l-green-500'
-                            : item.severity === 'recommendation'
-                              ? 'border-l-blue-500'
-                              : 'border-l-slate-400'
-                      }`}
-                    >
-                      <h3 className="font-medium">{item.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {item.description}
-                      </p>
-                      {item.taskIds.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {item.taskIds.map((id) => {
-                            const task = board.tasks.find(
-                              (candidate) => candidate.id === id,
-                            );
-                            return task ? (
-                              <Button
-                                key={id}
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openEdit(task)}
-                              >
-                                {task.title}
-                              </Button>
-                            ) : null;
-                          })}
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
-
-          <section className="space-y-4 rounded-xl border bg-card p-5">
-            <div>
-              <h2 className="flex items-center gap-2 font-semibold">
-                <Clock3 className="h-4 w-4 text-primary" />
-                Que puis-je faire maintenant ?
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Indiquez votre temps disponible pour obtenir un programme de
-                travail réaliste et priorisé.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-end gap-3">
-              <label className="min-w-44 flex-1 space-y-1 text-sm">
-                <span className="font-medium">Temps disponible (heures)</span>
-                <Input
-                  type="number"
-                  min="0.25"
-                  max="168"
-                  step="0.25"
-                  value={availableHours}
-                  onChange={(event) => setAvailableHours(event.target.value)}
-                />
-              </label>
-              <Button
-                onClick={() => void generateAdvice('work')}
-                disabled={
-                  adviceLoading !== null ||
-                  !Number.isFinite(Number(availableHours)) ||
-                  Number(availableHours) <= 0
-                }
-              >
-                {adviceLoading === 'work' ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Sparkles />
-                )}
-                Me proposer un programme
-              </Button>
-            </div>
-            {workResult && (
-              <>
-                <p className="rounded-lg border bg-muted/35 p-4 text-sm text-muted-foreground">
-                  {workResult.summary}
-                </p>
-                <ol className="space-y-3">
-                  {workResult.work.map((item, index) => {
-                    const task = board.tasks.find(
-                      (candidate) => candidate.id === item.taskId,
-                    );
-                    if (!task) return null;
-                    return (
-                      <li
-                        key={`${item.taskId}:${index}`}
-                        className="flex gap-3 rounded-lg border p-4"
-                      >
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                          {index + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <button
-                            type="button"
-                            className="font-medium hover:text-primary hover:underline"
-                            onClick={() => openEdit(task)}
-                          >
-                            {task.title}
-                          </button>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {item.reason}
-                          </p>
-                          <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                            {item.recommendedMinutes >= 60
-                              ? `${Math.floor(item.recommendedMinutes / 60)} h ${item.recommendedMinutes % 60 ? `${item.recommendedMinutes % 60} min` : ''}`
-                              : `${item.recommendedMinutes} min`}
-                          </span>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </>
-            )}
-          </section>
-          {adviceError && (
-            <div className="xl:col-span-2 flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              <TriangleAlert className="h-4 w-4" />
-              {adviceError}
-            </div>
-          )}
-        </div>
-      ) : view === 'board' ? (
-        <>
-          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border bg-card/50 p-2">
-            <ListFilter className="ml-1 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="min-w-48 flex-1"
-              placeholder="Rechercher une tâche ou une étiquette…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <select
-              className="h-8 rounded-lg border bg-background px-2 text-sm"
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-            >
-              <option value="all">Toutes les priorités</option>
-              {settings.priorityOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex h-[calc(100dvh-15rem)] min-h-[28rem] w-full items-start gap-3 overflow-auto pb-4">
-            {board.statuses
-              .filter(
-                (status) =>
-                  !settings.hiddenEmptyStatusIds.includes(status.id) ||
-                  filtered.some((task) => task.statusId === status.id),
-              )
-              .map((status) => {
-                const tasks = filtered
-                  .filter((t) => t.statusId === status.id)
-                  .sort((a, b) => {
-                    const aDue = a.dueAt
-                      ? new Date(a.dueAt).getTime()
-                      : Number.POSITIVE_INFINITY;
-                    const bDue = b.dueAt
-                      ? new Date(b.dueAt).getTime()
-                      : Number.POSITIVE_INFINITY;
-                    return aDue - bDue || a.position - b.position;
-                  });
-                return (
-                  <section
-                    key={status.id}
-                    className={`min-h-full min-w-[310px] flex-1 rounded-xl border p-3 transition-all duration-150 ${
-                      dragOverStatus === status.id
-                        ? 'border-primary/70 bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary)/0.3),0_8px_24px_hsl(var(--primary)/0.12)]'
-                        : 'bg-card/60'
-                    }`}
-                    onDragEnter={() => {
-                      if (dragged) setDragOverStatus(status.id);
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'move';
-                      if (dragged && dragOverStatus !== status.id) {
-                        setDragOverStatus(status.id);
-                      }
-                    }}
-                    onDragLeave={(e) => {
-                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                        setDragOverStatus(null);
-                      }
-                    }}
-                    onDrop={() => dropTask(status.id)}
-                  >
-                    <div className="sticky top-0 z-10 -mx-1 mb-3 flex items-center gap-2 rounded-lg border-b bg-card/95 px-1 py-2 backdrop-blur">
+                <Button
+                  onClick={() => void generateAdvice('analysis')}
+                  disabled={adviceLoading !== null}
+                >
+                  {adviceLoading === 'analysis' ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Sparkles />
+                  )}
+                  Analyser le projet
+                </Button>
+              </div>
+              {adviceResult && (
+                <>
+                  <div className="rounded-lg border bg-muted/35 p-4">
+                    <div className="mb-1 flex items-center gap-2 text-sm font-medium">
                       <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{
-                          backgroundColor:
-                            palette[paletteColor(status.color, 'slate')],
-                        }}
+                        className={`h-2.5 w-2.5 rounded-full ${
+                          adviceResult.health === 'good'
+                            ? 'bg-green-500'
+                            : adviceResult.health === 'at_risk'
+                              ? 'bg-red-500'
+                              : 'bg-amber-500'
+                        }`}
                       />
-                      <h2 className="min-w-0 flex-1 truncate text-sm font-medium">
-                        {status.name}
-                      </h2>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                        {tasks.length}
-                      </span>
+                      Synthèse
                     </div>
-                    <div className="space-y-2">
-                      {tasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          subtasks={childrenFor(task.id)}
-                          blocked={blocked(task)}
-                          overdue={
-                            (Boolean(task.dueAt) &&
-                              dateValue(task.dueAt) < dateValue(Date.now()) &&
-                              !isTerminalStatus(task.statusId)) ||
-                            childrenFor(task.id).some(
-                              (child) =>
-                                Boolean(child.dueAt) &&
-                                dateValue(child.dueAt) <
-                                  dateValue(Date.now()) &&
-                                !isTerminalSubtask(child.subtaskStatus),
-                            )
-                          }
-                          settings={settings}
-                          dragging={dragged === task.id}
-                          onDrag={() => setDragged(task.id)}
-                          onDragEnd={() => {
-                            setDragged(null);
-                            setDragOverStatus(null);
-                          }}
-                          onClick={() => openEdit(task)}
-                          onSubtaskClick={openEdit}
-                        />
-                      ))}
-                      {(!tasks.length || dragOverStatus === status.id) && (
-                        <div
-                          className={`rounded-lg border border-dashed p-4 text-center text-xs transition-all ${
-                            dragOverStatus === status.id
-                              ? 'border-primary bg-primary/15 font-medium text-primary'
-                              : 'text-muted-foreground'
-                          }`}
-                        >
-                          {dragOverStatus === status.id
-                            ? 'Relâchez pour déplacer la tâche'
-                            : 'Déposez une tâche ici'}
-                        </div>
-                      )}
-                    </div>
-                  </section>
-                );
-              })}
-          </div>
-        </>
-      ) : view === 'planning' ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-end gap-1 rounded-lg border bg-card p-1">
-            {(
-              [
-                ['years', ganttFrench ? 'Années' : 'Years'],
-                ['months', ganttFrench ? 'Mois' : 'Months'],
-                ['weeks', ganttFrench ? 'Semaines' : 'Weeks'],
-              ] as const
-            ).map(([mode, label]) => (
-              <Button
-                key={mode}
-                type="button"
-                size="sm"
-                variant={ganttView === mode ? 'default' : 'ghost'}
-                onClick={() => {
-                  setGanttView(mode);
-                }}
-                aria-pressed={ganttView === mode}
-              >
-                {label}
-              </Button>
-            ))}
-            <Button
-              type="button"
-              size="sm"
-              variant={ganttView === 'fit' ? 'default' : 'ghost'}
-              onClick={() => {
-                setFittedGanttDisplay(calculatedFitDisplay);
-                setGanttView('fit');
-              }}
-              aria-pressed={ganttView === 'fit'}
-            >
-              <Maximize2 className="size-4" />
-              {ganttFrench ? 'Tout afficher' : 'Fit all'}
-            </Button>
-          </div>
-          <section
-            ref={ganttShellRef}
-            className="project-gantt-shell min-h-0 flex-1 overflow-hidden rounded-xl border bg-card"
-          >
-            <style>{ganttPriorityStyles}</style>
-            <GanttTheme>
-              <Locale words={ganttLocale}>
-                <Tooltip
-                  api={ganttApi ?? undefined}
-                  content={({ data }) => {
-                    if (!('task' in data)) return null;
-                    const task = board.tasks.find(
-                      (item) => item.id === String(data.task.id),
-                    );
-                    if (!task) return null;
-                    const status = board.statuses.find(
-                      (item) => item.id === task.statusId,
-                    );
-                    const statusColor =
-                      palette[paletteColor(status?.color, 'slate')];
-                    const subtasks = childrenFor(task.id);
-                    const dependencies = dependencyIdsFor(task.id)
-                      .map((id) => board.tasks.find((item) => item.id === id))
-                      .filter((item): item is ProjectTaskSummary =>
-                        Boolean(item),
-                      );
-                    const formatDate = (value: number | null) =>
-                      value
-                        ? new Intl.DateTimeFormat(undefined, {
-                            dateStyle: 'medium',
-                          }).format(value)
-                        : ganttFrench
-                          ? 'Non définie'
-                          : 'Not set';
-                    return (
-                      <div className="project-gantt-tooltip-content w-80 space-y-3 rounded-xl bg-popover p-3 text-sm text-popover-foreground">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 font-semibold leading-snug">
-                            {task.title}
-                          </div>
-                          <span
-                            className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
-                            style={{
-                              backgroundColor: `${statusColor}22`,
-                              color: statusColor,
-                            }}
-                          >
-                            {status?.name ??
-                              (ganttFrench ? 'Non défini' : 'Not set')}
-                          </span>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              {ganttFrench
-                                ? 'Avancement global'
-                                : 'Overall progress'}
-                            </span>
-                            <span className="font-medium">
-                              {task.progress} %
-                            </span>
-                          </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-primary"
-                              style={{ width: `${task.progress}%` }}
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                          <span className="text-muted-foreground">
-                            {ganttFrench ? 'Priorité' : 'Priority'}
-                          </span>
-                          <span>{priorityName(task.priority)}</span>
-                          <span className="text-muted-foreground">
-                            {ganttFrench ? 'Début' : 'Start'}
-                          </span>
-                          <span>{formatDate(task.startAt)}</span>
-                          <span className="text-muted-foreground">
-                            {ganttFrench ? 'Fin' : 'End'}
-                          </span>
-                          <span>{formatDate(task.dueAt)}</span>
-                          <span className="text-muted-foreground">
-                            {ganttFrench ? 'Charge' : 'Workload'}
-                          </span>
-                          <span>{task.estimateMinutes / 60} h</span>
-                        </div>
-                        {subtasks.length > 0 && (
-                          <div className="space-y-1.5 border-t pt-2">
-                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {ganttFrench ? 'Sous-tâches' : 'Subtasks'} (
-                              {subtasks.length})
-                            </div>
-                            <div className="space-y-1">
-                              {subtasks.slice(0, 5).map((subtask) => (
-                                <div
-                                  key={subtask.id}
-                                  className="flex items-center justify-between gap-2 text-xs"
+                    <p className="text-sm text-muted-foreground">
+                      {adviceResult.summary}
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    {adviceResult.advice.map((item, index) => (
+                      <article
+                        key={`${item.title}:${index}`}
+                        className={`rounded-lg border-l-4 bg-muted/20 p-4 ${
+                          item.severity === 'alert'
+                            ? 'border-l-red-500'
+                            : item.severity === 'opportunity'
+                              ? 'border-l-green-500'
+                              : item.severity === 'recommendation'
+                                ? 'border-l-blue-500'
+                                : 'border-l-slate-400'
+                        }`}
+                      >
+                        <h3 className="font-medium">{item.title}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {item.description}
+                        </p>
+                        {item.taskIds.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {item.taskIds.map((id) => {
+                              const task = board.tasks.find(
+                                (candidate) => candidate.id === id,
+                              );
+                              return task ? (
+                                <Button
+                                  key={id}
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openEdit(task)}
                                 >
-                                  <span className="truncate">
-                                    {subtask.title}
-                                  </span>
-                                  <span className="shrink-0 text-muted-foreground">
-                                    {subtaskLabels[subtask.subtaskStatus]}
-                                  </span>
-                                </div>
-                              ))}
-                              {subtasks.length > 5 && (
-                                <div className="text-xs text-muted-foreground">
-                                  +{subtasks.length - 5}{' '}
-                                  {ganttFrench ? 'autres' : 'more'}
-                                </div>
-                              )}
-                            </div>
+                                  {task.title}
+                                </Button>
+                              ) : null;
+                            })}
                           </div>
                         )}
-                        {dependencies.length > 0 && (
-                          <div className="border-t pt-2 text-xs">
-                            <span className="font-medium text-muted-foreground">
-                              {ganttFrench ? 'Dépend de :' : 'Depends on:'}{' '}
-                            </span>
-                            <span>
-                              {dependencies
-                                .map((item) => item.title)
-                                .join(', ')}
+                      </article>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+
+            <section className="space-y-4 rounded-xl border bg-card p-5">
+              <div>
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <Clock3 className="h-4 w-4 text-primary" />
+                  Que puis-je faire maintenant ?
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Indiquez votre temps disponible pour obtenir un programme de
+                  travail réaliste et priorisé.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="min-w-44 flex-1 space-y-1 text-sm">
+                  <span className="font-medium">Temps disponible (heures)</span>
+                  <Input
+                    type="number"
+                    min="0.25"
+                    max="168"
+                    step="0.25"
+                    value={availableHours}
+                    onChange={(event) => setAvailableHours(event.target.value)}
+                  />
+                </label>
+                <Button
+                  onClick={() => void generateAdvice('work')}
+                  disabled={
+                    adviceLoading !== null ||
+                    !Number.isFinite(Number(availableHours)) ||
+                    Number(availableHours) <= 0
+                  }
+                >
+                  {adviceLoading === 'work' ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Sparkles />
+                  )}
+                  Me proposer un programme
+                </Button>
+              </div>
+              {workResult && (
+                <>
+                  <p className="rounded-lg border bg-muted/35 p-4 text-sm text-muted-foreground">
+                    {workResult.summary}
+                  </p>
+                  <ol className="space-y-3">
+                    {workResult.work.map((item, index) => {
+                      const task = board.tasks.find(
+                        (candidate) => candidate.id === item.taskId,
+                      );
+                      if (!task) return null;
+                      return (
+                        <li
+                          key={`${item.taskId}:${index}`}
+                          className="flex gap-3 rounded-lg border p-4"
+                        >
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <button
+                              type="button"
+                              className="font-medium hover:text-primary hover:underline"
+                              onClick={() => openEdit(task)}
+                            >
+                              {task.title}
+                            </button>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {item.reason}
+                            </p>
+                            <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                              {item.recommendedMinutes >= 60
+                                ? `${Math.floor(item.recommendedMinutes / 60)} h ${item.recommendedMinutes % 60 ? `${item.recommendedMinutes % 60} min` : ''}`
+                                : `${item.recommendedMinutes} min`}
                             </span>
                           </div>
-                        )}
-                        {task.labels.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {task.labels.map((label) => (
-                              <span
-                                key={label}
-                                className="rounded bg-muted px-2 py-0.5 text-xs"
-                              >
-                                {label}
-                              </span>
-                            ))}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </>
+              )}
+            </section>
+            {adviceError && (
+              <div className="xl:col-span-2 flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                <TriangleAlert className="h-4 w-4" />
+                {adviceError}
+              </div>
+            )}
+          </div>
+        ) : view === 'board' ? (
+          <>
+            <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2 rounded-xl border bg-card/50 p-2">
+              <ListFilter className="ml-1 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="min-w-48 flex-1"
+                placeholder="Rechercher une tâche ou une étiquette…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <select
+                className="h-8 rounded-lg border bg-background px-2 text-sm"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+              >
+                <option value="all">Toutes les priorités</option>
+                {settings.priorityOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex min-h-0 w-full flex-1 items-start gap-3 overflow-auto pb-4">
+              {board.statuses
+                .filter(
+                  (status) =>
+                    !settings.hiddenEmptyStatusIds.includes(status.id) ||
+                    filtered.some((task) => task.statusId === status.id),
+                )
+                .map((status) => {
+                  const tasks = filtered
+                    .filter((t) => t.statusId === status.id)
+                    .sort((a, b) => {
+                      const aDue = a.dueAt
+                        ? new Date(a.dueAt).getTime()
+                        : Number.POSITIVE_INFINITY;
+                      const bDue = b.dueAt
+                        ? new Date(b.dueAt).getTime()
+                        : Number.POSITIVE_INFINITY;
+                      return aDue - bDue || a.position - b.position;
+                    });
+                  return (
+                    <section
+                      key={status.id}
+                      className={`min-h-full min-w-[310px] flex-1 rounded-xl border p-3 transition-all duration-150 ${
+                        dragOverStatus === status.id
+                          ? 'border-primary/70 bg-primary/10 shadow-[inset_0_0_0_2px_hsl(var(--primary)/0.3),0_8px_24px_hsl(var(--primary)/0.12)]'
+                          : 'bg-card/60'
+                      }`}
+                      onDragEnter={() => {
+                        if (dragged) setDragOverStatus(status.id);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        if (dragged && dragOverStatus !== status.id) {
+                          setDragOverStatus(status.id);
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        if (
+                          !e.currentTarget.contains(e.relatedTarget as Node)
+                        ) {
+                          setDragOverStatus(null);
+                        }
+                      }}
+                      onDrop={() => dropTask(status.id)}
+                    >
+                      <div className="sticky top-0 z-10 -mx-1 mb-3 flex items-center gap-2 rounded-lg border-b bg-card/95 px-1 py-2 backdrop-blur">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{
+                            backgroundColor:
+                              palette[paletteColor(status.color, 'slate')],
+                          }}
+                        />
+                        <h2 className="min-w-0 flex-1 truncate text-sm font-medium">
+                          {status.name}
+                        </h2>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                          {tasks.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {tasks.map((task) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            subtasks={childrenFor(task.id)}
+                            blocked={blocked(task)}
+                            overdue={
+                              (Boolean(task.dueAt) &&
+                                dateValue(task.dueAt) < dateValue(Date.now()) &&
+                                !isTerminalStatus(task.statusId)) ||
+                              childrenFor(task.id).some(
+                                (child) =>
+                                  Boolean(child.dueAt) &&
+                                  dateValue(child.dueAt) <
+                                    dateValue(Date.now()) &&
+                                  !isTerminalSubtask(child.subtaskStatus),
+                              )
+                            }
+                            settings={settings}
+                            dragging={dragged === task.id}
+                            onDrag={() => setDragged(task.id)}
+                            onDragEnd={() => {
+                              setDragged(null);
+                              setDragOverStatus(null);
+                            }}
+                            onClick={() => openEdit(task)}
+                            onSubtaskClick={openEdit}
+                          />
+                        ))}
+                        {(!tasks.length || dragOverStatus === status.id) && (
+                          <div
+                            className={`rounded-lg border border-dashed p-4 text-center text-xs transition-all ${
+                              dragOverStatus === status.id
+                                ? 'border-primary bg-primary/15 font-medium text-primary'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {dragOverStatus === status.id
+                              ? 'Relâchez pour déplacer la tâche'
+                              : 'Déposez une tâche ici'}
                           </div>
                         )}
                       </div>
-                    );
+                    </section>
+                  );
+                })}
+            </div>
+          </>
+        ) : view === 'planning' ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-1 rounded-lg border bg-card p-1">
+              {(
+                [
+                  ['years', ganttFrench ? 'Années' : 'Years'],
+                  ['months', ganttFrench ? 'Mois' : 'Months'],
+                  ['weeks', ganttFrench ? 'Semaines' : 'Weeks'],
+                ] as const
+              ).map(([mode, label]) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  variant={ganttView === mode ? 'default' : 'ghost'}
+                  onClick={() => {
+                    setGanttView(mode);
                   }}
+                  aria-pressed={ganttView === mode}
                 >
-                  <StableProjectGantt
-                    key={`${resourceId}:${dark ? 'dark' : 'light'}:${i18n.language}:${ganttView}:${ganttView === 'fit' ? JSON.stringify(fittedGanttDisplay) : ''}`}
-                    tasks={ganttTasks as never}
-                    links={ganttLinks as never}
-                    columns={ganttColumns}
-                    taskTypes={ganttTaskTypes}
-                    scales={ganttDisplay.scales as never}
-                    cellWidth={ganttDisplay.cellWidth}
-                    autoScale={false}
-                    highlightTime={(date, unit) => {
-                      if (unit !== 'day' && unit !== 'hour') return '';
-                      const today = new Date();
-                      const classes: string[] = [];
-                      if (date.getDay() === 0 || date.getDay() === 6) {
-                        classes.push('project-gantt-weekend');
-                      }
-                      if (
-                        date.getFullYear() === today.getFullYear() &&
-                        date.getMonth() === today.getMonth() &&
-                        date.getDate() === today.getDate()
-                      ) {
-                        classes.push('project-gantt-today-cell');
-                      }
-                      return classes.join(' ');
+                  {label}
+                </Button>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant={ganttView === 'fit' ? 'default' : 'ghost'}
+                onClick={() => {
+                  setFittedGanttDisplay(calculatedFitDisplay);
+                  setGanttView('fit');
+                }}
+                aria-pressed={ganttView === 'fit'}
+              >
+                <Maximize2 className="size-4" />
+                {ganttFrench ? 'Tout afficher' : 'Fit all'}
+              </Button>
+            </div>
+            <section
+              ref={ganttShellRef}
+              className="project-gantt-shell min-h-0 flex-1 overflow-hidden rounded-xl border bg-card"
+            >
+              <style>{ganttPriorityStyles}</style>
+              <GanttTheme>
+                <Locale words={ganttLocale}>
+                  <Tooltip
+                    api={ganttApi ?? undefined}
+                    content={({ data }) => {
+                      if (!('task' in data)) return null;
+                      const task = board.tasks.find(
+                        (item) => item.id === String(data.task.id),
+                      );
+                      if (!task) return null;
+                      const status = board.statuses.find(
+                        (item) => item.id === task.statusId,
+                      );
+                      const statusColor =
+                        palette[paletteColor(status?.color, 'slate')];
+                      const subtasks = childrenFor(task.id);
+                      const dependencies = dependencyIdsFor(task.id)
+                        .map((id) => board.tasks.find((item) => item.id === id))
+                        .filter((item): item is ProjectTaskSummary =>
+                          Boolean(item),
+                        );
+                      const formatDate = (value: number | null) =>
+                        value
+                          ? new Intl.DateTimeFormat(undefined, {
+                              dateStyle: 'medium',
+                            }).format(value)
+                          : ganttFrench
+                            ? 'Non définie'
+                            : 'Not set';
+                      return (
+                        <div className="project-gantt-tooltip-content w-80 space-y-3 rounded-xl bg-popover p-3 text-sm text-popover-foreground">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 font-semibold leading-snug">
+                              {task.title}
+                            </div>
+                            <span
+                              className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                              style={{
+                                backgroundColor: `${statusColor}22`,
+                                color: statusColor,
+                              }}
+                            >
+                              {status?.name ??
+                                (ganttFrench ? 'Non défini' : 'Not set')}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">
+                                {ganttFrench
+                                  ? 'Avancement global'
+                                  : 'Overall progress'}
+                              </span>
+                              <span className="font-medium">
+                                {task.progress} %
+                              </span>
+                            </div>
+                            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="h-full rounded-full bg-primary"
+                                style={{ width: `${task.progress}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                            <span className="text-muted-foreground">
+                              {ganttFrench ? 'Priorité' : 'Priority'}
+                            </span>
+                            <span>{priorityName(task.priority)}</span>
+                            <span className="text-muted-foreground">
+                              {ganttFrench ? 'Début' : 'Start'}
+                            </span>
+                            <span>{formatDate(task.startAt)}</span>
+                            <span className="text-muted-foreground">
+                              {ganttFrench ? 'Fin' : 'End'}
+                            </span>
+                            <span>{formatDate(task.dueAt)}</span>
+                            <span className="text-muted-foreground">
+                              {ganttFrench ? 'Charge' : 'Workload'}
+                            </span>
+                            <span>{task.estimateMinutes / 60} h</span>
+                          </div>
+                          {subtasks.length > 0 && (
+                            <div className="space-y-1.5 border-t pt-2">
+                              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                {ganttFrench ? 'Sous-tâches' : 'Subtasks'} (
+                                {subtasks.length})
+                              </div>
+                              <div className="space-y-1">
+                                {subtasks.slice(0, 5).map((subtask) => (
+                                  <div
+                                    key={subtask.id}
+                                    className="flex items-center justify-between gap-2 text-xs"
+                                  >
+                                    <span className="truncate">
+                                      {subtask.title}
+                                    </span>
+                                    <span className="shrink-0 text-muted-foreground">
+                                      {subtaskLabels[subtask.subtaskStatus]}
+                                    </span>
+                                  </div>
+                                ))}
+                                {subtasks.length > 5 && (
+                                  <div className="text-xs text-muted-foreground">
+                                    +{subtasks.length - 5}{' '}
+                                    {ganttFrench ? 'autres' : 'more'}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {dependencies.length > 0 && (
+                            <div className="border-t pt-2 text-xs">
+                              <span className="font-medium text-muted-foreground">
+                                {ganttFrench
+                                  ? 'Dépend de :'
+                                  : 'Depends on:'}{' '}
+                              </span>
+                              <span>
+                                {dependencies
+                                  .map((item) => item.title)
+                                  .join(', ')}
+                              </span>
+                            </div>
+                          )}
+                          {task.labels.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {task.labels.map((label) => (
+                                <span
+                                  key={label}
+                                  className="rounded bg-muted px-2 py-0.5 text-xs"
+                                >
+                                  {label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
                     }}
-                    zoom={ganttZoom as never}
-                    init={setGanttApi}
-                    onUpdateTask={(event) => void persistGanttDates(event)}
-                    onAddLink={(event) => void persistGanttLink(event)}
-                    onDeleteLink={(event) => void deleteGanttLink(event)}
-                  />
-                </Tooltip>
-              </Locale>
-            </GanttTheme>
-            {!ganttTasks.length && (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                Ajoutez des dates pour afficher les tâches dans le planning.
-              </div>
-            )}
-          </section>
-        </div>
-      ) : (
-        <TaskActivityJournal board={board} statuses={board.statuses} />
-      )}
+                  >
+                    <StableProjectGantt
+                      key={`${resourceId}:${dark ? 'dark' : 'light'}:${i18n.language}:${ganttView}:${ganttView === 'fit' ? JSON.stringify(fittedGanttDisplay) : ''}`}
+                      tasks={ganttTasks as never}
+                      links={ganttLinks as never}
+                      columns={ganttColumns}
+                      taskTypes={ganttTaskTypes}
+                      scales={ganttDisplay.scales as never}
+                      cellWidth={ganttDisplay.cellWidth}
+                      autoScale={false}
+                      highlightTime={(date, unit) => {
+                        if (unit !== 'day' && unit !== 'hour') return '';
+                        const today = new Date();
+                        const classes: string[] = [];
+                        if (date.getDay() === 0 || date.getDay() === 6) {
+                          classes.push('project-gantt-weekend');
+                        }
+                        if (
+                          date.getFullYear() === today.getFullYear() &&
+                          date.getMonth() === today.getMonth() &&
+                          date.getDate() === today.getDate()
+                        ) {
+                          classes.push('project-gantt-today-cell');
+                        }
+                        return classes.join(' ');
+                      }}
+                      zoom={ganttZoom as never}
+                      init={setGanttApi}
+                      onUpdateTask={(event) => void persistGanttDates(event)}
+                      onAddLink={(event) => void persistGanttLink(event)}
+                      onDeleteLink={(event) => void deleteGanttLink(event)}
+                    />
+                  </Tooltip>
+                </Locale>
+              </GanttTheme>
+              {!ganttTasks.length && (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  Ajoutez des dates pour afficher les tâches dans le planning.
+                </div>
+              )}
+            </section>
+          </div>
+        ) : (
+          <TaskActivityJournal board={board} statuses={board.statuses} />
+        )}
+      </div>
       <Dialog open={taskOpen} onOpenChange={setTaskOpen}>
         <DialogContent className="flex max-h-[92vh] flex-col overflow-hidden p-0 sm:max-w-2xl">
           <DialogHeader>
@@ -3685,7 +3628,7 @@ function TaskActivityJournal({
     return String(value);
   };
   return (
-    <section className="flex h-[calc(100dvh-11rem)] min-h-[28rem] flex-col overflow-hidden rounded-xl border bg-card">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
       <div className="shrink-0 border-b bg-card px-5 py-4">
         <h2 className="font-semibold">Journal des modifications</h2>
         <p className="text-sm text-muted-foreground">
