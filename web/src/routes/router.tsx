@@ -23,7 +23,7 @@ import { SettingsPage } from '@/components/settings/settings-page';
 import {
   SETTINGS_SECTIONS,
   type SettingsSection,
-} from '@/components/settings/settings-sidebar';
+} from '@/components/settings/settings-sections';
 import { IntegrationsPage } from '@/components/integrations/integrations-page';
 import { BASE_PATH } from '@/base-path';
 

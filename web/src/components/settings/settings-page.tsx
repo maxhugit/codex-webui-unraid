@@ -12,7 +12,7 @@ import { useTimelineStore } from '@/stores/timeline-store';
 import { clearApiToken } from '@/auth-token';
 import { resetSocket } from '@/socket';
 import { sectionLabel } from './setting-helpers';
-import type { SettingsSection } from './settings-sidebar';
+import type { SettingsSection } from './settings-sections';
 import { GeneralSettings } from './general-settings';
 import { AccountSettings } from './account/account-settings';
 import { CodexSettings } from './codex-settings';

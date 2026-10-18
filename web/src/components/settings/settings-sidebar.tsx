@@ -5,18 +5,7 @@ import { useLayoutStore } from '@/stores/layout-store';
 import { cn } from '@/lib/utils';
 import { sectionLabel } from './setting-helpers';
 
-export const SETTINGS_SECTIONS = [
-  'general',
-  'people',
-  'account',
-  'codex',
-  'simpleChat',
-  'terminal',
-  'files',
-  'security',
-  'integrations',
-] as const;
-export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+import { SETTINGS_SECTIONS } from './settings-sections';
 
 /** Administration navigation, shared by desktop and mobile drawers.
  * This is a navigation boundary, not an authorization boundary. The current
