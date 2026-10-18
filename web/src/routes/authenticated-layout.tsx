@@ -12,6 +12,7 @@ import { DetachedDocumentRecovery } from '@/components/files/detached-document-r
 import { TerminalHost } from '@/components/terminal/terminal-host';
 import { ChatHeader } from '@/components/chat/chat-header';
 import { ThreadSidebar } from '@/components/chat/thread-sidebar';
+import { SettingsSidebar } from '@/components/settings/settings-sidebar';
 import { SnackbarContainer } from '@/components/snackbar/snackbar-container';
 import { CodexStatusBanner } from '@/components/codex-status-banner';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
@@ -54,6 +55,9 @@ function readMaxIdleSubscriptions(
 export function AuthenticatedLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const administrationView = ['/settings', '/files', '/terminal'].some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
   const [filesDefaultRoot, setFilesDefaultRoot] = useState<string | null>(null);
 
   const setMaxIdleSubscriptions = useTimelineStore(
@@ -206,7 +210,7 @@ export function AuthenticatedLayout() {
             )}
           >
             <div className="flex h-full w-64 flex-col">
-              <ThreadSidebar />
+              {administrationView ? <SettingsSidebar /> : <ThreadSidebar />}
             </div>
           </aside>
         )}
@@ -220,7 +224,7 @@ export function AuthenticatedLayout() {
               showCloseButton={false}
             >
               <SheetTitle className="sr-only">{t('Navigation')}</SheetTitle>
-              <ThreadSidebar />
+              {administrationView ? <SettingsSidebar /> : <ThreadSidebar />}
             </SheetContent>
           </Sheet>
         )}

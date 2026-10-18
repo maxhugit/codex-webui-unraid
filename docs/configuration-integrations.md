@@ -1,5 +1,27 @@
 # Configuration des intégrations
 
+## Navigation d’administration et outils d’exploitation
+
+L’entrée **Paramètres** de l’en-tête (menu « … » sur mobile) ouvre une
+navigation latérale dédiée. **Administration** regroupe les réglages généraux
+du serveur, les personnes, le compte, Codex, le chat simple, les réglages des
+fichiers et du terminal, la sécurité et les intégrations.
+**Outils d’exploitation** donne accès au navigateur global de fichiers et au
+terminal global. Ces deux outils ne figurent plus dans la navigation des projets.
+Les explorateurs et terminaux des conversations ne sont pas modifiés.
+
+Chaque rubrique de réglage dispose d’un lien `/settings?section=…`.
+Sur mobile, le bouton de navigation de l’en-tête ouvre le
+même menu et la sélection d’une rubrique le referme.
+
+Cette séparation prépare un espace réservé aux administrateurs : les futurs
+utilisateurs standards ne devront accéder ni aux réglages serveur ni aux outils
+globaux. **Elle ne constitue pas encore un contrôle de rôles** : l’authentification
+actuelle utilise une session commune. Les personnes déclarées pour affecter des
+tâches ne sont pas encore des comptes de connexion. L’introduction des rôles
+devra associer l’identité authentifiée à une personne et contrôler les accès côté
+serveur (API et WebSocket), pas seulement masquer les liens.
+
 ## Authentik
 
 Créer une application et un fournisseur proxy pour l’URL publique de Codex, par

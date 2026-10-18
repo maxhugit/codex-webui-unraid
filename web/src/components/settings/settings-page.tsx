@@ -2,7 +2,7 @@
  * Settings page shell with tab routing to category sub-components.
  */
 import { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { useTimelineStore } from '@/stores/timeline-store';
 import { clearApiToken } from '@/auth-token';
 import { resetSocket } from '@/socket';
 import { sectionLabel } from './setting-helpers';
+import type { SettingsSection } from './settings-sidebar';
 import { GeneralSettings } from './general-settings';
 import { AccountSettings } from './account/account-settings';
 import { CodexSettings } from './codex-settings';
@@ -25,22 +26,8 @@ import { AppsTab } from '@/components/integrations/apps-tab';
 import { McpsTab } from '@/components/integrations/mcps-tab';
 import { PeopleManager } from '@/components/projects/people-manager';
 
-const SECTIONS = [
-  'general',
-  'people',
-  'account',
-  'codex',
-  'simpleChat',
-  'terminal',
-  'files',
-  'security',
-  'integrations',
-] as const;
-
 const INTEGRATION_SECTIONS = ['plugins', 'apps', 'mcps'] as const;
 type IntegrationSection = (typeof INTEGRATION_SECTIONS)[number];
-
-type SettingsSection = (typeof SECTIONS)[number];
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
@@ -48,7 +35,10 @@ export function SettingsPage() {
   const dark = useThemeStore((s) => s.dark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
   const threadId = useTimelineStore((s) => s.threadId);
-  const [section, setSection] = useState<SettingsSection>('general');
+  const section = useRouterState({
+    select: (s) =>
+      (s.location.search as { section?: SettingsSection }).section ?? 'general',
+  });
   const [integrationSection, setIntegrationSection] =
     useState<IntegrationSection>('plugins');
 
@@ -79,20 +69,17 @@ export function SettingsPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl font-semibold">{t('Settings')}</h1>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {SECTIONS.map((s) => (
-            <Button
-              key={s}
-              variant={section === s ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSection(s)}
-            >
-              {t(sectionLabel(s))}
-            </Button>
-          ))}
+          <h1 className="text-xl font-semibold">
+            {t(
+              section === 'general'
+                ? 'Server general settings'
+                : section === 'files'
+                  ? 'File settings'
+                  : section === 'terminal'
+                    ? 'Terminal settings'
+                    : sectionLabel(section),
+            )}
+          </h1>
         </div>
 
         <Separator />

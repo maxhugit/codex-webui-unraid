@@ -20,6 +20,10 @@ import { DiagnosticsRoute } from './diagnostics-route';
 import { SimpleChatRoute } from './simple-chat-route';
 import { ProjectResourceRoute } from './project-resource-route';
 import { SettingsPage } from '@/components/settings/settings-page';
+import {
+  SETTINGS_SECTIONS,
+  type SettingsSection,
+} from '@/components/settings/settings-sidebar';
 import { IntegrationsPage } from '@/components/integrations/integrations-page';
 import { BASE_PATH } from '@/base-path';
 
@@ -145,6 +149,13 @@ const projectResourceRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/settings',
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { section?: SettingsSection } => ({
+    section: SETTINGS_SECTIONS.includes(search.section as SettingsSection)
+      ? (search.section as SettingsSection)
+      : undefined,
+  }),
   component: SettingsPage,
 });
 

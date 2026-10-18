@@ -5,7 +5,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
-import { FolderOpen, House, Plus, Terminal } from 'lucide-react';
+import { FolderOpen, House, Plus } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -1235,32 +1235,6 @@ export function ThreadSidebar() {
         >
           <House className="h-4 w-4 shrink-0" />
           {t('Home')}
-        </button>
-        <button
-          type="button"
-          onClick={() => void navigate({ to: '/files' })}
-          className={cn(
-            'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
-            activeView === 'files'
-              ? 'bg-accent text-accent-foreground'
-              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-          )}
-        >
-          <FolderOpen className="h-4 w-4 shrink-0" />
-          {t('Files')}
-        </button>
-        <button
-          type="button"
-          onClick={() => void navigate({ to: '/terminal' })}
-          className={cn(
-            'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
-            activeView === 'terminal'
-              ? 'bg-accent text-accent-foreground'
-              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-          )}
-        >
-          <Terminal className="h-4 w-4 shrink-0" />
-          {t('Terminal')}
         </button>
       </div>
 

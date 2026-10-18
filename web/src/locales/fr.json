@@ -1,4 +1,11 @@
 {
+  "Administration navigation": "Navigation d’administration",
+  "Back to projects": "Retour aux projets",
+  "Administration": "Administration",
+  "Server general settings": "Réglages généraux du serveur",
+  "File settings": "Réglages des fichiers",
+  "Terminal settings": "Réglages du terminal",
+  "Operations tools": "Outils d’exploitation",
   "People": "Personnes",
   "Project participants": "Participants du projet",
   "Manage participants": "Gérer les participants",
