@@ -11,7 +11,7 @@ import {
   createTestDatabase,
   type TestDatabase,
 } from '../database/database.testing';
-import { people, projects } from '../database/schema';
+import { people, projects, projectWorkspaces } from '../database/schema';
 import { IdentityService } from './identity.service';
 import {
   PlatformAccessGuard,
@@ -348,6 +348,37 @@ it('protects deployment private paths even if a project links a broad parent dir
   expect(() =>
     identities.requireWorkspacePath(join(directory, 'workspace/a.txt')),
   ).not.toThrow();
+});
+
+it('also protects physical workspace deletion through project and legacy workspace endpoints', () => {
+  const privatePath = join(directory, 'private');
+  vi.stubEnv('WEBUI_PROTECTED_PATHS', privatePath);
+  database.db
+    .insert(projectWorkspaces)
+    .values({
+      id: 'private-workspace',
+      projectId: 'p',
+      name: 'Private',
+      path: privatePath,
+      primary: false,
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    .run();
+  expect(() =>
+    guard.canActivate(
+      http('/projects/p', 'DELETE', {
+        body: { deleteWorkspaceIds: ['private-workspace'] },
+      }).context,
+    ),
+  ).toThrow('private paths');
+  expect(() =>
+    guard.canActivate(
+      http('/workspaces/name', 'DELETE', {
+        params: { name: '../../home/codex' },
+      }).context,
+    ),
+  ).toThrow();
 });
 
 it('requires person contact fields, computes the name server-side and protects the last administrator', () => {

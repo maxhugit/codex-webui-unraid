@@ -15,6 +15,7 @@ export interface IdentityRequest {
   url: string;
   query?: Record<string, unknown>;
   body?: Record<string, unknown>;
+  params?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -85,6 +86,20 @@ export class PlatformAccessGuard implements CanActivate {
       /^\/simple-chat\/api-key(\/|$)/.test(url) ||
       (request.method !== 'GET' && /^\/projects\/people(\/|$)/.test(url));
     if (admin) this.identities.requireAdministrator(identity);
+    if (request.method === 'DELETE') {
+      const projectId = url.match(/^\/projects\/([^/]+)$/)?.[1];
+      if (projectId)
+        this.identities.requireWorkspaceDeletions(
+          projectId,
+          request.body?.deleteWorkspaceIds,
+        );
+      if (url.startsWith('/workspaces/')) {
+        const name = request.params?.name;
+        this.identities.requireWorkspacePath(
+          typeof name === 'string' ? `/workspaces/${name}` : undefined,
+        );
+      }
+    }
     if (request.method !== 'GET') {
       const resource = url.match(
         /^\/projects\/[^/]+\/resources\/([^/]+)(?:\/|$)/,

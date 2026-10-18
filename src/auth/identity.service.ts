@@ -218,4 +218,16 @@ export class IdentityService {
         .get()?.type === 'automation_board'
     );
   }
+
+  requireWorkspaceDeletions(projectId: string, ids: unknown) {
+    if (!Array.isArray(ids)) return;
+    const selected = new Set(ids);
+    for (const workspace of this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(eq(projectWorkspaces.projectId, projectId))
+      .all()) {
+      if (selected.has(workspace.id)) this.requireWorkspacePath(workspace.path);
+    }
+  }
 }
