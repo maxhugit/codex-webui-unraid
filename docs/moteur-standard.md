@@ -168,3 +168,56 @@ mémoire + swap validée. Ce point et les quotas individuels restent à examiner
 moteur IA utilisateur raccordé, pas d'ouverture aux standards.** La décision
 de migration éventuelle des workspaces vers un stockage isolé doit précéder
 tout déplacement de fichiers existants.
+
+## Préparation du stockage isolé — étape suivante
+
+Après accord de l'administrateur, trois copies de workspaces ont été préparées
+sur Unraid, chacune dans le sous-volume Btrfs de son projet. Les originaux,
+la base et les chemins utilisés par l'application sont inchangés.
+
+Un simple dossier dédié ne suffit pas à bloquer les liens physiques : la
+frontière retenue est **un sous-volume Btrfs par projet**, sans Docker par
+projet. Le test réel a confirmé `EXDEV` pour les liens entre projets et avec
+le stockage extérieur, avec un contrôle positif à l'intérieur du même projet.
+Voir la [documentation Btrfs](https://btrfs.readthedocs.io/en/latest/Subvolumes.html).
+
+`scripts/sandbox/prepare-project-storage.py` fonctionne sur l'hôte Unraid :
+
+- sans `--prepare`, produit seulement un manifeste privé et les empreintes ;
+- avec `--prepare`, crée les sous-volumes et copie les fichiers, sans modifier
+  SQLite, supprimer les sources ou activer les agents ;
+- exige une liste explicite d'UUID de projets et un stockage dédié ;
+- refuse les destinations existantes, liens symboliques/physiques, fichiers
+  spéciaux, sources imbriquées et sources hors du montage `/workspaces` ;
+- vérifie les empreintes avant/après copie et conserve les copies partielles
+  en cas d'erreur pour inspection. Il ne fusionne ni n'écrase une préparation ;
+- ne réimporte pas d'identifiants Codex et n'active pas les MCP.
+
+Les sous-volumes restent administrés par l'hôte. Les workspaces copiés
+appartiennent à l'UID 11003 et au groupe 11002. Le moteur standard ne peut pas
+remplacer les frontières de projets. La base ne doit jamais être modifiée par
+un appel utilisateur à ce script : c'est un outil opérateur, pas une API.
+
+Un manifeste doit être conservé hors des workspaces, avec des droits privés.
+Il contient les anciens/futurs chemins et des empreintes de fichiers : ne pas
+le publier dans Git. Les essais sont reproductibles avec :
+
+```sh
+python3 -m unittest discover -s scripts/sandbox -p 'test_*.py' -v
+python3 scripts/sandbox/storage-boundary-probe.py --manifest CHEMIN_PRIVE_DU_MANIFESTE
+```
+
+### Avant la bascule effective
+
+La préparation est une copie ponctuelle, **pas une synchronisation**. Geler les
+écritures et revérifier les sources lors de la bascule ; si elles ont changé,
+ne pas utiliser la copie périmée. Prévoir ensuite le montage applicatif, les
+associations des workspaces, les chemins des tâches/fichiers et les overrides
+des conversations/terminaux. Les historiques Codex ne doivent pas être
+réécrits aveuglément.
+
+Il reste également à adapter les opérations de gestion des dossiers aux
+nouveaux chemins et à qualifier le moteur IA et les contrôles personne/projet.
+Aucun de ces points n'est considéré comme achevé par la seule copie.
+Les sous-volumes ne constituent ni des quotas disque ni des sauvegardes
+indépendantes : les limites de capacité restent à définir avant ouverture.
