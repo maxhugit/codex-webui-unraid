@@ -20,8 +20,6 @@ dans cet ordre :
 
 - [Contribuer au projet](../CONTRIBUTING.md)
 - [Interface Web](../web/README.md)
-- [Prototype d’isolation Bubblewrap, MCP coupé](prototype-isolation-bubblewrap.md)
-- [Moteur standard séparé : qualification et retour arrière](moteur-standard.md)
 - notes internes sur les conversations, les espaces de travail et le protocole
   Codex présentes dans ce dossier.
 

@@ -17,8 +17,6 @@
     "lint": "pnpm ensure:codex-schema && eslint \"{src,apps,libs}/**/*.ts\" \"codex_probe/**/*.ts\" --fix && cd web && pnpm lint",
     "test": "pnpm ensure:codex-schema && vitest run",
     "test:watch": "vitest",
-    "sandbox:unit": "node --test scripts/sandbox/*.test.cjs",
-    "sandbox:probe": "node scripts/sandbox/self-test.cjs",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest run --inspect-brk --no-file-parallelism",
     "codex:schema": "codex app-server generate-ts --out src/codex/codex-schema",

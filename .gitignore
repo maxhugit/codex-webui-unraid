@@ -87,6 +87,6 @@ web/.vitest-screenshots
 .mcp.json
 .playwright-mcp
 
-# Generated Python bytecode from storage qualification tests.
+# Generated Python bytecode.
 __pycache__/
 *.pyc

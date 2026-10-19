@@ -156,7 +156,6 @@ COPY --from=backend-builder /app/dist ./dist/
 COPY --from=backend-builder /app/public ./public/
 COPY drizzle/ ./drizzle/
 COPY scripts/provision-person.cjs ./scripts/provision-person.cjs
-COPY scripts/sandbox/ ./scripts/sandbox/
 COPY skills/office-files/ /opt/codex-skills/office-files/
 
 # ── Entrypoint ───────────────────────────────────────────────────────
