@@ -1,71 +1,34 @@
-import { useEffect, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from '@tanstack/react-router';
 import {
   Bot,
   FolderKanban,
   FolderOpen,
   LayoutDashboard,
   ListTodo,
-  Save,
   Settings,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { PeopleManager } from '@/components/projects/people-manager';
+import { ProjectSettingsDialog } from '@/components/projects/project-settings-dialog';
 import {
   projectsApi,
   projectsQueryKey,
   type ProjectSummary,
 } from '@/lib/projects-api';
 import { usePlatformSession } from '@/lib/platform-session';
-import { cn } from '@/lib/utils';
-
-export type ProjectTab = 'general' | 'administration';
 
 export function ProjectRoute() {
   const { projectId } = useParams({ strict: false }) as { projectId: string };
-  const { tab = 'general' } = useSearch({ strict: false }) as {
-    tab?: ProjectTab;
-  };
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const session = usePlatformSession();
-  const queryClient = useQueryClient();
   const projects = useQuery({
     queryKey: projectsQueryKey,
     queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
   });
   const project = projects.data?.projects.find((item) => item.id === projectId);
-  const [name, setName] = useState('');
-  const [saveError, setSaveError] = useState('');
-
-  useEffect(() => setName(project?.name ?? ''), [project?.name]);
-
-  const rename = useMutation({
-    mutationFn: (nextName: string) =>
-      projectsApi(`/${projectId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ name: nextName }),
-      }),
-    onSuccess: async () => {
-      setSaveError('');
-      await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-    },
-    onError: (error) =>
-      setSaveError(
-        error instanceof Error ? error.message : t('Unable to save project'),
-      ),
-  });
-
-  const selectTab = (next: ProjectTab) =>
-    void navigate({
-      to: '/projects/$projectId',
-      params: { projectId },
-      search: { tab: next },
-      replace: true,
-    });
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (projects.isPending)
     return (
@@ -99,14 +62,8 @@ export function ProjectRoute() {
           <button
             type="button"
             role="tab"
-            aria-selected={tab === 'general'}
-            onClick={() => selectTab('general')}
-            className={cn(
-              'flex h-10 cursor-pointer items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50',
-              tab === 'general'
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
+            aria-selected="true"
+            className="flex h-10 cursor-pointer items-center gap-2 border-b-2 border-primary px-3 text-xs text-foreground transition-colors hover:bg-accent/50"
           >
             <LayoutDashboard className="h-4 w-4" />
             <span>{t('General information')}</span>
@@ -117,11 +74,8 @@ export function ProjectRoute() {
             type="button"
             variant="ghost"
             size="icon"
-            className={cn(
-              'mr-2 h-8 w-8 cursor-pointer',
-              tab === 'administration' && 'bg-accent text-foreground',
-            )}
-            onClick={() => selectTab('administration')}
+            className="mr-2 h-8 w-8 cursor-pointer"
+            onClick={() => setSettingsOpen(true)}
             aria-label={t('Project administration')}
             title={t('Project administration')}
           >
@@ -131,68 +85,7 @@ export function ProjectRoute() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
-        {tab === 'administration' && !session.isAdministrator ? (
-          <div role="alert" className="rounded-xl border bg-card p-5">
-            {t('Administrator access required')}
-          </div>
-        ) : tab === 'administration' ? (
-          <div className="mx-auto max-w-5xl space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold">
-                {t('Project administration')}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t('Manage the project settings and its participants.')}
-              </p>
-            </div>
-
-            <section className="space-y-4 rounded-xl border bg-card p-5">
-              <div>
-                <h3 className="font-semibold">{t('General settings')}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t('Change the name displayed throughout the application.')}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="min-w-0 flex-1">
-                  <label
-                    htmlFor="project-name"
-                    className="mb-1 block text-sm font-medium"
-                  >
-                    {t('Project name')}
-                  </label>
-                  <Input
-                    id="project-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </div>
-                <Button
-                  className="mt-auto cursor-pointer"
-                  disabled={
-                    rename.isPending ||
-                    !name.trim() ||
-                    name.trim() === project.name
-                  }
-                  onClick={() => rename.mutate(name.trim())}
-                >
-                  <Save className="h-4 w-4" />
-                  {t('Save')}
-                </Button>
-              </div>
-              {saveError && (
-                <p role="alert" className="text-sm text-destructive">
-                  {saveError}
-                </p>
-              )}
-            </section>
-
-            <section className="rounded-xl border bg-card p-5">
-              <PeopleManager projectId={projectId} />
-            </section>
-          </div>
-        ) : (
-          <div className="mx-auto max-w-6xl space-y-6">
+        <div className="mx-auto max-w-6xl space-y-6">
             <section className="rounded-xl border bg-card p-5">
               <div className="flex items-start gap-3">
                 <div className="rounded-lg bg-primary/10 p-2 text-primary">
@@ -291,9 +184,15 @@ export function ProjectRoute() {
                 </dl>
               </section>
             </div>
-          </div>
-        )}
+        </div>
       </div>
+      {session.isAdministrator && settingsOpen && (
+        <ProjectSettingsDialog
+          project={project}
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </main>
   );
 }

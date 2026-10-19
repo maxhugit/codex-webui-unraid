@@ -89,6 +89,8 @@
   "Project sections": "Sections du projet",
   "General information": "Informations générales",
   "Project administration": "Administration du projet",
+  "Project settings": "Configuration du projet",
+  "Manage the project name, workspaces and participants.": "Gérez le nom du projet, ses workspaces et ses participants.",
   "Project not found": "Projet introuvable",
   "Unable to save project": "Impossible d’enregistrer le projet",
   "Manage the project settings and its participants.": "Gérez les paramètres du projet et ses participants.",

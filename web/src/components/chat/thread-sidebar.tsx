@@ -59,10 +59,7 @@ import { WorkspaceDetail } from './sidebar/workspace-detail';
 import { SimpleChatRow } from './sidebar/simple-chat-row';
 import { RenameDialog, ConfirmDialog } from './sidebar/sidebar-dialogs';
 import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
-import { DirectoryPickerDialog } from './sidebar/directory-picker-dialog';
 import { CreateProjectDialog } from './sidebar/create-project-dialog';
-import { ManageWorkspacesDialog } from './sidebar/manage-workspaces-dialog';
-import { ProjectParticipantsDialog } from '@/components/projects/people-manager';
 import { useForkWithGoal } from '@/hooks/use-fork-with-goal';
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
@@ -126,9 +123,6 @@ function useActiveView():
 }
 
 export function ThreadSidebar() {
-  const [participantProjectId, setParticipantProjectId] = useState<
-    string | null
-  >(null);
   const navigate = useNavigate();
   const activeView = useActiveView();
   const activeSimpleThreadId = useRouterState({
@@ -191,17 +185,10 @@ export function ThreadSidebar() {
   const [createProjectPath, setCreateProjectPath] = useState('/workspaces/');
   const [createProjectPathCustomized, setCreateProjectPathCustomized] =
     useState(false);
-  const [renameProject, setRenameProject] = useState<ProjectSummary | null>(
-    null,
-  );
-  const [renameWorkspaceValue, setRenameWorkspaceValue] = useState('');
   const [deleteProject, setDeleteProject] = useState<ProjectSummary | null>(
     null,
   );
   const [deleteProjectError, setDeleteProjectError] = useState('');
-  const [workspaceProject, setWorkspaceProject] =
-    useState<ProjectSummary | null>(null);
-  const [manageProjectId, setManageProjectId] = useState<string | null>(null);
   const [renameResource, setRenameResource] =
     useState<ProjectResourceSummary | null>(null);
   const [renameResourceValue, setRenameResourceValue] = useState('');
@@ -281,10 +268,6 @@ export function ThreadSidebar() {
     queryKey: projectsQueryKey,
     queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
   });
-  const managedProject =
-    projectsQuery.data?.projects.find(
-      (project) => project.id === manageProjectId,
-    ) ?? null;
 
   // ── Deletion ────────────────────────────────────────────────────────
   const adoptionStatus = useBranchAdoptionStatus();
@@ -786,126 +769,6 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
-  const createWorkspace = useMutation({
-    mutationFn: ({ projectId, path }: { projectId: string; path: string }) =>
-      projectsApi<{
-        workspace: ProjectSummary['workspaces'][number];
-      }>(`/${projectId}/workspaces`, {
-        method: 'POST',
-        body: JSON.stringify({ path }),
-      }),
-    onSuccess: ({ workspace }, variables) => {
-      queryClient.setQueryData<{ projects: ProjectSummary[] }>(
-        projectsQueryKey,
-        (current) =>
-          current && {
-            projects: current.projects.map((project) =>
-              project.id === variables.projectId &&
-              !project.workspaces.some((item) => item.id === workspace.id)
-                ? { ...project, workspaces: [...project.workspaces, workspace] }
-                : project,
-            ),
-          },
-      );
-      setWorkspaceProject(null);
-      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-    },
-    onError: (err) => addSystemError(getApiErrorMessage(err)),
-  });
-  const setDefaultWorkspace = useMutation({
-    mutationFn: ({
-      projectId,
-      workspaceId,
-    }: {
-      projectId: string;
-      workspaceId: string;
-    }) =>
-      projectsApi(`/${projectId}/workspaces/${workspaceId}/default`, {
-        method: 'PATCH',
-      }),
-    onSuccess: (_result, variables) => {
-      queryClient.setQueryData<{ projects: ProjectSummary[] }>(
-        projectsQueryKey,
-        (current) =>
-          current && {
-            projects: current.projects.map((project) => {
-              if (project.id !== variables.projectId) return project;
-              const selected = project.workspaces.find(
-                (workspace) => workspace.id === variables.workspaceId,
-              );
-              if (!selected) return project;
-              return {
-                ...project,
-                workspacePath: selected.path,
-                workspaces: project.workspaces.map((workspace) => ({
-                  ...workspace,
-                  primary: workspace.id === variables.workspaceId,
-                })),
-              };
-            }),
-          },
-      );
-      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-    },
-    onError: (err) => addSystemError(getApiErrorMessage(err)),
-  });
-  const detachWorkspace = useMutation({
-    mutationFn: ({
-      projectId,
-      workspaceId,
-    }: {
-      projectId: string;
-      workspaceId: string;
-    }) =>
-      projectsApi(`/${projectId}/workspaces/${workspaceId}`, {
-        method: 'DELETE',
-      }),
-    onSuccess: (_result, variables) => {
-      queryClient.setQueryData<{ projects: ProjectSummary[] }>(
-        projectsQueryKey,
-        (current) =>
-          current && {
-            projects: current.projects.map((project) =>
-              project.id === variables.projectId
-                ? {
-                    ...project,
-                    workspaces: project.workspaces.filter(
-                      (workspace) => workspace.id !== variables.workspaceId,
-                    ),
-                    agentThreads: project.agentThreads?.map((thread) =>
-                      thread.workspacePath ===
-                      project.workspaces.find(
-                        (workspace) => workspace.id === variables.workspaceId,
-                      )?.path
-                        ? { ...thread, workspacePath: project.workspacePath }
-                        : thread,
-                    ),
-                  }
-                : project,
-            ),
-          },
-      );
-      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-      void queryClient.invalidateQueries({
-        queryKey: simpleChatThreadsQueryKey,
-      });
-      invalidateThreads();
-    },
-    onError: (err) => addSystemError(getApiErrorMessage(err)),
-  });
-  const renameProjectMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      projectsApi<{ project: ProjectSummary }>(`/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ name }),
-      }),
-    onSuccess: () => {
-      setRenameProject(null);
-      setRenameWorkspaceValue('');
-      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-    },
-    onError: (err) => addSystemError(getApiErrorMessage(err)),
-  });
   const deleteProjectMutation = useMutation({
     mutationFn: (project: ProjectSummary) =>
       projectsApi(`/${project.id}`, {
@@ -1281,7 +1144,6 @@ export function ThreadSidebar() {
                 void navigate({
                   to: '/projects/$projectId',
                   params: { projectId },
-                  search: { tab: 'general' },
                 })
               }
               onOpenArchivedDetail={openArchivedDetail}
@@ -1317,25 +1179,6 @@ export function ThreadSidebar() {
                 setRenameResourceValue(resource.name);
               }}
               onDeleteResource={setDeleteResource}
-              onManageWorkspaces={(group) =>
-                group.projectId && setManageProjectId(group.projectId)
-              }
-              onManageParticipants={(group) => {
-                if (group.projectId) setParticipantProjectId(group.projectId);
-              }}
-              onRenameProject={(group) => {
-                if (!group.projectId) return;
-                setRenameProject({
-                  id: group.projectId,
-                  name: group.name ?? group.cwd,
-                  workspacePath: group.cwd,
-                  createdAt: 0,
-                  updatedAt: 0,
-                  workspaces: group.workspaces ?? [],
-                  resources: group.resources ?? [],
-                });
-                setRenameWorkspaceValue(group.name ?? '');
-              }}
               onDeleteProject={(group) => {
                 if (!group.projectId) return;
                 setDeleteProjectError('');
@@ -1423,37 +1266,6 @@ export function ThreadSidebar() {
           setCreateProjectPathCustomized(false);
         }}
       />
-      <ProjectParticipantsDialog
-        projectId={participantProjectId}
-        onClose={() => setParticipantProjectId(null)}
-      />
-      <ManageWorkspacesDialog
-        project={workspaceProject ? null : managedProject}
-        pending={
-          createWorkspace.isPending ||
-          setDefaultWorkspace.isPending ||
-          detachWorkspace.isPending
-        }
-        onClose={() => setManageProjectId(null)}
-        onAdd={(project) => setWorkspaceProject(project)}
-        onSetDefault={(project, workspaceId) =>
-          setDefaultWorkspace.mutate({ projectId: project.id, workspaceId })
-        }
-        onDetach={(project, workspaceId) =>
-          detachWorkspace.mutate({ projectId: project.id, workspaceId })
-        }
-      />
-      <DirectoryPickerDialog
-        open={workspaceProject !== null}
-        onClose={() => setWorkspaceProject(null)}
-        onSelect={(path) => {
-          if (workspaceProject)
-            createWorkspace.mutate({
-              projectId: workspaceProject.id,
-              path,
-            });
-        }}
-      />
       <AlertDialog
         open={pendingConversation !== null}
         onOpenChange={(open) => !open && setPendingConversation(null)}
@@ -1507,24 +1319,6 @@ export function ThreadSidebar() {
         }}
         onClose={() => setRenameResource(null)}
         title={t('Rename task manager')}
-      />
-      <RenameDialog
-        open={renameProject !== null}
-        pending={renameProjectMutation.isPending}
-        value={renameWorkspaceValue}
-        onChange={setRenameWorkspaceValue}
-        onSave={() => {
-          if (renameProject && renameWorkspaceValue.trim())
-            renameProjectMutation.mutate({
-              id: renameProject.id,
-              name: renameWorkspaceValue.trim(),
-            });
-        }}
-        onClose={() => setRenameProject(null)}
-        title={t('Rename project')}
-        description={t(
-          'The project name changes without renaming its workspace folder.',
-        )}
       />
       <AlertDialog
         open={deleteResource !== null}

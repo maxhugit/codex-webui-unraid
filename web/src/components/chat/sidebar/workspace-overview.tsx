@@ -7,9 +7,6 @@ import {
   Eye,
   MessageCircle,
   MoreHorizontal,
-  Pencil,
-  FolderCog,
-  Users,
   ListTodo,
   Zap,
   Trash2,
@@ -70,9 +67,6 @@ interface Props {
   resourceActionPending: boolean;
   onRenameResource: (resource: ProjectResourceSummary) => void;
   onDeleteResource: (resource: ProjectResourceSummary) => void;
-  onManageWorkspaces?: (group: WorkspaceGroup) => void;
-  onManageParticipants?: (group: WorkspaceGroup) => void;
-  onRenameProject?: (group: WorkspaceGroup) => void;
   onDeleteProject?: (group: WorkspaceGroup) => void;
   renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
   renderSimpleChatRow: (
@@ -101,9 +95,6 @@ export function WorkspaceOverview({
   resourceActionPending,
   onRenameResource,
   onDeleteResource,
-  onManageWorkspaces,
-  onManageParticipants,
-  onRenameProject,
   onDeleteProject,
   renderThreadRow,
   renderSimpleChatRow,
@@ -301,39 +292,6 @@ export function WorkspaceOverview({
                         Automatisations
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      className="h-8 w-full justify-start gap-2 px-2 text-xs"
-                      onClick={() => {
-                        setOpenMenu(null);
-                        onManageWorkspaces?.(group);
-                      }}
-                    >
-                      <FolderCog className="h-3.5 w-3.5" />
-                      {t('Manage workspaces')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="h-8 w-full justify-start gap-2 px-2 text-xs"
-                      onClick={() => {
-                        setOpenMenu(null);
-                        onManageParticipants?.(group);
-                      }}
-                    >
-                      <Users className="h-3.5 w-3.5" />
-                      {t('Manage participants')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="h-8 w-full justify-start gap-2 px-2 text-xs"
-                      onClick={() => {
-                        setOpenMenu(null);
-                        onRenameProject?.(group);
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      {t('Rename project')}
-                    </Button>
                     <Button
                       variant="ghost"
                       className="h-8 w-full justify-start gap-2 px-2 text-xs text-destructive hover:text-destructive"

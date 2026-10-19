@@ -19,7 +19,7 @@ import { TerminalRoute } from './terminal-route';
 import { DiagnosticsRoute } from './diagnostics-route';
 import { SimpleChatRoute } from './simple-chat-route';
 import { ProjectResourceRoute } from './project-resource-route';
-import { ProjectRoute, type ProjectTab } from './project-route';
+import { ProjectRoute } from './project-route';
 import { SettingsPage } from '@/components/settings/settings-page';
 import {
   SETTINGS_SECTIONS,
@@ -149,9 +149,6 @@ const projectResourceRoute = createRoute({
 const projectRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/projects/$projectId',
-  validateSearch: (search: Record<string, unknown>): { tab: ProjectTab } => ({
-    tab: search.tab === 'administration' ? 'administration' : 'general',
-  }),
   component: ProjectRoute,
 });
 
