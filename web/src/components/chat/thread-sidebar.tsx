@@ -140,6 +140,10 @@ export function ThreadSidebar() {
         /\/projects\/[^/]+\/resources\/([^/]+)/,
       )?.[1],
   });
+  const activeProjectId = useRouterState({
+    select: (state) =>
+      state.location.pathname.match(/\/projects\/([^/]+)/)?.[1],
+  });
   const { t } = useTranslation();
   const threadId = useTimelineStore((s) => s.threadId);
   const threadMode = useTimelineStore((s) => s.threadMode);
@@ -1273,6 +1277,13 @@ export function ThreadSidebar() {
                 overviewArchivedQuery.isLoading
               }
               onToggleCollapse={toggleCollapsedGroup}
+              onOpenProject={(projectId) =>
+                void navigate({
+                  to: '/projects/$projectId',
+                  params: { projectId },
+                  search: { tab: 'general' },
+                })
+              }
               onOpenArchivedDetail={openArchivedDetail}
               onOpenWorkspaceDetail={openWorkspaceDetail}
               onCreateAgentInWorkspace={(group) =>
@@ -1295,6 +1306,7 @@ export function ThreadSidebar() {
                 })
               }
               activeResourceId={activeResourceId}
+              activeProjectId={activeProjectId}
               resourceActionPending={
                 renameProjectResource.isPending ||
                 moveProjectResource.isPending ||

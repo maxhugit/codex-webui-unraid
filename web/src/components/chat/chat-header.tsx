@@ -49,6 +49,7 @@ import { AccountRateLimitBadge } from './account-rate-limit-badge';
 import { McpStatusBadge } from './mcp-status-badge';
 import { usePlatformSession } from '@/lib/platform-session';
 import { ProjectResourceHeader } from '@/components/projects/project-resource-header';
+import { ProjectHeader } from '@/components/projects/project-header';
 
 /** Mobile overflow menu — closes after each action. */
 function MobileOverflowMenu({
@@ -140,6 +141,7 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
   const resourceRoute = /^\/projects\/([^/]+)\/resources\/([^/]+)\/?$/.exec(
     pathname,
   );
+  const projectRoute = /^\/projects\/([^/]+)\/?$/.exec(pathname);
   const simpleChatThreadId = useRouterState({
     select: (s) =>
       s.location.pathname.startsWith('/simple-chat')
@@ -357,6 +359,8 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
               projectId={resourceRoute[1]}
               resourceId={resourceRoute[2]}
             />
+          ) : projectRoute ? (
+            <ProjectHeader projectId={projectRoute[1]} />
           ) : simpleChatTitle ? (
             <h1
               className="truncate text-sm font-semibold tracking-tight"

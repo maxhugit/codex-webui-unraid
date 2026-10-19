@@ -26,6 +26,7 @@ describe('WorkspaceOverview creation menu', () => {
           collapsedGroups={new Set()}
           isLoading={false}
           onToggleCollapse={vi.fn()}
+          onOpenProject={vi.fn()}
           onOpenArchivedDetail={vi.fn()}
           onOpenWorkspaceDetail={vi.fn()}
           onCreateAgentInWorkspace={createAgent}
@@ -67,5 +68,52 @@ describe('WorkspaceOverview creation menu', () => {
     ).toHaveBeenCalledWith(
       expect.objectContaining({ cwd: '/workspaces/Unraid' }),
     );
+  });
+
+  it('opens the project page without changing its collapsed state', async () => {
+    const user = userEvent.setup();
+    const openProject = vi.fn();
+    const toggleCollapse = vi.fn();
+
+    render(
+      <DragDropProvider>
+        <WorkspaceOverview
+          projectsHeader={<h2>Projects</h2>}
+          archivedThreads={[]}
+          workspaceGroups={[
+            {
+              cwd: '/workspaces/Tests',
+              projectId: 'project-1',
+              name: 'Tests',
+              threads: [],
+              simpleChats: [],
+            },
+          ]}
+          collapsedGroups={new Set()}
+          isLoading={false}
+          onToggleCollapse={toggleCollapse}
+          onOpenProject={openProject}
+          onOpenArchivedDetail={vi.fn()}
+          onOpenWorkspaceDetail={vi.fn()}
+          onCreateAgentInWorkspace={vi.fn()}
+          onCreateSimpleChatInWorkspace={vi.fn()}
+          onCreateTaskBoard={vi.fn()}
+          onOpenResource={vi.fn()}
+          resourceActionPending={false}
+          onRenameResource={vi.fn()}
+          onDeleteResource={vi.fn()}
+          renderThreadRow={() => null}
+          renderSimpleChatRow={() => null}
+          movingThread={false}
+        />
+      </DragDropProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Tests' }));
+    expect(openProject).toHaveBeenCalledWith('project-1');
+    expect(toggleCollapse).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Collapse project' }));
+    expect(toggleCollapse).toHaveBeenCalledWith('/workspaces/Tests');
   });
 });

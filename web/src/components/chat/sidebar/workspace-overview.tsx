@@ -57,6 +57,7 @@ interface Props {
   collapsedGroups: Set<string>;
   isLoading: boolean;
   onToggleCollapse: (key: string) => void;
+  onOpenProject: (projectId: string) => void;
   onOpenArchivedDetail: () => void;
   onOpenWorkspaceDetail: (cwd: string) => void;
   onCreateAgentInWorkspace: (group: WorkspaceGroup) => void;
@@ -65,6 +66,7 @@ interface Props {
   onCreateAutomationBoard?: (group: WorkspaceGroup) => void;
   onOpenResource: (projectId: string, resourceId: string) => void;
   activeResourceId?: string;
+  activeProjectId?: string;
   resourceActionPending: boolean;
   onRenameResource: (resource: ProjectResourceSummary) => void;
   onDeleteResource: (resource: ProjectResourceSummary) => void;
@@ -86,6 +88,7 @@ export function WorkspaceOverview({
   collapsedGroups,
   isLoading,
   onToggleCollapse,
+  onOpenProject,
   onOpenArchivedDetail,
   onOpenWorkspaceDetail,
   onCreateAgentInWorkspace,
@@ -94,6 +97,7 @@ export function WorkspaceOverview({
   onCreateAutomationBoard,
   onOpenResource,
   activeResourceId,
+  activeProjectId,
   resourceActionPending,
   onRenameResource,
   onDeleteResource,
@@ -197,19 +201,35 @@ export function WorkspaceOverview({
             disabled={movingThread}
           >
             <div
-              className="mb-0.5 flex items-center gap-1 px-2"
+              className={cn(
+                'mb-0.5 flex items-center gap-1 rounded-lg px-2',
+                group.projectId === activeProjectId && 'bg-accent',
+              )}
               title={group.cwd}
             >
               <button
                 type="button"
-                className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-sm font-medium text-foreground/80 hover:text-foreground"
+                className="flex h-7 shrink-0 cursor-pointer items-center text-muted-foreground hover:text-foreground"
                 onClick={() => onToggleCollapse(group.cwd)}
+                aria-label={
+                  collapsed ? t('Expand project') : t('Collapse project')
+                }
               >
                 {collapsed ? (
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform" />
                 ) : (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform" />
                 )}
+              </button>
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left text-sm font-medium text-foreground/80 hover:text-foreground"
+                onClick={() =>
+                  group.projectId
+                    ? onOpenProject(group.projectId)
+                    : onToggleCollapse(group.cwd)
+                }
+              >
                 <span className="truncate">
                   {group.name ?? workspaceLabel(group.cwd)}
                 </span>
