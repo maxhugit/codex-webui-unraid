@@ -316,6 +316,10 @@ export const projects = sqliteTable(
       .$type<string[]>()
       .notNull()
       .default([]),
+    appIds: text('app_ids', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },

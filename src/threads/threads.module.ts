@@ -27,6 +27,7 @@ import { ThreadsService } from './threads.service';
 import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 import { WorkspacesManagementController } from './workspaces-management.controller';
 import { WorkspacesManagementService } from './workspaces-management.service';
+import { ProjectConnectionPolicyService } from './project-connection-policy.service';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { WorkspacesManagementService } from './workspaces-management.service';
     ThreadWorkspaceOverridesService,
     AutoResumeService,
     WorkspacesManagementService,
+    ProjectConnectionPolicyService,
   ],
   exports: [
     ThreadsService,

@@ -190,6 +190,13 @@
       "when": 1792447997412,
       "tag": "0026_perpetual_piledriver",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1792450933057,
+      "tag": "0027_dry_molly_hayes",
+      "breakpoints": true
     }
   ]
 }

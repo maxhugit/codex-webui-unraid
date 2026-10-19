@@ -8,6 +8,7 @@ export interface ProjectSummary {
   createdAt: number;
   updatedAt: number;
   mcpServerIds?: string[];
+  appIds?: string[];
   workspaces: ProjectWorkspaceSummary[];
   resources: ProjectResourceSummary[];
   agentThreads?: Array<{

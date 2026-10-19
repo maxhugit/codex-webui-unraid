@@ -69,7 +69,23 @@ réservées aux administrateurs dans ce premier lot. Les standards peuvent utili
 le chat simple et gérer les tâches manuelles. Leurs appels directs d’exécution
 sont refusés côté REST et WebSocket, pas seulement masqués par l’interface.
 Ce contrôle de rôles ne remplace pas une future isolation système des agents,
-ni une gestion d’autorisations par projet.
+ni une isolation des fichiers et des commandes par projet.
+
+## Applications et MCP par projet
+
+La fenêtre **Paramètres du projet > Connecteurs MCP** contient deux listes :
+les serveurs MCP puis les applications Codex. Chaque entrée est simplement
+active ou inactive pour le projet. Les applications indisponibles ou désactivées
+dans la configuration globale restent visibles mais ne peuvent pas être activées.
+
+Les sélections sont conservées dans la base WebUI. À la création d’une
+conversation dont le workspace appartient au projet, le backend ajoute une
+couche `config` à `thread/start`. Les applications sont refusées par défaut et
+seuls les identifiants sélectionnés sont activés. Chaque serveur MCP connu est
+également activé ou désactivé, y compris les MCP fournis par un plugin. Cette
+couche ne modifie pas le fichier `config.toml` global et ne contient aucun secret
+OAuth. Elle s’applique aux nouvelles conversations ; une conversation déjà
+chargée conserve la configuration avec laquelle elle a été démarrée.
 
 Une désactivation ou un changement de rôle déconnecte les sockets de la personne.
 Le navigateur revérifie aussi périodiquement son identité. Le dernier

@@ -47,6 +47,7 @@ import {
 } from '../turn-errors/turn-error-projection';
 import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 import { ThreadMetadataService } from './thread-metadata.service';
+import { ProjectConnectionPolicyService } from './project-connection-policy.service';
 
 /** Maximum ancestors walked when a fork chain is not locally tracked. */
 const MAX_FORK_CHAIN_WALK = 32;
@@ -75,6 +76,7 @@ export class ThreadsService {
     private readonly overview: ThreadsOverviewService,
     private readonly workspaceOverrides: ThreadWorkspaceOverridesService,
     private readonly metadata: ThreadMetadataService,
+    private readonly projectConnections: ProjectConnectionPolicyService,
   ) {}
 
   /**
@@ -86,8 +88,14 @@ export class ThreadsService {
   async startThread(
     params: v2.ThreadStartParams,
   ): Promise<v2.ThreadStartResponse> {
+    const connectionConfig = await this.projectConnections.configForCwd(
+      params.cwd,
+    );
     const requestParams: ExperimentalThreadStartParams = {
       ...params,
+      ...(connectionConfig
+        ? { config: { ...(params.config ?? {}), ...connectionConfig } }
+        : {}),
       historyMode: REQUIRED_HISTORY_MODE,
     };
     const settingsGeneration = this.resumeRegistry.getGeneration();
