@@ -182,6 +182,34 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     return { ...project, mcpServerIds, updatedAt };
   }
 
+  configureApps(projectId: string, ids: unknown, actor?: ProjectActivityActor) {
+    const project = this.get(projectId);
+    if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string'))
+      throw new BadRequestException('Invalid app selection');
+    const stringIds = ids as string[];
+    const appIds = [
+      ...new Set(stringIds.map((id) => id.trim()).filter(Boolean)),
+    ];
+    if (appIds.length > 100 || appIds.some((id) => id.length > 160))
+      throw new BadRequestException('Invalid app selection');
+    const updatedAt = Date.now();
+    this.db
+      .update(projects)
+      .set({ appIds, updatedAt })
+      .where(eq(projects.id, projectId))
+      .run();
+    this.recordActivity(
+      projectId,
+      'app_configuration_updated',
+      'app',
+      null,
+      'Applications',
+      { before: project.appIds, after: appIds },
+      actor,
+    );
+    return { ...project, appIds, updatedAt };
+  }
+
   listPeople() {
     return this.db
       .select()
@@ -841,6 +869,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       name,
       workspacePath,
       mcpServerIds: [],
+      appIds: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -1771,8 +1800,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       .get();
     const config = resource?.config as Record<string, unknown> | undefined;
     const board = config?.taskBoardSettings as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const configured = Array.isArray(board?.priorityOptions)
       ? board.priorityOptions
           .map((value) =>

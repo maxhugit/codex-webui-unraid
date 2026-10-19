@@ -1,0 +1,67 @@
+import type { CodexService } from '../codex/codex.service';
+import type { AppDatabase } from '../database/database.constants';
+import { ProjectConnectionPolicyService } from './project-connection-policy.service';
+
+function databaseReturning(...rows: unknown[]): AppDatabase {
+  let index = 0;
+  return {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({ get: vi.fn(() => rows[index++]) })),
+      })),
+    })),
+  } as unknown as AppDatabase;
+}
+
+describe('ProjectConnectionPolicyService', () => {
+  it('builds deny-by-default app and MCP overrides for the owning project', async () => {
+    const request = vi.fn((method: string) => {
+      if (method === 'app/list') {
+        return Promise.resolve({
+          data: [
+            { id: 'gmail', isAccessible: true, isEnabled: true },
+            { id: 'github', isAccessible: true, isEnabled: true },
+          ],
+          nextCursor: null,
+        });
+      }
+      return Promise.resolve({
+        data: [
+          { name: 'unraid', pluginId: null },
+          { name: 'drive', pluginId: 'google' },
+        ],
+        nextCursor: null,
+      });
+    });
+    const service = new ProjectConnectionPolicyService(
+      { request } as unknown as CodexService,
+      databaseReturning(
+        { projectId: 'project-1' },
+        { appIds: ['gmail'], mcpServerIds: ['unraid'] },
+      ),
+    );
+
+    await expect(service.configForCwd('/workspaces/mail')).resolves.toEqual({
+      apps: {
+        _default: { enabled: false },
+        gmail: { enabled: true },
+        github: { enabled: false },
+      },
+      mcp_servers: { unraid: { enabled: true } },
+      plugins: {
+        google: { mcp_servers: { drive: { enabled: false } } },
+      },
+    });
+  });
+
+  it('does not add overrides outside a project workspace', async () => {
+    const request = vi.fn();
+    const service = new ProjectConnectionPolicyService(
+      { request } as unknown as CodexService,
+      databaseReturning(undefined),
+    );
+
+    await expect(service.configForCwd('/tmp')).resolves.toBeNull();
+    expect(request).not.toHaveBeenCalled();
+  });
+});

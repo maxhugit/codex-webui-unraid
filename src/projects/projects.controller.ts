@@ -172,6 +172,21 @@ export class ProjectsController {
     };
   }
 
+  @Patch(':id/apps')
+  configureApps(
+    @Param('id') id: string,
+    @Body() body: { ids?: unknown },
+    @Req() request: IdentityRequest,
+  ) {
+    return {
+      project: this.projects.configureApps(
+        id,
+        body.ids,
+        activityActor(request),
+      ),
+    };
+  }
+
   @Post(':id/workspaces')
   async createWorkspace(
     @Param('id') id: string,

@@ -258,6 +258,7 @@ function ProjectJournal({
     resource_moved_out: 'Resource moved to another project',
     resource_moved_in: 'Resource moved into the project',
     mcp_configuration_updated: 'MCP connector configuration updated',
+    app_configuration_updated: 'App configuration updated',
   };
   if (pending)
     return <p className="text-sm text-muted-foreground">{t('Loading…')}</p>;

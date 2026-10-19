@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `app_ids` text DEFAULT '[]' NOT NULL;

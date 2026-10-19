@@ -11,6 +11,7 @@ import { ThreadHistoryService } from './thread-history.service';
 import { ThreadsOverviewService } from './threads-overview.service';
 import { ThreadMetadataService } from './thread-metadata.service';
 import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
+import { ProjectConnectionPolicyService } from './project-connection-policy.service';
 
 /** Branch state as the local-only service reports it for an untracked thread. */
 function localBranchState(threadId: string) {
@@ -69,6 +70,9 @@ describe('ThreadsService', () => {
     get: vi.fn(),
     setMany: vi.fn(),
   };
+  const mockProjectConnections = {
+    configForCwd: vi.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -93,6 +97,10 @@ describe('ThreadsService', () => {
           provide: ThreadWorkspaceOverridesService,
           useValue: mockWorkspaceOverrides,
         },
+        {
+          provide: ProjectConnectionPolicyService,
+          useValue: mockProjectConnections,
+        },
       ],
     }).compile();
 
@@ -107,6 +115,8 @@ describe('ThreadsService', () => {
     mockOverview.listOverview.mockReset();
     Object.values(mockMetadata).forEach((mock) => mock.mockReset());
     Object.values(mockWorkspaceOverrides).forEach((mock) => mock.mockReset());
+    mockProjectConnections.configForCwd.mockReset();
+    mockProjectConnections.configForCwd.mockResolvedValue(null);
     mockBranches.hasKnownDescendants.mockReturnValue(false);
     mockBranches.hasForkEdge.mockReturnValue(false);
     mockBranches.listKnownTreeThreadIds.mockImplementation(
@@ -134,6 +144,31 @@ describe('ThreadsService', () => {
     expect(mockMetadata.publishStartedThread).toHaveBeenCalledWith(
       response.thread,
     );
+  });
+
+  it('applies the owning project connection policy to a new thread', async () => {
+    const response = {
+      thread: { id: 't1', historyMode: 'paginated' },
+      model: 'gpt-4',
+    };
+    mockProjectConnections.configForCwd.mockResolvedValue({
+      apps: { _default: { enabled: false }, gmail: { enabled: true } },
+    });
+    mockCodex.request.mockResolvedValue(response);
+
+    await service.startThread({
+      cwd: '/workspaces/mail',
+      config: { web_search: 'cached' },
+    });
+
+    expect(mockCodex.request).toHaveBeenCalledWith('thread/start', {
+      cwd: '/workspaces/mail',
+      config: {
+        web_search: 'cached',
+        apps: { _default: { enabled: false }, gmail: { enabled: true } },
+      },
+      historyMode: 'paginated',
+    });
   });
 
   it('deletes a new thread when paginated history is not confirmed', async () => {

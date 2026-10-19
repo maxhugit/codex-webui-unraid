@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
+  Boxes,
   Folder,
   FolderCog,
   FolderPlus,
@@ -28,8 +29,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { mcpServersListServers } from '@/generated/api';
-import { mcpServersListServersQueryKey } from '@/generated/api/@tanstack/react-query.gen';
+import { appsListApps, mcpServersListServers } from '@/generated/api';
+import {
+  appsListAppsQueryKey,
+  mcpServersListServersQueryKey,
+} from '@/generated/api/@tanstack/react-query.gen';
+import type { AppInfoDto } from '@/generated/api/types.gen';
 import {
   projectsApi,
   projectsQueryKey,
@@ -58,6 +63,7 @@ export function ProjectSettingsDialog({
   const [mcpServerIds, setMcpServerIds] = useState<string[]>(
     project.mcpServerIds ?? [],
   );
+  const [appIds, setAppIds] = useState<string[]>(project.appIds ?? []);
   const mcpServers = useQuery({
     queryKey: mcpServersListServersQueryKey({
       query: { detail: 'toolsAndAuthOnly' },
@@ -68,6 +74,17 @@ export function ProjectSettingsDialog({
         throwOnError: true,
       });
       return (data?.data ?? []) as unknown as McpServerStatus[];
+    },
+    enabled: section === 'mcps',
+  });
+  const apps = useQuery({
+    queryKey: appsListAppsQueryKey({ query: { limit: 100 } }),
+    queryFn: async () => {
+      const { data } = await appsListApps({
+        query: { limit: 100 },
+        throwOnError: true,
+      });
+      return (data?.data ?? []) as AppInfoDto[];
     },
     enabled: section === 'mcps',
   });
@@ -127,12 +144,22 @@ export function ProjectSettingsDialog({
     onSuccess: refresh,
     onError: fail,
   });
+  const saveApps = useMutation({
+    mutationFn: (ids: string[]) =>
+      projectsApi(`/${project.id}/apps`, {
+        method: 'PATCH',
+        body: JSON.stringify({ ids }),
+      }),
+    onSuccess: refresh,
+    onError: fail,
+  });
   const pending =
     rename.isPending ||
     addWorkspace.isPending ||
     setDefaultWorkspace.isPending ||
     detachWorkspace.isPending ||
-    saveMcpServers.isPending;
+    saveMcpServers.isPending ||
+    saveApps.isPending;
 
   const tabs: Array<{ id: Section; label: string; icon: typeof Settings }> = [
     { id: 'general', label: t('General settings'), icon: Settings },
@@ -321,78 +348,160 @@ export function ProjectSettingsDialog({
               <PeopleManager projectId={project.id} />
             )}
             {section === 'mcps' && (
-              <section className="space-y-4">
-                <div>
-                  <h3 className="font-semibold">{t('MCP connectors')}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t(
-                      'Choose which MCP connectors can be used inside this project.',
-                    )}
-                  </p>
-                </div>
-                {mcpServers.isPending ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('Loading…')}
+              <section className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold">{t('MCP connectors')}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {t(
+                        'Choose which MCP connectors can be used inside this project.',
+                      )}
+                    </p>
                   </div>
-                ) : mcpServers.isError ? (
-                  <p className="text-sm text-destructive">
-                    {t('Failed to load MCP servers')}
-                  </p>
-                ) : mcpServers.data.length === 0 ? (
-                  <p className="rounded-lg border p-4 text-sm text-muted-foreground">
-                    {t('No MCP connector is configured on the server.')}
-                  </p>
-                ) : (
-                  <div className="divide-y rounded-lg border">
-                    {mcpServers.data.map((server) => {
-                      const enabled = mcpServerIds.includes(server.name);
-                      return (
-                        <label
-                          key={server.name}
-                          className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-accent/40"
-                        >
-                          <Plug className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium">
-                              {server.name}
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              {t('{{count}} available tools', {
-                                count: Object.keys(server.tools ?? {}).length,
-                              })}
-                            </span>
-                          </span>
-                          <Switch
-                            checked={enabled}
-                            onCheckedChange={(checked) =>
-                              setMcpServerIds((current) =>
-                                checked
-                                  ? [...new Set([...current, server.name])]
-                                  : current.filter(
-                                      (name) => name !== server.name,
-                                    ),
-                              )
-                            }
-                            aria-label={server.name}
-                          />
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="flex justify-end">
-                  <Button
-                    disabled={pending || mcpServers.isPending}
-                    onClick={() => saveMcpServers.mutate(mcpServerIds)}
-                  >
-                    {saveMcpServers.isPending ? (
+                  {mcpServers.isPending ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    {t('Save')}
-                  </Button>
+                      {t('Loading…')}
+                    </div>
+                  ) : mcpServers.isError ? (
+                    <p className="text-sm text-destructive">
+                      {t('Failed to load MCP servers')}
+                    </p>
+                  ) : mcpServers.data.length === 0 ? (
+                    <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+                      {t('No MCP connector is configured on the server.')}
+                    </p>
+                  ) : (
+                    <div className="divide-y rounded-lg border">
+                      {mcpServers.data.map((server) => {
+                        const enabled = mcpServerIds.includes(server.name);
+                        return (
+                          <label
+                            key={server.name}
+                            className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-accent/40"
+                          >
+                            <Plug className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium">
+                                {server.name}
+                              </span>
+                              <span className="block text-xs text-muted-foreground">
+                                {t('{{count}} available tools', {
+                                  count: Object.keys(server.tools ?? {}).length,
+                                })}
+                              </span>
+                            </span>
+                            <Switch
+                              checked={enabled}
+                              onCheckedChange={(checked) =>
+                                setMcpServerIds((current) =>
+                                  checked
+                                    ? [...new Set([...current, server.name])]
+                                    : current.filter(
+                                        (name) => name !== server.name,
+                                      ),
+                                )
+                              }
+                              aria-label={server.name}
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button
+                      disabled={pending || mcpServers.isPending}
+                      onClick={() => saveMcpServers.mutate(mcpServerIds)}
+                    >
+                      {saveMcpServers.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      {t('Save')}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-4 border-t pt-6">
+                  <div>
+                    <h3 className="font-semibold">{t('Applications')}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {t(
+                        'Choose which Codex applications can be used inside this project.',
+                      )}
+                    </p>
+                  </div>
+                  {apps.isPending ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {t('Loading…')}
+                    </div>
+                  ) : apps.isError ? (
+                    <p className="text-sm text-destructive">
+                      {t('Failed to load apps')}
+                    </p>
+                  ) : apps.data.length === 0 ? (
+                    <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+                      {t('No apps available')}
+                    </p>
+                  ) : (
+                    <div className="divide-y rounded-lg border">
+                      {apps.data.map((app) => {
+                        const enabled = appIds.includes(app.id);
+                        const available = app.isAccessible && app.isEnabled;
+                        return (
+                          <label
+                            key={app.id}
+                            className={cn(
+                              'flex items-center gap-3 px-4 py-3',
+                              available
+                                ? 'cursor-pointer hover:bg-accent/40'
+                                : 'cursor-not-allowed opacity-60',
+                            )}
+                          >
+                            <Boxes className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium">
+                                {app.name}
+                              </span>
+                              <span className="block text-xs text-muted-foreground">
+                                {available
+                                  ? app.description || t('Available')
+                                  : t('App unavailable or globally disabled')}
+                              </span>
+                            </span>
+                            <Switch
+                              checked={enabled}
+                              disabled={!available}
+                              onCheckedChange={(checked) =>
+                                setAppIds((current) =>
+                                  checked
+                                    ? [...new Set([...current, app.id])]
+                                    : current.filter((id) => id !== app.id),
+                                )
+                              }
+                              aria-label={app.name}
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button
+                      disabled={pending || apps.isPending}
+                      onClick={() => saveApps.mutate(appIds)}
+                    >
+                      {saveApps.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      {t('Save')}
+                    </Button>
+                  </div>
                 </div>
               </section>
             )}
