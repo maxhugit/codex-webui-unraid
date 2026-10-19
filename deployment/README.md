@@ -3,6 +3,11 @@
 Ce dossier contient la définition reproductible des trois conteneurs de la
 plateforme Codex : application, passerelle Nginx et proxy de sortie Squid.
 
+Un quatrième service **optionnel et réservé à la qualification** est décrit
+dans `compose.standard-worker.yml`. Voir
+[`Moteur standard et retour arrière`](../docs/moteur-standard.md).
+Il n'ouvre pas encore l'exécution d'agents aux utilisateurs standards.
+
 La documentation complète commence dans
 [`docs/README.md`](../docs/README.md). La procédure pas à pas se trouve dans
 [`docs/installation-unraid.md`](../docs/installation-unraid.md).

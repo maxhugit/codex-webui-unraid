@@ -15,6 +15,8 @@ dans cet ordre :
 
 - [Contribuer au projet](../CONTRIBUTING.md)
 - [Interface Web](../web/README.md)
+- [Prototype d’isolation Bubblewrap, MCP coupé](prototype-isolation-bubblewrap.md)
+- [Moteur standard séparé : qualification et retour arrière](moteur-standard.md)
 - notes internes sur les conversations, les espaces de travail et le protocole
   Codex présentes dans ce dossier.
 
@@ -22,4 +24,3 @@ Le sous-dossier `upstream/` contient une copie figée de documents officiels
 Codex correspondant à la version utilisée. Ces fichiers sont volontairement
 conservés dans leur langue d’origine et ne sont pas nécessaires à
 l’installation. Toutes les procédures propres à ce dépôt sont en français.
-
