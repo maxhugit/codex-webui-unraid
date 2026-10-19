@@ -7,6 +7,7 @@ export interface ProjectSummary {
   workspacePath: string;
   createdAt: number;
   updatedAt: number;
+  mcpServerIds?: string[];
   workspaces: ProjectWorkspaceSummary[];
   resources: ProjectResourceSummary[];
   agentThreads?: Array<{
@@ -19,6 +20,19 @@ export interface ProjectSummary {
     taskTitle: string | null;
     isSubtask: boolean;
   }>;
+}
+
+export interface ProjectActivitySummary {
+  id: string;
+  projectId: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  label: string;
+  details: Record<string, unknown>;
+  actorPersonId: string | null;
+  actorName: string;
+  createdAt: number;
 }
 
 export interface ProjectResourceSummary {

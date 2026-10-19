@@ -12,6 +12,14 @@ import {
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import type { IdentityRequest } from '../auth/platform-access.guard';
+import type { ProjectActivityActor } from './projects.service';
+
+function activityActor(request: IdentityRequest): ProjectActivityActor {
+  return {
+    personId: request.platformIdentity?.personId ?? null,
+    name: request.platformIdentity?.name ?? 'Système',
+  };
+}
 
 @Controller('projects')
 export class ProjectsController {
@@ -52,17 +60,53 @@ export class ProjectsController {
     return { participants: this.projects.participants(id) };
   }
 
+  @Get(':id/activity')
+  activity(@Param('id') id: string) {
+    return { activity: this.projects.activity(id) };
+  }
+
   @Post(':id/participants')
-  addParticipant(@Param('id') id: string, @Body() body: { personId: string }) {
-    return this.projects.addParticipant(id, body.personId);
+  addParticipant(
+    @Param('id') id: string,
+    @Body() body: { personId: string },
+    @Req() request: IdentityRequest,
+  ) {
+    const result = this.projects.addParticipant(id, body.personId);
+    const person = this.projects
+      .listPeople()
+      .find((item) => item.id === body.personId);
+    this.projects.recordActivity(
+      id,
+      'participant_added',
+      'participant',
+      body.personId,
+      person?.name ?? 'Participant',
+      {},
+      activityActor(request),
+    );
+    return result;
   }
 
   @Delete(':id/participants/:personId')
   removeParticipant(
     @Param('id') id: string,
     @Param('personId') personId: string,
+    @Req() request: IdentityRequest,
   ) {
-    return this.projects.removeParticipant(id, personId);
+    const person = this.projects
+      .listPeople()
+      .find((item) => item.id === personId);
+    const result = this.projects.removeParticipant(id, personId);
+    this.projects.recordActivity(
+      id,
+      'participant_removed',
+      'participant',
+      personId,
+      person?.name ?? 'Participant',
+      {},
+      activityActor(request),
+    );
+    return result;
   }
 
   @Get('dashboard')
@@ -76,33 +120,94 @@ export class ProjectsController {
   }
 
   @Post()
-  async create(@Body() body: { name: string; workspacePath?: string }) {
-    return {
-      project: await this.projects.create(body.name, body.workspacePath),
-    };
+  async create(
+    @Body() body: { name: string; workspacePath?: string },
+    @Req() request: IdentityRequest,
+  ) {
+    const project = await this.projects.create(body.name, body.workspacePath);
+    this.projects.recordActivity(
+      project.id,
+      'project_created',
+      'project',
+      project.id,
+      project.name,
+      { workspacePath: project.workspacePath },
+      activityActor(request),
+    );
+    return { project };
   }
 
   @Patch(':id')
-  rename(@Param('id') id: string, @Body() body: { name: string }) {
-    return { project: this.projects.rename(id, body.name) };
+  rename(
+    @Param('id') id: string,
+    @Body() body: { name: string },
+    @Req() request: IdentityRequest,
+  ) {
+    const before = this.projects.get(id);
+    const project = this.projects.rename(id, body.name);
+    this.projects.recordActivity(
+      id,
+      'project_renamed',
+      'project',
+      id,
+      project.name,
+      { before: before.name, after: project.name },
+      activityActor(request),
+    );
+    return { project };
+  }
+
+  @Patch(':id/mcp-servers')
+  configureMcpServers(
+    @Param('id') id: string,
+    @Body() body: { names?: unknown },
+    @Req() request: IdentityRequest,
+  ) {
+    return {
+      project: this.projects.configureMcpServers(
+        id,
+        body.names,
+        activityActor(request),
+      ),
+    };
   }
 
   @Post(':id/workspaces')
   async createWorkspace(
     @Param('id') id: string,
     @Body() body: { name?: string; path?: string },
+    @Req() request: IdentityRequest,
   ) {
-    return {
-      workspace: await this.projects.createWorkspace(id, body),
-    };
+    const workspace = await this.projects.createWorkspace(id, body);
+    this.projects.recordActivity(
+      id,
+      'workspace_added',
+      'workspace',
+      workspace.id,
+      workspace.name,
+      { path: workspace.path },
+      activityActor(request),
+    );
+    return { workspace };
   }
 
   @Post(':id/resources')
   createResource(
     @Param('id') id: string,
     @Body() body: { type: string; name?: string },
+    @Req() request: IdentityRequest,
   ) {
-    return { resource: this.projects.createResource(id, body) };
+    const resource = this.projects.createResource(id, body);
+    this.projects.recordActivity(
+      id,
+      'resource_created',
+      'resource',
+      resource.id,
+      resource.name,
+      { type: resource.type },
+      activityActor(request),
+    );
+    return { resource };
   }
 
   @Get(':id/resources/:resourceId')
@@ -293,9 +398,42 @@ export class ProjectsController {
       labelRenames?: Array<{ from: string; to: string }>;
       removedLabels?: string[];
     },
+    @Req() request: IdentityRequest,
   ) {
+    const before = this.projects.getResource(id, resourceId);
+    const resource = this.projects.updateResource(id, resourceId, body);
+    if (resource.projectId !== id) {
+      this.projects.recordActivity(
+        id,
+        'resource_moved_out',
+        'resource',
+        resourceId,
+        before.name,
+        { targetProjectId: resource.projectId },
+        activityActor(request),
+      );
+      this.projects.recordActivity(
+        resource.projectId,
+        'resource_moved_in',
+        'resource',
+        resourceId,
+        resource.name,
+        { sourceProjectId: id },
+        activityActor(request),
+      );
+    } else {
+      this.projects.recordActivity(
+        id,
+        'resource_updated',
+        'resource',
+        resourceId,
+        resource.name,
+        { beforeName: before.name, afterName: resource.name },
+        activityActor(request),
+      );
+    }
     return {
-      resource: this.projects.updateResource(id, resourceId, body),
+      resource,
     };
   }
 
@@ -303,24 +441,59 @@ export class ProjectsController {
   deleteResource(
     @Param('id') id: string,
     @Param('resourceId') resourceId: string,
+    @Req() request: IdentityRequest,
   ) {
-    return this.projects.deleteResource(id, resourceId);
+    const resource = this.projects.getResource(id, resourceId);
+    const result = this.projects.deleteResource(id, resourceId);
+    this.projects.recordActivity(
+      id,
+      'resource_deleted',
+      'resource',
+      resourceId,
+      resource.name,
+      { type: resource.type },
+      activityActor(request),
+    );
+    return result;
   }
 
   @Patch(':id/workspaces/:workspaceId/default')
   setDefaultWorkspace(
     @Param('id') id: string,
     @Param('workspaceId') workspaceId: string,
+    @Req() request: IdentityRequest,
   ) {
-    return { workspace: this.projects.setDefaultWorkspace(id, workspaceId) };
+    const workspace = this.projects.setDefaultWorkspace(id, workspaceId);
+    this.projects.recordActivity(
+      id,
+      'workspace_default_changed',
+      'workspace',
+      workspace.id,
+      workspace.name,
+      { path: workspace.path },
+      activityActor(request),
+    );
+    return { workspace };
   }
 
   @Delete(':id/workspaces/:workspaceId')
-  detachWorkspace(
+  async detachWorkspace(
     @Param('id') id: string,
     @Param('workspaceId') workspaceId: string,
+    @Req() request: IdentityRequest,
   ) {
-    return this.projects.detachWorkspace(id, workspaceId);
+    const workspace = this.projects.getWorkspace(id, workspaceId);
+    const result = await this.projects.detachWorkspace(id, workspaceId);
+    this.projects.recordActivity(
+      id,
+      'workspace_detached',
+      'workspace',
+      workspaceId,
+      workspace?.name ?? 'Workspace',
+      { path: workspace?.path },
+      activityActor(request),
+    );
+    return result;
   }
 
   @Put(':id/agents/:threadId')

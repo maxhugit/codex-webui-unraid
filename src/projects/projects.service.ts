@@ -9,7 +9,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { identityEvents } from '../auth/identity-events';
 import * as path from 'node:path';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { Inject } from '@nestjs/common';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
@@ -24,6 +24,7 @@ import {
   simpleChatThreads,
   people,
   projectParticipants,
+  projectActivity,
   type Project,
   type ProjectWorkspace,
   type ProjectResource,
@@ -76,6 +77,11 @@ export type AutomationRun = {
   finishedAt: number | null;
 };
 
+export type ProjectActivityActor = {
+  personId: string | null;
+  name: string;
+};
+
 @Injectable()
 export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   private automationTimer?: NodeJS.Timeout;
@@ -102,6 +108,78 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     if (this.automationTimer) clearInterval(this.automationTimer);
+  }
+
+  activity(projectId: string, limit = 200) {
+    this.get(projectId);
+    return this.db
+      .select()
+      .from(projectActivity)
+      .where(eq(projectActivity.projectId, projectId))
+      .orderBy(desc(projectActivity.createdAt))
+      .limit(Math.min(Math.max(limit, 1), 500))
+      .all();
+  }
+
+  recordActivity(
+    projectId: string,
+    action: string,
+    entityType: string,
+    entityId: string | null,
+    label: string,
+    details: Record<string, unknown> = {},
+    actor?: ProjectActivityActor,
+  ) {
+    this.db
+      .insert(projectActivity)
+      .values({
+        id: randomUUID(),
+        projectId,
+        action,
+        entityType,
+        entityId,
+        label,
+        details,
+        actorPersonId: actor?.personId ?? null,
+        actorName: actor?.name ?? 'Système',
+        createdAt: Date.now(),
+      })
+      .run();
+  }
+
+  configureMcpServers(
+    projectId: string,
+    names: unknown,
+    actor?: ProjectActivityActor,
+  ) {
+    const project = this.get(projectId);
+    if (!Array.isArray(names) || names.some((name) => typeof name !== 'string'))
+      throw new BadRequestException('Invalid MCP server selection');
+    const stringNames = names as string[];
+    const mcpServerIds = [
+      ...new Set(stringNames.map((name) => name.trim()).filter(Boolean)),
+    ];
+    if (
+      mcpServerIds.length > 100 ||
+      mcpServerIds.some((name) => name.length > 120)
+    )
+      throw new BadRequestException('Invalid MCP server selection');
+    const updatedAt = Date.now();
+    this.db
+      .update(projects)
+      .set({ mcpServerIds, updatedAt })
+      .where(eq(projects.id, projectId))
+      .run();
+    this.recordActivity(
+      projectId,
+      'mcp_configuration_updated',
+      'mcp',
+      null,
+      'Connecteurs MCP',
+      { before: project.mcpServerIds, after: mcpServerIds },
+      actor,
+    );
+    return { ...project, mcpServerIds, updatedAt };
   }
 
   listPeople() {
@@ -762,6 +840,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       id: randomUUID(),
       name,
       workspacePath,
+      mcpServerIds: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -2567,7 +2646,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     return workspace;
   }
 
-  private get(id: string): Project {
+  get(id: string): Project {
     const project = this.db
       .select()
       .from(projects)
@@ -2575,6 +2654,21 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       .get();
     if (!project) throw new NotFoundException('Project not found');
     return project;
+  }
+
+  getWorkspace(projectId: string, workspaceId: string) {
+    const workspace = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(
+        and(
+          eq(projectWorkspaces.id, workspaceId),
+          eq(projectWorkspaces.projectId, projectId),
+        ),
+      )
+      .get();
+    if (!workspace) throw new NotFoundException('Workspace not found');
+    return workspace;
   }
 
   private validateName(value: string): string {

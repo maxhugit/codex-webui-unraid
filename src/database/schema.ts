@@ -312,6 +312,10 @@ export const projects = sqliteTable(
     id: text('id').primaryKey(),
     name: text('name').notNull(),
     workspacePath: text('workspace_path').notNull(),
+    mcpServerIds: text('mcp_server_ids', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
@@ -323,6 +327,36 @@ export const projects = sqliteTable(
 
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
+
+/** High-level audit trail for changes affecting a project as a whole. */
+export const projectActivity = sqliteTable(
+  'project_activity',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    action: text('action').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id'),
+    label: text('label').notNull(),
+    details: text('details', { mode: 'json' })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    actorPersonId: text('actor_person_id'),
+    actorName: text('actor_name').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    index('idx_project_activity_project_created').on(
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export type ProjectActivity = typeof projectActivity.$inferSelect;
 
 /** Extensible project tools (task boards today, other skills later). */
 export const people = sqliteTable('people', {
