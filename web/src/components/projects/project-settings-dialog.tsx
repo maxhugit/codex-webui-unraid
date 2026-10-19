@@ -110,7 +110,7 @@ export function ProjectSettingsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(value) => !value && !pending && onClose()}>
-        <DialogContent className="flex max-h-[88dvh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className="flex h-[85dvh] max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
           <DialogHeader className="border-b px-5 py-4">
             <DialogTitle>{t('Project settings')}</DialogTitle>
             <DialogDescription>
