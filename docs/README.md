@@ -11,6 +11,11 @@ dans cet ordre :
 5. [Sauvegarde et restauration](sauvegarde-restauration.md)
 6. [Exploitation et dépannage](exploitation-depannage.md)
 
+## Guide d’utilisation
+
+- [Gestionnaire de tâches](gestionnaire-de-taches.md) : tableau, sous-tâches,
+  planning, assistance IA, agents Codex, validation et stockage.
+
 ## Documentation destinée aux développeurs
 
 - [Contribuer au projet](../CONTRIBUTING.md)
