@@ -127,3 +127,44 @@ conteneurs historiques restent inchangés et les standards restent bloqués.
 Les versions ultérieures devront conserver ce principe : désactivation du
 moteur standard sans repli privilégié ; restauration SQL seulement après examen
 des données récentes qu'elle pourrait écraser.
+
+## Qualification effectuée le 19 octobre 2026
+
+Image déployée : `sha-2e034b598af69aed99f45125a6ea1b6a3cc35440` du paquet
+`codex-webui-unraid-standard-worker`, compilée par GitHub Actions avec succès.
+Les trois conteneurs historiques n'ont pas été redémarrés ni mis à jour.
+
+- 17 tests unitaires du lanceur et du service réussis ; les 9 tests du service
+  ont aussi été exécutés dans le conteneur Unraid.
+- 25 tests existants des protections HTTP/WebSocket réussis.
+- 19 contrôles Linux du prototype conformes aux attentes, **dont un constat de
+  limite sur les liens physiques**, pas 19 preuves de sécurité suffisante.
+- Parcours HTTP authentifié vers Bubblewrap exercé avec une écriture réelle
+  dans un dossier jetable ; autre projet, secret du worker et réseau inaccessibles.
+- Service réellement déployé : santé correcte, accès sans jeton refusé,
+  `/execute` refusé et registre de qualification conservé vide/désactivé.
+- Arrêt puis redémarrage du seul worker exercés ; les trois services existants
+  sont restés sains. Copie SQLite sauvegardée relue et intégrité vérifiée.
+
+Le test d'intégration peut être lancé depuis une copie du dépôt sans installer
+de fichier supplémentaire dans le conteneur :
+
+```sh
+docker exec -i -w /app/scripts/sandbox codex-standard-worker node \
+  < scripts/sandbox/worker-integration-probe.cjs
+```
+
+Une qualification **synthétique** de Codex 0.162.1, version observée en service,
+a produit un tour réussi avec `project_execute` et `web_search`, sans MCP ni
+shell natif exposé. Cela ne valide pas encore un vrai abonnement, son
+renouvellement ou un parcours utilisateur complet. Aucun quota IA n'a été
+consommé par ce test.
+
+Docker a signalé que le noyau ne permet pas d'appliquer une limite de swap.
+La limite mémoire du worker existe, mais ne constitue donc pas une borne
+mémoire + swap validée. Ce point et les quotas individuels restent à examiner.
+
+**État de sortie : infrastructure de qualification opérationnelle, pas de
+moteur IA utilisateur raccordé, pas d'ouverture aux standards.** La décision
+de migration éventuelle des workspaces vers un stockage isolé doit précéder
+tout déplacement de fichiers existants.
