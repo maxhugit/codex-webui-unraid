@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { KnowledgeProposalsObserverService } from './knowledge-proposals-observer.service';
 import { ProjectKnowledgeModule } from '../project-knowledge/project-knowledge.module';
 import { ThreadSecurityPolicyController } from './thread-security-policy.controller';
 import { AuthModule } from '../auth/auth.module';
@@ -50,6 +51,7 @@ import { ProjectConnectionPolicyService } from './project-connection-policy.serv
     WorkspacesManagementController,
   ],
   providers: [
+    KnowledgeProposalsObserverService,
     ThreadsService,
     ThreadsBranchingService,
     ThreadsDeletePlannerService,

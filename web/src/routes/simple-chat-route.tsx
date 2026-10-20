@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MarkdownRenderer } from '@/components/chat/markdown-renderer';
 import {
   Bot,
   ExternalLink,
@@ -310,9 +309,7 @@ export function SimpleChatRoute() {
               >
                 {message.role === 'assistant' ? (
                   <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {message.content}
-                    </ReactMarkdown>
+                    <MarkdownRenderer content={message.content} completed />
                   </div>
                 ) : (
                   <p className="whitespace-pre-wrap">{message.content}</p>

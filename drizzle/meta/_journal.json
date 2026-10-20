@@ -218,6 +218,13 @@
       "when": 1792510444543,
       "tag": "0030_unique_primary_workspace",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1792514683983,
+      "tag": "0031_knowledge_proposals",
+      "breakpoints": true
     }
   ]
 }

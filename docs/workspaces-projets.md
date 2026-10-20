@@ -22,7 +22,7 @@ Le choix du workspace actif d'une conversation ne change pas le principal du pro
 | `AGENTS.md`                            | Explication de l'organisation du dossier               |
 | `documents/`, `sources/`, `livrables/` | Contenu de travail utilisateur                         |
 
-L'onglet **Connaissances** des paramètres du projet permet aux administrateurs de consulter et modifier les trois fichiers Markdown avec un seul bouton d'enregistrement. Le contenu de `.webui` reste consultable, mais réservé à l'application pour les écritures via l'API de fichiers générique. Les agents ne proposent pas encore d'ajouts soumis à validation : ce sera l'étape 3.
+L'onglet **Connaissances** des paramètres du projet permet aux administrateurs de consulter et modifier les trois fichiers Markdown avec un seul bouton d'enregistrement. Il contient aussi les propositions de mémoire des conversations. Le contenu de `.webui` reste consultable, mais réservé à l'application pour les écritures via l'API de fichiers générique.
 
 ## Connaissance partagée entre conversations
 
@@ -40,7 +40,37 @@ Le serveur sérialise les enregistrements d'un projet, prépare des fichiers tem
 
 API dédiée, réservée aux administrateurs : `GET /api/projects/:id/knowledge` retourne `{ files, revision, path }` ; `PUT` sur la même URL accepte `{ files, revision }` et retourne l'instantané enregistré. Aucun dossier secondaire n'est copié ou modifié.
 
+## Propositions de mémoire et validation
+
+Les conversations peuvent proposer un fait durable, une règle ou une décision, spontanément lorsqu'une information est clairement établie, ou sur demande explicite, par exemple : « Propose de mémoriser cette décision pour le projet ». Cette fonction ne lance pas une seconde analyse IA après chaque réponse : elle capture une suggestion structurée émise dans la réponse elle-même.
+
+Dans l'onglet **Connaissances**, la section **Propositions de mémoire** présente la date, le document concerné, le statut et un lien vers la conversation d'origine. **Examiner la proposition** affiche le document avant et après la modification prévue. Les propositions sont paginées, et la liste se rafraîchit automatiquement quand elle est affichée.
+
+| Action                                          | Effet                                                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Enregistrer les modifications de la proposition | Modifie uniquement le brouillon proposé, pas les connaissances partagées                    |
+| Accepter et appliquer                           | Écrit le contenu validé dans le principal et enregistre l'identité du validateur et la date |
+| Refuser                                         | Conserve la proposition dans l'historique, sans modifier les fichiers partagés              |
+
+Une modification locale de la proposition doit être enregistrée avant son acceptation. Un brouillon manuel de connaissances doit également être enregistré ou abandonné avant validation. L'éditeur de connaissances est temporairement bloqué pendant une action de validation pour éviter de perdre une saisie en cours.
+
+Chaque proposition conserve sa version de départ. Si les connaissances ont changé entre-temps, l'acceptation est refusée et la proposition reste en attente. Refuser cette proposition périmée puis demander une nouvelle suggestion dans la conversation, qui recevra les connaissances actuelles au prochain échange. Deux validateurs ne peuvent pas accepter ou refuser silencieusement une même version concurrente. Une proposition déjà traitée ne peut pas être appliquée une seconde fois.
+
+Les fichiers de connaissance restent dans `.webui/knowledge/` du principal. Les versions de départ et les propositions sont des données applicatives conservées dans SQLite, comme les tâches et les conversations simples ; sauvegarder la base avec les workspaces. Les propositions survivent à un redémarrage et sont supprimées avec leur projet. La suppression d'une conversation ne modifie pas la référence historique conservée dans une proposition, mais son lien peut alors ne plus être disponible.
+
+### Capture et API
+
+Le contexte envoyé au modèle décrit le format `webui-memory-proposal`. Un bloc JSON borné précise une révision connue du projet, un titre, un fichier autorisé et soit un ajout, soit un remplacement d'un fragment exact et unique. Le serveur valide ces champs, les limites et la révision avant de créer une proposition en attente. Les suggestions identiques déjà en attente et les relectures d'une même réponse ne créent pas de doublons.
+
+Pour les agents Codex, seuls les messages d'assistant terminés dans un tour réussi et une conversation durable du projet sont capturés. Les commentaires, échecs et exécutions éphémères de planification ne créent pas de propositions. Les conversations simples, avec OpenAI ou Codex, utilisent l'identifiant de leur message d'assistant enregistré comme origine. Une erreur de stockage d'une proposition ne bloque pas la réponse de conversation. Un format invalide est ignoré ; si aucune suggestion n'apparaît, demander à la conversation de la reformuler.
+
+Le bloc structuré reste dans l'historique brut, mais s'affiche comme une suggestion lisible dans WebUI. Cette présentation ne constitue pas une preuve d'acceptation : le statut de la proposition dans les paramètres est la référence.
+
+Routes réservées aux administrateurs : `GET /api/projects/:id/knowledge/proposals?offset=0`, `GET /api/projects/:id/knowledge/proposals/:proposalId`, et `PATCH` sur cette dernière URL avec `{ action: "edit" | "accept" | "reject", version, content? }`. La liste expose seulement les métadonnées par pages de 50 ; les contenus sont chargés à l'ouverture d'une proposition. La coordination des validations concerne une instance WebUI.
+
 ## Migration de l'existant
+
+La migration SQL `0031_knowledge_proposals` ajoute les instantanés transmis aux agents et les propositions avec leur historique de validation. Elle ne modifie pas les fichiers de connaissances existants.
 
 Au premier démarrage de cette version, les migrations SQL ajoutent `workspace_layout_version` et imposent au plus un workspace marqué principal par projet. Avant de démarrer les automatisations, le service projets migre les projets de version 0 :
 
