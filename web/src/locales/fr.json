@@ -1110,5 +1110,21 @@
   "Use for this conversation": "Utiliser pour cette conversation",
   "A permanent primary workspace is created automatically at /workspaces/<project-id>. You can attach secondary workspaces afterwards.": "Un workspace principal permanent est créé automatiquement dans /workspaces/<identifiant-du-projet>. Vous pourrez ensuite rattacher des workspaces secondaires.",
   "The primary workspace is permanent. Add or detach secondary workspaces without deleting their files. Choose the active workspace in each conversation. The .webui folder is reserved for the application.": "Le workspace principal est permanent. Ajoutez ou détachez des workspaces secondaires sans supprimer leurs fichiers. Choisissez le workspace actif dans chaque conversation. Le dossier .webui est réservé à l’application.",
-  "Detaching will move these conversations to the primary workspace. They will not be deleted.": "Le détachement basculera ces conversations vers le workspace principal. Elles ne seront pas supprimées."
+  "Detaching will move these conversations to the primary workspace. They will not be deleted.": "Le détachement basculera ces conversations vers le workspace principal. Elles ne seront pas supprimées.",
+  "Knowledge": "Connaissances",
+  "Shared project knowledge": "Connaissances partagées du projet",
+  "Shared instructions": "Instructions partagées",
+  "Project knowledge": "Connaissances du projet",
+  "Project decisions": "Décisions du projet",
+  "Stable rules and ways of working for all conversations in this project.": "Règles durables et méthodes de travail pour toutes les conversations de ce projet.",
+  "Useful facts, definitions and references shared by the project.": "Faits utiles, définitions et références partagés au sein du projet.",
+  "Agreed decisions, their reasons and any conditions for reconsidering them.": "Décisions retenues, leurs raisons et les conditions éventuelles de leur réexamen.",
+  "These files are read at each new exchange, including in secondary workspaces. Saved changes apply to the next exchange; a response already in progress keeps its current context.": "Ces fichiers sont lus à chaque nouvel échange, y compris dans les workspaces secondaires. Les changements enregistrés s’appliquent au prochain échange ; une réponse déjà en cours conserve son contexte actuel.",
+  "Unable to load project knowledge": "Impossible de charger les connaissances du projet",
+  "Unable to save project knowledge. If another edit was saved, reload before trying again. Your draft has been kept.": "Impossible d’enregistrer les connaissances du projet. Si une autre modification a été enregistrée, rechargez avant de réessayer. Votre brouillon a été conservé.",
+  "Each knowledge file is limited to 32 KiB of UTF-8 text.": "Chaque fichier de connaissances est limité à 32 Kio de texte UTF-8.",
+  "Reload and discard changes": "Recharger et abandonner les modifications",
+  "bytes": "octets",
+  "Reload": "Recharger",
+  "Saving…": "Enregistrement…"
 }

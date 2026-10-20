@@ -22,7 +22,23 @@ Le choix du workspace actif d'une conversation ne change pas le principal du pro
 | `AGENTS.md`                            | Explication de l'organisation du dossier               |
 | `documents/`, `sources/`, `livrables/` | Contenu de travail utilisateur                         |
 
-Cette étape prépare les fichiers de connaissance. Elle n'implémente pas encore leur éditeur, leur injection dans les conversations secondaires ou la validation de propositions de mémoire. Le contenu de `.webui` est consultable, mais réservé à l'application pour les écritures via l'API de fichiers générique.
+L'onglet **Connaissances** des paramètres du projet permet aux administrateurs de consulter et modifier les trois fichiers Markdown avec un seul bouton d'enregistrement. Le contenu de `.webui` reste consultable, mais réservé à l'application pour les écritures via l'API de fichiers générique. Les agents ne proposent pas encore d'ajouts soumis à validation : ce sera l'étape 3.
+
+## Connaissance partagée entre conversations
+
+Les fichiers sont relus dans le principal à chaque nouveau tour Codex et à chaque réponse OpenAI des conversations simples du projet. Le workspace actif reste inchangé, y compris pour une conversation dans un secondaire. Les agents sont rattachés par leur association explicite au projet ; les exécutions éphémères utilisent le rattachement du workspace. Les conversations simples OpenAI utilisent directement leur identifiant de projet.
+
+Les changements enregistrés s'appliquent au prochain échange d'une conversation existante. Une réponse déjà en cours continue avec son instantané de départ. Un instantané vide précise au modèle que les anciennes connaissances ont été retirées. La connaissance reste du contexte de projet et ne remplace pas les règles de sécurité ni les instructions de priorité supérieure.
+
+Les conversations Codex reçoivent un bloc de contexte utilisateur distinct, préfixé par `<project_shared_knowledge>`, avant le message envoyé. Ce bloc peut être conservé dans l'historique brut Codex ; WebUI le retire du texte affiché et éditable du message utilisateur. Les titres et aperçus de branches continuent à utiliser la demande originale. Les conversations simples OpenAI transmettent le contexte à l'API sans l'enregistrer comme un message de conversation.
+
+Chaque fichier est limité à **32 Kio de texte UTF-8**. Les noms sont fixes : l'API n'accepte pas de chemin libre. Les liens symboliques vers les fichiers ou les dossiers système sont refusés. Un document supprimé peut être recréé par l'éditeur ; un dossier principal manquant doit être restauré.
+
+L'enregistrement utilise l'empreinte SHA-256 des trois contenus chargés. Deux onglets ne peuvent pas écraser silencieusement leurs modifications : une version périmée reçoit une erreur de conflit. Le brouillon reste présent et **Recharger et abandonner les modifications** recharge les contenus du serveur. Les brouillons restent en mémoire pendant la session lorsque l'on change d'onglet, mais ne sont pas une sauvegarde persistante.
+
+Le serveur sérialise les enregistrements d'un projet, prépare des fichiers temporaires et remplace chaque document par renommage. Les lectures des conversations attendent la fin de l'enregistrement ; une erreur de remplacement déclenche une restauration des contenus précédents. Cette coordination concerne une seule instance WebUI et ne remplace pas une sauvegarde face à une coupure système ou une modification simultanée directe sur le disque.
+
+API dédiée, réservée aux administrateurs : `GET /api/projects/:id/knowledge` retourne `{ files, revision, path }` ; `PUT` sur la même URL accepte `{ files, revision }` et retourne l'instantané enregistré. Aucun dossier secondaire n'est copié ou modifié.
 
 ## Migration de l'existant
 

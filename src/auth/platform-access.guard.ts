@@ -72,6 +72,7 @@ export class PlatformAccessGuard implements CanActivate {
     this.identities.requireActive(identity);
     if (identity.role === 'administrator') return true;
     const admin =
+      /^\/projects\/[^/]+\/knowledge(?:\/|$)/.test(url) ||
       /^\/(settings|logs|database|mcp-servers|plugins|apps|codex\/config|codex\/catalog|codex\/cli)(\/|$)/.test(
         url,
       ) ||

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import {
   Bot,
+  BookOpen,
   FolderCog,
   FolderKanban,
   FolderOpen,
@@ -56,7 +57,7 @@ export function ProjectRoute() {
   const visibleTab: ProjectTab =
     (activeTab === 'participants' && !canSeePeople) ||
     (!session.isAdministrator &&
-      ['settings', 'workspaces', 'mcps'].includes(activeTab))
+      ['settings', 'workspaces', 'mcps', 'knowledge'].includes(activeTab))
       ? 'general'
       : activeTab;
   const activity = useQuery({
@@ -136,6 +137,12 @@ export function ProjectRoute() {
                 icon={FolderCog}
                 label={t('Workspaces')}
                 onClick={() => setActiveTab('workspaces')}
+              />
+              <ProjectTabButton
+                active={visibleTab === 'knowledge'}
+                icon={BookOpen}
+                label={t('Knowledge')}
+                onClick={() => setActiveTab('knowledge')}
               />
             </>
           )}

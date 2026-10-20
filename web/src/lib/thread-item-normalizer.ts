@@ -143,7 +143,12 @@ function normalizeUserMessage(
       const block = asRecord(value);
       if (!block) continue;
       if (block.type === 'text' && typeof block.text === 'string') {
-        text.push(block.text);
+        // This server-supplied context is separate from the user's editable message.
+        const message = block.text.replace(
+          /^<project_shared_knowledge>\nCurrent shared project context\.[\s\S]*?\n<\/project_shared_knowledge>\n*/,
+          '',
+        );
+        if (message) text.push(message);
       } else if (
         block.type === 'localImage' &&
         typeof block.path === 'string'

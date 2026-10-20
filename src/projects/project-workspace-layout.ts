@@ -80,7 +80,7 @@ export class ProjectWorkspaceLayout {
       '.webui/project.json':
         JSON.stringify({ projectId: id, layoutVersion: 1 }, null, 2) + '\n',
       'AGENTS.md':
-        '# Organisation du projet\n\nLes fichiers réservés à WebUI sont dans `.webui/`. Les documents de travail peuvent être rangés dans `documents/`, `sources/` et `livrables/`.\n\nLa mémoire partagée sera gérée dans `.webui/knowledge/`.\n',
+        '# Organisation du projet\n\nLes fichiers réservés à WebUI sont dans `.webui/`. Les documents de travail peuvent être rangés dans `documents/`, `sources/` et `livrables/`.\n\nLes instructions, connaissances et décisions partagées sont gérées depuis l’onglet Connaissances du projet et stockées dans `.webui/knowledge/`. WebUI les fournit aux conversations à chaque nouvel échange.\n',
       '.webui/knowledge/AGENTS.md': '# Instructions partagées\n',
       '.webui/knowledge/CONNAISSANCES.md': '# Connaissances du projet\n',
       '.webui/knowledge/DECISIONS.md': '# Décisions du projet\n',

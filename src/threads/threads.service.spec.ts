@@ -12,6 +12,7 @@ import { ThreadsOverviewService } from './threads-overview.service';
 import { ThreadMetadataService } from './thread-metadata.service';
 import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 import { ProjectConnectionPolicyService } from './project-connection-policy.service';
+import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
 
 /** Branch state as the local-only service reports it for an untracked thread. */
 function localBranchState(threadId: string) {
@@ -74,10 +75,12 @@ describe('ThreadsService', () => {
     configForCwd: vi.fn(),
     policyForCwd: vi.fn(),
   };
+  const mockKnowledge = { contextForConversation: vi.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: ProjectKnowledgeService, useValue: mockKnowledge },
         ThreadsService,
         { provide: CodexService, useValue: mockCodex },
         { provide: ThreadResumeRegistryService, useValue: mockResumeRegistry },
@@ -107,6 +110,8 @@ describe('ThreadsService', () => {
 
     service = module.get(ThreadsService);
     mockCodex.request.mockReset();
+    mockKnowledge.contextForConversation.mockReset();
+    mockKnowledge.contextForConversation.mockResolvedValue(null);
     Object.values(mockResumeRegistry).forEach((mock) => mock.mockReset());
     Object.values(mockBranches).forEach((mock) => mock.mockReset());
     mockBranchMutations.recordLocalFork.mockReset();
@@ -346,6 +351,38 @@ describe('ThreadsService', () => {
       't1',
       'turn1',
       'hello',
+    );
+  });
+
+  it('refreshes shared knowledge on subsequent turns without changing the cwd, user input or branch preview', async () => {
+    mockCodex.request.mockResolvedValue({ turn: { id: 'turn1' } });
+    mockKnowledge.contextForConversation
+      .mockResolvedValueOnce('Current knowledge')
+      .mockResolvedValueOnce('Updated knowledge');
+    const input = [
+      { type: 'text' as const, text: 'Continue', text_elements: [] },
+    ];
+    await service.startTurn({ threadId: 't1', cwd: '/secondary', input });
+    await service.startTurn({ threadId: 't1', cwd: '/secondary', input });
+    expect(mockKnowledge.contextForConversation).toHaveBeenCalledWith(
+      '/secondary',
+      't1',
+    );
+    expect(mockCodex.request).toHaveBeenLastCalledWith(
+      'turn/start',
+      expect.objectContaining({
+        cwd: '/secondary',
+        input: [
+          { type: 'text', text: 'Updated knowledge', text_elements: [] },
+          ...input,
+        ],
+      }),
+    );
+    expect(input).toHaveLength(1);
+    expect(mockBranches.attachPendingVersionTurn).toHaveBeenLastCalledWith(
+      't1',
+      'turn1',
+      'Continue',
     );
   });
 
