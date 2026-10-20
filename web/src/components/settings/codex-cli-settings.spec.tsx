@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import i18n from '@/i18n';
 import { catalogFixture, json } from './catalog/catalog.testing';
 import { CodexCliSettings } from './codex-cli-settings';
 
@@ -113,6 +114,43 @@ it('does not claim up-to-date status when the registry check failed', async () =
   expect(
     screen.queryByText('No newer stable CLI version is available'),
   ).not.toBeInTheDocument();
+});
+
+it('translates official release copy into French and preserves English source copy', async () => {
+  const source =
+    'Open /config to search preferences across categories, change supported settings immediately, and see which changes require a restart. (#52990, #53429)';
+  fetchMock.mockImplementation((url: string) =>
+    Promise.resolve(
+      json(
+        url.endsWith('/releases')
+          ? {
+              fromVersion: '1.0.0',
+              toVersion: '1.1.0',
+              releaseError: null,
+              releases: [
+                {
+                  version: '1.1.0',
+                  publishedAt: '2026-10-15T21:30:38Z',
+                  url: 'https://github.com/openai/codex/releases/tag/rust-v1.1.0',
+                  sections: [{ heading: 'New Features', items: [source] }],
+                },
+              ],
+            }
+          : available,
+      ),
+    ),
+  );
+  await i18n.changeLanguage('fr');
+  fixture.render(<CodexCliSettings />);
+  expect(
+    await screen.findByText(
+      'Ouvrez /config pour rechercher des préférences dans toutes les catégories, modifier immédiatement les réglages pris en charge et identifier les changements qui nécessitent un redémarrage. (#52990, #53429)',
+    ),
+  ).toBeVisible();
+  expect(screen.queryByText(source)).not.toBeInTheDocument();
+
+  await i18n.changeLanguage('en');
+  expect(await screen.findByText(source)).toBeVisible();
 });
 
 it('offers rollback for a selected installation even if its binary cannot run', async () => {

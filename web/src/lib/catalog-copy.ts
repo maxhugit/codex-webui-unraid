@@ -1,5 +1,5 @@
 /**
- * Localization for text that originates in the app-server model catalog.
+ * Localization for English text that originates in an upstream service.
  *
  * The app-server has no locale primitive — neither `model/list` nor
  * `initialize` accepts one — so catalog copy always arrives in English. This
@@ -19,6 +19,9 @@ import i18n from '@/i18n';
  * @param value - English copy exactly as the catalog supplied it.
  * @returns The localized string when one exists, otherwise `value` untouched.
  */
-export function catalogCopy(value: string): string {
+export function localizedSourceCopy(value: string): string {
   return i18n.exists(value) ? i18n.t(value) : value;
 }
+
+/** Backward-compatible, domain-specific name used by the model catalog UI. */
+export const catalogCopy = localizedSourceCopy;

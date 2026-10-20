@@ -18,6 +18,7 @@ import {
   codexStatusGetStatusQueryKey,
   modelsListModelsQueryKey,
 } from '@/generated/api/@tanstack/react-query.gen';
+import { localizedSourceCopy } from '@/lib/catalog-copy';
 import { cliStatusQueryKey, requestCli, type CliStatus } from './codex-cli-api';
 interface CliReleaseSection {
   heading: string;
@@ -203,7 +204,7 @@ export function CodexCliSettings() {
             </h3>
             <p className="text-xs text-muted-foreground">
               {t(
-                'Official OpenAI release notes are shown below. Their technical content is published in English.',
+                'Official OpenAI release notes are translated into the interface language when a translation is available.',
               )}
             </p>
           </div>
@@ -245,7 +246,7 @@ export function CodexCliSettings() {
                   </h5>
                   <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
                     {section.items.map((item) => (
-                      <li key={item}>{item}</li>
+                      <li key={item}>{localizedSourceCopy(item)}</li>
                     ))}
                   </ul>
                 </div>
