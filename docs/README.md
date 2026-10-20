@@ -14,6 +14,9 @@ dans cet ordre :
 
 ## Guide d’utilisation
 
+- [Gestion des livrables](gestion-des-livrables.md) : fiches facultatives,
+  fichiers, versions proposées et validation.
+
 - [Workspaces des projets](workspaces-projets.md) : principal permanent,
   secondaires, workspace actif, connaissances partagées et migration des dossiers existants.
 

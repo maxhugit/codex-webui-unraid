@@ -1,6 +1,7 @@
 import { useParams, useSearch } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { ProjectTaskManager } from '@/components/projects/project-task-manager';
+import { ProjectDeliverablesManager } from '@/components/projects/project-deliverables-manager';
 import { ProjectAutomationManager } from '@/components/projects/project-automation-manager';
 import {
   projectsApi,
@@ -26,6 +27,13 @@ export function ProjectResourceRoute() {
   if (resource.type === 'automation_board')
     return (
       <ProjectAutomationManager projectId={projectId} resourceId={resourceId} />
+    );
+  if (resource.type === 'deliverable_board')
+    return (
+      <ProjectDeliverablesManager
+        projectId={projectId}
+        resourceId={resourceId}
+      />
     );
   return (
     <ProjectTaskManager

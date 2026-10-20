@@ -5,6 +5,7 @@ import {
   Pencil,
   Trash2,
   Zap,
+  Package,
 } from 'lucide-react';
 import { Feedback } from '@dnd-kit/dom';
 import { useDraggable } from '@dnd-kit/react';
@@ -38,7 +39,7 @@ export function ProjectResourceRow({
   const { t } = useTranslation();
   const { ref, handleRef, isDragging } = useDraggable({
     id: `project-resource-${resource.id}`,
-    disabled: pending,
+    disabled: pending || resource.type === 'deliverable_board',
     data: {
       kind: 'project-resource',
       resourceId: resource.id,
@@ -57,7 +58,7 @@ export function ProjectResourceRow({
       <button
         ref={handleRef}
         type="button"
-        disabled={pending}
+        disabled={pending || resource.type === 'deliverable_board'}
         className="touch-none cursor-grab rounded p-0.5 text-muted-foreground/50 hover:bg-accent/50 hover:text-foreground active:cursor-grabbing disabled:cursor-not-allowed"
         aria-label={t('Move task manager')}
         title={t('Move task manager')}
@@ -75,7 +76,9 @@ export function ProjectResourceRow({
         onClick={onOpen}
         title={resource.name}
       >
-        {resource.type === 'automation_board' ? (
+        {resource.type === 'deliverable_board' ? (
+          <Package className="h-3 w-3 shrink-0" />
+        ) : resource.type === 'automation_board' ? (
           <Zap className="h-3 w-3 shrink-0" />
         ) : (
           <ListTodo className="h-3 w-3 shrink-0" />

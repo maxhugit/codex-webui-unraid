@@ -110,6 +110,7 @@ export class PlatformAccessGuard implements CanActivate {
         /^\/projects\/[^/]+\/resources\/([^/]+)(?:\/|$)/,
       )?.[1];
       const serverExecution =
+        /\/deliverables\/[^/]+\/agent$/.test(url) ||
         (url.startsWith('/threads') && url !== '/threads/turn-counts') ||
         /\/automations(?:\/|$)|\/automation-runs(?:\/|$)/.test(url) ||
         request.body?.type === 'automation_board' ||
@@ -120,6 +121,10 @@ export class PlatformAccessGuard implements CanActivate {
       request.method !== 'GET' &&
       /^\/(projects|workspaces|threads)(\/|$)/.test(url)
     ) {
+      if (Array.isArray(request.body?.paths)) {
+        for (const path of request.body.paths)
+          this.identities.requireWorkspacePath(path);
+      }
       for (const key of [
         'path',
         'workspacePath',

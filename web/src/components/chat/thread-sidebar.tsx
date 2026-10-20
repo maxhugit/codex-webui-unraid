@@ -5,7 +5,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
-import { FolderKanban, FolderOpen, House, Plus } from 'lucide-react';
+import { BookOpen, FolderKanban, FolderOpen, House, Plus } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -103,6 +103,7 @@ async function simpleChatApi<T>(path: string, init?: RequestInit): Promise<T> {
 function useActiveView():
   | 'chat'
   | 'home'
+  | 'help'
   | 'simpleChat'
   | 'files'
   | 'terminal'
@@ -118,6 +119,7 @@ function useActiveView():
   if (pathname.startsWith('/settings')) return 'settings';
   if (pathname.startsWith('/simple-chat')) return 'simpleChat';
   if (pathname === '/') return 'home';
+  if (pathname === '/help') return 'help';
   if (pathname.startsWith('/t/')) return 'chat';
   return 'other';
 }
@@ -800,13 +802,19 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
-  const createAutomationBoard = useMutation({
-    mutationFn: (projectId: string) =>
+  const createOptionalBoard = useMutation({
+    mutationFn: ({
+      projectId,
+      type,
+    }: {
+      projectId: string;
+      type: 'automation_board' | 'deliverable_board';
+    }) =>
       projectsApi<{ resource: ProjectSummary['resources'][number] }>(
         `/${projectId}/resources`,
         {
           method: 'POST',
-          body: JSON.stringify({ type: 'automation_board' }),
+          body: JSON.stringify({ type }),
         },
       ),
     onSuccess: ({ resource }) => {
@@ -1100,6 +1108,20 @@ export function ThreadSidebar() {
       <div className="shrink-0 space-y-0.5 px-2 py-2">
         <button
           type="button"
+          onClick={() => void navigate({ to: '/help' })}
+          aria-current={activeView === 'help' ? 'page' : undefined}
+          className={cn(
+            'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
+            activeView === 'help'
+              ? 'bg-accent text-accent-foreground'
+              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+          )}
+        >
+          <BookOpen aria-hidden="true" className="h-4 w-4 shrink-0" />
+          {t('Platform guide')}
+        </button>
+        <button
+          type="button"
           onClick={() => void navigate({ to: '/' })}
           className={cn(
             'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
@@ -1147,7 +1169,18 @@ export function ThreadSidebar() {
                 group.projectId && createTaskBoard.mutate(group.projectId)
               }
               onCreateAutomationBoard={(group) =>
-                group.projectId && createAutomationBoard.mutate(group.projectId)
+                group.projectId &&
+                createOptionalBoard.mutate({
+                  projectId: group.projectId,
+                  type: 'automation_board',
+                })
+              }
+              onCreateDeliverables={(group) =>
+                group.projectId &&
+                createOptionalBoard.mutate({
+                  projectId: group.projectId,
+                  type: 'deliverable_board',
+                })
               }
               onOpenResource={(projectId, resourceId) =>
                 void navigate({

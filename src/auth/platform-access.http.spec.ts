@@ -25,6 +25,9 @@ import { ProjectsService } from '../projects/projects.service';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
 import { KnowledgeProposalsService } from '../project-knowledge/knowledge-proposals.service';
 import { ProjectKnowledgeController } from '../project-knowledge/project-knowledge.controller';
+import { DeliverablesController } from '../deliverables/deliverables.controller';
+import { DeliverablesService } from '../deliverables/deliverables.service';
+import { ThreadsService } from '../threads/threads.service';
 
 let app: NestFastifyApplication;
 let database: TestDatabase;
@@ -100,12 +103,21 @@ beforeEach(async () => {
       SettingsController,
       ProjectsController,
       ProjectKnowledgeController,
+      DeliverablesController,
     ],
     providers: [
       AuthService,
       IdentityService,
       ProjectKnowledgeService,
       KnowledgeProposalsService,
+      {
+        provide: DeliverablesService,
+        useValue: {
+          submit: () => ({ ok: true }),
+          versionFiles: () => [{ sourcePath: '/home/codex/private.txt' }],
+        },
+      },
+      { provide: ThreadsService, useValue: {} },
       { provide: DRIZZLE_DB, useValue: database.db },
       { provide: ProjectsService, useValue: projectsService },
       {
@@ -131,6 +143,25 @@ beforeEach(async () => {
   app.setGlobalPrefix('api');
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
+});
+
+it('blocks private deliverable sources, private snapshot downloads and agent execution for standard users', async () => {
+  const base = '/api/projects/member-project/resources/r/deliverables/d';
+  for (const url of [`${base}/agent`, `${base}/versions`]) {
+    const response = await app.inject({
+      method: 'POST',
+      url,
+      headers: proxyHeaders(),
+      payload: { version: 1, paths: ['/home/codex/private.txt'] },
+    });
+    expect(response.statusCode).toBe(403);
+  }
+  const download = await app.inject({
+    method: 'GET',
+    url: `${base}/versions/v/files/0`,
+    headers: proxyHeaders(),
+  });
+  expect(download.statusCode).toBe(403);
 });
 afterEach(async () => {
   await app.close();

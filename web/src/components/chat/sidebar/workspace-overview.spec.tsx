@@ -6,14 +6,78 @@ import { WorkspaceOverview } from './workspace-overview';
 
 describe('WorkspaceOverview creation menu', () => {
   it.each([
+    ['Automations', 'automation_board'],
+    ['Deliverables management', 'deliverable_board'],
+  ] as const)(
+    'opens an existing %s manager instead of creating another',
+    async (label, type) => {
+      const open = vi.fn(),
+        create = vi.fn();
+      render(
+        <DragDropProvider>
+          <WorkspaceOverview
+            projectsHeader={<h2>Projects</h2>}
+            archivedThreads={[]}
+            workspaceGroups={[
+              {
+                projectId: 'p',
+                cwd: '/workspaces/p',
+                threads: [],
+                simpleChats: [],
+                resources: [
+                  {
+                    id: 'existing',
+                    projectId: 'p',
+                    name: 'Existing manager',
+                    type,
+                    config: {},
+                    createdAt: 1,
+                    updatedAt: 1,
+                  },
+                ],
+              },
+            ]}
+            collapsedGroups={new Set()}
+            isLoading={false}
+            onToggleCollapse={vi.fn()}
+            onOpenProject={vi.fn()}
+            onOpenArchivedDetail={vi.fn()}
+            onOpenWorkspaceDetail={vi.fn()}
+            onCreateAgentInWorkspace={vi.fn()}
+            onCreateSimpleChatInWorkspace={vi.fn()}
+            onCreateTaskBoard={vi.fn()}
+            onCreateAutomationBoard={create}
+            onCreateDeliverables={create}
+            onOpenResource={open}
+            resourceActionPending={false}
+            onRenameResource={vi.fn()}
+            onDeleteResource={vi.fn()}
+            renderThreadRow={() => null}
+            renderSimpleChatRow={() => null}
+            movingThread={false}
+          />
+        </DragDropProvider>,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'Project actions' }));
+      await user.click(screen.getByRole('button', { name: label }));
+      expect(open).toHaveBeenCalledWith('p', 'existing');
+      expect(create).not.toHaveBeenCalled();
+    },
+  );
+  it.each([
     ['Work agent', 'agent'],
     ['Simple conversation', 'simple'],
     ['Task manager', 'task'],
+    ['Automations', 'automation'],
+    ['Deliverables management', 'deliverables'],
   ] as const)('creates a %s in the selected workspace', async (label, kind) => {
     const user = userEvent.setup();
     const createAgent = vi.fn();
     const createSimpleChat = vi.fn();
     const createTaskBoard = vi.fn();
+    const createAutomation = vi.fn();
+    const createDeliverables = vi.fn();
 
     render(
       <DragDropProvider>
@@ -32,6 +96,8 @@ describe('WorkspaceOverview creation menu', () => {
           onCreateAgentInWorkspace={createAgent}
           onCreateSimpleChatInWorkspace={createSimpleChat}
           onCreateTaskBoard={createTaskBoard}
+          onCreateAutomationBoard={createAutomation}
+          onCreateDeliverables={createDeliverables}
           onOpenResource={vi.fn()}
           resourceActionPending={false}
           onRenameResource={vi.fn()}
@@ -64,7 +130,11 @@ describe('WorkspaceOverview creation menu', () => {
         ? createAgent
         : kind === 'simple'
           ? createSimpleChat
-          : createTaskBoard,
+          : kind === 'task'
+            ? createTaskBoard
+            : kind === 'automation'
+              ? createAutomation
+              : createDeliverables,
     ).toHaveBeenCalledWith(
       expect.objectContaining({ cwd: '/workspaces/Unraid' }),
     );

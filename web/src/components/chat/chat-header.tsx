@@ -376,7 +376,7 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
             </h1>
           ) : (
             <h1 className="text-lg font-semibold tracking-tight">
-              Codex WebUI
+              {pathname === '/help' ? t('Platform guide') : 'Codex WebUI'}
             </h1>
           )}
         </div>

@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
+import { DeliverablesModule } from '../deliverables/deliverables.module';
+import { DeliverablesController } from '../deliverables/deliverables.controller';
 import { ProjectKnowledgeModule } from '../project-knowledge/project-knowledge.module';
 import { ProjectKnowledgeController } from '../project-knowledge/project-knowledge.controller';
 import { DatabaseModule } from '../database/database.module';
@@ -10,13 +13,19 @@ import { ProjectsService } from './projects.service';
 
 @Module({
   imports: [
+    AuthModule,
+    DeliverablesModule,
     DatabaseModule,
     FilesModule,
     ThreadsModule,
     SimpleChatModule,
     ProjectKnowledgeModule,
   ],
-  controllers: [ProjectsController, ProjectKnowledgeController],
+  controllers: [
+    ProjectsController,
+    ProjectKnowledgeController,
+    DeliverablesController,
+  ],
   providers: [ProjectsService],
   exports: [ProjectsService],
 })
