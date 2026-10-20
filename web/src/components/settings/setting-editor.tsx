@@ -38,7 +38,7 @@ export function SettingEditor({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-medium">
-              {settingLabel(setting.key)}
+              {t(settingLabel(setting.key))}
             </h3>
             <Badge variant={sourceVariant(setting.source)}>
               {t(sourceLabel(setting.source))}
