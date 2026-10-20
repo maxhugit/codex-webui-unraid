@@ -1,10 +1,10 @@
 /**
  * Localization for English text that originates in an upstream service.
  *
- * The app-server has no locale primitive — neither `model/list` nor
- * `initialize` accepts one — so catalog copy always arrives in English. This
- * app already keys its translations by the English source string, so a lookup
- * covers whatever we have translated and leaves everything else in English.
+ * Upstream APIs such as the app-server catalog and the official Codex release
+ * feed return English source copy. This app keys translations by that source
+ * string, so a lookup covers whatever we have translated and leaves everything
+ * else unchanged.
  */
 import i18n from '@/i18n';
 

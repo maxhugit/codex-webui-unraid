@@ -21,7 +21,10 @@ it('exposes schema and bounded read-only rows while masking secrets', () => {
   const path = join(directory, 'application.sqlite');
   database = new DatabaseService(new ConfigService({ WEBUI_DB_PATH: path }));
   database.db.run(
-    sql`CREATE TABLE browser_test (id INTEGER PRIMARY KEY, name TEXT NOT NULL, api_token TEXT)`,
+    sql`CREATE TABLE browser_owner (id INTEGER PRIMARY KEY, label TEXT)`,
+  );
+  database.db.run(
+    sql`CREATE TABLE browser_test (id INTEGER PRIMARY KEY, owner_id INTEGER REFERENCES browser_owner(id) ON DELETE CASCADE, name TEXT NOT NULL, api_token TEXT)`,
   );
   database.db.run(
     sql`INSERT INTO browser_test (name, api_token) VALUES ('visible', 'hidden')`,
@@ -33,6 +36,14 @@ it('exposes schema and bounded read-only rows while masking secrets', () => {
   expect(browserTable?.type).toBe('table');
   expect(browserTable?.columns).toContainEqual(
     expect.objectContaining({ name: 'name', notNull: true }),
+  );
+  expect(browserTable?.foreignKeys).toContainEqual(
+    expect.objectContaining({
+      fromColumn: 'owner_id',
+      referencedTable: 'browser_owner',
+      toColumn: 'id',
+      onDelete: 'CASCADE',
+    }),
   );
   expect(database.readTable('browser_test', '1', '25')).toMatchObject({
     table: 'browser_test',

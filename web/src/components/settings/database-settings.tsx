@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Braces,
@@ -13,6 +13,13 @@ import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { DatabaseSchemaObject } from './database-schema-graph';
+
+const DatabaseSchemaGraph = lazy(() =>
+  import('./database-schema-graph').then((module) => ({
+    default: module.DatabaseSchemaGraph,
+  })),
+);
 
 interface DatabaseStatus {
   engine: string;
@@ -27,20 +34,6 @@ interface DatabaseStatus {
   foreignKeys: boolean;
   pageCount: number;
   pageSizeBytes: number;
-}
-
-interface DatabaseSchemaObject {
-  name: string;
-  type: 'table' | 'view';
-  sql: string | null;
-  columns: {
-    position: number;
-    name: string;
-    type: string;
-    notNull: boolean;
-    defaultValue: string | null;
-    primaryKeyPosition: number;
-  }[];
 }
 
 interface DatabaseSchema {
@@ -222,57 +215,17 @@ export function DatabaseSettings() {
 
       {tab === 'schema' && (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            {t('Tables, views and columns detected in the active database.')}
-          </p>
           {schema.isPending && <p>{t('Loading…')}</p>}
           {schema.isError && (
             <p role="alert" className="text-sm text-destructive">
               {t('Unable to read the database schema.')}
             </p>
           )}
-          {schema.data?.objects.map((object) => (
-            <details key={object.name} className="rounded-xl border p-4">
-              <summary className="cursor-pointer font-medium">
-                {object.name}{' '}
-                <span className="text-xs font-normal text-muted-foreground">
-                  {t(object.type === 'table' ? 'Table' : 'View')} ·{' '}
-                  {t('{{count}} column', { count: object.columns.length })}
-                </span>
-              </summary>
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[540px] text-left text-xs">
-                  <thead className="text-muted-foreground">
-                    <tr>
-                      <th className="pb-2 pr-4">{t('Column')}</th>
-                      <th className="pb-2 pr-4">{t('Type')}</th>
-                      <th className="pb-2 pr-4">{t('Required')}</th>
-                      <th className="pb-2">{t('Primary key')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {object.columns.map((column) => (
-                      <tr key={column.name} className="border-t">
-                        <td className="py-2 pr-4 font-mono">{column.name}</td>
-                        <td className="py-2 pr-4">{column.type || '—'}</td>
-                        <td className="py-2 pr-4">
-                          {column.notNull ? t('Yes') : t('No')}
-                        </td>
-                        <td className="py-2">
-                          {column.primaryKeyPosition > 0 ? t('Yes') : t('No')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {object.sql && (
-                <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
-                  {object.sql}
-                </pre>
-              )}
-            </details>
-          ))}
+          {schema.data && (
+            <Suspense fallback={<p>{t('Loading…')}</p>}>
+              <DatabaseSchemaGraph objects={schema.data.objects} />
+            </Suspense>
+          )}
         </div>
       )}
 

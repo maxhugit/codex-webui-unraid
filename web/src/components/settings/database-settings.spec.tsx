@@ -4,6 +4,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { catalogFixture, json } from './catalog/catalog.testing';
 import { DatabaseSettings } from './database-settings';
 
+vi.mock('@/stores/theme-store', () => ({
+  useThemeStore: (select: (state: { dark: boolean }) => unknown) =>
+    select({ dark: false }),
+}));
+
 let fixture: ReturnType<typeof catalogFixture>;
 
 beforeEach(() => {
@@ -38,6 +43,7 @@ beforeEach(() => {
           name: 'people',
           type: 'table',
           sql: 'CREATE TABLE people (id TEXT PRIMARY KEY, name TEXT)',
+          foreignKeys: [],
           columns: [
             {
               position: 0,
@@ -50,6 +56,41 @@ beforeEach(() => {
             {
               position: 1,
               name: 'name',
+              type: 'TEXT',
+              notNull: false,
+              defaultValue: null,
+              primaryKeyPosition: 0,
+            },
+          ],
+        },
+        {
+          name: 'projects',
+          type: 'table',
+          sql: 'CREATE TABLE projects (id TEXT PRIMARY KEY, owner_id TEXT REFERENCES people(id))',
+          foreignKeys: [
+            {
+              id: 0,
+              sequence: 0,
+              referencedTable: 'people',
+              fromColumn: 'owner_id',
+              toColumn: 'id',
+              onUpdate: 'NO ACTION',
+              onDelete: 'NO ACTION',
+              match: 'NONE',
+            },
+          ],
+          columns: [
+            {
+              position: 0,
+              name: 'id',
+              type: 'TEXT',
+              notNull: true,
+              defaultValue: null,
+              primaryKeyPosition: 1,
+            },
+            {
+              position: 1,
+              name: 'owner_id',
               type: 'TEXT',
               notNull: false,
               defaultValue: null,
@@ -89,14 +130,13 @@ it('separates overview, schema and paginated read-only data', async () => {
   expect(await screen.findByText('/data/app.sqlite')).toBeVisible();
 
   await user.click(screen.getByRole('tab', { name: 'Schema' }));
-  const peopleSummary = await screen.findByText('people', {
-    selector: 'summary',
-  });
-  expect(peopleSummary).toBeVisible();
-  await user.click(peopleSummary);
   expect(
-    screen.getByText('CREATE TABLE people (id TEXT PRIMARY KEY, name TEXT)'),
+    await screen.findByRole('img', { name: 'Database relationship map' }),
   ).toBeVisible();
+  expect(screen.getByText('1 relation')).toBeVisible();
+  expect(screen.getByText('people')).toBeInTheDocument();
+  expect(screen.getByText('projects')).toBeInTheDocument();
+  expect(screen.getByLabelText('Foreign key')).toBeInTheDocument();
 
   await user.click(screen.getByRole('tab', { name: 'Data' }));
   expect(await screen.findByText('Maxime')).toBeVisible();

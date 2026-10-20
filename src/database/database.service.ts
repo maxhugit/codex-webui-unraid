@@ -30,6 +30,17 @@ interface ColumnRow {
   pk: number;
 }
 
+interface ForeignKeyRow {
+  id: number;
+  seq: number;
+  table: string;
+  from: string;
+  to: string;
+  on_update: string;
+  on_delete: string;
+  match: string;
+}
+
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
@@ -116,6 +127,26 @@ export class DatabaseService implements OnModuleDestroy {
           defaultValue: column.dflt_value,
           primaryKeyPosition: column.pk,
         })),
+        foreignKeys:
+          object.type === 'table'
+            ? (
+                this.sqlite
+                  .prepare(
+                    `SELECT id, seq, "table", "from", "to", on_update, on_delete, match
+                     FROM pragma_foreign_key_list(?) ORDER BY id, seq`,
+                  )
+                  .all(object.name) as ForeignKeyRow[]
+              ).map((foreignKey) => ({
+                id: foreignKey.id,
+                sequence: foreignKey.seq,
+                referencedTable: foreignKey.table,
+                fromColumn: foreignKey.from,
+                toColumn: foreignKey.to,
+                onUpdate: foreignKey.on_update,
+                onDelete: foreignKey.on_delete,
+                match: foreignKey.match,
+              }))
+            : [],
       })),
     };
   }
