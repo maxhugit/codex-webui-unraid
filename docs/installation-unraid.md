@@ -228,7 +228,7 @@ depuis le conteneur sans donner de clé privée en écriture à Codex.
 docker inspect codex-webui --format '{{.State.Health.Status}}'
 curl -I https://codex.example.com
 docker logs --tail 100 codex-web-ingress
-docker logs --tail 100 codex-web-egress-proxy
+docker logs --tail 100 codex-web-squid
 ```
 
 Tester ensuite : connexion Authentik, création d’une conversation, terminal,

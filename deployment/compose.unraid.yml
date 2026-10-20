@@ -28,13 +28,13 @@ services:
       LOG_LEVEL: info
       OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
       OPENAI_CHAT_MODEL: gpt-5-mini
-      HTTP_PROXY: http://codex-egress-proxy:3128
-      HTTPS_PROXY: http://codex-egress-proxy:3128
-      ALL_PROXY: http://codex-egress-proxy:3128
+      HTTP_PROXY: http://codex-web-squid:3128
+      HTTPS_PROXY: http://codex-web-squid:3128
+      ALL_PROXY: http://codex-web-squid:3128
       NO_PROXY: 127.0.0.1,localhost,codex-webui
-      http_proxy: http://codex-egress-proxy:3128
-      https_proxy: http://codex-egress-proxy:3128
-      all_proxy: http://codex-egress-proxy:3128
+      http_proxy: http://codex-web-squid:3128
+      https_proxy: http://codex-web-squid:3128
+      all_proxy: http://codex-web-squid:3128
       no_proxy: 127.0.0.1,localhost,codex-webui
       TZ: Europe/Paris
     volumes:
@@ -67,7 +67,7 @@ services:
     cpus: 3.5
     stop_grace_period: 30m
     depends_on:
-      codex-egress-proxy:
+      codex-squid:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "token=$$(cat /run/secrets/backend_token) && curl -fsS -H \"Authorization: Bearer $$token\" http://127.0.0.1:8172/api/status >/dev/null"]
@@ -129,9 +129,9 @@ services:
         max-size: 10m
         max-file: "3"
 
-  codex-egress-proxy:
+  codex-squid:
     image: ${CODEX_EGRESS_IMAGE:-ubuntu/squid:latest}
-    container_name: codex-web-egress-proxy
+    container_name: codex-web-squid
     restart: unless-stopped
     labels:
       net.unraid.docker.managed: composeman

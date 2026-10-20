@@ -6,7 +6,7 @@ conteneurs apparaissent séparément dans l'onglet **Docker** d'Unraid et peuven
 
 Les trois formulaires conservent l'architecture de sécurité existante :
 
-1. `codex-web-egress-proxy` filtre les accès sortants avec Squid ;
+1. `codex-web-squid` filtre les accès sortants avec Squid ;
 2. `codex-webui` exécute l'application sans publier son port ;
 3. `codex-web-ingress` relie Traefik/Authentik au backend isolé.
 
@@ -93,7 +93,7 @@ Les volumes persistants ne sont pas supprimés quand un conteneur est retiré.
 Dans **Docker**, cliquer sur **Add Container**, puis sélectionner successivement
 les modèles dans **Template** :
 
-1. `codex-web-egress-proxy` ;
+1. `codex-web-squid` ;
 2. `codex-webui` ;
 3. `codex-web-ingress`.
 
@@ -111,7 +111,7 @@ réelle, par exemple `https://codex.example.com`.
 ## 6. Vérifier le déploiement
 
 ```bash
-docker inspect codex-web-egress-proxy --format '{{.State.Health.Status}}'
+docker inspect codex-web-squid --format '{{.State.Health.Status}}'
 docker inspect codex-webui --format '{{.State.Health.Status}}'
 docker inspect codex-web-ingress --format '{{.State.Health.Status}}'
 docker network inspect codex_isolated

@@ -24,7 +24,7 @@ La plateforme utilise trois conteneurs :
 
 1. `codex-webui` exécute l’interface et le moteur Codex ;
 2. `codex-web-ingress` protège et transmet les requêtes entrantes ;
-3. `codex-web-egress-proxy` filtre les accès HTTP/HTTPS sortants.
+3. `codex-web-squid` filtre les accès HTTP/HTTPS sortants.
 
 ```mermaid
 flowchart LR
@@ -32,7 +32,7 @@ flowchart LR
     T -->|SSO| A[Authentik]
     T --> N[codex-web-ingress]
     N --> C[codex-webui]
-    C --> S[codex-web-egress-proxy]
+    C --> S[codex-web-squid]
     S --> I[Internet autorisé]
     C --> H[HA-MCP / Home Assistant]
     C --> X[Unraid et VPS par SSH]

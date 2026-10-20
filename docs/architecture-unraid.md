@@ -55,7 +55,7 @@ client et injecte le jeton interne attendu par Codex.
 Les exceptions machine-à-machine sont limitées au retour OAuth MCP et aux deux
 routes OnlyOffice. Les contrôles applicatifs OnlyOffice restent obligatoires.
 
-### `codex-web-egress-proxy`
+### `codex-web-squid`
 
 Proxy Squid utilisé par les variables `HTTP_PROXY`, `HTTPS_PROXY` et
 `ALL_PROXY`. Il refuse les adresses privées et n’autorise qu’une liste définie
