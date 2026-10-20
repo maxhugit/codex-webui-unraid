@@ -1,5 +1,45 @@
 # Administration Codex : listes, enregistrement et version du CLI
 
+## Consignes et connaissance partagée
+
+- `instructions` est réservé à un usage futur par Codex : laisser vide et utiliser
+  `AGENTS.md` pour les consignes d'un projet.
+- `developer_instructions` ajoute des consignes à la session. Ce n'est pas un
+  mécanisme d'autorisation des fichiers, outils ou connecteurs.
+- `compact_prompt` remplace la consigne de condensation d'une conversation longue.
+  Laisser vide conserve le comportement standard. Il ne partage pas les
+  connaissances entre conversations.
+
+Pour partager des connaissances sans nouveau connecteur, utiliser le même
+répertoire de travail pour les conversations Codex d'un projet, avec :
+
+| Fichier proposé    | Contenu                                              |
+| ------------------ | ---------------------------------------------------- |
+| `AGENTS.md`        | Consignes courtes et indication des documents à lire |
+| `CONNAISSANCES.md` | Faits durables et validés, vocabulaire, contraintes  |
+| `DECISIONS.md`     | Décisions datées, motivations et sources             |
+
+Exemple de consigne dans `AGENTS.md` : « Au début d'une tâche et avant une décision
+importante, relis CONNAISSANCES.md et DECISIONS.md. Propose les ajouts de
+connaissance et distingue les faits validés des hypothèses. Ne remplace pas les
+notes d'une autre conversation sans les relire. Ne conserve aucun secret. »
+
+`AGENTS.md` est reconnu par Codex ; les deux autres noms sont des conventions
+proposées, pas des fichiers automatiquement chargés par le CLI. Leurs contenus
+doivent être lus à la demande des consignes. Chaque chat garde son propre
+historique et une session déjà ouverte peut devoir relire les fichiers modifiés.
+Si un projet contient plusieurs répertoires indépendants, son seul regroupement
+dans le WebUI ne suffit pas à rendre ces fichiers communs : définir explicitement
+leur emplacement et leur accès pour chaque espace de travail.
+
+Cette méthode vise les conversations exécutées par Codex. Le chat simple utilisant
+directement l'API OpenAI n'importe pas automatiquement ces fichiers : une
+fonction d'injection du contexte serait nécessaire pour lui donner le même accès.
+
+Références officielles :
+[configuration](https://learn.chatgpt.com/docs/config-file/config-reference) et
+[AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+
 ## Listes alimentées par le serveur
 
 Les modèles et modèles de revue sont chargés depuis `model/list` du Codex installé,

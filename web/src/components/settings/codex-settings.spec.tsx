@@ -110,7 +110,9 @@ it('shows Codex setting groups as tabs instead of one long page', async () => {
   ).toBeVisible();
   expect(await screen.findByText('Default model name')).toBeVisible();
   expect(
-    screen.queryByText('User-level instructions for the model'),
+    screen.queryByText(
+      'Reserved for future use by Codex. Leave empty; use AGENTS.md for project guidance.',
+    ),
   ).not.toBeInTheDocument();
 
   await user.click(screen.getByRole('tab', { name: 'Instructions' }));
@@ -119,7 +121,9 @@ it('shows Codex setting groups as tabs instead of one long page', async () => {
     screen.getByRole('tab', { name: 'Instructions', selected: true }),
   ).toBeVisible();
   expect(
-    screen.getByText('User-level instructions for the model'),
+    screen.getByText(
+      'Reserved for future use by Codex. Leave empty; use AGENTS.md for project guidance.',
+    ),
   ).toBeVisible();
   expect(screen.queryByText('Default model name')).not.toBeInTheDocument();
 });
