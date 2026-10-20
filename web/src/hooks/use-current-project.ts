@@ -10,16 +10,23 @@ import { useTimelineStore } from '@/stores/timeline-store';
 
 /** Returns the project owning the workspace of the visible Codex conversation. */
 export function useCurrentProject(): ProjectSummary | undefined {
-  const visible = useRouterState({
-    select: (state) => state.location.pathname.startsWith('/t/'),
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
   });
-  const cwd = useTimelineStore((state) => state.threadCwd);
+  const threadId = pathname.startsWith('/t/')
+    ? decodeURIComponent(pathname.split('/')[2] ?? '')
+    : '';
+  const cwd = useTimelineStore((state) =>
+    state.threadId === threadId
+      ? state.threadCwd
+      : state.threadsById[threadId]?.threadCwd,
+  );
   const projects = useQuery({
     queryKey: projectsQueryKey,
     queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
-    enabled: visible,
+    enabled: Boolean(threadId),
   });
-  return visible
+  return threadId
     ? projectForWorkspace(projects.data?.projects, cwd ?? null)
     : undefined;
 }
