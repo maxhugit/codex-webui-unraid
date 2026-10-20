@@ -38,17 +38,21 @@ flowchart LR
     C --> X[Unraid et VPS par SSH]
 ```
 
-La définition complète se trouve dans
-[`deployment/compose.unraid.yml`](deployment/compose.unraid.yml). Les détails
-des réseaux et des protections sont documentés dans
+Les formulaires Docker standard d'Unraid se trouvent dans
+[`deployment/docker-man`](deployment/docker-man). La définition Compose reste
+disponible dans [`deployment/compose.unraid.yml`](deployment/compose.unraid.yml).
+Les détails des réseaux et des protections sont documentés dans
 [`docs/architecture-unraid.md`](docs/architecture-unraid.md).
 
 ## Reconstruire la plateforme
 
 Le [sommaire de la documentation](docs/README.md) permet de comprendre le dépôt
 et de reconstruire toute la plateforme. La
-[procédure d’installation](docs/installation-unraid.md) couvre la préparation
-des secrets, les réseaux, Traefik, Authentik, OnlyOffice, SSH et MCP.
+[procédure DockerMan](docs/installation-unraid-dockerman.md) est recommandée
+pour une gestion native dans l'onglet Docker. La
+[procédure Compose](docs/installation-unraid.md) reste disponible. Elles couvrent
+la préparation des secrets, les réseaux, Traefik, Authentik, OnlyOffice, SSH et
+MCP.
 
 ## Construction de l’image
 

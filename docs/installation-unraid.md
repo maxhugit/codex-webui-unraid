@@ -1,5 +1,10 @@
 # Installation et reconstruction sur Unraid
 
+> Cette procédure concerne Compose Manager. Pour utiliser les formulaires
+> standard de l'onglet Docker et les mises à jour natives d'Unraid, suivre la
+> [procédure DockerMan](installation-unraid-dockerman.md), désormais
+> recommandée.
+
 Ce guide permet de reconstruire les trois conteneurs sans placer de secret dans
 Git. Il part d’un Unraid sur lequel Docker fonctionne. Traefik, Authentik,
 OnlyOffice et HA-MCP sont des services externes : les étapes ci-dessous indiquent

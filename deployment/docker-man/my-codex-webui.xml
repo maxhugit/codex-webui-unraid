@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>codex-webui</Name>
+  <Repository>ghcr.io/maxhugit/codex-webui-unraid:latest</Repository>
+  <Registry>https://github.com/maxhugit/codex-webui-unraid/pkgs/container/codex-webui-unraid</Registry>
+  <Network>codex_admin</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/maxhugit/codex-webui-unraid/issues</Support>
+  <Project>https://github.com/maxhugit/codex-webui-unraid</Project>
+  <Overview>Application Codex WebUI. Le backend n'expose aucun port directement et sort sur Internet uniquement par le proxy Squid.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>https://codex.example.com</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/deployment/docker-man/my-codex-webui.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/web/public/pwa-icon-192.png</Icon>
+  <ExtraParams>--network codex_isolated --init --user 11002:11002 --group-add 11001 --workdir /app --entrypoint /bin/sh --read-only --tmpfs /tmp:rw,nosuid,nodev,size=512m,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true --security-opt seccomp=/mnt/pool/appdata/codex-web/config/seccomp-bwrap.json --security-opt systempaths=unconfined --pids-limit 1024 --memory 8g --cpus 3.5 --stop-timeout 1800 --health-cmd "/bin/sh /opt/codex/start-webui.sh healthcheck &gt;/dev/null" --health-interval 20s --health-timeout 5s --health-retries 8 --health-start-period 90s --log-opt max-size=20m --log-opt max-file=5</ExtraParams>
+  <PostArgs>/opt/codex/start-webui.sh</PostArgs>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Les réseaux codex_admin et codex_isolated ainsi que codex-web-egress-proxy doivent être présents.</Requires>
+  <Config Name="État Codex" Target="/home/codex" Default="/mnt/pool/appdata/codex-web/state/home" Mode="rw" Description="Conversations, configuration, OAuth, MCP et base SQLite." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/codex-web/state/home</Config>
+  <Config Name="Espaces de travail" Target="/workspaces" Default="/mnt/pool/appdata/codex-web/state/workspace" Mode="rw" Description="Fichiers des projets Codex." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/codex-web/state/workspace</Config>
+  <Config Name="Appdata Unraid" Target="/appdata" Default="/mnt/user/appdata" Mode="rw" Description="Accès aux données des applications Unraid." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata</Config>
+  <Config Name="Journaux" Target="/app/logs" Default="/mnt/pool/appdata/codex-web/state/logs" Mode="rw" Description="Journaux persistants de l'application." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/pool/appdata/codex-web/state/logs</Config>
+  <Config Name="Jeton backend" Target="/run/secrets/backend_token" Default="/mnt/pool/appdata/codex-web/state/backend-token.txt" Mode="ro" Description="Secret partagé avec Nginx." Type="Path" Display="advanced" Required="true" Mask="true">/mnt/pool/appdata/codex-web/state/backend-token.txt</Config>
+  <Config Name="Clé OpenAI" Target="/run/secrets/openai_api_key" Default="/mnt/pool/appdata/codex-web/state/openai-api-key.txt" Mode="ro" Description="Fichier contenant la clé API OpenAI." Type="Path" Display="advanced" Required="true" Mask="true">/mnt/pool/appdata/codex-web/state/openai-api-key.txt</Config>
+  <Config Name="Clés SSH" Target="/home/codex/.ssh" Default="/mnt/pool/appdata/codex-web/state/ssh" Mode="ro" Description="Clés SSH dédiées montées en lecture seule." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/pool/appdata/codex-web/state/ssh</Config>
+  <Config Name="Script de démarrage" Target="/opt/codex/start-webui.sh" Default="/mnt/pool/appdata/codex-web/config/start-webui.sh" Mode="ro" Description="Démarrage avec lecture du jeton depuis un fichier." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/pool/appdata/codex-web/config/start-webui.sh</Config>
+  <Config Name="NODE_ENV" Target="NODE_ENV" Default="production" Mode="" Description="Mode Node.js." Type="Variable" Display="advanced" Required="true" Mask="false">production</Config>
+  <Config Name="PORT" Target="PORT" Default="8172" Mode="" Description="Port interne du backend." Type="Variable" Display="advanced" Required="true" Mask="false">8172</Config>
+  <Config Name="HOME" Target="HOME" Default="/home/codex" Mode="" Description="Dossier personnel interne." Type="Variable" Display="advanced" Required="true" Mask="false">/home/codex</Config>
+  <Config Name="CODEX_HOME" Target="CODEX_HOME" Default="/home/codex/.codex" Mode="" Description="État Codex interne." Type="Variable" Display="advanced" Required="true" Mask="false">/home/codex/.codex</Config>
+  <Config Name="WEBUI_DB_PATH" Target="WEBUI_DB_PATH" Default="/home/codex/.codex/codex-webui.sqlite" Mode="" Description="Base SQLite." Type="Variable" Display="advanced" Required="true" Mask="false">/home/codex/.codex/codex-webui.sqlite</Config>
+  <Config Name="WEBUI_REQUIRE_IDENTITY" Target="WEBUI_REQUIRE_IDENTITY" Default="true" Mode="" Description="Exige l'identité transmise par Nginx." Type="Variable" Display="advanced" Required="true" Mask="false">true</Config>
+  <Config Name="WEBUI_PROTECTED_PATHS" Target="WEBUI_PROTECTED_PATHS" Default="/home/codex,/run/secrets,/app,/proc,/sys,/dev,/etc,/root,/appdata/codex-web" Mode="" Description="Chemins protégés." Type="Variable" Display="advanced" Required="true" Mask="false">/home/codex,/run/secrets,/app,/proc,/sys,/dev,/etc,/root,/appdata/codex-web</Config>
+  <Config Name="WORKSPACE_ROOTS" Target="WORKSPACE_ROOTS" Default="/workspaces,/appdata" Mode="" Description="Racines visibles dans le gestionnaire de fichiers." Type="Variable" Display="advanced" Required="true" Mask="false">/workspaces,/appdata</Config>
+  <Config Name="LOG_LEVEL" Target="LOG_LEVEL" Default="info" Mode="" Description="Niveau des journaux." Type="Variable" Display="advanced" Required="true" Mask="false">info</Config>
+  <Config Name="OPENAI_API_KEY_FILE" Target="OPENAI_API_KEY_FILE" Default="/run/secrets/openai_api_key" Mode="" Description="Chemin interne vers la clé OpenAI." Type="Variable" Display="advanced" Required="true" Mask="false">/run/secrets/openai_api_key</Config>
+  <Config Name="OPENAI_CHAT_MODEL" Target="OPENAI_CHAT_MODEL" Default="gpt-5-mini" Mode="" Description="Modèle du chat simple." Type="Variable" Display="always" Required="true" Mask="false">gpt-5-mini</Config>
+  <Config Name="HTTP_PROXY" Target="HTTP_PROXY" Default="http://codex-web-egress-proxy:3128" Mode="" Description="Proxy HTTP sortant." Type="Variable" Display="advanced" Required="true" Mask="false">http://codex-web-egress-proxy:3128</Config>
+  <Config Name="HTTPS_PROXY" Target="HTTPS_PROXY" Default="http://codex-web-egress-proxy:3128" Mode="" Description="Proxy HTTPS sortant." Type="Variable" Display="advanced" Required="true" Mask="false">http://codex-web-egress-proxy:3128</Config>
+  <Config Name="ALL_PROXY" Target="ALL_PROXY" Default="http://codex-web-egress-proxy:3128" Mode="" Description="Proxy générique sortant." Type="Variable" Display="advanced" Required="true" Mask="false">http://codex-web-egress-proxy:3128</Config>
+  <Config Name="NO_PROXY" Target="NO_PROXY" Default="127.0.0.1,localhost,codex-webui" Mode="" Description="Destinations sans proxy." Type="Variable" Display="advanced" Required="true" Mask="false">127.0.0.1,localhost,codex-webui</Config>
+  <Config Name="http_proxy" Target="http_proxy" Default="http://codex-web-egress-proxy:3128" Mode="" Description="Proxy HTTP pour les outils qui utilisent la variable en minuscules." Type="Variable" Display="advanced" Required="true" Mask="false">http://codex-web-egress-proxy:3128</Config>
+  <Config Name="https_proxy" Target="https_proxy" Default="http://codex-web-egress-proxy:3128" Mode="" Description="Proxy HTTPS en minuscules." Type="Variable" Display="advanced" Required="true" Mask="false">http://codex-web-egress-proxy:3128</Config>
+  <Config Name="all_proxy" Target="all_proxy" Default="http://codex-web-egress-proxy:3128" Mode="" Description="Proxy générique en minuscules." Type="Variable" Display="advanced" Required="true" Mask="false">http://codex-web-egress-proxy:3128</Config>
+  <Config Name="no_proxy" Target="no_proxy" Default="127.0.0.1,localhost,codex-webui" Mode="" Description="Destinations sans proxy en minuscules." Type="Variable" Display="advanced" Required="true" Mask="false">127.0.0.1,localhost,codex-webui</Config>
+  <Config Name="Fuseau horaire" Target="TZ" Default="Europe/Paris" Mode="" Description="Fuseau horaire du conteneur." Type="Variable" Display="always" Required="true" Mask="false">Europe/Paris</Config>
+</Container>
