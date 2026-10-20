@@ -27,6 +27,10 @@ export interface FieldEditorProps {
   profileOptions?: string[];
   /** Dynamic service tier ids, used only by the service tier selector. */
   serviceTierOptions?: string[];
+  modelOptions?: string[];
+  dynamicOptions?: string[];
+  /** Batch-mode parent owns saving. */
+  batch?: boolean;
   /** Updates the local draft for a key path. */
   onDraftChange: (key: string, value: string) => void;
   /** Saves the current draft as a concrete override. */
@@ -45,6 +49,9 @@ export function ConfigFieldEditor({
   saving,
   profileOptions,
   serviceTierOptions,
+  modelOptions,
+  dynamicOptions,
+  batch = false,
   onDraftChange,
   onSave,
   onClear,
@@ -59,12 +66,19 @@ export function ConfigFieldEditor({
       ? (profileOptions ?? [])
       : def.key === 'service_tier'
         ? (serviceTierOptions ?? [])
-        : (def.options ?? []);
+        : (dynamicOptions ?? def.options ?? []);
+  const visibleOptions =
+    draft && !options.includes(draft) ? [...options, draft] : options;
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-card/50 px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium">{t(def.label)}</span>
+        <label
+          htmlFor={`codex-field-${def.key}`}
+          className="text-sm font-medium"
+        >
+          {t(def.label)}
+        </label>
         {isNonEnglish && (
           <code className="text-xs text-muted-foreground">{def.key}</code>
         )}
@@ -77,6 +91,7 @@ export function ConfigFieldEditor({
       <div className="flex flex-wrap items-end gap-2">
         {def.control === 'select' ? (
           <select
+            id={`codex-field-${def.key}`}
             value={draft}
             onChange={(e) => onDraftChange(def.key, e.target.value)}
             disabled={saving}
@@ -88,14 +103,60 @@ export function ConfigFieldEditor({
             <option value="" disabled>
               {t('(not set)')}
             </option>
-            {options.map((opt) => (
+            {visibleOptions.map((opt) => (
               <option key={opt} value={opt}>
-                {opt}
+                {t(opt)}
               </option>
             ))}
           </select>
+        ) : modelOptions ? (
+          <div className="w-full space-y-2">
+            <select
+              id={`codex-field-${def.key}`}
+              value={modelOptions.includes(draft) ? draft : '__custom__'}
+              disabled={saving}
+              onChange={(event) =>
+                onDraftChange(
+                  def.key,
+                  event.target.value === '__custom__' ? '' : event.target.value,
+                )
+              }
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {modelOptions.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+              <option value="__custom__">
+                {t(
+                  def.key === 'model_provider'
+                    ? 'Custom provider'
+                    : 'Custom model',
+                )}
+              </option>
+            </select>
+            {!modelOptions.includes(draft) && (
+              <Input
+                aria-label={t(
+                  def.key === 'model_provider'
+                    ? 'Custom provider'
+                    : 'Custom model',
+                )}
+                value={draft}
+                disabled={saving}
+                placeholder={t(
+                  def.key === 'model_provider'
+                    ? 'Provider identifier'
+                    : 'Model identifier',
+                )}
+                onChange={(event) => onDraftChange(def.key, event.target.value)}
+              />
+            )}
+          </div>
         ) : def.control === 'textarea' ? (
           <Textarea
+            id={`codex-field-${def.key}`}
             value={draft}
             onChange={(e) => onDraftChange(def.key, e.target.value)}
             disabled={saving}
@@ -104,6 +165,7 @@ export function ConfigFieldEditor({
           />
         ) : def.control === 'number' ? (
           <Input
+            id={`codex-field-${def.key}`}
             type="number"
             value={draft}
             onChange={(e) => onDraftChange(def.key, e.target.value)}
@@ -113,6 +175,7 @@ export function ConfigFieldEditor({
           />
         ) : (
           <Input
+            id={`codex-field-${def.key}`}
             value={draft}
             onChange={(e) => onDraftChange(def.key, e.target.value)}
             disabled={saving}
@@ -120,14 +183,16 @@ export function ConfigFieldEditor({
           />
         )}
 
-        <Button
-          size="sm"
-          className="h-8"
-          disabled={saving || !dirty}
-          onClick={() => onSave(def.key)}
-        >
-          {t('Save')}
-        </Button>
+        {!batch && (
+          <Button
+            size="sm"
+            className="h-8"
+            disabled={saving || !dirty}
+            onClick={() => onSave(def.key)}
+          >
+            {t('Save')}
+          </Button>
+        )}
         {overridden && (
           <Button
             size="sm"

@@ -10,8 +10,8 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import Editor, { type OnMount } from '@monaco-editor/react';
-import { ChevronDown, ChevronRight, FileText, Save } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { SettingsSaveBar } from './settings-save-bar';
 import { useThemeStore } from '@/stores/theme-store';
 import { showSnackbar } from '@/stores/snackbar-store';
 import { getApiErrorMessage } from '@/lib/api-error';
@@ -146,26 +146,17 @@ export function RawConfigEditor({ onSaved }: { onSaved?: () => void }) {
             </p>
           )}
 
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              disabled={!dirty || mutation.isPending}
-              onClick={() => {
-                const content = monacoRef.current?.getValue() ?? draft;
-                mutation.mutate({
-                  body: { content, expectedContent: baseline ?? undefined },
-                });
-              }}
-            >
-              <Save className="mr-1.5 h-3.5 w-3.5" />
-              {t('Save & Reload')}
-            </Button>
-            {dirty && (
-              <span className="text-xs text-amber-500">
-                {t('Unsaved changes')}
-              </span>
-            )}
-          </div>
+          <SettingsSaveBar
+            dirty={dirty}
+            saving={mutation.isPending}
+            label="Save & Reload"
+            onSave={() => {
+              const content = monacoRef.current?.getValue() ?? draft;
+              mutation.mutate({
+                body: { content, expectedContent: baseline ?? undefined },
+              });
+            }}
+          />
         </div>
       )}
     </div>

@@ -1,0 +1,282 @@
+/** Administrator-only CLI lifecycle, isolated from the image and user configuration. */
+import {
+  ConflictException,
+  Injectable,
+  BadRequestException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, rename, rm, symlink } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { dirname, join, relative } from 'node:path';
+import { CatalogPathsService } from '../catalog/catalog-paths.service';
+import { CatalogAdmissionService } from '../catalog/catalog-admission.service';
+import { CatalogActivityService } from '../catalog/catalog-activity.service';
+import { CodexProcessManager } from '../codex-process-manager.service';
+import { writeAtomic } from '../catalog/catalog-files';
+import {
+  cliBinary,
+  cliRoot,
+  cliSelection,
+  CLI_VERSION,
+  isNewerVersion,
+  type CliSelection,
+} from './managed-cli';
+
+const execute = promisify(execFile);
+const REGISTRY = 'https://registry.npmjs.org/';
+
+@Injectable()
+export class CodexCliService {
+  private latestCache?: { version: string; at: number };
+  private checking?: Promise<string>;
+  private busy = false;
+  constructor(
+    private readonly paths: CatalogPathsService,
+    private readonly config: ConfigService,
+    private readonly admission: CatalogAdmissionService,
+    private readonly activity: CatalogActivityService,
+    private readonly manager: CodexProcessManager,
+  ) {}
+
+  /** Bounded subprocesses, no shell interpolation, and explicit use of the configured egress proxy. */
+  protected async command(
+    binary: string,
+    args: string[],
+    timeout = 20_000,
+  ): Promise<string> {
+    const { stdout } = await execute(binary, args, {
+      timeout,
+      maxBuffer: 1024 * 1024,
+      env: {
+        ...process.env,
+        npm_config_proxy: process.env.HTTP_PROXY ?? process.env.http_proxy,
+        npm_config_https_proxy:
+          process.env.HTTPS_PROXY ?? process.env.https_proxy,
+      },
+    });
+    return stdout.trim();
+  }
+  private async version(binary = this.paths.binary): Promise<string> {
+    const output = await this.command(binary, ['--version']);
+    const version = output.match(/^codex(?:-cli)?\s+(\d+\.\d+\.\d+)$/)?.[1];
+    if (!version) throw new Error('Cannot determine Codex CLI version');
+    return version;
+  }
+  private async latest(force = false): Promise<string> {
+    if (
+      !force &&
+      this.latestCache &&
+      Date.now() - this.latestCache.at < 15 * 60_000
+    )
+      return this.latestCache.version;
+    if (this.checking) return this.checking;
+    this.checking = (async () => {
+      const version: unknown = JSON.parse(
+        await this.command(
+          'npm',
+          [
+            'view',
+            '@openai/codex@latest',
+            'version',
+            '--json',
+            `--registry=${REGISTRY}`,
+            `--@openai:registry=${REGISTRY}`,
+          ],
+          30_000,
+        ),
+      );
+      if (typeof version !== 'string' || !CLI_VERSION.test(version))
+        throw new Error('Invalid stable version from npm');
+      this.latestCache = { version, at: Date.now() };
+      return version;
+    })();
+    try {
+      return await this.checking;
+    } finally {
+      this.checking = undefined;
+    }
+  }
+  async status(force = false) {
+    let installedVersion: string | null = null,
+      latestVersion: string | null = null,
+      installedError: string | null = null,
+      checkError: string | null = null;
+    try {
+      installedVersion = await this.version();
+    } catch {
+      installedError = 'Unable to read the installed CLI version';
+    }
+    try {
+      latestVersion = await this.latest(force);
+    } catch {
+      checkError = 'Unable to check npm for updates';
+    }
+    const selection = cliSelection(this.paths.home);
+    const externalBinary = Boolean(this.config.get<string>('CODEX_BIN'));
+    return {
+      installedVersion,
+      latestVersion,
+      imageVersion: this.config.get<string>('CODEX_CLI_VERSION') ?? null,
+      updateAvailable:
+        installedVersion && latestVersion
+          ? isNewerVersion(latestVersion, installedVersion)
+          : false,
+      checkedAt: this.latestCache
+        ? new Date(this.latestCache.at).toISOString()
+        : null,
+      installedError,
+      checkError,
+      busy: this.busy,
+      canManage:
+        !externalBinary &&
+        process.platform === 'linux' &&
+        ['x64', 'arm64'].includes(process.arch),
+      canRollback: !externalBinary && selection.version !== null,
+      selectedVersion: selection.version,
+    };
+  }
+
+  /** Download to a fresh directory; no mutation of the running executable or global npm prefix. */
+  private async install(version: string): Promise<void> {
+    const target = dirname(cliBinary(this.paths.home, version));
+    if (existsSync(cliBinary(this.paths.home, version))) {
+      if ((await this.version(cliBinary(this.paths.home, version))) !== version)
+        throw new Error('Installed release version mismatch');
+      return;
+    }
+    await mkdir(dirname(target), { recursive: true, mode: 0o700 });
+    const staging = await mkdtemp(join(dirname(target), '.download-'));
+    try {
+      await this.command(
+        'npm',
+        [
+          'install',
+          '--prefix',
+          staging,
+          `@openai/codex@${version}`,
+          '--ignore-scripts',
+          '--no-audit',
+          '--no-fund',
+          '--package-lock=false',
+          `--registry=${REGISTRY}`,
+          `--@openai:registry=${REGISTRY}`,
+        ],
+        300_000,
+      );
+      const platformPackage = createRequire(
+        join(staging, 'package.json'),
+      ).resolve(`@openai/codex-linux-${process.arch}/package.json`);
+      const triple =
+        process.arch === 'arm64'
+          ? 'aarch64-unknown-linux-musl'
+          : 'x86_64-unknown-linux-musl';
+      const native = [
+        join(dirname(platformPackage), 'vendor', triple, 'bin', 'codex'),
+        join(dirname(platformPackage), 'vendor', triple, 'codex', 'codex'),
+      ].find((path) => existsSync(path));
+      if (!native || (await this.version(native)) !== version)
+        throw new Error('Downloaded CLI could not be verified');
+      // Relative links remain valid after the staging directory is renamed.
+      await symlink(relative(staging, native), join(staging, 'codex'));
+      await mkdir(join(staging, 'helpers'), { mode: 0o700 });
+      for (const tool of [
+        'codex',
+        'apply_patch',
+        'applypatch',
+        'codex-execve-wrapper',
+        'codex-linux-sandbox',
+      ]) {
+        await symlink('../codex', join(staging, 'helpers', tool));
+      }
+      await rename(staging, target);
+    } finally {
+      await rm(staging, { recursive: true, force: true });
+    }
+  }
+  private select(selection: CliSelection): void {
+    writeAtomic(
+      join(cliRoot(this.paths.home), 'selection.json'),
+      JSON.stringify(selection),
+    );
+  }
+  /** Compare-and-set plus the same admission and idle checks used by catalog activation. */
+  async change(
+    expectedVersion: unknown,
+    rollback = false,
+    expectedTarget?: unknown,
+  ) {
+    if (
+      typeof expectedVersion !== 'string' ||
+      !CLI_VERSION.test(expectedVersion)
+    )
+      throw new BadRequestException('Invalid expected CLI version');
+    if (
+      this.config.get<string>('CODEX_BIN') ||
+      process.platform !== 'linux' ||
+      !['x64', 'arm64'].includes(process.arch)
+    )
+      throw new ConflictException(
+        'This CLI installation is managed externally',
+      );
+    if (this.busy)
+      throw new ConflictException('A CLI update is already in progress');
+    const before = cliSelection(this.paths.home);
+    const release = this.admission.begin();
+    this.busy = true;
+    let switched = false;
+    try {
+      if (
+        (rollback && before.version ? before.version : await this.version()) !==
+        expectedVersion
+      )
+        throw new ConflictException(
+          'CLI version changed; refresh before continuing',
+        );
+      await this.requireIdle(rollback);
+      if (rollback && before.version === null)
+        throw new ConflictException('No previous managed CLI version');
+      const target = rollback ? before.previous : await this.latest(true);
+      if (!rollback && expectedTarget !== target)
+        throw new ConflictException(
+          'Latest CLI version changed; refresh before continuing',
+        );
+      if (!rollback && (!target || !isNewerVersion(target, expectedVersion)))
+        throw new ConflictException('No newer stable CLI version is available');
+      if (target) await this.install(target);
+      await this.requireIdle(rollback);
+      await mkdir(cliRoot(this.paths.home), { recursive: true, mode: 0o700 });
+      this.manager.suspendRetries();
+      this.select({ version: target, previous: before.version });
+      switched = true;
+      await this.manager.restartControlled(release);
+      return { success: true };
+    } catch (error) {
+      if (switched) {
+        this.select(before);
+        try {
+          await this.manager.restartControlled(release);
+        } catch {
+          throw new ConflictException(
+            'CLI activation failed. Previous selection was restored, but Codex could not restart; inspect server logs.',
+          );
+        }
+      }
+      throw error;
+    } finally {
+      this.busy = false;
+      release();
+    }
+  }
+  private async requireIdle(allowStopped = false): Promise<void> {
+    if (allowStopped && this.manager.isStopped()) return;
+    const blockers = await this.activity.inspect();
+    if (!blockers.canApply)
+      throw new ConflictException({
+        message: 'Codex must be idle before a CLI update',
+        blockers: blockers.blockers,
+      });
+  }
+}

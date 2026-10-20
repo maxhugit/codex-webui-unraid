@@ -8,7 +8,8 @@
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { SettingsSaveBar } from '../settings-save-bar';
 import { Button } from '@/components/ui/button';
 import { getApiErrorMessage } from '@/lib/api-error';
 import { CatalogEntryDialog } from './catalog-entry-dialog';
@@ -49,7 +50,9 @@ export function CatalogSettings() {
 
   /** Writes a mutated model list back into the working document. */
   const writeModels = (next: CatalogEntry[]) => {
-    const document = catalog.parsed ? { ...catalog.parsed, models: next } : { models: next };
+    const document = catalog.parsed
+      ? { ...catalog.parsed, models: next }
+      : { models: next };
     catalog.setWorking(JSON.stringify(document, null, 2));
   };
 
@@ -104,22 +107,27 @@ export function CatalogSettings() {
             config layer may still supply a catalog, so claiming the bundled one
             is active would be a guess. `runningPaths` is what the child
             actually loaded, and it is the only statement about the live list. */}
-        {state && !state.repairError && <p className="text-xs text-muted-foreground">
-          {pointer
-            ? t('Configured catalog: {{path}}', { path: pointer })
-            : t('No user-level catalog override.')}
-          {!managed && pointer && ` · ${t('not managed by this server')}`}
-        </p>}
+        {state && !state.repairError && (
+          <p className="text-xs text-muted-foreground">
+            {pointer
+              ? t('Configured catalog: {{path}}', { path: pointer })
+              : t('No user-level catalog override.')}
+            {!managed && pointer && ` · ${t('not managed by this server')}`}
+          </p>
+        )}
         {running.length > 0 && (
           <p className="text-xs text-muted-foreground">
             {t('Codex loaded: {{path}}', { path: running.join(', ') })}
           </p>
         )}
-        {state?.ready && !state.repairError && !pointer && running.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            {t('Codex is using the catalog it ships with.')}
-          </p>
-        )}
+        {state?.ready &&
+          !state.repairError &&
+          !pointer &&
+          running.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              {t('Codex is using the catalog it ships with.')}
+            </p>
+          )}
         {state?.ready && !pointerApplied && (
           <div className="space-y-1.5">
             <p className="text-xs text-amber-500">
@@ -314,21 +322,18 @@ export function CatalogSettings() {
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-        <Button
-          size="sm"
-          disabled={!catalog.dirty || catalog.save.isPending}
-          onClick={saveDraft}
-        >
-          <Save className="mr-1.5 h-3.5 w-3.5" />
-          {t('Save draft')}
-        </Button>
-        {catalog.dirty && (
-          <span className="text-xs text-amber-500">{t('Unsaved changes')}</span>
-        )}
+        <SettingsSaveBar
+          dirty={catalog.dirty}
+          saving={catalog.save.isPending}
+          onSave={saveDraft}
+          label="Save draft"
+        />
         <Button
           size="sm"
           variant="outline"
-          disabled={!catalog.committed || catalog.dirty || catalog.apply.isPending}
+          disabled={
+            !catalog.committed || catalog.dirty || catalog.apply.isPending
+          }
           onClick={() => {
             if (catalog.committed === null) return;
             catalog.apply.mutate({
@@ -358,18 +363,18 @@ export function CatalogSettings() {
             so restricting this to `accepted` hid the recovery path in the one
             state that needs it. */}
         {restorable && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={catalog.restore.isPending}
-              onClick={() =>
-                catalog.restore.mutate({ body: { expectedPointer: pointer } })
-              }
-            >
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-              {t('Restore previous')}
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={catalog.restore.isPending}
+            onClick={() =>
+              catalog.restore.mutate({ body: { expectedPointer: pointer } })
+            }
+          >
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            {t('Restore previous')}
+          </Button>
+        )}
       </div>
 
       <CatalogBlockerList query={catalog.blockers} />

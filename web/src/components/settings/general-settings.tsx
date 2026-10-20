@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { SettingEditor } from './setting-editor';
+import { SettingsSaveBar } from './settings-save-bar';
 import { useCategorySettings } from './use-category-settings';
 
 interface Props {
@@ -32,11 +33,7 @@ export function GeneralSettings({
         </h2>
         <div className="flex items-center justify-between rounded-lg border border-border bg-card/50 px-4 py-3">
           <div className="flex items-center gap-3">
-            {dark ? (
-              <Moon className="h-4 w-4" />
-            ) : (
-              <Sun className="h-4 w-4" />
-            )}
+            {dark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             <span className="text-sm">{t('Theme')}</span>
           </div>
           <Button
@@ -73,7 +70,6 @@ export function GeneralSettings({
             </Button>
           </div>
         </div>
-
       </section>
 
       <Separator />
@@ -103,10 +99,15 @@ export function GeneralSettings({
             draft={runtimeSettings.drafts[setting.key] ?? ''}
             disabled={runtimeSettings.isSaving}
             onDraftChange={runtimeSettings.handleDraftChange}
-            onSave={runtimeSettings.handleSave}
             onReset={runtimeSettings.handleReset}
           />
         ))}
+        <SettingsSaveBar
+          dirty={runtimeSettings.isDirty}
+          saving={runtimeSettings.isSaving}
+          onSave={() => void runtimeSettings.handleSaveAll()}
+          onDiscard={runtimeSettings.discardChanges}
+        />
       </section>
 
       <Separator />

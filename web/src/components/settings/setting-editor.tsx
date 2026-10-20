@@ -17,7 +17,7 @@ interface Props {
   draft: string;
   disabled: boolean;
   onDraftChange: (key: string, value: string) => void;
-  onSave: (setting: RuntimeSetting) => void;
+  onSave?: (setting: RuntimeSetting) => void;
   onReset: (key: string) => void;
 }
 
@@ -74,14 +74,16 @@ export function SettingEditor({
           />
         )}
 
-        <Button
-          size="sm"
-          className="h-8"
-          disabled={disabled}
-          onClick={() => onSave(setting)}
-        >
-          {t('Save')}
-        </Button>
+        {onSave && (
+          <Button
+            size="sm"
+            className="h-8"
+            disabled={disabled}
+            onClick={() => onSave(setting)}
+          >
+            {t('Save')}
+          </Button>
+        )}
         <Button
           size="sm"
           variant="outline"

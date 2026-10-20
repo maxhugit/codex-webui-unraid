@@ -20,6 +20,8 @@ import type { ApprovalReviewerValue } from '@/lib/codex-config';
 
 /** Props shared by nullable override controls. */
 interface BaseOverrideControlProps<T> {
+  /** Parent stages edits and owns the Save action. Reviewer confirmation still applies. */
+  deferred?: boolean;
   /** User-facing field label. */
   label: string;
   /** Optional concise field description. */
@@ -92,10 +94,7 @@ export function ConfigBooleanOverrideControl({
           onClick={() => onCommit(draft)}
         />
         {overridden && (
-          <ClearOverrideButton
-            saving={saving}
-            onClick={() => onCommit(null)}
-          />
+          <ClearOverrideButton saving={saving} onClick={() => onCommit(null)} />
         )}
       </div>
     </OverrideFrame>
@@ -112,6 +111,7 @@ export function ConfigSelectOverrideControl<T extends string>({
   saving,
   options,
   onCommit,
+  deferred = false,
 }: BaseOverrideControlProps<T> & {
   /** Real config values exposed by the picker. */
   options: readonly OverrideSelectOption<T>[];
@@ -129,9 +129,12 @@ export function ConfigSelectOverrideControl<T extends string>({
     >
       <div className="flex flex-wrap items-center gap-2">
         <select
-          value={draft}
+          value={deferred ? effectiveValue : draft}
           disabled={saving}
-          onChange={(event) => setDraft(event.target.value as T)}
+          onChange={(event) => {
+            if (deferred) onCommit(event.target.value as T);
+            else setDraft(event.target.value as T);
+          }}
           className={cn(
             'h-8 min-w-40 rounded-md border border-input bg-background px-3 text-sm',
             'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
@@ -143,17 +146,16 @@ export function ConfigSelectOverrideControl<T extends string>({
             </option>
           ))}
         </select>
-        <CommitButton
-          overridden={overridden}
-          saving={saving}
-          dirty={dirty}
-          onClick={() => onCommit(draft)}
-        />
-        {overridden && (
-          <ClearOverrideButton
+        {!deferred && (
+          <CommitButton
+            overridden={overridden}
             saving={saving}
-            onClick={() => onCommit(null)}
+            dirty={dirty}
+            onClick={() => onCommit(draft)}
           />
+        )}
+        {overridden && (
+          <ClearOverrideButton saving={saving} onClick={() => onCommit(null)} />
         )}
       </div>
     </OverrideFrame>
@@ -170,6 +172,7 @@ export function ApprovalReviewerControl({
   saving,
   options,
   onCommit,
+  deferred = false,
 }: BaseOverrideControlProps<ApprovalReviewerValue> & {
   /** Real reviewer values exposed by the picker. */
   options: readonly OverrideSelectOption<ApprovalReviewerValue>[];
@@ -210,11 +213,13 @@ export function ApprovalReviewerControl({
 
       <div className="flex flex-wrap items-center gap-2">
         <select
-          value={draft}
+          value={deferred ? effectiveValue : draft}
           disabled={saving}
-          onChange={(event) =>
-            setDraft(event.target.value as ApprovalReviewerValue)
-          }
+          onChange={(event) => {
+            if (deferred)
+              setPendingValue(event.target.value as ApprovalReviewerValue);
+            else setDraft(event.target.value as ApprovalReviewerValue);
+          }}
           className={cn(
             'h-8 min-w-44 rounded-md border border-input bg-background px-3 text-sm',
             'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
@@ -226,13 +231,15 @@ export function ApprovalReviewerControl({
             </option>
           ))}
         </select>
-        <CommitButton
-          overridden={overridden}
-          saving={saving}
-          dirty={dirty}
-          label={overridden ? t('Save reviewer') : t('Override reviewer')}
-          onClick={() => setPendingValue(draft)}
-        />
+        {!deferred && (
+          <CommitButton
+            overridden={overridden}
+            saving={saving}
+            dirty={dirty}
+            label={overridden ? t('Save reviewer') : t('Override reviewer')}
+            onClick={() => setPendingValue(draft)}
+          />
+        )}
         {overridden && (
           <ClearOverrideButton
             saving={saving}
@@ -315,7 +322,10 @@ function OverrideFrame({
 function InheritanceStateBadge({ overridden }: { overridden: boolean }) {
   const { t } = useTranslation();
   return (
-    <Badge variant={overridden ? 'secondary' : 'outline'} className="text-[10px]">
+    <Badge
+      variant={overridden ? 'secondary' : 'outline'}
+      className="text-[10px]"
+    >
       {overridden ? t('override') : t('inherited')}
     </Badge>
   );

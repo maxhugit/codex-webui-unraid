@@ -2,6 +2,7 @@
 import { useTranslation } from 'react-i18next';
 import { SettingEditor } from './setting-editor';
 import { useCategorySettings } from './use-category-settings';
+import { SettingsSaveBar } from './settings-save-bar';
 import { useTerminalStore } from '@/stores/terminal-store';
 
 export function TerminalSettings() {
@@ -9,9 +10,9 @@ export function TerminalSettings() {
   const refreshTerminalConfig = useTerminalStore((s) => s.refreshConfig);
   const ctx = useCategorySettings('terminal');
 
-  const handleSave = (setting: Parameters<typeof ctx.handleSave>[0]) => {
-    ctx.handleSave(setting);
-    void refreshTerminalConfig();
+  const handleSave = async () => {
+    await ctx.handleSaveAll();
+    await refreshTerminalConfig();
   };
 
   const handleReset = (key: string) => {
@@ -34,10 +35,15 @@ export function TerminalSettings() {
           draft={ctx.drafts[setting.key] ?? ''}
           disabled={ctx.isSaving}
           onDraftChange={ctx.handleDraftChange}
-          onSave={handleSave}
           onReset={handleReset}
         />
       ))}
+      <SettingsSaveBar
+        dirty={ctx.isDirty}
+        saving={ctx.isSaving}
+        onSave={() => void handleSave()}
+        onDiscard={ctx.discardChanges}
+      />
     </section>
   );
 }
