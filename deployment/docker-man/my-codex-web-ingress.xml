@@ -13,7 +13,7 @@
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/deployment/docker-man/my-codex-web-ingress.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/web/public/pwa-icon-192.png</Icon>
-  <ExtraParams>--network net_standard --read-only --cap-drop ALL --cap-add CHOWN --cap-add SETGID --cap-add SETUID --security-opt no-new-privileges:true --tmpfs /var/cache/nginx:rw,nosuid,nodev,size=32m --tmpfs /var/run:rw,nosuid,nodev,size=4m --tmpfs /tmp:rw,nosuid,nodev,size=16m --pids-limit 128 --memory 128m --cpus 0.5 --health-cmd "wget -q --spider http://127.0.0.1:8080/_health" --health-interval 20s --health-timeout 5s --health-retries 5 --log-opt max-size=10m --log-opt max-file=3</ExtraParams>
+  <ExtraParams>--network net_standard --read-only --cap-drop ALL --cap-add CHOWN --cap-add SETGID --cap-add SETUID --security-opt no-new-privileges:true --tmpfs /var/cache/nginx:rw,nosuid,nodev,size=32m --tmpfs /var/run:rw,nosuid,nodev,size=4m --tmpfs /tmp:rw,nosuid,nodev,size=16m --pids-limit 128 --memory 128m --cpus 0.5 --health-cmd "nginx -t -c /tmp/nginx.conf" --health-interval 20s --health-timeout 5s --health-retries 5 --log-opt max-size=10m --log-opt max-file=3</ExtraParams>
   <PostArgs>/bin/sh /opt/codex/start-ingress.sh</PostArgs>
   <CPUset/>
   <DateInstalled/>

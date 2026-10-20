@@ -119,7 +119,7 @@ services:
     mem_limit: 128m
     cpus: 0.5
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/_health"]
+      test: ["CMD", "nginx", "-t", "-c", "/tmp/nginx.conf"]
       interval: 20s
       timeout: 5s
       retries: 5
