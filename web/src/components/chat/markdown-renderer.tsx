@@ -12,6 +12,7 @@ import { Copy, Check, FileText } from 'lucide-react';
 import { showSnackbar } from '@/stores/snackbar-store';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import { MemoryProposalMessage } from './memory-proposal-message';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { parseFileReference, type FileReference } from '@/lib/file-references';
 import {
@@ -274,6 +275,7 @@ const components = (
   em: ({ children }) => <em>{children}</em>,
   del: ({ children }) => <del className="text-muted-foreground">{children}</del>,
   code: ({ node, className, children, ...rest }) => {
+    if (className === 'language-webui-memory-proposal') return <MemoryProposalMessage text={String(children)} completed={completed} />;
     const isBlock = className?.startsWith('language-') || String(children).includes('\n');
     if (isBlock) {
       return (

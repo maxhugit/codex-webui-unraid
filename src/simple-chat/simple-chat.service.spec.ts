@@ -8,6 +8,7 @@ import {
 import type { ThreadsService } from '../threads/threads.service';
 import { SimpleChatService } from './simple-chat.service';
 import type { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
+import type { KnowledgeProposalsService } from '../project-knowledge/knowledge-proposals.service';
 
 describe('SimpleChatService execution backend', () => {
   const database = createTestDatabase();
@@ -69,6 +70,37 @@ describe('SimpleChatService execution backend', () => {
     expect(() => service.setBackend('other')).toThrow(
       'Invalid Simple Chat backend',
     );
+  });
+
+  it('captures simple-chat suggestions with the persistent conversation and message as their source', async () => {
+    const capture = vi.fn();
+    const simple = new SimpleChatService(
+      database.db,
+      { runProjectStructuredPrompt } as unknown as ThreadsService,
+      undefined,
+      { capture } as unknown as KnowledgeProposalsService,
+    );
+    simple.setBackend('codex');
+    const created = simple.createThread({ projectId: 'project-1' });
+    runProjectStructuredPrompt.mockResolvedValue('A memory suggestion');
+    const result = await simple.respond(created.thread.id, {
+      message: 'Remember this',
+    });
+    expect(capture).toHaveBeenCalledWith(
+      'project-1',
+      {
+        sourceType: 'simple',
+        threadId: created.thread.id,
+        sourceId: result.message.id,
+      },
+      'A memory suggestion',
+    );
+    capture.mockImplementation(() => {
+      throw new Error('Proposal storage unavailable');
+    });
+    await expect(
+      simple.respond(created.thread.id, { message: 'Continue anyway' }),
+    ).resolves.toMatchObject({ message: { content: 'A memory suggestion' } });
   });
 
   it('provides fresh shared knowledge to OpenAI without saving it as a user message', async () => {

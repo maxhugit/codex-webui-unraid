@@ -338,6 +338,69 @@ export const projects = sqliteTable(
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
 
+/** Immutable versions sent to agents, retained so delayed proposals have a base. */
+export const projectKnowledgeSnapshots = sqliteTable(
+  'project_knowledge_snapshots',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    revision: text('revision').notNull(),
+    files: text('files', { mode: 'json' })
+      .$type<Record<string, string>>()
+      .notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('idx_knowledge_snapshot_revision').on(
+      table.projectId,
+      table.revision,
+    ),
+  ],
+);
+
+/** Proposed edits never become shared context before explicit acceptance. */
+export const projectKnowledgeProposals = sqliteTable(
+  'project_knowledge_proposals',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    sourceType: text('source_type').notNull(),
+    threadId: text('thread_id').notNull(),
+    sourceId: text('source_id').notNull(),
+    title: text('title').notNull(),
+    file: text('file').notNull(),
+    baseRevision: text('base_revision').notNull(),
+    baseFiles: text('base_files', { mode: 'json' })
+      .$type<Record<string, string>>()
+      .notNull(),
+    proposedFiles: text('proposed_files', { mode: 'json' })
+      .$type<Record<string, string>>()
+      .notNull(),
+    status: text('status').notNull().default('pending'),
+    version: integer('version').notNull().default(1),
+    reviewer: text('reviewer'),
+    reviewedAt: integer('reviewed_at'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    index('idx_knowledge_proposals_project').on(
+      table.projectId,
+      table.createdAt,
+    ),
+    uniqueIndex('idx_knowledge_proposal_source').on(
+      table.projectId,
+      table.sourceType,
+      table.threadId,
+      table.sourceId,
+    ),
+  ],
+);
+
 /** High-level audit trail for changes affecting a project as a whole. */
 export const projectActivity = sqliteTable(
   'project_activity',

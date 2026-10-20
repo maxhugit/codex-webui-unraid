@@ -23,6 +23,7 @@ import { IdentityService } from './identity.service';
 import { ProjectsController } from '../projects/projects.controller';
 import { ProjectsService } from '../projects/projects.service';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
+import { KnowledgeProposalsService } from '../project-knowledge/knowledge-proposals.service';
 import { ProjectKnowledgeController } from '../project-knowledge/project-knowledge.controller';
 
 let app: NestFastifyApplication;
@@ -104,6 +105,7 @@ beforeEach(async () => {
       AuthService,
       IdentityService,
       ProjectKnowledgeService,
+      KnowledgeProposalsService,
       { provide: DRIZZLE_DB, useValue: database.db },
       { provide: ProjectsService, useValue: projectsService },
       {
@@ -189,6 +191,48 @@ it('reserves the real knowledge editor routes to administrators and validates th
     payload: { files: {}, revision: 'forged' },
   });
   expect(invalid.statusCode).toBe(400);
+});
+
+it('reserves proposal listing and review to administrators, including direct forged requests', async () => {
+  const server = app.getHttpAdapter().getInstance();
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/projects/member-project/knowledge/proposals',
+        headers: proxyHeaders(),
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'PATCH',
+        url: '/api/projects/member-project/knowledge/proposals/fake',
+        headers: proxyHeaders(),
+        payload: { action: 'accept', version: 1, role: 'administrator' },
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/projects/member-project/knowledge/proposals',
+        headers: proxyHeaders('administrator@example.com'),
+      })
+    ).statusCode,
+  ).toBe(200);
+  expect(
+    (
+      await server.inject({
+        method: 'PATCH',
+        url: '/api/projects/member-project/knowledge/proposals/fake',
+        headers: proxyHeaders('administrator@example.com'),
+        payload: { action: 'accept', version: 1 },
+      })
+    ).statusCode,
+  ).toBe(404);
 });
 
 it('does not trust a browser marker or a forged role without backend bearer authentication', async () => {

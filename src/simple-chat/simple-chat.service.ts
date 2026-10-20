@@ -1,5 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
+import { KnowledgeProposalsService } from '../project-knowledge/knowledge-proposals.service';
 import { asc, desc, eq } from 'drizzle-orm';
 import {
   chmodSync,
@@ -91,6 +92,7 @@ export class SimpleChatService {
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
     private readonly threads: ThreadsService,
     @Optional() private readonly knowledge?: ProjectKnowledgeService,
+    @Optional() private readonly proposals?: KnowledgeProposalsService,
   ) {}
 
   getBackend(): 'openai' | 'codex' {
@@ -839,6 +841,17 @@ export class SimpleChatService {
         .where(eq(simpleChatThreads.id, threadId))
         .run();
     });
+    if (thread.projectId && this.proposals) {
+      try {
+        this.proposals.capture(
+          thread.projectId,
+          { sourceType: 'simple', threadId, sourceId: assistantMessage.id },
+          text,
+        );
+      } catch {
+        /* A proposal must not prevent delivery of the successful response. */
+      }
+    }
     return { message: assistantMessage, thread: this.requireThread(threadId) };
   }
 

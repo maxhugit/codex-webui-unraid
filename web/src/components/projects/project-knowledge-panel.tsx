@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { projectsApi } from '@/lib/projects-api';
+import { KnowledgeProposalsPanel } from './knowledge-proposals-panel';
 
 const names = ['AGENTS.md', 'CONNAISSANCES.md', 'DECISIONS.md'] as const;
 type Files = Record<(typeof names)[number], string>;
@@ -31,6 +32,7 @@ export function ProjectKnowledgePanel({ projectId }: { projectId: string }) {
     return client.getQueryData<Draft | null>(draftKey) ?? null;
   });
   const [reloadError, setReloadError] = useState('');
+  const [proposalBusy, setProposalBusy] = useState(false);
   const query = useQuery({
     queryKey: key,
     queryFn: () => projectsApi<Snapshot>(`/${projectId}/knowledge`),
@@ -114,7 +116,7 @@ export function ProjectKnowledgePanel({ projectId }: { projectId: string }) {
             id={`knowledge-${name}`}
             rows={8}
             value={files[name]}
-            disabled={save.isPending}
+            disabled={save.isPending || proposalBusy}
             className="font-mono text-sm"
             onChange={(event) => {
               const next = {
@@ -130,6 +132,17 @@ export function ProjectKnowledgePanel({ projectId }: { projectId: string }) {
           </p>
         </div>
       ))}
+      <KnowledgeProposalsPanel
+        projectId={projectId}
+        revision={snapshot.revision}
+        unsaved={dirty}
+        onBusyChange={setProposalBusy}
+        onApplied={() => {
+          setDraft(null);
+          client.setQueryData(draftKey, null);
+          void client.invalidateQueries({ queryKey: key });
+        }}
+      />
       {save.error && (
         <p role="alert" className="text-sm text-destructive">
           {t(
@@ -154,13 +167,13 @@ export function ProjectKnowledgePanel({ projectId }: { projectId: string }) {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            disabled={save.isPending || query.isFetching}
+            disabled={save.isPending || proposalBusy || query.isFetching}
             onClick={() => void reload()}
           >
             {dirty ? t('Reload and discard changes') : t('Reload')}
           </Button>
           <Button
-            disabled={!dirty || tooLarge || save.isPending}
+            disabled={!dirty || tooLarge || save.isPending || proposalBusy}
             onClick={() =>
               save.mutate({
                 files,
