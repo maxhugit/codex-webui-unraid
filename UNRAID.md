@@ -1,7 +1,12 @@
 # Exploitation sur Unraid
 
-La définition active comprend trois conteneurs et se trouve dans
-[`deployment/compose.unraid.yml`](deployment/compose.unraid.yml).
+La plateforme comprend trois conteneurs. Pour une installation native dans
+l'onglet **Docker** d'Unraid, utiliser les trois formulaires de
+[`deployment/docker-man`](deployment/docker-man) et suivre la
+[procédure DockerMan](docs/installation-unraid-dockerman.md).
+
+La définition [`deployment/compose.unraid.yml`](deployment/compose.unraid.yml)
+reste disponible comme variante pour Compose Manager.
 
 ## Emplacements recommandés
 
@@ -22,7 +27,18 @@ La définition active comprend trois conteneurs et se trouve dans
 
 Les fichiers sous `state` ne doivent jamais être ajoutés au dépôt.
 
-## Commandes d’exploitation
+## Mise à jour recommandée
+
+Avec les formulaires standard, utiliser **Docker > Check for Updates**, puis
+**Update** sur `codex-webui`. Unraid recrée le conteneur à partir de `latest`
+sans toucher aux données persistantes de `state`.
+
+Les trois conteneurs restent nécessaires : Nginx porte l'authentification et le
+routage entrant, tandis que Squid contrôle les accès Internet sortants.
+
+## Variante Compose Manager
+
+### Commandes d'exploitation
 
 ```bash
 cd /mnt/pool/appdata/codex-web
@@ -31,7 +47,7 @@ docker compose --env-file images.env -f docker-compose.yml pull
 docker compose --env-file images.env -f docker-compose.yml up -d
 ```
 
-## Gestion depuis l’interface Unraid
+### Gestion depuis l'interface Unraid
 
 La stack est prévue pour le plugin **Compose Manager**. Les labels
 `net.unraid.docker.*` donnent aux conteneurs une icône, un terminal et, pour
@@ -45,10 +61,8 @@ Dans **Docker > Compose**, la stack permet de :
 - utiliser **Update Stack** pour télécharger les images et recréer les trois
   conteneurs dans le bon ordre.
 
-Il ne faut pas recréer uniquement `codex-webui` avec le formulaire Docker
-classique : ce formulaire ne représente pas fidèlement ses deux réseaux, son
-profil seccomp et ses dépendances. Utiliser Compose Manager conserve toutes les
-protections.
+Ne pas mélanger les conteneurs de cette stack avec ceux créés depuis les
+formulaires DockerMan : ils ont volontairement les mêmes noms.
 
 La procédure d’installation et de restauration complète est disponible dans
 [`docs/installation-unraid.md`](docs/installation-unraid.md).

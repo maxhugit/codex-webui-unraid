@@ -6,10 +6,11 @@ dans cet ordre :
 
 1. [Fonctionnement du dépôt](fonctionnement-du-depot.md)
 2. [Architecture sur Unraid](architecture-unraid.md)
-3. [Installation complète](installation-unraid.md)
-4. [Configuration des intégrations](configuration-integrations.md)
-5. [Sauvegarde et restauration](sauvegarde-restauration.md)
-6. [Exploitation et dépannage](exploitation-depannage.md)
+3. [Installation avec les formulaires Docker standard](installation-unraid-dockerman.md)
+4. [Installation avec Compose Manager](installation-unraid.md)
+5. [Configuration des intégrations](configuration-integrations.md)
+6. [Sauvegarde et restauration](sauvegarde-restauration.md)
+7. [Exploitation et dépannage](exploitation-depannage.md)
 
 ## Guide d’utilisation
 
