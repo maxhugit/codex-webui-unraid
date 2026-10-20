@@ -199,6 +199,7 @@ it.each([
   '/plugins',
   '/simple-chat/api-key',
   '/simple-chat/settings',
+  '/projects/project-1/knowledge',
 ])(
   'blocks standard access to %s even with a direct request or a forged body role',
   (path) => {

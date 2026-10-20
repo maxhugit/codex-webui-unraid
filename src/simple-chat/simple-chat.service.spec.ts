@@ -7,6 +7,7 @@ import {
 } from '../database/schema';
 import type { ThreadsService } from '../threads/threads.service';
 import { SimpleChatService } from './simple-chat.service';
+import type { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
 
 describe('SimpleChatService execution backend', () => {
   const database = createTestDatabase();
@@ -68,6 +69,50 @@ describe('SimpleChatService execution backend', () => {
     expect(() => service.setBackend('other')).toThrow(
       'Invalid Simple Chat backend',
     );
+  });
+
+  it('provides fresh shared knowledge to OpenAI without saving it as a user message', async () => {
+    const contextForProject = vi
+      .fn()
+      .mockResolvedValue('Current project knowledge');
+    const simple = new SimpleChatService(
+      database.db,
+      { runProjectStructuredPrompt } as unknown as ThreadsService,
+      { contextForProject } as unknown as ProjectKnowledgeService,
+    );
+    simple.setBackend('openai');
+    const created = simple.createThread({ projectId: 'project-1' });
+    const response = vi
+      .spyOn(
+        simple as unknown as {
+          createResponse: (
+            model: string,
+            messages: Array<{ role: string; content: string }>,
+          ) => Promise<unknown>;
+        },
+        'createResponse',
+      )
+      .mockResolvedValue({
+        output: [{ content: [{ type: 'output_text', text: 'Answer' }] }],
+      });
+    await simple.respond(created.thread.id, { message: 'Question' });
+    expect(contextForProject).toHaveBeenCalledWith('project-1');
+    expect(response).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining([
+        { role: 'user', content: 'Current project knowledge' },
+        { role: 'user', content: 'Question' },
+      ]),
+    );
+    expect(
+      database.db
+        .select()
+        .from(simpleChatMessages)
+        .where(eq(simpleChatMessages.threadId, created.thread.id))
+        .all()
+        .map((item) => item.content),
+    ).toEqual(['Question', 'Answer']);
+    response.mockRestore();
   });
 
   it('keeps an existing conversation in its active workspace after the project primary changes', async () => {

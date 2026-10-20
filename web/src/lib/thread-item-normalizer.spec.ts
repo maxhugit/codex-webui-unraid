@@ -249,4 +249,29 @@ describe('normalizeThreadItem', () => {
       ),
     ).toEqual({ kind: 'plan', itemId: 'plan-1', text: 'step one' });
   });
+
+  it('keeps shared project context out of the user message when replaying history', () => {
+    expect(
+      normalizeThreadItem(
+        {
+          type: 'userMessage',
+          content: [
+            {
+              type: 'text',
+              text: '<project_shared_knowledge>\nCurrent shared project context. New snapshot\nAGENTS.md:\n"Rules"\n</project_shared_knowledge>',
+            },
+            { type: 'text', text: 'My actual request' },
+            { type: 'image', url: 'https://example.com/image.png' },
+          ],
+        },
+        true,
+      ),
+    ).toMatchObject({
+      kind: 'userMessage',
+      message: {
+        text: 'My actual request',
+        images: ['https://example.com/image.png'],
+      },
+    });
+  });
 });

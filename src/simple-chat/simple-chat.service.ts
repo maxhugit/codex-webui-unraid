@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
 import { asc, desc, eq } from 'drizzle-orm';
 import {
   chmodSync,
@@ -89,6 +90,7 @@ export class SimpleChatService {
   constructor(
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
     private readonly threads: ThreadsService,
+    @Optional() private readonly knowledge?: ProjectKnowledgeService,
   ) {}
 
   getBackend(): 'openai' | 'codex' {
@@ -767,9 +769,16 @@ export class SimpleChatService {
       .all()
       .reverse();
     const backend = this.getBackend();
+    const sharedKnowledge =
+      backend === 'openai' && thread.projectId
+        ? await this.knowledge?.contextForProject(thread.projectId)
+        : null;
     const response =
       backend === 'openai'
         ? await this.createResponse(thread.model, [
+            ...(sharedKnowledge
+              ? [{ role: 'user', content: sharedKnowledge }]
+              : []),
             ...previousMessages,
             { role: 'user', content: message },
           ])

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ProjectKnowledgeModule } from '../project-knowledge/project-knowledge.module';
 import { ThreadSecurityPolicyController } from './thread-security-policy.controller';
 import { AuthModule } from '../auth/auth.module';
 import { ChatModule } from '../chat/chat.module';
@@ -31,6 +32,7 @@ import { ProjectConnectionPolicyService } from './project-connection-policy.serv
 
 @Module({
   imports: [
+    ProjectKnowledgeModule,
     AuthModule,
     ChatModule,
     CodexModule,

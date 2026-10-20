@@ -1,7 +1,8 @@
 /**
  * Handles thread and turn operations by delegating to Codex app-server.
  */
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, Optional } from '@nestjs/common';
+import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
 import { CodexService } from '../codex/codex.service';
 import type { ServerNotification, v2 } from '../codex/codex-schema';
 import { BusinessException } from '../common/business.exception';
@@ -77,6 +78,7 @@ export class ThreadsService {
     private readonly workspaceOverrides: ThreadWorkspaceOverridesService,
     private readonly metadata: ThreadMetadataService,
     private readonly projectConnections: ProjectConnectionPolicyService,
+    @Optional() private readonly knowledge?: ProjectKnowledgeService,
   ) {}
 
   /**
@@ -338,8 +340,24 @@ export class ThreadsService {
     const effectiveCwd = workspaceCwd ?? params.cwd ?? beforeTurn?.cwd ?? null;
     const projectPolicy =
       await this.projectConnections.policyForCwd(effectiveCwd);
+    const sharedKnowledge = await this.knowledge?.contextForConversation(
+      effectiveCwd,
+      params.threadId,
+    );
     const effectiveParams: v2.TurnStartParams = {
       ...params,
+      ...(sharedKnowledge
+        ? {
+            input: [
+              {
+                type: 'text' as const,
+                text: sharedKnowledge,
+                text_elements: [],
+              },
+              ...params.input,
+            ],
+          }
+        : {}),
       ...(workspaceCwd ? { cwd: workspaceCwd } : {}),
       ...(projectPolicy?.model ? { model: projectPolicy.model } : {}),
       ...(projectPolicy?.reasoningEffort
@@ -412,6 +430,7 @@ export class ThreadsService {
       void completed.catch(() => undefined);
       await this.startTurn({
         threadId,
+        cwd: input.cwd,
         input: [{ type: 'text', text: input.prompt, text_elements: [] }],
         ...(input.outputSchema ? { outputSchema: input.outputSchema } : {}),
       });

@@ -22,6 +22,8 @@ import { PlatformAccessGuard } from './platform-access.guard';
 import { IdentityService } from './identity.service';
 import { ProjectsController } from '../projects/projects.controller';
 import { ProjectsService } from '../projects/projects.service';
+import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
+import { ProjectKnowledgeController } from '../project-knowledge/project-knowledge.controller';
 
 let app: NestFastifyApplication;
 let database: TestDatabase;
@@ -92,10 +94,16 @@ beforeEach(async () => {
   );
   const module = await Test.createTestingModule({
     imports: [JwtModule.register({})],
-    controllers: [AuthController, SettingsController, ProjectsController],
+    controllers: [
+      AuthController,
+      SettingsController,
+      ProjectsController,
+      ProjectKnowledgeController,
+    ],
     providers: [
       AuthService,
       IdentityService,
+      ProjectKnowledgeService,
       { provide: DRIZZLE_DB, useValue: database.db },
       { provide: ProjectsService, useValue: projectsService },
       {
@@ -146,6 +154,41 @@ it('returns 403 on real settings routes for standard users and 200 for administr
       })
     ).statusCode,
   ).toBe(200);
+});
+
+it('reserves the real knowledge editor routes to administrators and validates the payload', async () => {
+  const server = app.getHttpAdapter().getInstance();
+  for (const method of ['GET', 'PUT'] as const) {
+    const response = await server.inject({
+      method,
+      url: '/api/projects/member-project/knowledge',
+      headers: proxyHeaders(),
+      ...(method === 'PUT'
+        ? { payload: { files: {}, revision: 'forged' } }
+        : {}),
+    });
+    expect(response.statusCode).toBe(403);
+  }
+  const read = await server.inject({
+    method: 'GET',
+    url: '/api/projects/member-project/knowledge',
+    headers: proxyHeaders('administrator@example.com'),
+  });
+  expect(read.statusCode).toBe(200);
+  const snapshot = read.json<{
+    files: Record<string, unknown>;
+    revision: unknown;
+  }>();
+  for (const name of ['AGENTS.md', 'CONNAISSANCES.md', 'DECISIONS.md'])
+    expect(typeof snapshot.files[name]).toBe('string');
+  expect(typeof snapshot.revision).toBe('string');
+  const invalid = await server.inject({
+    method: 'PUT',
+    url: '/api/projects/member-project/knowledge',
+    headers: proxyHeaders('administrator@example.com'),
+    payload: { files: {}, revision: 'forged' },
+  });
+  expect(invalid.statusCode).toBe(400);
 });
 
 it('does not trust a browser marker or a forged role without backend bearer authentication', async () => {

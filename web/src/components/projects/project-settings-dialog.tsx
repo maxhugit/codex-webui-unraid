@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { PeopleManager } from './people-manager';
+import { ProjectKnowledgePanel } from './project-knowledge-panel';
 import { DirectoryPickerDialog } from '@/components/chat/sidebar/directory-picker-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ export type ProjectSettingsSection =
   | 'settings'
   | 'workspaces'
   | 'participants'
+  | 'knowledge'
   | 'mcps';
 
 export function ProjectSettingsPanel({
@@ -162,6 +164,9 @@ export function ProjectSettingsPanel({
   return (
     <>
       <div className="rounded-xl border bg-card p-5">
+        {section === 'knowledge' && (
+          <ProjectKnowledgePanel projectId={project.id} />
+        )}
         {section === 'settings' && (
           <section className="space-y-6">
             <div>
