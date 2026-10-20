@@ -18,20 +18,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { appsListApps, mcpServersListServers } from '@/generated/api';
-import {
-  appsListAppsQueryKey,
-  mcpServersListServersQueryKey,
-  modelsListModelsOptions,
-} from '@/generated/api/@tanstack/react-query.gen';
-import type { AppInfoDto, ModelDto } from '@/generated/api/types.gen';
+import { modelsListModelsOptions } from '@/generated/api/@tanstack/react-query.gen';
+import type { ModelDto } from '@/generated/api/types.gen';
 import {
   projectsApi,
   projectsQueryKey,
   type ProjectSummary,
 } from '@/lib/projects-api';
-import { cn } from '@/lib/utils';
 import type { McpServerStatus } from '@/types/mcp';
+import {
+  availableProjectApps,
+  projectAppsQueryOptions,
+  projectMcpServersQueryOptions,
+} from '@/lib/project-integrations-queries';
 
 export type ProjectSettingsSection =
   | 'settings'
@@ -74,29 +73,16 @@ export function ProjectSettingsPanel({
   );
   const effortOptions = selectedModel?.supportedReasoningEfforts ?? [];
   const mcpServers = useQuery({
-    queryKey: mcpServersListServersQueryKey({
-      query: { detail: 'toolsAndAuthOnly' },
-    }),
-    queryFn: async () => {
-      const { data } = await mcpServersListServers({
-        query: { detail: 'toolsAndAuthOnly' },
-        throwOnError: true,
-      });
-      return (data?.data ?? []) as unknown as McpServerStatus[];
-    },
+    ...projectMcpServersQueryOptions(),
     enabled: section === 'mcps',
   });
   const apps = useQuery({
-    queryKey: appsListAppsQueryKey({ query: { limit: 100 } }),
-    queryFn: async () => {
-      const { data } = await appsListApps({
-        query: { limit: 100 },
-        throwOnError: true,
-      });
-      return (data?.data ?? []) as AppInfoDto[];
-    },
+    ...projectAppsQueryOptions(),
     enabled: section === 'mcps',
   });
+  const mcpServerRows = (mcpServers.data?.data ??
+    []) as unknown as McpServerStatus[];
+  const availableApps = availableProjectApps(apps.data ?? []);
 
   const refresh = async () => {
     setError('');
@@ -425,13 +411,13 @@ export function ProjectSettingsPanel({
                 <p className="text-sm text-destructive">
                   {t('Failed to load MCP servers')}
                 </p>
-              ) : mcpServers.data.length === 0 ? (
+              ) : mcpServerRows.length === 0 ? (
                 <p className="rounded-lg border p-4 text-sm text-muted-foreground">
                   {t('No MCP connector is configured on the server.')}
                 </p>
               ) : (
                 <div className="divide-y rounded-lg border">
-                  {mcpServers.data.map((server) => {
+                  {mcpServerRows.map((server) => {
                     const enabled = mcpServerIds.includes(server.name);
                     return (
                       <label
@@ -500,24 +486,18 @@ export function ProjectSettingsPanel({
                 <p className="text-sm text-destructive">
                   {t('Failed to load apps')}
                 </p>
-              ) : apps.data.length === 0 ? (
+              ) : availableApps.length === 0 ? (
                 <p className="rounded-lg border p-4 text-sm text-muted-foreground">
                   {t('No apps available')}
                 </p>
               ) : (
                 <div className="divide-y rounded-lg border">
-                  {apps.data.map((app) => {
+                  {availableApps.map((app) => {
                     const enabled = appIds.includes(app.id);
-                    const available = app.isAccessible && app.isEnabled;
                     return (
                       <label
                         key={app.id}
-                        className={cn(
-                          'flex items-center gap-3 px-4 py-3',
-                          available
-                            ? 'cursor-pointer hover:bg-accent/40'
-                            : 'cursor-not-allowed opacity-60',
-                        )}
+                        className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-accent/40"
                       >
                         <Boxes className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <span className="min-w-0 flex-1">
@@ -525,14 +505,11 @@ export function ProjectSettingsPanel({
                             {app.name}
                           </span>
                           <span className="block text-xs text-muted-foreground">
-                            {available
-                              ? app.description || t('Available')
-                              : t('App unavailable or globally disabled')}
+                            {app.description || t('Available')}
                           </span>
                         </span>
                         <Switch
                           checked={enabled}
-                          disabled={!available}
                           onCheckedChange={(checked) =>
                             setAppIds((current) =>
                               checked

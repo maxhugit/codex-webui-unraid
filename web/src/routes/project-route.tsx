@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import {
   Bot,
@@ -26,6 +26,10 @@ import {
 } from '@/lib/projects-api';
 import { usePlatformSession } from '@/lib/platform-session';
 import { useParticipants } from '@/lib/people-api';
+import {
+  projectAppsQueryOptions,
+  projectMcpServersQueryOptions,
+} from '@/lib/project-integrations-queries';
 
 type ProjectTab = 'general' | 'journal' | ProjectSettingsSection;
 
@@ -33,6 +37,7 @@ export function ProjectRoute() {
   const { projectId } = useParams({ strict: false });
   const { t, i18n } = useTranslation();
   const session = usePlatformSession();
+  const queryClient = useQueryClient();
   const projects = useQuery({
     queryKey: projectsQueryKey,
     queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
@@ -62,6 +67,12 @@ export function ProjectRoute() {
       ),
     enabled: visibleTab === 'journal',
   });
+
+  useEffect(() => {
+    if (!session.isAdministrator) return;
+    void queryClient.prefetchQuery(projectMcpServersQueryOptions());
+    void queryClient.prefetchQuery(projectAppsQueryOptions());
+  }, [queryClient, session.isAdministrator]);
 
   if (projects.isPending)
     return (
@@ -98,6 +109,14 @@ export function ProjectRoute() {
             label={t('General information')}
             onClick={() => setActiveTab('general')}
           />
+          {canSeePeople && (
+            <ProjectTabButton
+              active={visibleTab === 'participants'}
+              icon={UsersRound}
+              label={t('People')}
+              onClick={() => setActiveTab('participants')}
+            />
+          )}
           <ProjectTabButton
             active={visibleTab === 'journal'}
             icon={History}
@@ -120,19 +139,11 @@ export function ProjectRoute() {
               />
             </>
           )}
-          {canSeePeople && (
-            <ProjectTabButton
-              active={visibleTab === 'participants'}
-              icon={UsersRound}
-              label={t('People')}
-              onClick={() => setActiveTab('participants')}
-            />
-          )}
           {session.isAdministrator && (
             <ProjectTabButton
               active={visibleTab === 'mcps'}
               icon={Plug}
-              label={t('MCP connectors')}
+              label={t('Project integrations')}
               onClick={() => setActiveTab('mcps')}
             />
           )}

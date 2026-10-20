@@ -5,11 +5,11 @@ import {
   EllipsisVertical,
   Languages,
   Menu,
+  MonitorCog,
   Moon,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
-  Settings,
   Sun,
   UserRound,
   X,
@@ -103,7 +103,7 @@ function MobileOverflowMenu({
             onClick={() => act(onSettings)}
             className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
           >
-            <Settings className="h-4 w-4" /> {t('Settings')}
+            <MonitorCog className="h-4 w-4" /> {t('Platform settings')}
           </button>
         )}
         <button
@@ -412,11 +412,12 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
                     variant="ghost"
                     className="h-8 w-8"
                     onClick={() => void navigate({ to: '/settings' })}
+                    aria-label={t('Platform settings')}
                   >
-                    <Settings className="h-4 w-4" />
+                    <MonitorCog className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t('Settings')}</TooltipContent>
+                <TooltipContent>{t('Platform settings')}</TooltipContent>
               </Tooltip>
             )}
             <Tooltip>

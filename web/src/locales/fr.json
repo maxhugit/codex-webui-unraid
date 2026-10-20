@@ -886,6 +886,8 @@
   "not configured": "Non configuré",
   "not managed by this server": "Pas géré par ce serveur",
   "MCP connectors": "Connecteurs MCP",
+  "Project integrations": "Intégrations du projet",
+  "Platform settings": "Paramètres de la plateforme",
   "Choose which MCP connectors can be used inside this project.": "Choisissez les connecteurs MCP utilisables dans ce projet.",
   "No MCP connector is configured on the server.": "Aucun connecteur MCP n’est configuré sur le serveur.",
   "Applications": "Applications",
