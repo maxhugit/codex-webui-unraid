@@ -14,6 +14,9 @@ dans cet ordre :
 
 ## Guide d’utilisation
 
+- [Workspaces des projets](workspaces-projets.md) : principal permanent,
+  secondaires, workspace actif et migration des dossiers existants.
+
 - [Administration Codex](administration-codex.md) : listes dynamiques,
   enregistrement par onglet et gestion de la version du CLI.
 

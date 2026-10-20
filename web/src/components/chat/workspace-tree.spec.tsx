@@ -127,7 +127,7 @@ describe('explorer readiness gate', () => {
 
 describe('project workspaces', () => {
   it('lists every project workspace and keeps default selection explicit', async () => {
-    const onDefaultWorkspaceChange = vi.fn();
+    const onActiveWorkspaceChange = vi.fn();
     render(
       <WorkspaceTree
         cwd="/workspaces/main"
@@ -159,7 +159,7 @@ describe('project workspaces', () => {
             },
           ],
         }}
-        onDefaultWorkspaceChange={onDefaultWorkspaceChange}
+        onActiveWorkspaceChange={onActiveWorkspaceChange}
         desktop
         mobileOpen={false}
         onMobileClose={() => undefined}
@@ -169,11 +169,11 @@ describe('project workspaces', () => {
     await screen.findByTestId('file-tree');
     expect(screen.getByText('Test')).toBeInTheDocument();
     expect(screen.getByText('Documentation')).toBeInTheDocument();
-    expect(screen.getByText('Default')).toBeInTheDocument();
+    expect(screen.getByText('Active workspace')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Documentation'));
     expect(screen.getByTestId('file-tree')).toHaveTextContent('/appdata/docs');
-    fireEvent.click(screen.getByLabelText('Set as default workspace'));
-    expect(onDefaultWorkspaceChange).toHaveBeenCalledWith('/appdata/docs');
+    fireEvent.click(screen.getByLabelText('Use for this conversation'));
+    expect(onActiveWorkspaceChange).toHaveBeenCalledWith('/appdata/docs');
   });
 });

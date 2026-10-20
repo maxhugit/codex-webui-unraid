@@ -6,6 +6,7 @@ import {
   OnModuleInit,
   NotFoundException,
 } from '@nestjs/common';
+import { ProjectWorkspaceLayout } from './project-workspace-layout';
 import { randomUUID } from 'node:crypto';
 import { identityEvents } from '../auth/identity-events';
 import * as path from 'node:path';
@@ -112,7 +113,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
   ) {}
 
-  onModuleInit() {
+  async onModuleInit() {
+    await this.ensurePrimaryWorkspaces();
     this.automationTimer = setInterval(
       () => void this.runDueAutomations(),
       60_000,
@@ -563,7 +565,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       }
     >
   > {
-    this.ensurePrimaryWorkspaces();
+    await this.ensurePrimaryWorkspaces();
     await this.migrateConversationAssociations();
     const workspaces = this.db.select().from(projectWorkspaces).all();
     const resources = this.db.select().from(projectResources).all();
@@ -741,7 +743,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   }
 
   setDefaultWorkspace(projectId: string, workspaceId: string) {
-    const project = this.get(projectId);
+    this.get(projectId);
     const selected = this.db
       .select()
       .from(projectWorkspaces)
@@ -753,22 +755,10 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       )
       .get();
     if (!selected) throw new NotFoundException('Workspace not found');
-    const now = Date.now();
-    this.db.transaction((tx) => {
-      for (const workspace of tx
-        .select()
-        .from(projectWorkspaces)
-        .where(eq(projectWorkspaces.projectId, projectId))
-        .all())
-        tx.update(projectWorkspaces)
-          .set({ primary: workspace.id === workspaceId, updatedAt: now })
-          .where(eq(projectWorkspaces.id, workspace.id))
-          .run();
-      tx.update(projects)
-        .set({ workspacePath: selected.path, updatedAt: now })
-        .where(eq(projects.id, project.id))
-        .run();
-    });
+    if (!selected.primary)
+      throw new ConflictException(
+        'The primary workspace is permanent. Select the active workspace in the conversation instead.',
+      );
     return selected;
   }
 
@@ -786,7 +776,9 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       .get();
     if (!workspace) throw new NotFoundException('Workspace not found');
     if (workspace.primary)
-      throw new ConflictException('Choose another default workspace first');
+      throw new ConflictException(
+        'The primary workspace can only be removed with its project',
+      );
     const agents = this.db
       .select()
       .from(projectAgentThreads)
@@ -824,6 +816,15 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
             },
           })
           .run();
+      tx.update(simpleChatThreads)
+        .set({ cwd: project.workspacePath, updatedAt: now })
+        .where(
+          and(
+            eq(simpleChatThreads.projectId, projectId),
+            eq(simpleChatThreads.cwd, workspace.path),
+          ),
+        )
+        .run();
       tx.delete(projectWorkspaces)
         .where(eq(projectWorkspaces.id, workspaceId))
         .run();
@@ -841,7 +842,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     const removed: string[] = [];
     const unresolved: string[] = [];
     let reassignedAgents = 0;
-    const reassignedSimpleChats = 0;
+    let reassignedSimpleChats = 0;
     for (const project of this.db.select().from(projects).all()) {
       const attached = this.db
         .select()
@@ -863,22 +864,10 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         unresolved.push(...missing.map((workspace) => workspace.path));
         continue;
       }
-      const fallback =
-        existing.find((workspace) => workspace.primary) ?? existing[0];
-      const primaryWasMissing = missing.some((workspace) => workspace.primary);
-      if (primaryWasMissing || project.workspacePath !== fallback.path) {
-        const now = Date.now();
-        this.db.transaction((tx) => {
-          for (const workspace of attached)
-            tx.update(projectWorkspaces)
-              .set({ primary: workspace.id === fallback.id, updatedAt: now })
-              .where(eq(projectWorkspaces.id, workspace.id))
-              .run();
-          tx.update(projects)
-            .set({ workspacePath: fallback.path, updatedAt: now })
-            .where(eq(projects.id, project.id))
-            .run();
-        });
+      const fallback = existing.find((workspace) => workspace.primary);
+      if (!fallback) {
+        unresolved.push(...missing.map((workspace) => workspace.path));
+        continue;
       }
       for (const workspace of missing) {
         const reassigned = await this.workspaces.reassignMissingWorkspace(
@@ -886,6 +875,16 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           fallback.path,
         );
         reassignedAgents += reassigned.agents;
+        reassignedSimpleChats += this.db
+          .update(simpleChatThreads)
+          .set({ cwd: fallback.path, updatedAt: Date.now() })
+          .where(
+            and(
+              eq(simpleChatThreads.projectId, project.id),
+              eq(simpleChatThreads.cwd, workspace.path),
+            ),
+          )
+          .run().changes;
         this.db
           .update(projectAgentThreads)
           .set({ workspacePath: fallback.path, updatedAt: Date.now() })
@@ -916,36 +915,18 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     workspacePathValue?: string,
   ): Promise<Project> {
     const name = this.validateName(nameValue);
-    const requestedPath =
-      workspacePathValue?.trim() || path.join('/workspaces', name);
-    if (!path.isAbsolute(requestedPath))
-      throw new BadRequestException('Workspace path must be absolute');
-
-    const existed = await this.files.directoryExists(requestedPath);
-    const workspacePath = existed
-      ? await this.files.resolveSafePath(requestedPath)
-      : await this.files.resolveSafeTargetPath(requestedPath, {
-          recursiveParent: true,
-        });
-    const existingProject = this.db
-      .select()
-      .from(projects)
-      .where(eq(projects.workspacePath, workspacePath))
-      .get();
-    const existingWorkspace = this.db
-      .select()
-      .from(projectWorkspaces)
-      .where(eq(projectWorkspaces.path, workspacePath))
-      .get();
-    if (existingProject || existingWorkspace) {
-      throw new ConflictException('A project already uses this workspace');
-    }
-    if (!existed) await this.files.createDirectory(workspacePath, true, false);
+    if (workspacePathValue?.trim())
+      throw new BadRequestException(
+        'The primary workspace path is generated from the project ID. Attach other folders as secondary workspaces.',
+      );
+    const id = randomUUID();
+    const workspacePath = await new ProjectWorkspaceLayout(this.db).prepare(id);
     const now = Date.now();
     const project: Project = {
-      id: randomUUID(),
+      id,
       name,
       workspacePath,
+      workspaceLayoutVersion: 1,
       mcpServerIds: [],
       appIds: [],
       agentModel: null,
@@ -970,7 +951,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       });
       return project;
     } catch (error) {
-      if (!existed) await this.cleanupNewProjectDirectory(workspacePath);
+      await this.cleanupNewProjectDirectory(workspacePath);
       throw error;
     }
   }
@@ -999,6 +980,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     const workspacePath = requestedPath
       ? await this.files.resolveSafePath(requestedPath)
       : path.join('/workspaces', name);
+    this.files.assertProjectPathMutable(workspacePath);
     const existing = this.db
       .select()
       .from(projectWorkspaces)
@@ -2881,8 +2863,11 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         .run();
       tx.delete(projects).where(eq(projects.id, id)).run();
     });
-    for (const workspace of workspacesToDelete)
-      await this.files.deletePath(workspace.path, true);
+    for (const workspace of workspacesToDelete) {
+      if (workspace.primary)
+        await this.files.deleteManagedWorkspace(workspace.path);
+      else await this.files.deletePath(workspace.path, true);
+    }
     return {
       ok: true,
       deletedWorkspaces: workspacesToDelete.map((workspace) => workspace.path),
@@ -2940,30 +2925,14 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     return name;
   }
 
-  private ensurePrimaryWorkspaces(): void {
-    const knownPaths = new Set(
-      this.db
-        .select({ path: projectWorkspaces.path })
-        .from(projectWorkspaces)
-        .all()
-        .map((workspace) => workspace.path),
-    );
-    const now = Date.now();
-    for (const project of this.db.select().from(projects).all()) {
-      if (knownPaths.has(project.workspacePath)) continue;
-      this.db
-        .insert(projectWorkspaces)
-        .values({
-          id: randomUUID(),
-          projectId: project.id,
-          name: 'Principal',
-          path: project.workspacePath,
-          primary: true,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .onConflictDoNothing()
-        .run();
-    }
+  private layoutMigration?: Promise<void>;
+
+  private ensurePrimaryWorkspaces(): Promise<void> {
+    return (this.layoutMigration ??= new ProjectWorkspaceLayout(this.db)
+      .migrate()
+      .catch((error) => {
+        this.layoutMigration = undefined;
+        throw error;
+      }));
   }
 }

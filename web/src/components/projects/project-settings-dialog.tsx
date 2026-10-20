@@ -8,7 +8,6 @@ import {
   Loader2,
   Plug,
   Save,
-  Star,
   Unlink,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -114,14 +113,6 @@ export function ProjectSettingsPanel({
     },
     onError: fail,
   });
-  const setDefaultWorkspace = useMutation({
-    mutationFn: (workspaceId: string) =>
-      projectsApi(`/${project.id}/workspaces/${workspaceId}/default`, {
-        method: 'PATCH',
-      }),
-    onSuccess: refresh,
-    onError: fail,
-  });
   const detachWorkspace = useMutation({
     mutationFn: (workspaceId: string) =>
       projectsApi(`/${project.id}/workspaces/${workspaceId}`, {
@@ -163,7 +154,6 @@ export function ProjectSettingsPanel({
   const pending =
     rename.isPending ||
     addWorkspace.isPending ||
-    setDefaultWorkspace.isPending ||
     detachWorkspace.isPending ||
     saveMcpServers.isPending ||
     saveApps.isPending ||
@@ -291,7 +281,7 @@ export function ProjectSettingsPanel({
                 <h3 className="font-semibold">{t('Manage workspaces')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t(
-                    'Add, choose the default workspace, or detach a workspace without deleting its files.',
+                    'The primary workspace is permanent. Add or detach secondary workspaces without deleting their files. Choose the active workspace in each conversation. The .webui folder is reserved for the application.',
                   )}
                 </p>
               </div>
@@ -318,9 +308,13 @@ export function ProjectSettingsPanel({
                     <div className="min-w-40 flex-1">
                       <div className="flex items-center gap-2 font-medium">
                         <span className="truncate">{workspace.name}</span>
-                        {workspace.primary && (
-                          <Badge variant="secondary">{t('Default')}</Badge>
-                        )}
+                        <Badge variant="secondary">
+                          {t(
+                            workspace.primary
+                              ? 'Primary workspace'
+                              : 'Secondary workspace',
+                          )}
+                        </Badge>
                       </div>
                       <div
                         className="truncate font-mono text-[11px] text-muted-foreground"
@@ -331,21 +325,6 @@ export function ProjectSettingsPanel({
                     </div>
                     {!workspace.primary && (
                       <div className="flex flex-wrap gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={pending}
-                          onClick={() =>
-                            setDefaultWorkspace.mutate(workspace.id)
-                          }
-                        >
-                          {setDefaultWorkspace.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Star className="h-3.5 w-3.5" />
-                          )}
-                          {t('Set as default')}
-                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

@@ -7,7 +7,11 @@ import {
   Injectable,
   Logger,
   OnModuleDestroy,
+  Inject,
+  Optional,
 } from '@nestjs/common';
+import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
+import { projects } from '../database/schema';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
 import {
@@ -110,7 +114,10 @@ export class FilesService implements OnModuleDestroy {
   private excludedDirs = DEFAULT_EXCLUDED_DIRS;
   private unregisterSettingsChange: (() => void) | null = null;
 
-  constructor(private readonly settingsService: SettingsService) {
+  constructor(
+    private readonly settingsService: SettingsService,
+    @Optional() @Inject(DRIZZLE_DB) private readonly db?: AppDatabase,
+  ) {
     this.rebuildWorkspaceRoots();
     this.rebuildExcludedDirs();
     this.unregisterSettingsChange = this.settingsService.onChange((event) => {
@@ -574,6 +581,7 @@ export class FilesService implements OnModuleDestroy {
       }
     }
 
+    this.assertProjectPathMutable(targetPath);
     await fs.writeFile(targetPath, content, 'utf-8');
     const newStat = await fs.stat(targetPath);
     return { mtime: newStat.mtimeMs };
@@ -621,6 +629,7 @@ export class FilesService implements OnModuleDestroy {
   ): Promise<FileRelocationResult> {
     this.validateEntryName(newName);
     const source = await fs.realpath(path.resolve(sourcePath));
+    this.assertProjectPathMutable(source);
     const parent = await fs.realpath(path.dirname(source));
     const workspacesRoot = await fs.realpath('/workspaces');
     if (parent !== workspacesRoot) {
@@ -644,6 +653,7 @@ export class FilesService implements OnModuleDestroy {
 
   /** Permanently removes one direct child of /workspaces after orchestration. */
   async deleteManagedWorkspace(targetPath: string): Promise<void> {
+    this.assertProjectPathMutable(targetPath);
     const target = await fs.realpath(path.resolve(targetPath));
     const parent = await fs.realpath(path.dirname(target));
     const workspacesRoot = await fs.realpath('/workspaces');
@@ -953,11 +963,39 @@ export class FilesService implements OnModuleDestroy {
     }
   }
 
+  /** Protect permanent roots and WebUI-owned files from generic file operations. */
+  assertProjectPathMutable(targetPath: string): void {
+    const canonical = (value: string): string => {
+      let current = path.resolve(value);
+      const tail: string[] = [];
+      while (!fsSync.existsSync(current) && path.dirname(current) !== current) {
+        tail.unshift(path.basename(current));
+        current = path.dirname(current);
+      }
+      return path.join(fsSync.realpathSync(current), ...tail);
+    };
+    const target = canonical(targetPath);
+    const contains = (parent: string, child: string) =>
+      parent === child || child.startsWith(parent + path.sep);
+    for (const project of this.db?.select().from(projects).all() ?? []) {
+      if (project.workspaceLayoutVersion < 1) continue;
+      const root = canonical(project.workspacePath);
+      const system = path.join(root, '.webui');
+      if (contains(target, root) || contains(system, target)) {
+        throw BusinessException.conflict(
+          ErrorCode.files.cannotModifyRoot,
+          'The primary workspace is permanent and .webui is reserved for the application',
+        );
+      }
+    }
+  }
+
   /** Checks whether a target already exists and enforces explicit overwrite. */
   private async assertNoOverwrite(
     targetPath: string,
     overwrite: boolean,
   ): Promise<fsSync.Stats | null> {
+    this.assertProjectPathMutable(targetPath);
     const existing = await this.getOptionalLstat(targetPath);
     if (existing && !overwrite) {
       throw BusinessException.conflict(
@@ -988,6 +1026,7 @@ export class FilesService implements OnModuleDestroy {
 
   /** Prevents destructive operations against configured workspace roots. */
   private assertNotWorkspaceRoot(targetPath: string): void {
+    this.assertProjectPathMutable(targetPath);
     if (this.workspaceRoots.has(targetPath)) {
       throw BusinessException.badRequest(
         ErrorCode.files.cannotModifyRoot,
@@ -1038,6 +1077,7 @@ export class FilesService implements OnModuleDestroy {
       destinationRoot,
       upload.relativePath ?? upload.filename,
     );
+    this.assertProjectPathMutable(requestedTarget);
     const parentDir = path.dirname(requestedTarget);
     // Check before mkdir as well: following a symlink while creating nested
     // parents must not create even empty directories outside the destination.

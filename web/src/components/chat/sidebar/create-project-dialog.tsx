@@ -1,7 +1,5 @@
-import { useState } from 'react';
-import { FolderOpen, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { DirectorySelectionTree } from '@/components/files/directory-selection-tree';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,34 +15,28 @@ interface CreateProjectDialogProps {
   open: boolean;
   pending: boolean;
   name: string;
-  workspacePath: string;
   onNameChange: (value: string) => void;
-  onWorkspacePathChange: (value: string) => void;
   onSave: () => void;
   onClose: () => void;
 }
 
-/** Project creation form with an editable or browsable primary workspace. */
+/** The primary workspace path is assigned by the server. */
 export function CreateProjectDialog({
   open,
   pending,
   name,
-  workspacePath,
   onNameChange,
-  onWorkspacePathChange,
   onSave,
   onClose,
 }: CreateProjectDialogProps) {
   const { t } = useTranslation();
-  const [showPicker, setShowPicker] = useState(false);
-  const canSave = Boolean(name.trim() && workspacePath.trim());
+  const canSave = Boolean(name.trim());
 
   return (
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen && !pending) {
-          setShowPicker(false);
           onClose();
         }
       }}
@@ -55,7 +47,7 @@ export function CreateProjectDialog({
             <DialogTitle>{t('Create a project')}</DialogTitle>
             <DialogDescription>
               {t(
-                'Choose the primary workspace. It will be created if it does not exist.',
+                'A permanent primary workspace is created automatically at /workspaces/<project-id>. You can attach secondary workspaces afterwards.',
               )}
             </DialogDescription>
           </DialogHeader>
@@ -73,49 +65,6 @@ export function CreateProjectDialog({
                 autoFocus
               />
             </div>
-            <div className="space-y-1.5">
-              <label
-                htmlFor="new-project-workspace"
-                className="text-sm font-medium"
-              >
-                {t('Primary workspace path')}
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="new-project-workspace"
-                  className="font-mono text-xs"
-                  value={workspacePath}
-                  onChange={(event) =>
-                    onWorkspacePathChange(event.target.value)
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && canSave && !pending) onSave();
-                  }}
-                  disabled={pending}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  disabled={pending}
-                  title={t('Choose a folder')}
-                  onClick={() => setShowPicker((value) => !value)}
-                >
-                  <FolderOpen className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {showPicker && (
-              <DirectorySelectionTree
-                selectedPath={workspacePath || null}
-                onSelectedPathChange={(path) => {
-                  if (path) onWorkspacePathChange(path);
-                }}
-                showCreateButton
-                showSelectedPath
-              />
-            )}
           </div>
 
           <DialogFooter>

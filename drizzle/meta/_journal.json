@@ -204,6 +204,20 @@
       "when": 1792486385725,
       "tag": "0028_equal_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1792510165298,
+      "tag": "0029_permanent_primary_workspace",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1792510444543,
+      "tag": "0030_unique_primary_workspace",
+      "breakpoints": true
     }
   ]
 }

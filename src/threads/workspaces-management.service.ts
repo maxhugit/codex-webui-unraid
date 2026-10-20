@@ -50,6 +50,7 @@ export class WorkspacesManagementService {
 
   async remove(cwd: string, confirmation: string) {
     this.assertWorkspace(cwd);
+    this.files.assertProjectPathMutable(cwd);
     if (confirmation !== path.basename(cwd))
       throw new BadRequestException('Workspace confirmation does not match');
 
