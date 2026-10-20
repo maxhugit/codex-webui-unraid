@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>codex-web-ingress</Name>
-  <Repository>nginx@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2</Repository>
+  <Repository>nginx:stable</Repository>
   <Registry>https://hub.docker.com/_/nginx</Registry>
   <Network>codex_isolated</Network>
   <Shell>sh</Shell>

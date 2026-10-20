@@ -136,5 +136,10 @@ données restent dans `/mnt/pool/appdata/codex-web/state`.
 
 Pour un retour arrière, remplacer temporairement `latest` dans le champ
 **Repository** par le tag immuable `sha-<commit>` précédemment validé, puis
-cliquer sur **Apply**. Les images Nginx et Squid sont épinglées par digest afin
-qu'une mise à jour du backend ne les modifie pas.
+cliquer sur **Apply**.
+
+Les formulaires Ingress et Squid utilisent respectivement `nginx:stable` et
+`ubuntu/squid:latest`. Unraid peut ainsi signaler leurs nouvelles versions avec
+**Check for Updates**. Une mise à jour reste manuelle : vérifier les mises à
+jour proposées, lancer **Update**, puis contrôler que les trois conteneurs sont
+de nouveau `healthy` et que l'interface publique répond correctement.
