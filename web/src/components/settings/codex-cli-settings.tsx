@@ -13,53 +13,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { getAuthorizationHeader } from '@/auth-token';
-import { withBasePath } from '@/base-path';
 import {
   codexConfigReadConfigQueryKey,
   codexStatusGetStatusQueryKey,
   modelsListModelsQueryKey,
 } from '@/generated/api/@tanstack/react-query.gen';
-
-interface CliStatus {
-  selectedVersion: string | null;
-  installedVersion: string | null;
-  imageVersion: string | null;
-  latestVersion: string | null;
-  updateAvailable: boolean;
-  installedError: string | null;
-  checkError: string | null;
-  checkedAt: string | null;
-  canManage: boolean;
-  canRollback: boolean;
-  busy: boolean;
+import { cliStatusQueryKey, requestCli, type CliStatus } from './codex-cli-api';
+interface CliReleaseSection {
+  heading: string;
+  items: string[];
 }
-const queryKey = ['administration', 'codex-cli'];
-async function request<T>(path = '', body?: unknown): Promise<T> {
-  const authorization = getAuthorizationHeader();
-  const response = await fetch(withBasePath(`/api/codex/cli${path}`), {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: {
-      ...(authorization ? { Authorization: authorization } : {}),
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  const data = (await response.json()) as T & {
-    message?: string | string[];
-    blockers?: { reason: string }[];
-  };
-  if (!response.ok)
-    throw new Error(
-      [
-        ...(Array.isArray(data.message)
-          ? data.message
-          : [data.message ?? `HTTP ${response.status}`]),
-        ...(data.blockers?.map((blocker) => blocker.reason) ?? []),
-      ].join('\n'),
-    );
-  return data;
+interface CliReleaseNote {
+  version: string;
+  publishedAt: string | null;
+  url: string;
+  sections: CliReleaseSection[];
 }
+interface CliReleaseHistory {
+  fromVersion: string | null;
+  toVersion: string | null;
+  releases: CliReleaseNote[];
+  releaseError: string | null;
+}
+const releaseQueryKey = [...cliStatusQueryKey, 'releases'] as const;
 
 export function CodexCliSettings() {
   const { t, i18n } = useTranslation();
@@ -70,10 +46,17 @@ export function CodexCliSettings() {
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
   const status = useQuery({
-    queryKey,
-    queryFn: () => request<CliStatus>(),
+    queryKey: cliStatusQueryKey,
+    queryFn: () => requestCli<CliStatus>(),
     staleTime: 60_000,
     refetchInterval: 60_000,
+    retry: false,
+  });
+  const releases = useQuery({
+    queryKey: releaseQueryKey,
+    queryFn: () => requestCli<CliReleaseHistory>('/releases'),
+    enabled: Boolean(status.data?.updateAvailable),
+    staleTime: 15 * 60_000,
     retry: false,
   });
   const mutation = useMutation({
@@ -86,13 +69,13 @@ export function CodexCliSettings() {
       installedVersion: string;
       latestVersion: string | null;
     }) =>
-      request(`/${action}`, {
+      requestCli(`/${action}`, {
         expectedVersion: installedVersion,
         ...(action === 'update' ? { targetVersion: latestVersion } : {}),
       }),
     onSettled: async () => {
       await Promise.all([
-        client.invalidateQueries({ queryKey }),
+        client.invalidateQueries({ queryKey: cliStatusQueryKey }),
         client.invalidateQueries({ queryKey: codexStatusGetStatusQueryKey() }),
         client.invalidateQueries({ queryKey: modelsListModelsQueryKey() }),
         client.invalidateQueries({ queryKey: codexConfigReadConfigQueryKey() }),
@@ -105,7 +88,11 @@ export function CodexCliSettings() {
     setChecking(true);
     setCheckError(null);
     try {
-      client.setQueryData(queryKey, await request<CliStatus>('?refresh=true'));
+      client.setQueryData(
+        cliStatusQueryKey,
+        await requestCli<CliStatus>('?refresh=true'),
+      );
+      await client.invalidateQueries({ queryKey: releaseQueryKey });
     } catch (error) {
       setCheckError(String(error));
     } finally {
@@ -205,6 +192,76 @@ export function CodexCliSettings() {
           </p>
         )}
       </div>
+      {data?.updateAvailable && (
+        <section className="space-y-3 rounded-xl border border-border bg-card/50 p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold">
+              {t('Changes between {{from}} and {{to}}', {
+                from: data.installedVersion,
+                to: data.latestVersion,
+              })}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                'Official OpenAI release notes are shown below. Their technical content is published in English.',
+              )}
+            </p>
+          </div>
+          {releases.isLoading && (
+            <p className="text-sm text-muted-foreground">
+              {t('Loading release notes...')}
+            </p>
+          )}
+          {(releases.data?.releaseError || releases.error) && (
+            <p role="alert" className="text-sm text-amber-500">
+              {t(
+                releases.data?.releaseError ??
+                  'Unable to load official CLI release notes',
+              )}
+            </p>
+          )}
+          {(releases.data?.releases ?? []).map((release) => (
+            <article
+              key={release.version}
+              className="space-y-3 rounded-lg border border-border bg-background/60 p-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h4 className="font-medium">Codex CLI {release.version}</h4>
+                {release.publishedAt && (
+                  <time
+                    dateTime={release.publishedAt}
+                    className="text-xs text-muted-foreground"
+                  >
+                    {new Date(release.publishedAt).toLocaleDateString(
+                      i18n.language,
+                    )}
+                  </time>
+                )}
+              </div>
+              {release.sections.map((section) => (
+                <div key={section.heading} className="space-y-1.5">
+                  <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t(section.heading)}
+                  </h5>
+                  <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
+                    {section.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <a
+                href={release.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex text-sm text-primary underline underline-offset-4"
+              >
+                {t('Open the official release note')}
+              </a>
+            </article>
+          ))}
+        </section>
+      )}
       <p className="text-xs text-muted-foreground">
         {t(
           'CLI updates are installed in persistent storage without changing the container image. Codex must be idle. A failed activation restores the previous selection. A newer CLI may require a WebUI update for full compatibility.',

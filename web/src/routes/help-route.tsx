@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { BookOpen } from 'lucide-react';
-import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useTimelineStore } from '@/stores/timeline-store';
 
@@ -90,12 +89,6 @@ export function HelpRoute() {
               'Organize your projects, work with Codex agents and keep track of shared knowledge, actions and deliverables. This guide explains where to start and how the features fit together.',
             )}
           </p>
-          <Link
-            to="/"
-            className="inline-block text-sm text-primary underline underline-offset-4"
-          >
-            {t('Go to Home')}
-          </Link>
         </header>
         <section
           aria-labelledby="getting-started"
@@ -127,17 +120,6 @@ export function HelpRoute() {
             </li>
           </ol>
         </section>
-        <nav aria-label={t('Guide contents')} className="flex flex-wrap gap-2">
-          {topics.map((topic) => (
-            <a
-              key={topic.id}
-              href={`#${topic.id}`}
-              className="rounded-full border px-3 py-1.5 text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              {t(topic.title)}
-            </a>
-          ))}
-        </nav>
         <div className="space-y-4">
           {topics.map((topic) => (
             <section

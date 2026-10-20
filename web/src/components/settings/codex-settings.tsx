@@ -28,7 +28,6 @@ import {
 import { RawConfigEditor } from './raw-config-editor';
 import { SettingsSaveBar } from './settings-save-bar';
 import { loadAdminModels } from './admin-model-options';
-import { CodexCliSettings } from './codex-cli-settings';
 import { CatalogSettings } from './catalog/catalog-settings';
 import {
   catalogStateQueryKey,
@@ -77,8 +76,7 @@ type CodexSettingsTab =
   | 'security'
   | 'advanced'
   | 'catalog'
-  | 'raw'
-  | 'version';
+  | 'raw';
 
 const CODEX_SETTINGS_TABS = [
   { id: 'profile', label: 'Profile', icon: UserCog },
@@ -90,7 +88,6 @@ const CODEX_SETTINGS_TABS = [
   { id: 'advanced', label: 'Advanced', icon: SlidersHorizontal },
   { id: 'catalog', label: 'Catalog', icon: Library },
   { id: 'raw', label: 'Raw configuration', icon: FileCode2 },
-  { id: 'version', label: 'CLI version', icon: SlidersHorizontal },
 ] as const;
 
 const TAB_GROUPS: Partial<Record<CodexSettingsTab, string>> = {
@@ -390,9 +387,7 @@ export function CodexSettings() {
   const activeFields = activeGroup
     ? (groupedFields.get(activeGroup) ?? [])
     : [];
-  const needsStructuredConfig = !['catalog', 'raw', 'version'].includes(
-    activeTab,
-  );
+  const needsStructuredConfig = !['catalog', 'raw'].includes(activeTab);
   const activeKeys =
     activeTab === 'security'
       ? ['approval_policy', 'sandbox_mode', 'approvals_reviewer']
@@ -664,11 +659,6 @@ export function CodexSettings() {
       {activeTab === 'catalog' && (
         <div id="codex-settings-panel" role="tabpanel">
           <CatalogSettings />
-        </div>
-      )}
-      {activeTab === 'version' && (
-        <div id="codex-settings-panel" role="tabpanel">
-          <CodexCliSettings />
         </div>
       )}
       <div

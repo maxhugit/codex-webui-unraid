@@ -8,7 +8,14 @@ import { ConfigService } from '@nestjs/config';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, rename, rm, symlink } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  realpath,
+  rename,
+  rm,
+  symlink,
+} from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { CatalogPathsService } from '../catalog/catalog-paths.service';
@@ -27,10 +34,73 @@ import {
 
 const execute = promisify(execFile);
 const REGISTRY = 'https://registry.npmjs.org/';
+const RELEASE_API = 'https://api.github.com/repos/openai/codex/releases/tags/';
+
+interface GithubRelease {
+  tag_name?: unknown;
+  name?: unknown;
+  body?: unknown;
+  html_url?: unknown;
+  published_at?: unknown;
+  prerelease?: unknown;
+  draft?: unknown;
+}
+
+export interface CliReleaseSection {
+  heading: string;
+  items: string[];
+}
+
+export interface CliReleaseNote {
+  version: string;
+  publishedAt: string | null;
+  url: string;
+  sections: CliReleaseSection[];
+}
+
+function compareVersions(left: string, right: string): number {
+  const a = left.split('.').map(Number);
+  const b = right.split('.').map(Number);
+  for (let index = 0; index < 3; index++) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return 0;
+}
+
+/** Keep release data inert: select headings and bullets, strip Markdown links, never render HTML. */
+export function extractReleaseSections(body: string): CliReleaseSection[] {
+  const sections: CliReleaseSection[] = [];
+  let current: CliReleaseSection | null = null;
+  for (const rawLine of body.split('\n')) {
+    const line = rawLine.trim();
+    const heading = line.match(/^##\s+(.+)$/)?.[1]?.trim();
+    if (heading) {
+      current = /^changelog$/i.test(heading) ? null : { heading, items: [] };
+      if (current) sections.push(current);
+      continue;
+    }
+    const item = line.match(/^[-*]\s+(.+)$/)?.[1]?.trim();
+    if (!current || !item || current.items.length >= 6) continue;
+    current.items.push(
+      item
+        .replace(/\[([^\]]+)\]\([^\s)]+\)/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\s+/g, ' ')
+        .slice(0, 600),
+    );
+  }
+  return sections.filter((section) => section.items.length > 0).slice(0, 5);
+}
 
 @Injectable()
 export class CodexCliService {
   private latestCache?: { version: string; at: number };
+  private releaseCache?: {
+    fromVersion: string;
+    toVersion: string;
+    releases: CliReleaseNote[];
+    at: number;
+  };
   private checking?: Promise<string>;
   private busy = false;
   constructor(
@@ -40,6 +110,14 @@ export class CodexCliService {
     private readonly activity: CatalogActivityService,
     private readonly manager: CodexProcessManager,
   ) {}
+
+  protected canManageCli(): boolean {
+    return (
+      !this.config.get<string>('CODEX_BIN') &&
+      process.platform === 'linux' &&
+      ['x64', 'arm64'].includes(process.arch)
+    );
+  }
 
   /** Bounded subprocesses, no shell interpolation, and explicit use of the configured egress proxy. */
   protected async command(
@@ -99,6 +177,124 @@ export class CodexCliService {
       this.checking = undefined;
     }
   }
+
+  async releaseNotes(force = false) {
+    const state = await this.status(force);
+    const fromVersion = state.installedVersion;
+    const toVersion = state.latestVersion;
+    if (!fromVersion || !toVersion)
+      return {
+        fromVersion,
+        toVersion,
+        releases: [] as CliReleaseNote[],
+        releaseError: 'Unable to determine the CLI release range',
+      };
+    if (!isNewerVersion(toVersion, fromVersion))
+      return {
+        fromVersion,
+        toVersion,
+        releases: [] as CliReleaseNote[],
+        releaseError: null,
+      };
+    if (
+      !force &&
+      this.releaseCache?.fromVersion === fromVersion &&
+      this.releaseCache.toVersion === toVersion &&
+      Date.now() - this.releaseCache.at < 15 * 60_000
+    )
+      return {
+        fromVersion,
+        toVersion,
+        releases: this.releaseCache.releases,
+        releaseError: null,
+      };
+    try {
+      const versions: unknown = JSON.parse(
+        await this.command(
+          'npm',
+          [
+            'view',
+            '@openai/codex',
+            'versions',
+            '--json',
+            `--registry=${REGISTRY}`,
+            `--@openai:registry=${REGISTRY}`,
+          ],
+          30_000,
+        ),
+      );
+      if (!Array.isArray(versions)) throw new Error('Invalid version list');
+      const range = versions
+        .filter(
+          (version): version is string =>
+            typeof version === 'string' &&
+            CLI_VERSION.test(version) &&
+            isNewerVersion(version, fromVersion) &&
+            compareVersions(version, toVersion) <= 0,
+        )
+        .sort(compareVersions);
+      if (range.length > 25)
+        throw new Error('Release range is too large to display safely');
+      const releases = await Promise.all(
+        range.map(async (version): Promise<CliReleaseNote> => {
+          const raw = await this.command(
+            'curl',
+            [
+              '--silent',
+              '--show-error',
+              '--fail',
+              '--location',
+              '--max-time',
+              '20',
+              '--header',
+              'Accept: application/vnd.github+json',
+              '--header',
+              'User-Agent: codex-webui',
+              `${RELEASE_API}rust-v${version}`,
+            ],
+            25_000,
+          );
+          const release = JSON.parse(raw) as GithubRelease;
+          if (
+            release.tag_name !== `rust-v${version}` ||
+            release.prerelease === true ||
+            release.draft === true
+          )
+            throw new Error('Invalid stable release metadata');
+          const officialUrl = `https://github.com/openai/codex/releases/tag/rust-v${version}`;
+          return {
+            version,
+            publishedAt:
+              typeof release.published_at === 'string'
+                ? release.published_at
+                : null,
+            url:
+              typeof release.html_url === 'string' &&
+              release.html_url === officialUrl
+                ? release.html_url
+                : officialUrl,
+            sections: extractReleaseSections(
+              typeof release.body === 'string' ? release.body : '',
+            ),
+          };
+        }),
+      );
+      this.releaseCache = {
+        fromVersion,
+        toVersion,
+        releases,
+        at: Date.now(),
+      };
+      return { fromVersion, toVersion, releases, releaseError: null };
+    } catch {
+      return {
+        fromVersion,
+        toVersion,
+        releases: [] as CliReleaseNote[],
+        releaseError: 'Unable to load official CLI release notes',
+      };
+    }
+  }
   async status(force = false) {
     let installedVersion: string | null = null,
       latestVersion: string | null = null,
@@ -130,10 +326,7 @@ export class CodexCliService {
       installedError,
       checkError,
       busy: this.busy,
-      canManage:
-        !externalBinary &&
-        process.platform === 'linux' &&
-        ['x64', 'arm64'].includes(process.arch),
+      canManage: this.canManageCli(),
       canRollback: !externalBinary && selection.version !== null,
       selectedVersion: selection.version,
     };
@@ -180,7 +373,10 @@ export class CodexCliService {
       if (!native || (await this.version(native)) !== version)
         throw new Error('Downloaded CLI could not be verified');
       // Relative links remain valid after the staging directory is renamed.
-      await symlink(relative(staging, native), join(staging, 'codex'));
+      await symlink(
+        relative(await realpath(staging), native),
+        join(staging, 'codex'),
+      );
       await mkdir(join(staging, 'helpers'), { mode: 0o700 });
       for (const tool of [
         'codex',
@@ -213,11 +409,7 @@ export class CodexCliService {
       !CLI_VERSION.test(expectedVersion)
     )
       throw new BadRequestException('Invalid expected CLI version');
-    if (
-      this.config.get<string>('CODEX_BIN') ||
-      process.platform !== 'linux' ||
-      !['x64', 'arm64'].includes(process.arch)
-    )
+    if (!this.canManageCli())
       throw new ConflictException(
         'This CLI installation is managed externally',
       );

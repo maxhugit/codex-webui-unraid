@@ -6,6 +6,7 @@ import {
   FolderCog,
   FolderOpen,
   MessageCircle,
+  PackageOpen,
   ScrollText,
   Plug,
   ServerCog,
@@ -15,11 +16,13 @@ import {
   UserCircle,
   UsersRound,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useLayoutStore } from '@/stores/layout-store';
 import { cn } from '@/lib/utils';
 import { settingsPageLabel } from './setting-helpers';
+import { requestCli, type CliStatus } from './codex-cli-api';
 
 import { SETTINGS_SECTIONS } from './settings-sections';
 
@@ -28,6 +31,7 @@ const sectionIcons = {
   people: UsersRound,
   account: UserCircle,
   codex: Bot,
+  codexCli: PackageOpen,
   simpleChat: MessageCircle,
   terminal: SquareTerminal,
   files: FolderCog,
@@ -35,6 +39,37 @@ const sectionIcons = {
   security: ShieldCheck,
   integrations: Plug,
 } satisfies Record<(typeof SETTINGS_SECTIONS)[number], typeof ServerCog>;
+
+function CodexCliUpdateIndicator() {
+  const { t } = useTranslation();
+  const [available, setAvailable] = useState(false);
+  useEffect(() => {
+    let active = true;
+    const refresh = () => {
+      void requestCli<CliStatus>()
+        .then((status) => {
+          if (active) setAvailable(status.updateAvailable);
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+  if (!available) return null;
+  return (
+    <span
+      aria-hidden="true"
+      title={t('A CLI update is available')}
+      className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-xs font-semibold text-white"
+    >
+      !
+    </span>
+  );
+}
 
 /** Administration navigation, shared by desktop and mobile drawers.
  * This is a navigation boundary, not an authorization boundary. The current
@@ -99,6 +134,7 @@ export function SettingsSidebar() {
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {t(settingsPageLabel(entry))}
+                {entry === 'codexCli' && <CodexCliUpdateIndicator />}
               </button>
             );
           })}

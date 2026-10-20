@@ -3,6 +3,7 @@ export const SETTINGS_SECTIONS = [
   'people',
   'account',
   'codex',
+  'codexCli',
   'simpleChat',
   'terminal',
   'files',

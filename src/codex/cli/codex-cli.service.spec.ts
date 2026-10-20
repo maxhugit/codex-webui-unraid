@@ -15,12 +15,15 @@ import { CatalogPathsService } from '../catalog/catalog-paths.service';
 import { CatalogAdmissionService } from '../catalog/catalog-admission.service';
 import type { CatalogActivityService } from '../catalog/catalog-activity.service';
 import type { CodexProcessManager } from '../codex-process-manager.service';
-import { CodexCliService } from './codex-cli.service';
+import { CodexCliService, extractReleaseSections } from './codex-cli.service';
 import { cliSelection, isNewerVersion } from './managed-cli';
 
 class TestCliService extends CodexCliService {
   calls: { binary: string; args: string[] }[] = [];
   failCheck = false;
+  protected override canManageCli(): boolean {
+    return true;
+  }
   protected override async command(
     binary: string,
     args: string[],
@@ -29,7 +32,20 @@ class TestCliService extends CodexCliService {
     this.calls.push({ binary, args });
     if (binary === 'npm' && args[0] === 'view') {
       if (this.failCheck) throw new Error('Network unavailable');
+      if (args.includes('versions')) return '["1.0.0","1.0.1","1.1.0"]';
       return '"1.1.0"';
+    }
+    if (binary === 'curl') {
+      const version = args.at(-1)?.match(/rust-v(\d+\.\d+\.\d+)$/)?.[1];
+      return JSON.stringify({
+        tag_name: `rust-v${version}`,
+        name: version,
+        published_at: '2026-10-15T21:30:38Z',
+        prerelease: false,
+        draft: false,
+        html_url: `https://github.com/openai/codex/releases/tag/rust-v${version}`,
+        body: `## New Features\n\n- Added **feature** for ${version}.\n\n## Changelog\n\n- ignored`,
+      });
     }
     if (binary === 'npm' && args[0] === 'install') {
       const prefix = args[args.indexOf('--prefix') + 1];
@@ -105,6 +121,25 @@ it('reports unavailable registry evidence without claiming the CLI is current', 
     checkError: 'Unable to check npm for updates',
     updateAvailable: false,
   });
+});
+it('lists every stable release in range and extracts only inert highlights', async () => {
+  expect(
+    extractReleaseSections(
+      '## New Features\n- Use [`/config`](https://example.test) now.\n## Changelog\n- ignored',
+    ),
+  ).toEqual([{ heading: 'New Features', items: ['Use /config now.'] }]);
+  await expect(service.releaseNotes()).resolves.toMatchObject({
+    fromVersion: '1.0.0',
+    toVersion: '1.1.0',
+    releaseError: null,
+    releases: [
+      { version: '1.0.1', sections: [{ heading: 'New Features' }] },
+      { version: '1.1.0', sections: [{ heading: 'New Features' }] },
+    ],
+  });
+  expect(service.calls.filter((call) => call.binary === 'curl')).toHaveLength(
+    2,
+  );
 });
 it('refuses active work before downloading or restarting', async () => {
   activity.inspect.mockResolvedValue({

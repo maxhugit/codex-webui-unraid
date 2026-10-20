@@ -21,9 +21,32 @@ const available = {
 };
 beforeEach(() => {
   fixture = catalogFixture();
-  fetchMock = vi.fn((_url: string, options?: RequestInit) =>
+  fetchMock = vi.fn((url: string, options?: RequestInit) =>
     Promise.resolve(
-      json(options?.method === 'POST' ? { success: true } : available),
+      json(
+        options?.method === 'POST'
+          ? { success: true }
+          : url.endsWith('/releases')
+            ? {
+                fromVersion: '1.0.0',
+                toVersion: '1.1.0',
+                releaseError: null,
+                releases: [
+                  {
+                    version: '1.1.0',
+                    publishedAt: '2026-10-15T21:30:38Z',
+                    url: 'https://github.com/openai/codex/releases/tag/rust-v1.1.0',
+                    sections: [
+                      {
+                        heading: 'New Features',
+                        items: ['A verified official release highlight.'],
+                      },
+                    ],
+                  },
+                ],
+              }
+            : available,
+      ),
     ),
   );
   vi.stubGlobal('fetch', fetchMock);
@@ -37,6 +60,18 @@ it('displays installed and latest versions and only updates after explicit confi
   const user = userEvent.setup();
   fixture.render(<CodexCliSettings />);
   await screen.findByText('A CLI update is available');
+  expect(
+    await screen.findByText('Changes between 1.0.0 and 1.1.0'),
+  ).toBeVisible();
+  expect(
+    await screen.findByText('A verified official release highlight.'),
+  ).toBeVisible();
+  expect(
+    screen.getByRole('link', { name: 'Open the official release note' }),
+  ).toHaveAttribute(
+    'href',
+    'https://github.com/openai/codex/releases/tag/rust-v1.1.0',
+  );
   expect(
     fetchMock.mock.calls.some(([, options]) => options?.method === 'POST'),
   ).toBe(false);

@@ -58,6 +58,7 @@ export function sectionLabel(section: string): string {
     people: 'People',
     account: 'Account',
     codex: 'Codex',
+    codexCli: 'Codex CLI',
     terminal: 'Terminal',
     files: 'Files',
     database: 'Database',
@@ -85,6 +86,8 @@ export function settingsPageDescription(section: string): string {
       'Manage Codex app-server auth separately from the WebUI session login.',
     codex:
       'Manage Codex app-server settings. Changes are saved to user config.toml and hot-reloaded.',
+    codexCli:
+      'Review installed and available Codex CLI versions, then manage updates safely.',
     simpleChat:
       'Choose the execution engine used by Simple Chat conversations.',
     terminal:

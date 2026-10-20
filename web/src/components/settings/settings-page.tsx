@@ -13,6 +13,7 @@ import type { SettingsSection } from './settings-sections';
 import { GeneralSettings } from './general-settings';
 import { AccountSettings } from './account/account-settings';
 import { CodexSettings } from './codex-settings';
+import { CodexCliSettings } from './codex-cli-settings';
 import { TerminalSettings } from './terminal-settings';
 import { FilesSettings } from './files-settings';
 import { SecuritySettings } from './security-settings';
@@ -59,6 +60,7 @@ export function SettingsPage() {
         {section === 'account' && <AccountSettings />}
         {section === 'people' && <PeopleManager showHeading={false} />}
         {section === 'codex' && <CodexSettings />}
+        {section === 'codexCli' && <CodexCliSettings />}
         {section === 'simpleChat' && <SimpleChatSettings />}
         {section === 'terminal' && <TerminalSettings />}
         {section === 'files' && <FilesSettings />}

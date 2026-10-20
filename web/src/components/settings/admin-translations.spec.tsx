@@ -8,6 +8,35 @@ import { FIELD_DEFS, GROUP_ORDER } from './codex-settings-defs';
 import { ConfigFieldEditor } from './codex-settings-fields';
 import { settingLabel } from './setting-helpers';
 
+const DYNAMIC_CODEX_LABELS = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+  'ultra',
+  'auto',
+  'concise',
+  'detailed',
+  'disabled',
+  'cached',
+  'live',
+  'workspace-write',
+  'danger-full-access',
+  'on-request',
+  'never',
+  'Sandbox Workspace Write',
+  'user',
+  'profile',
+  'built-in',
+  'system',
+  'environment',
+  'command line',
+  'cli',
+] as const;
+
 describe('administration translations', () => {
   it('covers every structured Codex label, description and group in French', () => {
     for (const text of [
@@ -15,6 +44,7 @@ describe('administration translations', () => {
       ...FIELD_DEFS.flatMap((field) =>
         [field.label, field.description].filter(Boolean),
       ),
+      ...DYNAMIC_CODEX_LABELS,
     ]) {
       expect(fr, `Missing French translation: ${text}`).toHaveProperty(text!);
     }

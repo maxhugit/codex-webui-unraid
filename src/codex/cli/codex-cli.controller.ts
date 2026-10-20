@@ -26,6 +26,13 @@ export class CodexCliController {
   status(@Query('refresh') refresh?: string) {
     return this.cli.status(refresh === 'true');
   }
+  @Get('releases')
+  @ApiOperation({
+    summary: 'List official stable release notes between installed and latest',
+  })
+  releases(@Query('refresh') refresh?: string) {
+    return this.cli.releaseNotes(refresh === 'true');
+  }
   @Post('update')
   @HttpCode(200)
   @ApiOperation({

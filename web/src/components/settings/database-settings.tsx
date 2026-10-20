@@ -1,8 +1,18 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Database, HardDrive } from 'lucide-react';
+import {
+  Braces,
+  CheckCircle2,
+  Database,
+  HardDrive,
+  LayoutDashboard,
+  Rows3,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface DatabaseStatus {
   engine: string;
@@ -19,13 +29,42 @@ interface DatabaseStatus {
   pageSizeBytes: number;
 }
 
-async function readDatabaseStatus() {
+interface DatabaseSchemaObject {
+  name: string;
+  type: 'table' | 'view';
+  sql: string | null;
+  columns: {
+    position: number;
+    name: string;
+    type: string;
+    notNull: boolean;
+    defaultValue: string | null;
+    primaryKeyPosition: number;
+  }[];
+}
+
+interface DatabaseSchema {
+  objects: DatabaseSchemaObject[];
+}
+
+interface DatabaseRows {
+  table: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  sensitiveValuesMasked: boolean;
+}
+
+async function readDatabase<T>(path: string): Promise<T> {
   const authorization = getAuthorizationHeader();
-  const response = await fetch(withBasePath('/api/database/status'), {
+  const response = await fetch(withBasePath(`/api/database/${path}`), {
     headers: authorization ? { Authorization: authorization } : undefined,
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return (await response.json()) as DatabaseStatus;
+  return (await response.json()) as T;
 }
 
 function formatBytes(value: number, locale: string) {
@@ -40,78 +79,310 @@ function formatBytes(value: number, locale: string) {
 
 export function DatabaseSettings() {
   const { t, i18n } = useTranslation();
+  const [tab, setTab] = useState<'overview' | 'schema' | 'data'>('overview');
+  const [table, setTable] = useState('');
+  const [page, setPage] = useState(1);
   const status = useQuery({
     queryKey: ['database-status'],
-    queryFn: readDatabaseStatus,
+    queryFn: () => readDatabase<DatabaseStatus>('status'),
   });
-
-  if (status.isPending)
-    return <p className="text-sm text-muted-foreground">{t('Loading…')}</p>;
-  if (status.isError)
-    return (
-      <p role="alert" className="text-sm text-destructive">
-        {t('Unable to read database information.')}
-      </p>
-    );
+  const schema = useQuery({
+    queryKey: ['database-schema'],
+    queryFn: () => readDatabase<DatabaseSchema>('schema'),
+    staleTime: 60_000,
+  });
+  const tables = (schema.data?.objects ?? []).filter(
+    (object) => object.type === 'table',
+  );
+  const selectedTable = table || tables[0]?.name || '';
+  const rows = useQuery({
+    queryKey: ['database-rows', selectedTable, page],
+    queryFn: () =>
+      readDatabase<DatabaseRows>(
+        `rows?table=${encodeURIComponent(selectedTable)}&page=${page}&pageSize=25`,
+      ),
+    enabled: tab === 'data' && Boolean(selectedTable),
+    placeholderData: (previous) => previous,
+  });
 
   const database = status.data;
   const size = (value: number) => formatBytes(value, i18n.language);
+  const tabs = [
+    { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
+    { id: 'schema' as const, label: 'Schema', icon: Braces },
+    { id: 'data' as const, label: 'Data', icon: Rows3 },
+  ];
   return (
     <section className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <InfoCard icon={Database} label={t('Engine')} value={database.engine} />
-        <InfoCard
-          icon={HardDrive}
-          label={t('Current size')}
-          value={size(database.totalSizeBytes)}
-        />
-        <InfoCard
-          icon={CheckCircle2}
-          label={t('Status')}
-          value={database.connected ? t('Connected') : t('Disconnected')}
-        />
+      <div className="-mx-4 border-b sm:-mx-6">
+        <div
+          role="tablist"
+          aria-label={t('Database sections')}
+          className="flex h-10 items-center overflow-x-auto px-1 sm:px-3"
+        >
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={cn(
+                'flex h-10 shrink-0 items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50',
+                tab === id
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground',
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {t(label)}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="rounded-xl border p-4">
-        <h3 className="text-sm font-semibold">{t('Storage')}</h3>
-        <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
-          <Info label={t('Database path')} value={database.path} wide />
-          <Info
-            label={t('Database file')}
-            value={size(database.databaseSizeBytes)}
-          />
-          <Info
-            label={t('Write-ahead log')}
-            value={size(database.walSizeBytes)}
-          />
-          <Info
-            label={t('Shared memory')}
-            value={size(database.sharedMemorySizeBytes)}
-          />
-          <Info label={t('Journal mode')} value={database.journalMode} />
-          <Info
-            label={t('Foreign keys')}
-            value={database.foreignKeys ? t('Enabled') : t('Disabled')}
-          />
-          <Info
-            label={t('Access mode')}
-            value={database.readOnly ? t('Read-only') : t('Read and write')}
-          />
-          <Info
-            label={t('Pages')}
-            value={new Intl.NumberFormat(i18n.language).format(
-              database.pageCount,
-            )}
-          />
-        </dl>
-        <p className="mt-4 text-xs text-muted-foreground">
-          {t(
-            'The database path is configured with WEBUI_DB_PATH and is applied when the server starts.',
+      {tab === 'overview' && (
+        <>
+          {status.isPending && (
+            <p className="text-sm text-muted-foreground">{t('Loading…')}</p>
           )}
-        </p>
-      </div>
+          {status.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              {t('Unable to read database information.')}
+            </p>
+          )}
+          {database && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <InfoCard
+                  icon={Database}
+                  label={t('Engine')}
+                  value={database.engine}
+                />
+                <InfoCard
+                  icon={HardDrive}
+                  label={t('Current size')}
+                  value={size(database.totalSizeBytes)}
+                />
+                <InfoCard
+                  icon={CheckCircle2}
+                  label={t('Status')}
+                  value={
+                    database.connected ? t('Connected') : t('Disconnected')
+                  }
+                />
+              </div>
+              <div className="rounded-xl border p-4">
+                <h3 className="text-sm font-semibold">{t('Storage')}</h3>
+                <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
+                  <Info label={t('Database path')} value={database.path} wide />
+                  <Info
+                    label={t('Database file')}
+                    value={size(database.databaseSizeBytes)}
+                  />
+                  <Info
+                    label={t('Write-ahead log')}
+                    value={size(database.walSizeBytes)}
+                  />
+                  <Info
+                    label={t('Shared memory')}
+                    value={size(database.sharedMemorySizeBytes)}
+                  />
+                  <Info
+                    label={t('Journal mode')}
+                    value={database.journalMode}
+                  />
+                  <Info
+                    label={t('Foreign keys')}
+                    value={database.foreignKeys ? t('Enabled') : t('Disabled')}
+                  />
+                  <Info
+                    label={t('Access mode')}
+                    value={
+                      database.readOnly ? t('Read-only') : t('Read and write')
+                    }
+                  />
+                  <Info
+                    label={t('Pages')}
+                    value={new Intl.NumberFormat(i18n.language).format(
+                      database.pageCount,
+                    )}
+                  />
+                </dl>
+                <p className="mt-4 text-xs text-muted-foreground">
+                  {t(
+                    'The database path is configured with WEBUI_DB_PATH and is applied when the server starts.',
+                  )}
+                </p>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {tab === 'schema' && (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            {t('Tables, views and columns detected in the active database.')}
+          </p>
+          {schema.isPending && <p>{t('Loading…')}</p>}
+          {schema.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              {t('Unable to read the database schema.')}
+            </p>
+          )}
+          {schema.data?.objects.map((object) => (
+            <details key={object.name} className="rounded-xl border p-4">
+              <summary className="cursor-pointer font-medium">
+                {object.name}{' '}
+                <span className="text-xs font-normal text-muted-foreground">
+                  {t(object.type === 'table' ? 'Table' : 'View')} ·{' '}
+                  {t('{{count}} column', { count: object.columns.length })}
+                </span>
+              </summary>
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[540px] text-left text-xs">
+                  <thead className="text-muted-foreground">
+                    <tr>
+                      <th className="pb-2 pr-4">{t('Column')}</th>
+                      <th className="pb-2 pr-4">{t('Type')}</th>
+                      <th className="pb-2 pr-4">{t('Required')}</th>
+                      <th className="pb-2">{t('Primary key')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {object.columns.map((column) => (
+                      <tr key={column.name} className="border-t">
+                        <td className="py-2 pr-4 font-mono">{column.name}</td>
+                        <td className="py-2 pr-4">{column.type || '—'}</td>
+                        <td className="py-2 pr-4">
+                          {column.notNull ? t('Yes') : t('No')}
+                        </td>
+                        <td className="py-2">
+                          {column.primaryKeyPosition > 0 ? t('Yes') : t('No')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {object.sql && (
+                <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
+                  {object.sql}
+                </pre>
+              )}
+            </details>
+          ))}
+        </div>
+      )}
+
+      {tab === 'data' && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="space-y-1 text-sm">
+              <span className="block text-xs text-muted-foreground">
+                {t('Table')}
+              </span>
+              <select
+                value={selectedTable}
+                onChange={(event) => {
+                  setTable(event.target.value);
+                  setPage(1);
+                }}
+                className="h-9 min-w-64 rounded-md border bg-background px-3"
+              >
+                {tables.map((object) => (
+                  <option key={object.name} value={object.name}>
+                    {object.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                'Read-only view. Sensitive values are masked and rows are paginated.',
+              )}
+            </p>
+          </div>
+          {(schema.isPending || rows.isPending) && <p>{t('Loading…')}</p>}
+          {(schema.isError || rows.isError) && (
+            <p role="alert" className="text-sm text-destructive">
+              {t('Unable to read database rows.')}
+            </p>
+          )}
+          {rows.data && (
+            <>
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full min-w-max text-left text-xs">
+                  <thead className="bg-muted/60 text-muted-foreground">
+                    <tr>
+                      {rows.data.columns.map((column) => (
+                        <th key={column} className="px-3 py-2 font-medium">
+                          {column}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.data.rows.map((row, index) => (
+                      <tr key={index} className="border-t align-top">
+                        {rows.data.columns.map((column) => (
+                          <td
+                            key={column}
+                            className="max-w-96 whitespace-pre-wrap break-words px-3 py-2 font-mono"
+                          >
+                            {formatCell(row[column])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {rows.data.rows.length === 0 && (
+                  <p className="p-4 text-sm text-muted-foreground">
+                    {t('This table is empty.')}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">
+                  {t('{{count}} row', { count: rows.data.total })} ·{' '}
+                  {t('Page {{page}} of {{total}}', {
+                    page: rows.data.page,
+                    total: rows.data.totalPages,
+                  })}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page <= 1 || rows.isFetching}
+                    onClick={() => setPage((current) => current - 1)}
+                  >
+                    {t('Previous')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page >= rows.data.totalPages || rows.isFetching}
+                    onClick={() => setPage((current) => current + 1)}
+                  >
+                    {t('Next')}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </section>
   );
+}
+
+function formatCell(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
 }
 
 function InfoCard({

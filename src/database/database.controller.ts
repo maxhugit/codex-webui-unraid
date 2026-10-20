@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -21,5 +21,29 @@ export class DatabaseController {
   @ApiOkResponse({ description: 'Current SQLite database status' })
   status() {
     return this.database.getStatus();
+  }
+
+  @Get('schema')
+  @ApiOperation({ summary: 'Inspect the application database schema' })
+  schema() {
+    return this.database.getSchema();
+  }
+
+  @Get('rows')
+  @ApiOperation({
+    summary: 'Browse one database table with bounded pagination',
+  })
+  rows(
+    @Query('table') table?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    try {
+      return this.database.readTable(table, page, pageSize);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Invalid database request',
+      );
+    }
   }
 }
