@@ -13,6 +13,7 @@ import { getApiToken } from '@/auth-token';
 import { LoginRoute } from './login-route';
 import { AuthenticatedLayout } from './authenticated-layout';
 import { HomeRoute } from './home-route';
+import { HelpRoute } from './help-route';
 import { ThreadView } from './thread-view';
 import { FilesRoute } from './files-route';
 import { TerminalRoute } from './terminal-route';
@@ -94,6 +95,12 @@ const indexRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/',
   component: HomeRoute,
+});
+
+const helpRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/help',
+  component: HelpRoute,
 });
 
 /** Thread route — specific thread by id. */
@@ -186,6 +193,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   authenticatedRoute.addChildren([
     indexRoute,
+    helpRoute,
     threadRoute,
     filesRoute,
     terminalRoute,
