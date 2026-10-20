@@ -52,7 +52,7 @@ export function formatSettingValue(value: SettingValue): string {
 }
 
 export function sectionLabel(section: string): string {
-  if (section === 'simpleChat') return 'Chat simple';
+  if (section === 'simpleChat') return 'Simple Chat';
   const labels: Record<string, string> = {
     general: 'General',
     people: 'People',
@@ -100,6 +100,21 @@ export function settingsPageDescription(section: string): string {
 }
 
 export function settingLabel(key: string): string {
+  const labels: Record<string, string> = {
+    'general.maxIdleSubscriptions': 'Maximum idle subscriptions',
+    'general.onlyofficeUrl': 'OnlyOffice server URL',
+    'general.onlyofficeJwtSecret': 'OnlyOffice JWT secret',
+    'general.onlyofficeSaveMaxBytes': 'OnlyOffice maximum save size',
+    'general.publicBaseUrl': 'Public WebUI URL',
+    'terminal.maxSessions': 'Maximum terminal sessions',
+    'terminal.graceMs': 'Detached terminal timeout',
+    'terminal.scrollback': 'Terminal scrollback lines',
+    'terminal.defaultCwd': 'Default terminal directory',
+    'files.uploadMaxBytes': 'Maximum upload size',
+    'files.excludedDirs': 'Excluded files and directories',
+    'security.workspaceRoots': 'Allowed workspace roots',
+  };
+  if (labels[key]) return labels[key];
   const label = key.split('.').at(-1) ?? key;
   return label.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
 }
