@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
 import { KnowledgeProposalsService } from '../project-knowledge/knowledge-proposals.service';
+import { DeliverablesService } from '../deliverables/deliverables.service';
 import { asc, desc, eq } from 'drizzle-orm';
 import {
   chmodSync,
@@ -93,6 +94,7 @@ export class SimpleChatService {
     private readonly threads: ThreadsService,
     @Optional() private readonly knowledge?: ProjectKnowledgeService,
     @Optional() private readonly proposals?: KnowledgeProposalsService,
+    @Optional() private readonly deliverables?: DeliverablesService,
   ) {}
 
   getBackend(): 'openai' | 'codex' {
@@ -775,11 +777,22 @@ export class SimpleChatService {
       backend === 'openai' && thread.projectId
         ? await this.knowledge?.contextForProject(thread.projectId)
         : null;
+    const deliverableContext =
+      backend === 'openai'
+        ? this.deliverables?.contextForConversation(thread.id, 'simple')
+        : null;
     const response =
       backend === 'openai'
         ? await this.createResponse(thread.model, [
-            ...(sharedKnowledge
-              ? [{ role: 'user', content: sharedKnowledge }]
+            ...(sharedKnowledge || deliverableContext
+              ? [
+                  {
+                    role: 'user',
+                    content: [sharedKnowledge, deliverableContext]
+                      .filter(Boolean)
+                      .join('\n\n'),
+                  },
+                ]
               : []),
             ...previousMessages,
             { role: 'user', content: message },
@@ -870,7 +883,12 @@ export class SimpleChatService {
       .slice(-30_000);
     return this.threads.runProjectStructuredPrompt({
       cwd: thread.cwd || project.workspacePath,
-      prompt: transcript,
+      prompt: [
+        this.deliverables?.contextForConversation(thread.id, 'simple'),
+        transcript,
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
       instructions:
         "Tu es un assistant généraliste concis et utile. Réponds dans la langue de l'utilisateur. Utilise la recherche Web pour les informations actuelles ou sensibles au temps et cite tes sources avec des liens. Cette conversation est simple : ne modifie aucun fichier et n'exécute aucune commande.",
     });

@@ -41,7 +41,7 @@ export interface ProjectActivitySummary {
 export interface ProjectResourceSummary {
   id: string;
   projectId: string;
-  type: 'task_board' | 'automation_board';
+  type: 'task_board' | 'automation_board' | 'deliverable_board';
   name: string;
   config: Record<string, unknown>;
   createdAt: number;

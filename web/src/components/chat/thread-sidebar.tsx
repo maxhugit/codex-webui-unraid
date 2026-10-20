@@ -800,13 +800,19 @@ export function ThreadSidebar() {
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
-  const createAutomationBoard = useMutation({
-    mutationFn: (projectId: string) =>
+  const createOptionalBoard = useMutation({
+    mutationFn: ({
+      projectId,
+      type,
+    }: {
+      projectId: string;
+      type: 'automation_board' | 'deliverable_board';
+    }) =>
       projectsApi<{ resource: ProjectSummary['resources'][number] }>(
         `/${projectId}/resources`,
         {
           method: 'POST',
-          body: JSON.stringify({ type: 'automation_board' }),
+          body: JSON.stringify({ type }),
         },
       ),
     onSuccess: ({ resource }) => {
@@ -1147,7 +1153,18 @@ export function ThreadSidebar() {
                 group.projectId && createTaskBoard.mutate(group.projectId)
               }
               onCreateAutomationBoard={(group) =>
-                group.projectId && createAutomationBoard.mutate(group.projectId)
+                group.projectId &&
+                createOptionalBoard.mutate({
+                  projectId: group.projectId,
+                  type: 'automation_board',
+                })
+              }
+              onCreateDeliverables={(group) =>
+                group.projectId &&
+                createOptionalBoard.mutate({
+                  projectId: group.projectId,
+                  type: 'deliverable_board',
+                })
               }
               onOpenResource={(projectId, resourceId) =>
                 void navigate({

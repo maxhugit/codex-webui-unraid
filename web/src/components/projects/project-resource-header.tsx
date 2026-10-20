@@ -18,6 +18,12 @@ export function ProjectResourceHeader({
     queryFn: () =>
       projectsApi<ProjectTaskBoard>(`/${projectId}/resources/${resourceId}`),
   });
+  if (board?.resource.type === 'deliverable_board')
+    return (
+      <h1 className="truncate text-lg font-semibold tracking-tight">
+        {board.resource.name}
+      </h1>
+    );
   if (!board || board.resource.type !== 'task_board') {
     return (
       <h1 className="text-lg font-semibold tracking-tight">Codex WebUI</h1>

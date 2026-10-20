@@ -3,6 +3,7 @@
  */
 import { HttpStatus, Injectable, Logger, Optional } from '@nestjs/common';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
+import { DeliverablesService } from '../deliverables/deliverables.service';
 import { CodexService } from '../codex/codex.service';
 import type { ServerNotification, v2 } from '../codex/codex-schema';
 import { BusinessException } from '../common/business.exception';
@@ -79,6 +80,7 @@ export class ThreadsService {
     private readonly metadata: ThreadMetadataService,
     private readonly projectConnections: ProjectConnectionPolicyService,
     @Optional() private readonly knowledge?: ProjectKnowledgeService,
+    @Optional() private readonly deliverables?: DeliverablesService,
   ) {}
 
   /**
@@ -344,14 +346,19 @@ export class ThreadsService {
       effectiveCwd,
       params.threadId,
     );
+    const deliverableContext = this.deliverables?.contextForConversation(
+      params.threadId,
+    );
     const effectiveParams: v2.TurnStartParams = {
       ...params,
-      ...(sharedKnowledge
+      ...(sharedKnowledge || deliverableContext
         ? {
             input: [
               {
                 type: 'text' as const,
-                text: sharedKnowledge,
+                text: [sharedKnowledge, deliverableContext]
+                  .filter(Boolean)
+                  .join('\n\n'),
                 text_elements: [],
               },
               ...params.input,

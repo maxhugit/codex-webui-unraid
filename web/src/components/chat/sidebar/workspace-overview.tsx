@@ -6,10 +6,11 @@ import {
   ChevronRight,
   Eye,
   MessageCircle,
-  MoreHorizontal,
   ListTodo,
   Zap,
   Trash2,
+  Package,
+  Plus,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDroppable } from '@dnd-kit/react';
@@ -61,6 +62,7 @@ interface Props {
   onCreateSimpleChatInWorkspace: (group: WorkspaceGroup) => void;
   onCreateTaskBoard: (group: WorkspaceGroup) => void;
   onCreateAutomationBoard?: (group: WorkspaceGroup) => void;
+  onCreateDeliverables?: (group: WorkspaceGroup) => void;
   onOpenResource: (projectId: string, resourceId: string) => void;
   activeResourceId?: string;
   activeProjectId?: string;
@@ -89,6 +91,7 @@ export function WorkspaceOverview({
   onCreateSimpleChatInWorkspace,
   onCreateTaskBoard,
   onCreateAutomationBoard,
+  onCreateDeliverables,
   onOpenResource,
   activeResourceId,
   activeProjectId,
@@ -242,7 +245,7 @@ export function WorkspaceOverview({
                       aria-label={t('Project actions')}
                       title={t('Project actions')}
                     >
-                      <MoreHorizontal className="h-3.5 w-3.5" />
+                      <Plus className="h-3.5 w-3.5" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent align="end" className="w-56 p-1">
@@ -285,11 +288,34 @@ export function WorkspaceOverview({
                         className="h-8 w-full justify-start gap-2 px-2 text-xs"
                         onClick={() => {
                           setOpenMenu(null);
-                          onCreateAutomationBoard(group);
+                          const existing = group.resources?.find(
+                            (r) => r.type === 'automation_board',
+                          );
+                          if (existing && group.projectId)
+                            onOpenResource(group.projectId, existing.id);
+                          else onCreateAutomationBoard(group);
                         }}
                       >
                         <Zap className="h-3.5 w-3.5" />
-                        Automatisations
+                        {t('Automations')}
+                      </Button>
+                    )}
+                    {onCreateDeliverables && (
+                      <Button
+                        variant="ghost"
+                        className="h-8 w-full justify-start gap-2 px-2 text-xs"
+                        onClick={() => {
+                          setOpenMenu(null);
+                          const existing = group.resources?.find(
+                            (r) => r.type === 'deliverable_board',
+                          );
+                          if (existing && group.projectId)
+                            onOpenResource(group.projectId, existing.id);
+                          else onCreateDeliverables(group);
+                        }}
+                      >
+                        <Package className="h-3.5 w-3.5" />
+                        {t('Deliverables management')}
                       </Button>
                     )}
                     <Button

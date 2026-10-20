@@ -486,6 +486,67 @@ export const projectResources = sqliteTable(
 export type ProjectResource = typeof projectResources.$inferSelect;
 export type InsertProjectResource = typeof projectResources.$inferInsert;
 
+export const projectDeliverables = sqliteTable(
+  'project_deliverables',
+  {
+    id: text('id').primaryKey(),
+    resourceId: text('resource_id')
+      .notNull()
+      .references(() => projectResources.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    criteria: text('criteria').notNull().default(''),
+    assigneeId: text('assignee_id').references(() => people.id, {
+      onDelete: 'set null',
+    }),
+    dueAt: integer('due_at'),
+    status: text('status').notNull().default('planned'),
+    taskIds: text('task_ids', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    conversations: text('conversations', { mode: 'json' })
+      .$type<Array<{ type: 'agent' | 'simple'; id: string }>>()
+      .notNull()
+      .default([]),
+    validatedVersionId: text('validated_version_id'),
+    version: integer('version').notNull().default(1),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [index('idx_deliverables_resource').on(table.resourceId)],
+);
+
+export interface DeliverableFile {
+  name: string;
+  sourcePath: string;
+  snapshotPath: string;
+  size: number;
+  sha256: string;
+}
+export const projectDeliverableVersions = sqliteTable(
+  'project_deliverable_versions',
+  {
+    id: text('id').primaryKey(),
+    deliverableId: text('deliverable_id')
+      .notNull()
+      .references(() => projectDeliverables.id, { onDelete: 'cascade' }),
+    number: integer('number').notNull(),
+    note: text('note').notNull().default(''),
+    files: text('files', { mode: 'json' }).$type<DeliverableFile[]>().notNull(),
+    status: text('status').notNull().default('proposed'),
+    reviewer: text('reviewer'),
+    reviewedAt: integer('reviewed_at'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('idx_deliverable_version_number').on(
+      table.deliverableId,
+      table.number,
+    ),
+  ],
+);
+
 export const projectTaskStatuses = sqliteTable(
   'project_task_statuses',
   {

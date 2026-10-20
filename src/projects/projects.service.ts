@@ -1024,7 +1024,11 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     input: { type: string; name?: string },
   ): ProjectResource {
     this.get(projectId);
-    if (!['task_board', 'automation_board'].includes(input.type))
+    if (
+      !['task_board', 'automation_board', 'deliverable_board'].includes(
+        input.type,
+      )
+    )
       throw new BadRequestException('Unsupported project resource type');
     const siblings = this.db
       .select()
@@ -1036,10 +1040,13 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         ),
       )
       .all();
+    if (input.type !== 'task_board' && siblings.length) return siblings[0];
     const label =
-      input.type === 'automation_board'
-        ? 'Automatisations'
-        : 'Gestionnaire de tâches';
+      input.type === 'deliverable_board'
+        ? 'Gestion des livrables'
+        : input.type === 'automation_board'
+          ? 'Automatisations'
+          : 'Gestionnaire de tâches';
     const defaultName =
       siblings.length === 0 ? label : `${label} ${siblings.length + 1}`;
     const name = input.name?.trim() || defaultName;
@@ -1090,6 +1097,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
 
   async readResource(projectId: string, resourceId: string) {
     const resource = this.getResource(projectId, resourceId);
+    if (resource.type === 'deliverable_board')
+      return { resource, project: this.get(projectId) };
     if (resource.type === 'automation_board')
       return {
         resource,
@@ -2688,6 +2697,27 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     const resource = this.getResource(projectId, resourceId);
     const targetProjectId = input.projectId ?? projectId;
     if (targetProjectId !== projectId) this.get(targetProjectId);
+    if (targetProjectId !== projectId && resource.type === 'deliverable_board')
+      throw new ConflictException(
+        'Deliverables managers cannot be moved between projects',
+      );
+    if (
+      targetProjectId !== projectId &&
+      resource.type === 'automation_board' &&
+      this.db
+        .select()
+        .from(projectResources)
+        .where(
+          and(
+            eq(projectResources.projectId, targetProjectId),
+            eq(projectResources.type, resource.type),
+          ),
+        )
+        .get()
+    )
+      throw new ConflictException(
+        'This project already has an automation manager',
+      );
     const name = input.name === undefined ? resource.name : input.name.trim();
     if (!name) throw new BadRequestException('Resource name is required');
     if (name.length > 120)

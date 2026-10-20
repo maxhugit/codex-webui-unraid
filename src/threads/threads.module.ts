@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DeliverablesModule } from '../deliverables/deliverables.module';
 import { KnowledgeProposalsObserverService } from './knowledge-proposals-observer.service';
 import { ProjectKnowledgeModule } from '../project-knowledge/project-knowledge.module';
 import { ThreadSecurityPolicyController } from './thread-security-policy.controller';
@@ -33,6 +34,7 @@ import { ProjectConnectionPolicyService } from './project-connection-policy.serv
 
 @Module({
   imports: [
+    DeliverablesModule,
     ProjectKnowledgeModule,
     AuthModule,
     ChatModule,

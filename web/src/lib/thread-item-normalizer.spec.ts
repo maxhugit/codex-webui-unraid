@@ -258,7 +258,7 @@ describe('normalizeThreadItem', () => {
           content: [
             {
               type: 'text',
-              text: '<project_shared_knowledge>\nCurrent shared project context. New snapshot\nAGENTS.md:\n"Rules"\n</project_shared_knowledge>',
+              text: '<project_shared_knowledge>\nCurrent shared project context. New snapshot\nAGENTS.md:\n"Rules"\n</project_shared_knowledge>\n\n<project_deliverable_context>\nDeliverable brief\n</project_deliverable_context>',
             },
             { type: 'text', text: 'My actual request' },
             { type: 'image', url: 'https://example.com/image.png' },
