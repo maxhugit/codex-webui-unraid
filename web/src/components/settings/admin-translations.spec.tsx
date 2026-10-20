@@ -76,8 +76,8 @@ describe('administration translations', () => {
       expect(
         screen.getByText(
           language === 'fr'
-            ? 'Instructions de comportement définies au niveau développeur'
-            : 'Developer-level behavior instructions',
+            ? 'Consignes supplémentaires pour la session : langue, comportement et méthode de travail. Elles guident le modèle, mais ne constituent pas un contrôle des droits d’accès.'
+            : 'Additional session-level instructions (language, behavior, working conventions). These guide the model but do not enforce access permissions.',
         ),
       ).toBeVisible();
       expect(

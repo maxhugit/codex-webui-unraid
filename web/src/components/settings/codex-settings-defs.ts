@@ -69,21 +69,24 @@ export const FIELD_DEFS: FieldDef[] = [
     label: 'Instructions',
     group: 'Instructions',
     control: 'textarea',
-    description: 'User-level instructions for the model',
+    description:
+      'Reserved for future use by Codex. Leave empty; use AGENTS.md for project guidance.',
   },
   {
     key: 'developer_instructions',
     label: 'Developer Instructions',
     group: 'Instructions',
     control: 'textarea',
-    description: 'Developer-level behavior instructions',
+    description:
+      'Additional session-level instructions (language, behavior, working conventions). These guide the model but do not enforce access permissions.',
   },
   {
     key: 'compact_prompt',
     label: 'Compact Prompt',
     group: 'Instructions',
     control: 'textarea',
-    description: 'Custom prompt used during context compaction',
+    description:
+      'Overrides the prompt used to condense a long conversation. Leave empty to keep the Codex default; this does not share knowledge between conversations.',
   },
   {
     key: 'model_reasoning_effort',
