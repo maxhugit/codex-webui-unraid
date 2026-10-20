@@ -67,6 +67,13 @@ export function sectionLabel(section: string): string {
   return labels[section] ?? section;
 }
 
+export function settingsPageLabel(section: string): string {
+  if (section === 'general') return 'Server general settings';
+  if (section === 'files') return 'File settings';
+  if (section === 'terminal') return 'Terminal settings';
+  return sectionLabel(section);
+}
+
 export function settingLabel(key: string): string {
   const label = key.split('.').at(-1) ?? key;
   return label.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());

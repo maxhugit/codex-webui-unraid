@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Layers3,
@@ -14,6 +15,11 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { readLogs, type LogEntry } from '@/lib/logs-api';
 import { cn } from '@/lib/utils';
@@ -49,6 +55,8 @@ export function LogsMonitor() {
   const start = total ? offset + 1 : 0;
   const end = Math.min(offset + PAGE_SIZE, total);
   const merged = sources.length !== 1;
+  const selectedSourcesLabel =
+    sources.length === 0 ? t('All sources') : sources.join(', ');
 
   const toggle = (
     value: string,
@@ -141,26 +149,47 @@ export function LogsMonitor() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-medium text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-xs font-medium text-muted-foreground">
             {t('Sources')}
           </span>
-          <FilterButton
-            active={sources.length === 0}
-            label={t('All sources')}
-            onClick={() => {
-              setOffset(0);
-              setSources([]);
-            }}
-          />
-          {availableSources.map((source) => (
-            <FilterButton
-              key={source}
-              active={sources.includes(source)}
-              label={source}
-              onClick={() => toggle(source, sources, setSources)}
-            />
-          ))}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('Filter log sources')}
+                title={selectedSourcesLabel}
+                className="flex h-9 min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-left text-sm shadow-xs outline-none transition-[color,box-shadow] hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <span className="truncate">{selectedSourcesLabel}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="w-[min(28rem,calc(100vw-2rem))] p-1"
+            >
+              <SourceOption
+                checked={sources.length === 0}
+                label={t('All sources')}
+                onChange={() => {
+                  setOffset(0);
+                  setSources([]);
+                }}
+              />
+              <div className="my-1 border-t" />
+              <div className="max-h-72 overflow-y-auto">
+                {availableSources.map((source) => (
+                  <SourceOption
+                    key={source}
+                    checked={sources.includes(source)}
+                    label={source}
+                    onChange={() => toggle(source, sources, setSources)}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -215,6 +244,30 @@ export function LogsMonitor() {
         </div>
       </div>
     </section>
+  );
+}
+
+function SourceOption({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: () => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-accent">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="h-4 w-4 shrink-0 cursor-pointer accent-primary"
+      />
+      <span className="min-w-0 truncate" title={label}>
+        {label}
+      </span>
+    </label>
   );
 }
 

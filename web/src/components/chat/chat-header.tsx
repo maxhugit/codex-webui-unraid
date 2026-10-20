@@ -50,6 +50,8 @@ import { McpStatusBadge } from './mcp-status-badge';
 import { usePlatformSession } from '@/lib/platform-session';
 import { ProjectResourceHeader } from '@/components/projects/project-resource-header';
 import { ProjectHeader } from '@/components/projects/project-header';
+import { settingsPageLabel } from '@/components/settings/setting-helpers';
+import type { SettingsSection } from '@/components/settings/settings-sections';
 import {
   Dialog,
   DialogContent,
@@ -139,6 +141,11 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
     pathname,
   );
   const projectRoute = /^\/projects\/([^/]+)\/?$/.exec(pathname);
+  const settingsSection = useRouterState({
+    select: (s) =>
+      (s.location.search as { section?: SettingsSection } | undefined)
+        ?.section ?? 'general',
+  });
   const simpleChatThreadId = useRouterState({
     select: (s) =>
       s.location.pathname.startsWith('/simple-chat')
@@ -344,6 +351,10 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
             />
           ) : projectRoute ? (
             <ProjectHeader projectId={projectRoute[1]} />
+          ) : pathname === '/settings' ? (
+            <h1 className="truncate text-lg font-semibold tracking-tight">
+              {t(settingsPageLabel(settingsSection))}
+            </h1>
           ) : simpleChatTitle ? (
             <h1
               className="truncate text-sm font-semibold tracking-tight"

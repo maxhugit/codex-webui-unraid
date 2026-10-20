@@ -7,7 +7,7 @@ import { useTimelineStore } from '@/stores/timeline-store';
 import { simpleChatThreadsQueryKey } from '@/lib/simple-chat-api';
 
 let pathname = '/simple-chat';
-let search: { thread?: string } = {};
+let search: { thread?: string; section?: string } = {};
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
@@ -60,7 +60,9 @@ describe('ChatHeader', () => {
   beforeEach(() => {
     pathname = '/simple-chat';
     search = {};
-    useTimelineStore.getState().setActiveThread('thread-123', '/workspaces/demo', 'Titre conservé');
+    useTimelineStore
+      .getState()
+      .setActiveThread('thread-123', '/workspaces/demo', 'Titre conservé');
   });
 
   it('shows the selected Simple Chat title in the global header', () => {
@@ -78,7 +80,9 @@ describe('ChatHeader', () => {
   it('does not leak the cached Codex thread title into Simple Chat', () => {
     renderHeader();
 
-    expect(screen.getByRole('heading', { name: 'Codex WebUI' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Codex WebUI' }),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Titre conservé')).not.toBeInTheDocument();
   });
 
@@ -87,6 +91,19 @@ describe('ChatHeader', () => {
     renderHeader();
 
     expect(screen.getByText('Titre conservé')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Codex WebUI' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Codex WebUI' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the current administration section in the global header', () => {
+    pathname = '/settings';
+    search = { section: 'people' };
+    renderHeader();
+
+    expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Codex WebUI' }),
+    ).not.toBeInTheDocument();
   });
 });

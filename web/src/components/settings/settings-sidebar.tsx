@@ -19,7 +19,7 @@ import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useLayoutStore } from '@/stores/layout-store';
 import { cn } from '@/lib/utils';
-import { sectionLabel } from './setting-helpers';
+import { settingsPageLabel } from './setting-helpers';
 
 import { SETTINGS_SECTIONS } from './settings-sections';
 
@@ -98,15 +98,7 @@ export function SettingsSidebar() {
                 }}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {t(
-                  entry === 'general'
-                    ? 'Server general settings'
-                    : entry === 'files'
-                      ? 'File settings'
-                      : entry === 'terminal'
-                        ? 'Terminal settings'
-                        : sectionLabel(entry),
-                )}
+                {t(settingsPageLabel(entry))}
               </button>
             );
           })}

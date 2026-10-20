@@ -1002,6 +1002,7 @@
   "Levels": "Niveaux",
   "Sources": "Sources",
   "All sources": "Toutes les sources",
+  "Filter log sources": "Filtrer les sources des logs",
   "Unable to load logs": "Impossible de charger les logs",
   "No log matches the selected filters.": "Aucun log ne correspond aux filtres sélectionnés.",
   "displayed": "affichés"
