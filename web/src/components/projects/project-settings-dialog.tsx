@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
@@ -33,8 +33,9 @@ import { appsListApps, mcpServersListServers } from '@/generated/api';
 import {
   appsListAppsQueryKey,
   mcpServersListServersQueryKey,
+  modelsListModelsOptions,
 } from '@/generated/api/@tanstack/react-query.gen';
-import type { AppInfoDto } from '@/generated/api/types.gen';
+import type { AppInfoDto, ModelDto } from '@/generated/api/types.gen';
 import {
   projectsApi,
   projectsQueryKey,
@@ -64,6 +65,22 @@ export function ProjectSettingsDialog({
     project.mcpServerIds ?? [],
   );
   const [appIds, setAppIds] = useState<string[]>(project.appIds ?? []);
+  const [agentModel, setAgentModel] = useState(project.agentModel ?? '');
+  const [agentReasoningEffort, setAgentReasoningEffort] = useState(
+    project.agentReasoningEffort ?? '',
+  );
+  const models = useQuery({
+    ...modelsListModelsOptions({ query: { includeHidden: true } }),
+    staleTime: 60_000,
+  });
+  const selectedModel = useMemo(
+    () =>
+      (models.data?.data ?? []).find(
+        (model: ModelDto) => model.model === agentModel,
+      ),
+    [agentModel, models.data?.data],
+  );
+  const effortOptions = selectedModel?.supportedReasoningEfforts ?? [];
   const mcpServers = useQuery({
     queryKey: mcpServersListServersQueryKey({
       query: { detail: 'toolsAndAuthOnly' },
@@ -153,13 +170,26 @@ export function ProjectSettingsDialog({
     onSuccess: refresh,
     onError: fail,
   });
+  const saveAgentSettings = useMutation({
+    mutationFn: () =>
+      projectsApi(`/${project.id}/agent-settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          model: agentModel || null,
+          reasoningEffort: agentReasoningEffort || null,
+        }),
+      }),
+    onSuccess: refresh,
+    onError: fail,
+  });
   const pending =
     rename.isPending ||
     addWorkspace.isPending ||
     setDefaultWorkspace.isPending ||
     detachWorkspace.isPending ||
     saveMcpServers.isPending ||
-    saveApps.isPending;
+    saveApps.isPending ||
+    saveAgentSettings.isPending;
 
   const tabs: Array<{ id: Section; label: string; icon: typeof Settings }> = [
     { id: 'general', label: t('General settings'), icon: Settings },
@@ -206,7 +236,7 @@ export function ProjectSettingsDialog({
 
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
             {section === 'general' && (
-              <section className="space-y-4">
+              <section className="space-y-6">
                 <div>
                   <h3 className="font-semibold">{t('General settings')}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -237,6 +267,84 @@ export function ProjectSettingsDialog({
                     <Save className="h-4 w-4" />
                     {t('Save')}
                   </Button>
+                </div>
+                <div className="space-y-4 border-t pt-6">
+                  <div>
+                    <h3 className="font-semibold">
+                      {t('Agent configuration')}
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {t(
+                        'Choose the model and reasoning effort used by agents and task manager AI in this project.',
+                      )}
+                    </p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="grid gap-1 text-sm font-medium">
+                      {t('Model')}
+                      <select
+                        className="h-9 rounded-md border bg-background px-3 text-sm font-normal text-foreground"
+                        value={agentModel}
+                        disabled={models.isPending}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          const model = (models.data?.data ?? []).find(
+                            (item: ModelDto) => item.model === value,
+                          );
+                          setAgentModel(value);
+                          setAgentReasoningEffort(
+                            model?.defaultReasoningEffort ?? '',
+                          );
+                        }}
+                      >
+                        <option value="">{t('Server default')}</option>
+                        {(models.data?.data ?? []).map((model: ModelDto) => (
+                          <option key={model.id} value={model.model}>
+                            {model.displayName || model.model}
+                            {model.hidden ? ` · ${t('hidden')}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="grid gap-1 text-sm font-medium">
+                      {t('Reasoning effort')}
+                      <select
+                        className="h-9 rounded-md border bg-background px-3 text-sm font-normal text-foreground"
+                        value={agentReasoningEffort}
+                        onChange={(event) =>
+                          setAgentReasoningEffort(event.target.value)
+                        }
+                      >
+                        <option value="">{t('Model default')}</option>
+                        {effortOptions.map((option) => (
+                          <option
+                            key={option.reasoningEffort}
+                            value={option.reasoningEffort}
+                          >
+                            {option.reasoningEffort}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      disabled={
+                        pending ||
+                        (agentModel === (project.agentModel ?? '') &&
+                          agentReasoningEffort ===
+                            (project.agentReasoningEffort ?? ''))
+                      }
+                      onClick={() => saveAgentSettings.mutate()}
+                    >
+                      {saveAgentSettings.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      {t('Save')}
+                    </Button>
+                  </div>
                 </div>
               </section>
             )}

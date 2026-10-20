@@ -23,6 +23,7 @@ interface Props {
   onClose: (tab: WorkspaceTab) => void;
   onExplorer: () => void;
   onNewTerminal: () => void;
+  canCreateTerminal?: boolean;
   terminalCreationDisabled?: boolean;
 }
 
@@ -35,6 +36,7 @@ export function WorkspaceControls({
   onClose,
   onExplorer,
   onNewTerminal,
+  canCreateTerminal = true,
   terminalCreationDisabled,
 }: Props) {
   const { t } = useTranslation();
@@ -64,9 +66,7 @@ export function WorkspaceControls({
       // Roving tabindex: a tablist is one stop, and the arrow-key handler moves
       // focus within it. Leaving this at its default made the pinned tab a
       // second stop whenever a file or terminal tab was the selected one.
-      tabIndex={
-        !desktop || workspace.activeId === 'conversation' ? 0 : -1
-      }
+      tabIndex={!desktop || workspace.activeId === 'conversation' ? 0 : -1}
       onClick={() => choose('conversation')}
       className={cn(
         'flex h-10 shrink-0 items-center gap-2 border-b-2 px-3 text-xs',
@@ -150,7 +150,10 @@ export function WorkspaceControls({
                   title={tab.kind === 'file' ? tab.path : label(tab)}
                   onClick={() => choose(tab.id)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Delete') { event.preventDefault(); onClose(tab); }
+                    if (event.key === 'Delete') {
+                      event.preventDefault();
+                      onClose(tab);
+                    }
                   }}
                   className="flex min-w-0 items-center gap-2 px-3 text-xs"
                 >
@@ -189,16 +192,18 @@ export function WorkspaceControls({
           </button>
         )}
       </div>
-      <button
-        type="button"
-        className="h-10 shrink-0 px-3 hover:bg-accent"
-        title={t('New terminal')}
-        aria-label={t('New terminal')}
-        onClick={onNewTerminal}
-        disabled={terminalCreationDisabled}
-      >
-        <TerminalSquare className="h-4 w-4" />
-      </button>
+      {canCreateTerminal && (
+        <button
+          type="button"
+          className="h-10 shrink-0 px-3 hover:bg-accent"
+          title={t('New terminal')}
+          aria-label={t('New terminal')}
+          onClick={onNewTerminal}
+          disabled={terminalCreationDisabled}
+        >
+          <TerminalSquare className="h-4 w-4" />
+        </button>
+      )}
       <button
         type="button"
         className="h-10 shrink-0 px-3 hover:bg-accent"

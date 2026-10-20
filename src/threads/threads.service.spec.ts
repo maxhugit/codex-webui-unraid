@@ -72,6 +72,7 @@ describe('ThreadsService', () => {
   };
   const mockProjectConnections = {
     configForCwd: vi.fn(),
+    policyForCwd: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -117,6 +118,8 @@ describe('ThreadsService', () => {
     Object.values(mockWorkspaceOverrides).forEach((mock) => mock.mockReset());
     mockProjectConnections.configForCwd.mockReset();
     mockProjectConnections.configForCwd.mockResolvedValue(null);
+    mockProjectConnections.policyForCwd.mockReset();
+    mockProjectConnections.policyForCwd.mockResolvedValue(null);
     mockBranches.hasKnownDescendants.mockReturnValue(false);
     mockBranches.hasForkEdge.mockReturnValue(false);
     mockBranches.listKnownTreeThreadIds.mockImplementation(
@@ -151,8 +154,13 @@ describe('ThreadsService', () => {
       thread: { id: 't1', historyMode: 'paginated' },
       model: 'gpt-4',
     };
-    mockProjectConnections.configForCwd.mockResolvedValue({
-      apps: { _default: { enabled: false }, gmail: { enabled: true } },
+    mockProjectConnections.policyForCwd.mockResolvedValue({
+      projectId: 'project-1',
+      model: 'gpt-project',
+      reasoningEffort: 'high',
+      config: {
+        apps: { _default: { enabled: false }, gmail: { enabled: true } },
+      },
     });
     mockCodex.request.mockResolvedValue(response);
 
@@ -163,9 +171,11 @@ describe('ThreadsService', () => {
 
     expect(mockCodex.request).toHaveBeenCalledWith('thread/start', {
       cwd: '/workspaces/mail',
+      model: 'gpt-project',
       config: {
         web_search: 'cached',
         apps: { _default: { enabled: false }, gmail: { enabled: true } },
+        model_reasoning_effort: 'high',
       },
       historyMode: 'paginated',
     });
@@ -337,6 +347,36 @@ describe('ThreadsService', () => {
       'turn1',
       'hello',
     );
+  });
+
+  it('enforces the project model and reasoning effort on every turn', async () => {
+    mockMetadata.getHeldThread.mockReturnValue({
+      id: 't1',
+      cwd: '/workspaces/mail',
+      name: 'Mail agent',
+      preview: 'Existing thread',
+    });
+    mockProjectConnections.policyForCwd.mockResolvedValue({
+      projectId: 'project-1',
+      model: 'gpt-project',
+      reasoningEffort: 'xhigh',
+      config: {},
+    });
+    mockCodex.request.mockResolvedValue({ turn: { id: 'turn1' } });
+
+    await service.startTurn({
+      threadId: 't1',
+      model: 'untrusted-model',
+      effort: 'low',
+      input: [{ type: 'text', text: 'hello' }] as never,
+    });
+
+    expect(mockCodex.request).toHaveBeenCalledWith('turn/start', {
+      threadId: 't1',
+      model: 'gpt-project',
+      effort: 'xhigh',
+      input: [{ type: 'text', text: 'hello' }],
+    });
   });
 
   it('automatically names a new unnamed thread from its first message', async () => {

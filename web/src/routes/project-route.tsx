@@ -222,6 +222,7 @@ export function ProjectRoute() {
       </div>
       {session.isAdministrator && settingsOpen && (
         <ProjectSettingsDialog
+          key={`${project.id}:${project.updatedAt}`}
           project={project}
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
@@ -259,6 +260,7 @@ function ProjectJournal({
     resource_moved_in: 'Resource moved into the project',
     mcp_configuration_updated: 'MCP connector configuration updated',
     app_configuration_updated: 'App configuration updated',
+    agent_configuration_updated: 'Agent configuration updated',
   };
   if (pending)
     return <p className="text-sm text-muted-foreground">{t('Loading…')}</p>;
@@ -282,37 +284,122 @@ function ProjectJournal({
         </p>
       ) : (
         <div className="divide-y">
-          {rows.map((row) => (
-            <div
-              key={row.id}
-              className="grid gap-2 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_auto]"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium">
-                  {t(labels[row.action] ?? row.action)}
-                </p>
-                <p
-                  className="truncate text-xs text-muted-foreground"
-                  title={row.label}
-                >
-                  {row.label}
-                </p>
+          {rows.map((row) => {
+            const changes = projectActivityChanges(row.details);
+            return (
+              <div
+                key={row.id}
+                className="grid gap-3 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    {t(labels[row.action] ?? row.action)}
+                  </p>
+                  <p
+                    className="truncate text-xs text-muted-foreground"
+                    title={row.label}
+                  >
+                    {row.label}
+                  </p>
+                  {changes.length > 0 && (
+                    <div className="mt-2 space-y-1 text-xs">
+                      {changes.map((change) => (
+                        <div
+                          key={change.label}
+                          className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)]"
+                        >
+                          <span className="font-medium">{t(change.label)}</span>
+                          <span className="break-words text-muted-foreground">
+                            <span className="line-through opacity-70">
+                              {formatActivityValue(change.before)}
+                            </span>{' '}
+                            →{' '}
+                            <span className="text-foreground">
+                              {formatActivityValue(change.after)}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  <p>
+                    {new Intl.DateTimeFormat(locale, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(row.createdAt)}
+                  </p>
+                  <p>{t('By {{name}}', { name: row.actorName })}</p>
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground sm:text-right">
-                <p>
-                  {new Intl.DateTimeFormat(locale, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  }).format(row.createdAt)}
-                </p>
-                <p>{row.actorName}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
   );
+}
+
+function projectActivityChanges(details: Record<string, unknown>) {
+  const labels: Record<string, string> = {
+    model: 'Model',
+    reasoningEffort: 'Reasoning effort',
+    name: 'Project name',
+    connectors: 'MCP connectors',
+    applications: 'Applications',
+    defaultWorkspace: 'Default workspace',
+  };
+  const result: Array<{ label: string; before: unknown; after: unknown }> = [];
+  if ('before' in details || 'after' in details) {
+    result.push({
+      label: labels.name,
+      before: details.before,
+      after: details.after,
+    });
+  }
+  if ('beforeName' in details || 'afterName' in details) {
+    result.push({
+      label: labels.name,
+      before: details.beforeName,
+      after: details.afterName,
+    });
+  }
+  for (const [key, value] of Object.entries(details)) {
+    if (
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      ('before' in value || 'after' in value)
+    ) {
+      const change = value as { before?: unknown; after?: unknown };
+      result.push({
+        label: labels[key] ?? key,
+        before: change.before,
+        after: change.after,
+      });
+    }
+  }
+  if (Array.isArray(details.before) || Array.isArray(details.after)) {
+    return [
+      {
+        label:
+          details.before === undefined && details.after === undefined
+            ? 'Configuration'
+            : 'Selection',
+        before: details.before,
+        after: details.after,
+      },
+    ];
+  }
+  return result;
+}
+
+function formatActivityValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (Array.isArray(value)) return value.join(', ') || '—';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
 }
 
 function SummaryCard({

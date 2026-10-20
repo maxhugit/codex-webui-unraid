@@ -9,6 +9,13 @@ import { projects, projectWorkspaces } from '../database/schema';
 
 type JsonObject = { [key: string]: JsonValue };
 
+export interface ProjectExecutionPolicy {
+  projectId: string;
+  config: JsonObject;
+  model: string | null;
+  reasoningEffort: string | null;
+}
+
 @Injectable()
 export class ProjectConnectionPolicyService {
   constructor(
@@ -20,6 +27,13 @@ export class ProjectConnectionPolicyService {
   async configForCwd(
     cwd: string | null | undefined,
   ): Promise<JsonObject | null> {
+    return (await this.policyForCwd(cwd))?.config ?? null;
+  }
+
+  /** Resolves every project-owned execution setting from an exact workspace. */
+  async policyForCwd(
+    cwd: string | null | undefined,
+  ): Promise<ProjectExecutionPolicy | null> {
     if (!cwd) return null;
     const workspace = this.db
       .select({ projectId: projectWorkspaces.projectId })
@@ -31,6 +45,8 @@ export class ProjectConnectionPolicyService {
       .select({
         appIds: projects.appIds,
         mcpServerIds: projects.mcpServerIds,
+        agentModel: projects.agentModel,
+        agentReasoningEffort: projects.agentReasoningEffort,
       })
       .from(projects)
       .where(eq(projects.id, workspace.projectId))
@@ -67,9 +83,14 @@ export class ProjectConnectionPolicyService {
     }
 
     return {
-      apps: appConfig,
-      mcp_servers: directMcpConfig,
-      plugins: pluginConfig,
+      projectId: workspace.projectId,
+      model: project.agentModel,
+      reasoningEffort: project.agentReasoningEffort,
+      config: {
+        apps: appConfig,
+        mcp_servers: directMcpConfig,
+        plugins: pluginConfig,
+      },
     };
   }
 

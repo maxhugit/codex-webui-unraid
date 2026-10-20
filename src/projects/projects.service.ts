@@ -39,8 +39,23 @@ import { ThreadsDeletionService } from '../threads/threads-deletion.service';
 import { ThreadsService } from '../threads/threads.service';
 import { SimpleChatService } from '../simple-chat/simple-chat.service';
 import { summarizeProjects } from './project-dashboard';
+import {
+  PROJECT_REPLAN_SCHEMA,
+  PROJECT_TASKS_SCHEMA,
+  TASK_ADVICE_SCHEMA,
+} from './project-ai-schemas';
 
 const ORPHAN_ASSOCIATION_GRACE_MS = 5 * 60_000;
+const REASONING_EFFORTS = new Set([
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+  'ultra',
+]);
 
 export type AutomationSchedule = 'manual' | 'daily' | 'weekly' | 'monthly';
 export type ProjectAutomation = {
@@ -208,6 +223,55 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       actor,
     );
     return { ...project, appIds, updatedAt };
+  }
+
+  configureAgent(
+    projectId: string,
+    input: { model?: unknown; reasoningEffort?: unknown },
+    actor?: ProjectActivityActor,
+  ) {
+    const project = this.get(projectId);
+    const model =
+      typeof input.model === 'string' ? input.model.trim() || null : null;
+    const reasoningEffort =
+      typeof input.reasoningEffort === 'string'
+        ? input.reasoningEffort.trim() || null
+        : null;
+    if (model && (model.length > 120 || !/^[a-zA-Z0-9._:-]+$/.test(model)))
+      throw new BadRequestException('Invalid agent model');
+    if (reasoningEffort && !REASONING_EFFORTS.has(reasoningEffort))
+      throw new BadRequestException('Invalid reasoning effort');
+    const updatedAt = Date.now();
+    this.db
+      .update(projects)
+      .set({
+        agentModel: model,
+        agentReasoningEffort: reasoningEffort,
+        updatedAt,
+      })
+      .where(eq(projects.id, projectId))
+      .run();
+    this.recordActivity(
+      projectId,
+      'agent_configuration_updated',
+      'agent_configuration',
+      null,
+      'Configuration des agents',
+      {
+        model: { before: project.agentModel, after: model },
+        reasoningEffort: {
+          before: project.agentReasoningEffort,
+          after: reasoningEffort,
+        },
+      },
+      actor,
+    );
+    return {
+      ...project,
+      agentModel: model,
+      agentReasoningEffort: reasoningEffort,
+      updatedAt,
+    };
   }
 
   listPeople() {
@@ -870,6 +934,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       workspacePath,
       mcpServerIds: [],
       appIds: [],
+      agentModel: null,
+      agentReasoningEffort: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -1215,6 +1281,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       dependencyIds?: string[];
       subtaskStatus?: string;
     },
+    actor?: ProjectActivityActor,
   ): ProjectTask {
     this.getResource(projectId, resourceId);
     const fallback = this.db
@@ -1291,6 +1358,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
                 },
               }
             : {},
+          actorPersonId: actor?.personId ?? null,
+          actorName: actor?.name ?? 'Système',
           createdAt: now,
         })
         .run();
@@ -1308,7 +1377,12 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           .run();
     });
     if (task.parentTaskId)
-      this.recalculateParentEstimate(resourceId, task.parentTaskId);
+      this.recalculateParentEstimate(
+        resourceId,
+        task.parentTaskId,
+        true,
+        actor,
+      );
     return task;
   }
 
@@ -1339,6 +1413,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       dependencyIds: string[];
       subtaskStatus: string;
     }>,
+    actor?: ProjectActivityActor,
   ): Promise<ProjectTask> {
     this.getResource(projectId, resourceId);
     const task = this.requireTask(resourceId, taskId);
@@ -1561,6 +1636,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
             parentTaskId: effectiveParentId,
             action: 'updated',
             changes,
+            actorPersonId: actor?.personId ?? null,
+            actorName: actor?.name ?? 'Système',
             createdAt: updated.updatedAt,
           })
           .run();
@@ -1597,15 +1674,30 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       }
     });
     if (task.parentTaskId)
-      this.recalculateParentEstimate(resourceId, task.parentTaskId);
+      this.recalculateParentEstimate(
+        resourceId,
+        task.parentTaskId,
+        true,
+        actor,
+      );
     if (effectiveParentId && effectiveParentId !== task.parentTaskId)
-      this.recalculateParentEstimate(resourceId, effectiveParentId);
+      this.recalculateParentEstimate(
+        resourceId,
+        effectiveParentId,
+        true,
+        actor,
+      );
     if (!effectiveParentId)
-      this.recalculateParentEstimate(resourceId, task.id, false);
+      this.recalculateParentEstimate(resourceId, task.id, false, actor);
     return this.requireTask(resourceId, task.id);
   }
 
-  async deleteTask(projectId: string, resourceId: string, taskId: string) {
+  async deleteTask(
+    projectId: string,
+    resourceId: string,
+    taskId: string,
+    actor?: ProjectActivityActor,
+  ) {
     this.getResource(projectId, resourceId);
     const task = this.requireTask(resourceId, taskId);
     const deletedTasks = [
@@ -1653,6 +1745,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
             parentTaskId: deletedTask.parentTaskId,
             action: 'deleted',
             changes: {},
+            actorPersonId: actor?.personId ?? null,
+            actorName: actor?.name ?? 'Système',
             createdAt: Date.now(),
           })
           .run();
@@ -1662,7 +1756,12 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       tx.delete(projectTasks).where(eq(projectTasks.id, task.id)).run();
     });
     if (task.parentTaskId)
-      this.recalculateParentEstimate(resourceId, task.parentTaskId);
+      this.recalculateParentEstimate(
+        resourceId,
+        task.parentTaskId,
+        true,
+        actor,
+      );
     return { ok: true };
   }
 
@@ -1700,6 +1799,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     resourceId: string,
     parentTaskId: string,
     resetWhenEmpty = true,
+    actor?: ProjectActivityActor,
   ) {
     const parent = this.requireTask(resourceId, parentTaskId);
     const children = this.db
@@ -1745,6 +1845,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
             parentTaskId: null,
             action: 'updated',
             changes,
+            actorPersonId: actor?.personId ?? null,
+            actorName: actor?.name ?? 'Système',
             createdAt: now,
           })
           .run();
@@ -1759,7 +1861,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       .get();
     const config =
       resource?.config && typeof resource.config === 'object'
-        ? (resource.config as Record<string, unknown>)
+        ? resource.config
         : {};
     const raw =
       config.taskBoardSettings &&
@@ -1798,18 +1900,27 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       .from(projectResources)
       .where(eq(projectResources.id, resourceId))
       .get();
-    const config = resource?.config as Record<string, unknown> | undefined;
-    const board = config?.taskBoardSettings as
-      Record<string, unknown> | undefined;
-    const configured = Array.isArray(board?.priorityOptions)
-      ? board.priorityOptions
-          .map((value) =>
-            value && typeof value === 'object' && 'id' in value
-              ? String(value.id).trim()
-              : '',
-          )
-          .filter(Boolean)
+    const config = resource?.config;
+    const boardValue = config?.taskBoardSettings;
+    const board: Record<string, unknown> | undefined =
+      boardValue && typeof boardValue === 'object' && !Array.isArray(boardValue)
+        ? (boardValue as Record<string, unknown>)
+        : undefined;
+    const options: unknown[] = Array.isArray(board?.priorityOptions)
+      ? (board.priorityOptions as unknown[])
       : [];
+    const configured = options.flatMap((value) => {
+      if (
+        !value ||
+        typeof value !== 'object' ||
+        Array.isArray(value) ||
+        !('id' in value) ||
+        typeof value.id !== 'string'
+      )
+        return [];
+      const id = value.id.trim();
+      return id ? [id] : [];
+    });
     return new Set(
       configured.length ? configured : ['low', 'normal', 'high', 'urgent'],
     );
@@ -1822,12 +1933,60 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       'Task planning request',
       4_000,
     );
-    return { tasks: await this.simpleChat.suggestProjectTasks(request) };
+    return {
+      tasks: await this.suggestProjectTasksWithCodex(projectId, request),
+    };
+  }
+
+  private async suggestProjectTasksWithCodex(
+    projectId: string,
+    prompt: string,
+  ) {
+    const project = this.get(projectId);
+    const text = await this.threads.runProjectStructuredPrompt({
+      cwd: project.workspacePath,
+      prompt,
+      instructions:
+        'Tu es un chef de projet. Construis un plan concret en français. Utilise parentTitle pour créer des sous-tâches et dependsOnTitles pour les dépendances fin-vers-début. Les titres référencés doivent correspondre exactement à un autre titre de la liste. Pour chaque proposition, décide si elle peut être exécutée de façon fiable par un agent IA (agent) ou si elle nécessite une intervention humaine (manual), et explique brièvement ce choix dans assignmentReason. Une tâche principale doit toujours rester manuelle. Dans labels, utilise exclusivement les labels disponibles explicitement fournis dans la demande ; sinon retourne une liste vide.',
+      outputSchema: PROJECT_TASKS_SCHEMA as never,
+    });
+    const parsed = JSON.parse(text) as {
+      tasks?: Array<{
+        title?: string;
+        description?: string;
+        priority?: string;
+        estimateHours?: number;
+        validationCriteria?: string;
+        parentTitle?: string;
+        dependsOnTitles?: string[];
+        executionMode?: string;
+        assignmentReason?: string;
+        labels?: string[];
+      }>;
+    };
+    return (parsed.tasks ?? []).map((task) => ({
+      title: task.title?.trim() || 'Nouvelle tâche',
+      description: task.description?.trim() || '',
+      priority: ['low', 'normal', 'high', 'urgent'].includes(
+        task.priority ?? '',
+      )
+        ? task.priority!
+        : 'normal',
+      estimateHours: Math.max(0, Number(task.estimateHours) || 0),
+      validationCriteria: task.validationCriteria?.trim() || '',
+      parentTitle: task.parentTitle?.trim() || '',
+      dependsOnTitles: (task.dependsOnTitles ?? [])
+        .map((title) => title.trim())
+        .filter(Boolean),
+      executionMode: task.executionMode === 'agent' ? 'agent' : 'manual',
+      assignmentReason: task.assignmentReason?.trim() || '',
+      labels: (task.labels ?? []).map((label) => label.trim()).filter(Boolean),
+    }));
   }
 
   async replanTasks(projectId: string, resourceId: string, prompt: unknown) {
     this.getResource(projectId, resourceId);
-    const request = String(prompt ?? '')
+    const request = (typeof prompt === 'string' ? prompt : '')
       .trim()
       .slice(0, 4_000);
     const tasks = this.db
@@ -1854,9 +2013,24 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         .map((dependency) => dependency.dependsOnTaskId)
         .filter((id) => ids.has(id)),
     }));
-    const suggestions = await this.simpleChat.suggestProjectReplan(
-      `Objectif ou contraintes complémentaires : ${request || 'Optimiser le planning existant sans contrainte supplémentaire.'}\n\nTâches existantes :\n${JSON.stringify(context, null, 2)}`,
-    );
+    const project = this.get(projectId);
+    const text = await this.threads.runProjectStructuredPrompt({
+      cwd: project.workspacePath,
+      prompt: `Objectif ou contraintes complémentaires : ${request || 'Optimiser le planning existant sans contrainte supplémentaire.'}\n\nTâches existantes :\n${JSON.stringify(context, null, 2)}`,
+      instructions:
+        'Tu es un chef de projet prudent. Replanifie uniquement les tâches principales fournies. Conserve exactement leurs identifiants. Propose des dates au format YYYY-MM-DD, une charge réaliste et des dépendances fin-vers-début cohérentes. Ne crée ni ne supprime aucune tâche. Retourne toutes les tâches, y compris celles que tu proposes de laisser inchangées, et justifie brièvement chaque choix.',
+      outputSchema: PROJECT_REPLAN_SCHEMA as never,
+    });
+    const suggestions = ((JSON.parse(text) as { tasks?: unknown[] }).tasks ??
+      []) as Array<{
+      taskId: string;
+      priority: string;
+      estimateHours: number;
+      startDate: string;
+      dueDate: string;
+      dependencyIds: string[];
+      reason: string;
+    }>;
     const date = (value: string) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
       const parsed = new Date(`${value}T12:00:00`).getTime();
@@ -1945,12 +2119,49 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         .filter((dependency) => dependency.taskId === task.id)
         .map((dependency) => dependency.dependsOnTaskId),
     }));
-    return this.simpleChat.suggestTaskAdvice({
+    const input = {
       mode,
       availableHours: mode === 'work' ? availableHours : null,
       today: new Date().toISOString().slice(0, 10),
       tasks: context,
+    };
+    const project = this.get(projectId);
+    const text = await this.threads.runProjectStructuredPrompt({
+      cwd: project.workspacePath,
+      prompt: JSON.stringify(input),
+      instructions:
+        mode === 'analysis'
+          ? 'Tu es un conseiller de gestion de projet prudent. Analyse exclusivement les données fournies. Signale les retards, échéances proches, blocages, incohérences, surcharges et améliorations concrètes. Ne prétends jamais modifier le planning. Classe les conseils par importance et cite les identifiants exacts des tâches concernées.'
+          : `Tu es un conseiller de travail. Propose un programme réaliste qui tient dans ${availableHours} heures. Privilégie les urgences, échéances, dépendances débloquées et travaux déjà commencés. Ne recommande aucune tâche terminée ou bloquée par une dépendance non terminée. Les durées proposées doivent totaliser au maximum le temps disponible.`,
+      outputSchema: TASK_ADVICE_SCHEMA as never,
     });
+    const parsed = JSON.parse(text) as {
+      summary?: string;
+      health?: 'good' | 'watch' | 'at_risk';
+      advice?: Array<{
+        severity: 'alert' | 'recommendation' | 'opportunity' | 'info';
+        title: string;
+        description: string;
+        taskIds: string[];
+      }>;
+      work?: Array<{
+        taskId: string;
+        recommendedMinutes: number;
+        reason: string;
+      }>;
+    };
+    const ids = new Set(tasks.map((task) => task.id));
+    return {
+      summary: String(parsed.summary ?? '').trim(),
+      health: ['good', 'watch', 'at_risk'].includes(parsed.health ?? '')
+        ? parsed.health!
+        : 'watch',
+      advice: (parsed.advice ?? []).map((item) => ({
+        ...item,
+        taskIds: item.taskIds.filter((id) => ids.has(id)),
+      })),
+      work: (parsed.work ?? []).filter((item) => ids.has(item.taskId)),
+    };
   }
 
   async suggestSubtasks(
@@ -1974,11 +2185,17 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       'Task title',
       200,
     );
-    const description = String(input.description ?? task.description)
+    const description = (
+      typeof input.description === 'string'
+        ? input.description
+        : task.description
+    )
       .trim()
       .slice(0, 10_000);
-    const validationCriteria = String(
-      input.validationCriteria ?? task.validationCriteria,
+    const validationCriteria = (
+      typeof input.validationCriteria === 'string'
+        ? input.validationCriteria
+        : task.validationCriteria
     )
       .trim()
       .slice(0, 10_000);
@@ -2011,7 +2228,10 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       ? `\nLabels disponibles : ${configuredLabels.join(', ')}. Pour chaque sous-tâche, propose zéro, un ou plusieurs labels pertinents exclusivement parmi cette liste. N'invente aucun label.`
       : `\nAucun label n'est configuré : retourne une liste labels vide pour chaque sous-tâche.`;
     const prompt = `Découpe la tâche suivante en sous-tâches concrètes, suffisamment petites pour être exécutées et validées séparément. Ne retourne pas la tâche principale elle-même. Ne crée aucune dépendance entre les sous-tâches. Propose entre 2 et 10 sous-tâches. Pour chacune, détermine si un agent IA peut raisonnablement la réaliser seul ou si elle doit rester manuelle.${labelsInstruction}\n\nTâche : ${title}\nDescription : ${description || 'Non précisée'}\nConditions de validation : ${validationCriteria || 'Non précisées'}`;
-    const suggestions = await this.simpleChat.suggestProjectTasks(prompt);
+    const suggestions = await this.suggestProjectTasksWithCodex(
+      projectId,
+      prompt,
+    );
     return {
       tasks: suggestions.slice(0, 10).map((suggestion) => ({
         ...suggestion,

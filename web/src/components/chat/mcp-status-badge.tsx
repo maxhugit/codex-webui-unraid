@@ -24,6 +24,7 @@ import type { McpServerStartupState, McpServerStatus } from '@/types/mcp';
 import { cn } from '@/lib/utils';
 import { showSnackbar } from '@/stores/snackbar-store';
 import { useMcpStore, type McpServerRuntimeStatus } from '@/stores/mcp-store';
+import { useCurrentProject } from '@/hooks/use-current-project';
 
 type Mode = 'input' | 'header';
 
@@ -46,6 +47,8 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const runtimeStatuses = useMcpStore((s) => s.statuses);
+  const project = useCurrentProject();
+  const allowedNames = project ? new Set(project.mcpServerIds ?? []) : null;
   const hasStartingRuntime = Object.values(runtimeStatuses).some(
     (server) => server.status === 'starting',
   );
@@ -76,8 +79,16 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
   });
 
   const rows = buildRows(
-    (serversQuery.data?.data ?? []) as unknown as McpServerStatus[],
-    runtimeStatuses,
+    ((serversQuery.data?.data ?? []) as unknown as McpServerStatus[]).filter(
+      (server) => !allowedNames || allowedNames.has(server.name),
+    ),
+    allowedNames
+      ? Object.fromEntries(
+          Object.entries(runtimeStatuses).filter(([name]) =>
+            allowedNames.has(name),
+          ),
+        )
+      : runtimeStatuses,
     serversQuery.isSuccess,
   );
   const failed = rows.filter((row) => row.status === 'failed').length;

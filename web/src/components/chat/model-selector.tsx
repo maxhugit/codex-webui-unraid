@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/popover';
 import type { ModelDto } from '@/generated/api';
 import { useActiveModel } from '@/hooks/use-active-model';
+import { useCurrentProject } from '@/hooks/use-current-project';
 import { catalogCopy } from '@/lib/catalog-copy';
 import { useModelStore, type ReasoningEffort } from '@/stores/model-store';
 import { useTimelineStore } from '@/stores/timeline-store';
@@ -58,6 +59,7 @@ export function ModelSelector() {
 
   const { models, hiddenModels, activeModelId, activeModel, configModel } =
     useActiveModel();
+  const project = useCurrentProject();
   const [showHidden, setShowHidden] = useState(false);
   // A hidden model that is already active is always listed: the user has to be
   // able to see what they are running, and to switch back to it.
@@ -70,12 +72,46 @@ export function ModelSelector() {
   // An explicit user choice wins; otherwise show what app-server reports for
   // this thread, which is how Plan mode's imposed effort becomes visible.
   const activeEffort =
-    effortOverride ?? observedEffort ?? activeModel?.defaultReasoningEffort ?? null;
+    effortOverride ??
+    observedEffort ??
+    activeModel?.defaultReasoningEffort ??
+    null;
 
   const displayModel = activeModel
     ? modelLabel(activeModel)
-    : activeModelId ?? t('Default');
+    : (activeModelId ?? t('Default'));
   const displayEffort = activeEffort ?? '';
+
+  if (project) {
+    const allModels = [...models, ...hiddenModels];
+    const configuredModel = allModels.find(
+      (model) => model.model === project.agentModel,
+    );
+    const projectModel = project.agentModel
+      ? configuredModel
+        ? modelLabel(configuredModel)
+        : project.agentModel
+      : t('Server default');
+    const projectEffort = project.agentReasoningEffort || t('Model default');
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 cursor-default gap-1 rounded-lg px-2 text-xs hover:bg-transparent"
+        title={t('Defined by project')}
+        aria-readonly="true"
+      >
+        <Bot className="h-3.5 w-3.5" />
+        <span className="hidden max-w-[120px] truncate sm:inline">
+          {projectModel}
+        </span>
+        <span className="hidden text-muted-foreground sm:inline">
+          · {projectEffort}
+        </span>
+      </Button>
+    );
+  }
 
   const handleModelSelect = (model: ModelDto) => {
     if (model.model === configModel) {

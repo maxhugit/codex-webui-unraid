@@ -46,6 +46,18 @@ export class SimpleChatController {
     return this.simpleChatService.getStatus();
   }
 
+  @Get('settings')
+  @ApiOperation({ summary: 'Read the Simple Chat execution backend' })
+  settings() {
+    return this.simpleChatService.getStatus();
+  }
+
+  @Put('settings')
+  @ApiOperation({ summary: 'Select the Simple Chat execution backend' })
+  saveSettings(@Body() body: { backend?: unknown }) {
+    return this.simpleChatService.setBackend(body.backend);
+  }
+
   @Get('models')
   @ApiOperation({ summary: 'List available OpenAI chat models' })
   models() {

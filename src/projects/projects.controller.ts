@@ -187,6 +187,17 @@ export class ProjectsController {
     };
   }
 
+  @Patch(':id/agent-settings')
+  configureAgent(
+    @Param('id') id: string,
+    @Body() body: { model?: unknown; reasoningEffort?: unknown },
+    @Req() request: IdentityRequest,
+  ) {
+    return {
+      project: this.projects.configureAgent(id, body, activityActor(request)),
+    };
+  }
+
   @Post(':id/workspaces')
   async createWorkspace(
     @Param('id') id: string,
@@ -329,8 +340,16 @@ export class ProjectsController {
     @Param('id') id: string,
     @Param('resourceId') resourceId: string,
     @Body() body: Parameters<ProjectsService['createTask']>[2],
+    @Req() request: IdentityRequest,
   ) {
-    return { task: this.projects.createTask(id, resourceId, body) };
+    return {
+      task: this.projects.createTask(
+        id,
+        resourceId,
+        body,
+        activityActor(request),
+      ),
+    };
   }
 
   @Post(':id/resources/:resourceId/ai-plan')
@@ -386,9 +405,16 @@ export class ProjectsController {
     @Param('resourceId') resourceId: string,
     @Param('taskId') taskId: string,
     @Body() body: Parameters<ProjectsService['updateTask']>[3],
+    @Req() request: IdentityRequest,
   ) {
     return {
-      task: await this.projects.updateTask(id, resourceId, taskId, body),
+      task: await this.projects.updateTask(
+        id,
+        resourceId,
+        taskId,
+        body,
+        activityActor(request),
+      ),
     };
   }
 
@@ -397,8 +423,14 @@ export class ProjectsController {
     @Param('id') id: string,
     @Param('resourceId') resourceId: string,
     @Param('taskId') taskId: string,
+    @Req() request: IdentityRequest,
   ) {
-    return await this.projects.deleteTask(id, resourceId, taskId);
+    return await this.projects.deleteTask(
+      id,
+      resourceId,
+      taskId,
+      activityActor(request),
+    );
   }
 
   @Patch(':id/resources/:resourceId')
@@ -478,6 +510,7 @@ export class ProjectsController {
     @Param('workspaceId') workspaceId: string,
     @Req() request: IdentityRequest,
   ) {
+    const project = this.projects.get(id);
     const workspace = this.projects.setDefaultWorkspace(id, workspaceId);
     this.projects.recordActivity(
       id,
@@ -485,7 +518,12 @@ export class ProjectsController {
       'workspace',
       workspace.id,
       workspace.name,
-      { path: workspace.path },
+      {
+        defaultWorkspace: {
+          before: project.workspacePath,
+          after: workspace.path,
+        },
+      },
       activityActor(request),
     );
     return { workspace };

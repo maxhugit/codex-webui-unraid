@@ -12,6 +12,7 @@ import {
   PanelLeftOpen,
   Settings,
   Sun,
+  UserRound,
   X,
 } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
@@ -50,6 +51,14 @@ import { McpStatusBadge } from './mcp-status-badge';
 import { usePlatformSession } from '@/lib/platform-session';
 import { ProjectResourceHeader } from '@/components/projects/project-resource-header';
 import { ProjectHeader } from '@/components/projects/project-header';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 /** Mobile overflow menu — closes after each action. */
 function MobileOverflowMenu({
@@ -134,7 +143,8 @@ interface Props {
 }
 
 export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
-  const { isAdministrator } = usePlatformSession();
+  const session = usePlatformSession();
+  const { isAdministrator } = session;
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -156,6 +166,7 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [graphOpen, setGraphOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // The graph is only meaningful once this conversation has more than one
@@ -473,12 +484,71 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
             t={t}
           />
         )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 shrink-0"
+              onClick={() => setAccountOpen(true)}
+              aria-label={t('Account')}
+            >
+              <UserRound className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('Account')}</TooltipContent>
+        </Tooltip>
       </header>
       <Separator />
       <BranchGraphDialog
         threadId={graphOpen ? threadId : null}
         onClose={() => setGraphOpen(false)}
       />
+      <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('My account')}</DialogTitle>
+            <DialogDescription>
+              {t('Information about the identity currently connected.')}
+            </DialogDescription>
+          </DialogHeader>
+          <dl className="grid gap-4 text-sm">
+            <div>
+              <dt className="text-muted-foreground">{t('Full name')}</dt>
+              <dd className="mt-1 font-medium">
+                {session.data?.name || t('Unlinked identity')}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Email')}</dt>
+              <dd className="mt-1 break-all font-medium">
+                {session.data?.email || '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Platform role')}</dt>
+              <dd className="mt-1 font-medium">
+                {session.data?.role === 'administrator'
+                  ? t('Administrator')
+                  : session.data?.role === 'standard'
+                    ? t('Standard')
+                    : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Account status')}</dt>
+              <dd className="mt-1 font-medium">
+                {session.data?.active ? t('Active') : t('Inactive')}
+              </dd>
+            </div>
+          </dl>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setAccountOpen(false)}>
+              {t('Close')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

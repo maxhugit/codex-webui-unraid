@@ -3650,6 +3650,11 @@ function TaskActivityJournal({
               >
                 <time className="text-xs text-muted-foreground">
                   {new Date(entry.createdAt).toLocaleString(i18n.language)}
+                  <span className="mt-1 block">
+                    {t('By {{name}}', {
+                      name: entry.actorName || t('System'),
+                    })}
+                  </span>
                 </time>
                 <div className="min-w-0">
                   <div

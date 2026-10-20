@@ -3,7 +3,7 @@
  */
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { CodexService } from '../codex/codex.service';
-import type { v2 } from '../codex/codex-schema';
+import type { ServerNotification, v2 } from '../codex/codex-schema';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
 import { ConversationBranchesService } from '../conversation-branches/conversation-branches.service';
@@ -88,13 +88,22 @@ export class ThreadsService {
   async startThread(
     params: v2.ThreadStartParams,
   ): Promise<v2.ThreadStartResponse> {
-    const connectionConfig = await this.projectConnections.configForCwd(
+    const projectPolicy = await this.projectConnections.policyForCwd(
       params.cwd,
     );
+    const projectConfig = projectPolicy
+      ? {
+          ...projectPolicy.config,
+          ...(projectPolicy.reasoningEffort
+            ? { model_reasoning_effort: projectPolicy.reasoningEffort }
+            : {}),
+        }
+      : null;
     const requestParams: ExperimentalThreadStartParams = {
       ...params,
-      ...(connectionConfig
-        ? { config: { ...(params.config ?? {}), ...connectionConfig } }
+      ...(projectPolicy?.model ? { model: projectPolicy.model } : {}),
+      ...(projectConfig
+        ? { config: { ...(params.config ?? {}), ...projectConfig } }
         : {}),
       historyMode: REQUIRED_HISTORY_MODE,
     };
@@ -326,9 +335,20 @@ export class ThreadsService {
     // subsequent turn as well. This keeps Codex tool execution aligned with
     // the Explorer and conversation terminals across tabs and reconnects.
     const workspaceCwd = this.workspaceOverrides.get(params.threadId);
+    const effectiveCwd = workspaceCwd ?? params.cwd ?? beforeTurn?.cwd ?? null;
+    const projectPolicy =
+      await this.projectConnections.policyForCwd(effectiveCwd);
+    const effectiveParams: v2.TurnStartParams = {
+      ...params,
+      ...(workspaceCwd ? { cwd: workspaceCwd } : {}),
+      ...(projectPolicy?.model ? { model: projectPolicy.model } : {}),
+      ...(projectPolicy?.reasoningEffort
+        ? { effort: projectPolicy.reasoningEffort }
+        : {}),
+    };
     const response = await this.codex.request<v2.TurnStartResponse>(
       'turn/start',
-      workspaceCwd ? { ...params, cwd: workspaceCwd } : params,
+      effectiveParams,
     );
     this.branches.attachPendingVersionTurn(
       params.threadId,
@@ -340,6 +360,77 @@ export class ThreadsService {
       if (title) void this.autoNameThreadIfStillUnnamed(params.threadId, title);
     }
     return response;
+  }
+
+  /** Runs a short-lived, project-scoped Codex turn and returns its structured text. */
+  async runProjectStructuredPrompt(input: {
+    cwd: string;
+    prompt: string;
+    instructions: string;
+    outputSchema?: v2.TurnStartParams['outputSchema'];
+  }): Promise<string> {
+    const started = await this.startThread({
+      cwd: input.cwd,
+      ephemeral: true,
+      approvalPolicy: 'never',
+      sandbox: 'read-only',
+      developerInstructions: input.instructions,
+    });
+    const threadId = started.thread.id;
+    const client = this.codex.getClient();
+    let cancelWait: () => void = () => undefined;
+    try {
+      const completed = new Promise<v2.Turn>((resolve, reject) => {
+        const cleanup = () => {
+          clearTimeout(timer);
+          client.off('notification', onNotification);
+          client.off('close', onClose);
+        };
+        const onNotification = (notification: ServerNotification) => {
+          if (
+            notification.method !== 'turn/completed' ||
+            notification.params.threadId !== threadId
+          )
+            return;
+          cleanup();
+          resolve(notification.params.turn);
+        };
+        const onClose = () => {
+          cleanup();
+          reject(new Error('Codex became unavailable during AI planning'));
+        };
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error('Codex AI planning timed out'));
+        }, 180_000);
+        cancelWait = cleanup;
+        client.on('notification', onNotification);
+        client.on('close', onClose);
+      });
+      // If starting the turn itself fails, the listener promise is cleaned up
+      // in `finally`; keep its later timeout rejection from becoming unhandled.
+      void completed.catch(() => undefined);
+      await this.startTurn({
+        threadId,
+        input: [{ type: 'text', text: input.prompt, text_elements: [] }],
+        ...(input.outputSchema ? { outputSchema: input.outputSchema } : {}),
+      });
+      const turn = await completed;
+      if (turn.status !== 'completed')
+        throw new Error(
+          turn.error?.message || `Codex turn ended with status ${turn.status}`,
+        );
+      const text = [...turn.items]
+        .reverse()
+        .find((item) => item.type === 'agentMessage')?.text;
+      if (!text?.trim()) throw new Error('Codex returned an empty response');
+      return text.trim();
+    } finally {
+      cancelWait();
+      await this.codex
+        .request('thread/delete', { threadId })
+        .catch(() => undefined);
+    }
   }
 
   private makeAutomaticThreadName(input: v2.UserInput[]): string {

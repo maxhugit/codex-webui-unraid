@@ -9,6 +9,8 @@ export interface ProjectSummary {
   updatedAt: number;
   mcpServerIds?: string[];
   appIds?: string[];
+  agentModel?: string | null;
+  agentReasoningEffort?: string | null;
   workspaces: ProjectWorkspaceSummary[];
   resources: ProjectResourceSummary[];
   agentThreads?: Array<{
@@ -115,6 +117,8 @@ export interface ProjectTaskActivitySummary {
   parentTaskId: string | null;
   action: 'created' | 'updated' | 'deleted';
   changes: Record<string, { before: unknown; after: unknown }>;
+  actorPersonId: string | null;
+  actorName: string;
   createdAt: number;
 }
 

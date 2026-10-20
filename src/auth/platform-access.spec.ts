@@ -194,6 +194,7 @@ it.each([
   '/logs/export',
   '/plugins',
   '/simple-chat/api-key',
+  '/simple-chat/settings',
 ])(
   'blocks standard access to %s even with a direct request or a forged body role',
   (path) => {
@@ -214,6 +215,23 @@ it.each([
     ).toBe(true);
   },
 );
+
+it.each([
+  '/projects/project-1/mcp-servers',
+  '/projects/project-1/apps',
+  '/projects/project-1/agent-settings',
+])('blocks standard project configuration writes to %s', (path) => {
+  expect(() => guard.canActivate(http(path, 'PATCH').context)).toThrow(
+    'Administrator access',
+  );
+  expect(
+    guard.canActivate(
+      http(path, 'PATCH', {
+        headers: headers('admin-subject', 'admin@example.com'),
+      }).context,
+    ),
+  ).toBe(true);
+});
 
 it('blocks creating or editing people for standard users and rechecks changed roles on every request', () => {
   expect(() =>

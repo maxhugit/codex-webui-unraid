@@ -47,6 +47,7 @@ import { withBasePath } from '@/base-path';
 import { showSnackbar } from '@/stores/snackbar-store';
 import { useThreadSecurityPolicy } from '@/hooks/use-thread-security-policy';
 import { invalidateThreadListSoon } from '@/lib/query-invalidation';
+import { usePlatformSession } from '@/lib/platform-session';
 
 /** URL identity owns opening; tab identity controls only presentation and never subscription. */
 export function ThreadView() {
@@ -64,6 +65,7 @@ export function ThreadView() {
 /** Keeps every surface at a fixed tree position throughout a conversation's tab switches. */
 function ConversationWorkspace({ threadId }: { threadId: string }) {
   const { t } = useTranslation();
+  const session = usePlatformSession();
   const context = `thread:${threadId}`;
   useTerminalDiscovery(context);
   const navigate = useNavigate();
@@ -287,6 +289,7 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
           onSelect={(id) => select(context, id)}
           onClose={requestClose}
           onNewTerminal={() => void newTerminal()}
+          canCreateTerminal={session.isAdministrator}
           terminalCreationDisabled={creatingTerminal || !cwd}
           onExplorer={() =>
             desktop

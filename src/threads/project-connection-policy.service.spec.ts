@@ -37,7 +37,12 @@ describe('ProjectConnectionPolicyService', () => {
       { request } as unknown as CodexService,
       databaseReturning(
         { projectId: 'project-1' },
-        { appIds: ['gmail'], mcpServerIds: ['unraid'] },
+        {
+          appIds: ['gmail'],
+          mcpServerIds: ['unraid'],
+          agentModel: 'gpt-project',
+          agentReasoningEffort: 'high',
+        },
       ),
     );
 
@@ -51,6 +56,31 @@ describe('ProjectConnectionPolicyService', () => {
       plugins: {
         google: { mcp_servers: { drive: { enabled: false } } },
       },
+    });
+  });
+
+  it('returns the project model and reasoning effort with the connection policy', async () => {
+    const service = new ProjectConnectionPolicyService(
+      {
+        request: vi.fn().mockResolvedValue({ data: [], nextCursor: null }),
+      } as unknown as CodexService,
+      databaseReturning(
+        { projectId: 'project-1' },
+        {
+          appIds: [],
+          mcpServerIds: [],
+          agentModel: 'gpt-project',
+          agentReasoningEffort: 'xhigh',
+        },
+      ),
+    );
+
+    await expect(
+      service.policyForCwd('/workspaces/mail'),
+    ).resolves.toMatchObject({
+      projectId: 'project-1',
+      model: 'gpt-project',
+      reasoningEffort: 'xhigh',
     });
   });
 

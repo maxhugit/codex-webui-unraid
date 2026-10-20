@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
+  Bot,
   ExternalLink,
   Globe2,
   Loader2,
@@ -50,6 +51,7 @@ interface ChatStatus {
   configured: boolean;
   model: string;
   webSearch: boolean;
+  backend: 'openai' | 'codex';
 }
 
 interface ThreadDetail {
@@ -368,12 +370,24 @@ export function SimpleChatRoute() {
             />
             <div className="flex items-center justify-between gap-2 px-2 pb-2">
               <div className="flex min-w-0 items-center gap-1">
-                <SimpleChatModelSelector
-                  value={activeThread?.model || status?.model || ''}
-                  onChange={(model) => void changeModel(model)}
-                  disabled={!activeThread || sending}
-                  models={models}
-                />
+                {status?.backend === 'codex' ? (
+                  <span
+                    className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground"
+                    title="Modèle et effort définis dans le projet"
+                  >
+                    <Bot className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">
+                      Configuration du projet
+                    </span>
+                  </span>
+                ) : (
+                  <SimpleChatModelSelector
+                    value={activeThread?.model || status?.model || ''}
+                    onChange={(model) => void changeModel(model)}
+                    disabled={!activeThread || sending}
+                    models={models}
+                  />
+                )}
                 <span
                   className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground"
                   title="Recherche Web disponible"

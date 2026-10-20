@@ -14,9 +14,11 @@ import { ErrorCode } from '../common/error-codes';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
   projects,
+  settings,
   simpleChatMessages,
   simpleChatThreads,
 } from '../database/schema';
+import { ThreadsService } from '../threads/threads.service';
 
 const DEFAULT_MODEL = 'gpt-5-mini';
 const MAX_MESSAGE_LENGTH = 6_000;
@@ -25,6 +27,7 @@ const REQUEST_TIMEOUT_MS = 120_000;
 const MODEL_CACHE_MS = 10 * 60_000;
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const TRANSCRIPTION_MODEL = 'gpt-4o-mini-transcribe';
+const BACKEND_SETTING_KEY = 'simple-chat:backend';
 
 interface OpenAiUsage {
   input_tokens?: number;
@@ -83,13 +86,55 @@ export class SimpleChatService {
     );
   private modelCache?: { expiresAt: number; models: string[] };
 
-  constructor(@Inject(DRIZZLE_DB) private readonly db: AppDatabase) {}
+  constructor(
+    @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
+    private readonly threads: ThreadsService,
+  ) {}
+
+  getBackend(): 'openai' | 'codex' {
+    return this.db
+      .select({ value: settings.value })
+      .from(settings)
+      .where(eq(settings.key, BACKEND_SETTING_KEY))
+      .get()?.value === 'codex'
+      ? 'codex'
+      : 'openai';
+  }
+
+  setBackend(value: unknown) {
+    if (value !== 'openai' && value !== 'codex')
+      throw BusinessException.badRequest(
+        ErrorCode.simpleChat.invalidResponse,
+        'Invalid Simple Chat backend',
+      );
+    const now = Date.now();
+    this.db
+      .insert(settings)
+      .values({
+        key: BACKEND_SETTING_KEY,
+        value,
+        type: 'string',
+        category: 'simple-chat',
+        description: 'Execution backend used by Simple Chat',
+        defaultValue: 'openai',
+        constraints: JSON.stringify({ enum: ['openai', 'codex'] }),
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: settings.key,
+        set: { value, updatedAt: now },
+      })
+      .run();
+    return this.getStatus();
+  }
 
   getStatus() {
+    const backend = this.getBackend();
     return {
-      configured: this.hasApiKey(),
-      model: this.defaultModel,
+      configured: backend === 'codex' || this.hasApiKey(),
+      model: backend === 'codex' ? 'project' : this.defaultModel,
       webSearch: true,
+      backend,
     };
   }
 
@@ -541,6 +586,8 @@ export class SimpleChatService {
   }
 
   async listModels(): Promise<{ models: string[]; defaultModel: string }> {
+    if (this.getBackend() === 'codex')
+      return { models: [], defaultModel: 'project' };
     if (this.modelCache && this.modelCache.expiresAt > Date.now()) {
       return {
         models: this.modelCache.models,
@@ -581,7 +628,7 @@ export class SimpleChatService {
     };
   }
 
-  async createThread(input: { model?: unknown; projectId?: unknown }) {
+  createThread(input: { model?: unknown; projectId?: unknown }) {
     const project = this.resolveProject(input.projectId);
     const now = Date.now();
     const thread = {
@@ -610,7 +657,7 @@ export class SimpleChatService {
     return { thread, messages };
   }
 
-  async updateThread(
+  updateThread(
     threadId: string,
     input: {
       title?: unknown;
@@ -719,13 +766,19 @@ export class SimpleChatService {
       .limit(MAX_CONTEXT_MESSAGES)
       .all()
       .reverse();
-    const response = await this.createResponse(thread.model, [
-      ...previousMessages,
-      { role: 'user', content: message },
-    ]);
-    const text = this.extractText(response);
+    const backend = this.getBackend();
+    const response =
+      backend === 'openai'
+        ? await this.createResponse(thread.model, [
+            ...previousMessages,
+            { role: 'user', content: message },
+          ])
+        : null;
+    const text = response
+      ? this.extractText(response)
+      : await this.respondWithCodex(thread, previousMessages, message);
     if (!text) {
-      const detail = response.incomplete_details?.reason
+      const detail = response?.incomplete_details?.reason
         ? `OpenAI stopped before producing text (${response.incomplete_details.reason})`
         : 'OpenAI returned an empty response';
       throw BusinessException.internal(
@@ -735,7 +788,7 @@ export class SimpleChatService {
     }
 
     const now = Date.now();
-    const sources = this.extractSources(response);
+    const sources = response ? this.extractSources(response) : [];
     const userMessage = {
       id: randomUUID(),
       threadId,
@@ -753,11 +806,15 @@ export class SimpleChatService {
       threadId,
       role: 'assistant',
       content: text,
-      model: response.model || thread.model,
+      model:
+        response?.model ||
+        (backend === 'codex'
+          ? this.resolveProject(thread.projectId).agentModel || 'codex'
+          : thread.model),
       sources,
-      inputTokens: response.usage?.input_tokens ?? 0,
-      outputTokens: response.usage?.output_tokens ?? 0,
-      totalTokens: response.usage?.total_tokens ?? 0,
+      inputTokens: response?.usage?.input_tokens ?? 0,
+      outputTokens: response?.usage?.output_tokens ?? 0,
+      totalTokens: response?.usage?.total_tokens ?? 0,
       createdAt: now + 1,
     };
     const isFirstMessage = previousMessages.length === 0;
@@ -774,6 +831,27 @@ export class SimpleChatService {
         .run();
     });
     return { message: assistantMessage, thread: this.requireThread(threadId) };
+  }
+
+  private async respondWithCodex(
+    thread: typeof simpleChatThreads.$inferSelect,
+    previousMessages: Array<{ role: string; content: string }>,
+    message: string,
+  ): Promise<string> {
+    const project = this.resolveProject(thread.projectId);
+    const transcript = [...previousMessages, { role: 'user', content: message }]
+      .map(
+        (item) =>
+          `${item.role === 'assistant' ? 'Assistant' : 'Utilisateur'} : ${item.content}`,
+      )
+      .join('\n\n')
+      .slice(-30_000);
+    return this.threads.runProjectStructuredPrompt({
+      cwd: project.workspacePath,
+      prompt: transcript,
+      instructions:
+        "Tu es un assistant généraliste concis et utile. Réponds dans la langue de l'utilisateur. Utilise la recherche Web pour les informations actuelles ou sensibles au temps et cite tes sources avec des liens. Cette conversation est simple : ne modifie aucun fichier et n'exécute aucune commande.",
+    });
   }
 
   private async createResponse(

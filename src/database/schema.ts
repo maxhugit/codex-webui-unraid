@@ -320,6 +320,8 @@ export const projects = sqliteTable(
       .$type<string[]>()
       .notNull()
       .default([]),
+    agentModel: text('agent_model'),
+    agentReasoningEffort: text('agent_reasoning_effort'),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
@@ -500,6 +502,10 @@ export const projectTaskActivity = sqliteTable(
       .$type<Record<string, { before: unknown; after: unknown }>>()
       .notNull()
       .default({}),
+    actorPersonId: text('actor_person_id').references(() => people.id, {
+      onDelete: 'set null',
+    }),
+    actorName: text('actor_name').notNull().default('Système'),
     createdAt: integer('created_at').notNull(),
   },
   (table) => [
