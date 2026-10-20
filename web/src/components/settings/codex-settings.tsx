@@ -26,6 +26,9 @@ import {
   type OverrideSelectOption,
 } from '@/components/codex-config/config-override-controls';
 import { RawConfigEditor } from './raw-config-editor';
+import { SettingsSaveBar } from './settings-save-bar';
+import { loadAdminModels } from './admin-model-options';
+import { CodexCliSettings } from './codex-cli-settings';
 import { CatalogSettings } from './catalog/catalog-settings';
 import {
   catalogStateQueryKey,
@@ -74,7 +77,8 @@ type CodexSettingsTab =
   | 'security'
   | 'advanced'
   | 'catalog'
-  | 'raw';
+  | 'raw'
+  | 'version';
 
 const CODEX_SETTINGS_TABS = [
   { id: 'profile', label: 'Profile', icon: UserCog },
@@ -86,6 +90,7 @@ const CODEX_SETTINGS_TABS = [
   { id: 'advanced', label: 'Advanced', icon: SlidersHorizontal },
   { id: 'catalog', label: 'Catalog', icon: Library },
   { id: 'raw', label: 'Raw configuration', icon: FileCode2 },
+  { id: 'version', label: 'CLI version', icon: SlidersHorizontal },
 ] as const;
 
 const TAB_GROUPS: Partial<Record<CodexSettingsTab, string>> = {
@@ -157,6 +162,7 @@ export function CodexSettings() {
   const [draftOverrides, setDraftOverrides] = useState<Record<string, string>>(
     {},
   );
+  const [clearedKeys, setClearedKeys] = useState<Set<string>>(new Set());
 
   const baseDrafts = useMemo(() => {
     if (!config) return {};
@@ -164,6 +170,15 @@ export function CodexSettings() {
     for (const def of FIELD_DEFS) {
       base[def.key] = configValueToString(config[def.key]);
     }
+    base.approval_policy = isApprovalPolicyValue(config.approval_policy)
+      ? config.approval_policy
+      : 'on-request';
+    base.sandbox_mode = isSandboxModeValue(config.sandbox_mode)
+      ? config.sandbox_mode
+      : 'read-only';
+    base.approvals_reviewer = isApprovalReviewerValue(config.approvals_reviewer)
+      ? config.approvals_reviewer
+      : 'user';
     return base;
   }, [config]);
 
@@ -173,14 +188,19 @@ export function CodexSettings() {
   );
 
   const dirtyKeys = useMemo(() => {
-    const keys = new Set<string>();
+    const keys = new Set<string>(clearedKeys);
     for (const [key, value] of Object.entries(draftOverrides)) {
       if (value !== baseDrafts[key]) keys.add(key);
     }
     return keys;
-  }, [draftOverrides, baseDrafts]);
+  }, [draftOverrides, baseDrafts, clearedKeys]);
 
   const handleDraftChange = useCallback((key: string, value: string) => {
+    setClearedKeys((previous) => {
+      const next = new Set(previous);
+      next.delete(key);
+      return next;
+    });
     setDraftOverrides((prev) => ({ ...prev, [key]: value }));
   }, []);
 
@@ -195,6 +215,9 @@ export function CodexSettings() {
     // A raw edit can move model_catalog_json, so the catalog panel's notion of
     // configured vs running is stale the moment config.toml is written.
     void queryClient.invalidateQueries({ queryKey: catalogStateQueryKey() });
+    void queryClient.invalidateQueries({
+      queryKey: modelsListModelsOptions().queryKey,
+    });
   }, [queryClient]);
 
   const [saveWarnings, setSaveWarnings] = useState<CatalogWarningDto[]>([]);
@@ -212,6 +235,10 @@ export function CodexSettings() {
       showSnackbar(t('Config saved'), 'success');
       // Only clear drafts for saved keys, preserve other pending edits
       const savedKeys = new Set(variables.body.edits.map((e) => e.keyPath));
+      setClearedKeys(
+        (previous) =>
+          new Set([...previous].filter((key) => !savedKeys.has(key))),
+      );
       setDraftOverrides((prev) => {
         const next = { ...prev };
         for (const key of savedKeys) delete next[key];
@@ -226,29 +253,10 @@ export function CodexSettings() {
     },
   });
 
-  const handleSaveField = useCallback(
-    (key: ConfigEditDto['keyPath']) => {
-      const raw = drafts[key] ?? '';
-      const result = stringToConfigValue(key, raw);
-      if ('error' in result) {
-        showSnackbar(t(result.error), 'error');
-        return;
-      }
-      updateMutation.mutate({
-        body: { edits: [{ keyPath: key, value: result.value }] },
-      });
-    },
-    [drafts, t, updateMutation],
-  );
-
-  const handleClearField = useCallback(
-    (key: ConfigEditDto['keyPath']) => {
-      updateMutation.mutate({
-        body: { edits: [{ keyPath: key, value: null }] },
-      });
-    },
-    [updateMutation],
-  );
+  const handleClearField = useCallback((key: ConfigEditDto['keyPath']) => {
+    setClearedKeys((previous) => new Set([...previous, key]));
+    setDraftOverrides((previous) => ({ ...previous, [key]: '' }));
+  }, []);
 
   // ---- Profile options (dynamic from config.profiles) ----
   const profileOptions = useMemo(() => {
@@ -273,10 +281,13 @@ export function CodexSettings() {
   // config key is global, hence the union across models rather than one model's
   // set. Any tier already written to config is kept so an existing value is
   // never silently dropped from the list.
-  const { data: modelsData } = useQuery({
+  const modelsQuery = useQuery({
     ...modelsListModelsOptions(),
+    queryFn: ({ signal }) => loadAdminModels(signal),
     staleTime: 60_000,
+    refetchInterval: 60_000,
   });
+  const modelsData = modelsQuery.data;
   const serviceTierOptions = useMemo(() => {
     const options: string[] = [];
     for (const model of modelsData?.data ?? []) {
@@ -379,7 +390,57 @@ export function CodexSettings() {
   const activeFields = activeGroup
     ? (groupedFields.get(activeGroup) ?? [])
     : [];
-  const needsStructuredConfig = activeTab !== 'catalog' && activeTab !== 'raw';
+  const needsStructuredConfig = !['catalog', 'raw', 'version'].includes(
+    activeTab,
+  );
+  const activeKeys =
+    activeTab === 'security'
+      ? ['approval_policy', 'sandbox_mode', 'approvals_reviewer']
+      : activeFields.map((field) => field.key);
+  const activeDirtyKeys = activeKeys.filter((key) => dirtyKeys.has(key));
+  const saveActiveTab = () => {
+    const edits: ConfigEditDto[] = [];
+    for (const key of activeDirtyKeys) {
+      if (clearedKeys.has(key)) {
+        edits.push({ keyPath: key, value: null });
+        continue;
+      }
+      const result = stringToConfigValue(key, drafts[key] ?? '');
+      if (!result.ok) {
+        showSnackbar(t(result.error), 'error');
+        return;
+      }
+      edits.push({ keyPath: key, value: result.value });
+    }
+    if (edits.length) updateMutation.mutate({ body: { edits } });
+  };
+  const modelOptions = [
+    ...new Set(
+      (modelsData?.data ?? [])
+        .filter((model) => !model.hidden)
+        .map((model) => model.model),
+    ),
+  ];
+  const activeModel = modelsData?.data.find((model) =>
+    drafts.model ? model.model === drafts.model : model.isDefault,
+  );
+  const reasoningOptions = [
+    ...new Set(
+      (activeModel ? [activeModel] : (modelsData?.data ?? [])).flatMap(
+        (model) =>
+          model.supportedReasoningEfforts.map(
+            (option) => option.reasoningEffort,
+          ),
+      ),
+    ),
+  ];
+  const configuredProviders = config?.model_providers;
+  const providerOptions =
+    configuredProviders &&
+    typeof configuredProviders === 'object' &&
+    !Array.isArray(configuredProviders)
+      ? Object.keys(configuredProviders)
+      : [];
 
   return (
     <section className="space-y-6">
@@ -459,6 +520,14 @@ export function CodexSettings() {
               role="tabpanel"
               className="space-y-3"
             >
+              {modelsQuery.isError &&
+                ['model', 'reasoning', 'advanced'].includes(activeTab) && (
+                  <p role="alert" className="text-xs text-amber-500">
+                    {t(
+                      'Live model choices are unavailable. Existing values are preserved; custom model identifiers can still be entered.',
+                    )}
+                  </p>
+                )}
               {activeFields.map((def) => (
                 <ConfigFieldEditor
                   key={def.key}
@@ -468,6 +537,19 @@ export function CodexSettings() {
                   origin={originLabel(origins, def.key)}
                   overridden={isUserConfigOrigin(origins, def.key)}
                   saving={updateMutation.isPending}
+                  batch
+                  modelOptions={
+                    def.key === 'model' || def.key === 'review_model'
+                      ? modelOptions
+                      : def.key === 'model_provider'
+                        ? providerOptions
+                        : undefined
+                  }
+                  dynamicOptions={
+                    def.key === 'model_reasoning_effort'
+                      ? reasoningOptions
+                      : undefined
+                  }
                   profileOptions={
                     def.key === 'profile' ? profileOptions : undefined
                   }
@@ -475,7 +557,7 @@ export function CodexSettings() {
                     def.key === 'service_tier' ? serviceTierOptions : undefined
                   }
                   onDraftChange={handleDraftChange}
-                  onSave={handleSaveField}
+                  onSave={saveActiveTab}
                   onClear={handleClearField}
                 />
               ))}
@@ -494,9 +576,13 @@ export function CodexSettings() {
                 )}
               </p>
               <ConfigSelectOverrideControl
+                deferred
                 label={t('Approval Policy')}
                 description={t('When Codex asks before running a command.')}
-                effectiveValue={globalApprovalPolicy.value}
+                effectiveValue={
+                  (drafts.approval_policy ||
+                    globalApprovalPolicy.value) as ApprovalPolicyValue
+                }
                 source={globalApprovalPolicy.source}
                 overridden={isUserConfigOrigin(origins, 'approval_policy')}
                 saving={updateMutation.isPending}
@@ -505,15 +591,19 @@ export function CodexSettings() {
                   label: t(value),
                 }))}
                 onCommit={(value) =>
-                  updateMutation.mutate({
-                    body: { edits: [{ keyPath: 'approval_policy', value }] },
-                  })
+                  value === null
+                    ? handleClearField('approval_policy')
+                    : handleDraftChange('approval_policy', value)
                 }
               />
               <ConfigSelectOverrideControl
+                deferred
                 label={t('Sandbox Mode')}
                 description={t('What a command may reach by default.')}
-                effectiveValue={globalSandboxMode.value}
+                effectiveValue={
+                  (drafts.sandbox_mode ||
+                    globalSandboxMode.value) as SandboxModeValue
+                }
                 source={globalSandboxMode.source}
                 overridden={isUserConfigOrigin(origins, 'sandbox_mode')}
                 saving={updateMutation.isPending}
@@ -522,25 +612,27 @@ export function CodexSettings() {
                   label: t(value),
                 }))}
                 onCommit={(value) =>
-                  updateMutation.mutate({
-                    body: { edits: [{ keyPath: 'sandbox_mode', value }] },
-                  })
+                  value === null
+                    ? handleClearField('sandbox_mode')
+                    : handleDraftChange('sandbox_mode', value)
                 }
               />
               <ApprovalReviewerControl
+                deferred
                 label={t('Approvals Reviewer')}
                 description={t('Default reviewer for approval requests.')}
-                effectiveValue={topLevelReviewer.value}
+                effectiveValue={
+                  (drafts.approvals_reviewer ||
+                    topLevelReviewer.value) as ApprovalReviewerValue
+                }
                 source={topLevelReviewer.source}
                 overridden={isUserConfigOrigin(origins, 'approvals_reviewer')}
                 saving={updateMutation.isPending}
                 options={reviewerOptions}
                 onCommit={(value) =>
-                  updateMutation.mutate({
-                    body: {
-                      edits: [{ keyPath: 'approvals_reviewer', value }],
-                    },
-                  })
+                  value === null
+                    ? handleClearField('approvals_reviewer')
+                    : handleDraftChange('approvals_reviewer', value)
                 }
               />
               {SECURITY_READONLY_KEYS.map((key) => (
@@ -574,6 +666,11 @@ export function CodexSettings() {
           <CatalogSettings />
         </div>
       )}
+      {activeTab === 'version' && (
+        <div id="codex-settings-panel" role="tabpanel">
+          <CodexCliSettings />
+        </div>
+      )}
       <div
         id={activeTab === 'raw' ? 'codex-settings-panel' : undefined}
         role={activeTab === 'raw' ? 'tabpanel' : undefined}
@@ -581,6 +678,33 @@ export function CodexSettings() {
       >
         <RawConfigEditor onSaved={invalidate} />
       </div>
+      {needsStructuredConfig && config && !configQuery.isError && (
+        <>
+          {activeKeys.some((key) => clearedKeys.has(key)) && (
+            <p role="status" className="text-xs text-amber-500">
+              {t('Return to inheritance pending. Save this tab to apply.')}
+            </p>
+          )}
+          <SettingsSaveBar
+            dirty={activeDirtyKeys.length > 0}
+            saving={updateMutation.isPending}
+            onSave={saveActiveTab}
+            onDiscard={() => {
+              setClearedKeys(
+                (previous) =>
+                  new Set(
+                    [...previous].filter((key) => !activeKeys.includes(key)),
+                  ),
+              );
+              setDraftOverrides((previous) => {
+                const next = { ...previous };
+                for (const key of activeKeys) delete next[key];
+                return next;
+              });
+            }}
+          />
+        </>
+      )}
     </section>
   );
 }

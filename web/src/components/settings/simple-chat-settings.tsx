@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, KeyRound, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { SettingsSaveBar } from './settings-save-bar';
 import { Input } from '@/components/ui/input';
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
@@ -28,6 +28,9 @@ export function SimpleChatSettings() {
   const { t } = useTranslation();
   const [status, setStatus] = useState<KeyStatus>();
   const [backend, setBackend] = useState<'openai' | 'codex'>('openai');
+  const [savedBackend, setSavedBackend] = useState<'openai' | 'codex'>(
+    'openai',
+  );
   const [apiKey, setApiKey] = useState('');
   const [savingBackend, setSavingBackend] = useState(false);
   const [savingApiKey, setSavingApiKey] = useState(false);
@@ -53,6 +56,7 @@ export function SimpleChatSettings() {
       .then(({ key, engine }) => {
         setStatus(key);
         setBackend(engine.backend);
+        setSavedBackend(engine.backend);
       })
       .catch(() =>
         setBackendError(t('Unable to read the Simple Chat settings.')),
@@ -60,7 +64,7 @@ export function SimpleChatSettings() {
   }, [t]);
 
   const saveBackend = async (value: 'openai' | 'codex') => {
-    if (value === backend) return;
+    if (value === savedBackend) return;
     setSavingBackend(true);
     setBackendMessage(undefined);
     setBackendError(undefined);
@@ -78,6 +82,7 @@ export function SimpleChatSettings() {
           'message' in payload ? payload.message : `HTTP ${response.status}`,
         );
       setBackend(value);
+      setSavedBackend(value);
       setBackendMessage(
         value === 'codex'
           ? t('Simple Chat now uses Codex CLI.')
@@ -150,7 +155,7 @@ export function SimpleChatSettings() {
               value={backend}
               disabled={savingBackend}
               onChange={(event) =>
-                void saveBackend(event.target.value as 'openai' | 'codex')
+                setBackend(event.target.value as 'openai' | 'codex')
               }
               className="h-10 min-w-48 cursor-pointer rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -203,14 +208,6 @@ export function SimpleChatSettings() {
             placeholder="sk-proj-…"
             onChange={(event) => setApiKey(event.target.value)}
           />
-          <Button
-            className="sm:shrink-0"
-            disabled={!apiKey.trim() || savingApiKey}
-            onClick={() => void save()}
-          >
-            {savingApiKey && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t('Save')}
-          </Button>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {t(
@@ -224,6 +221,20 @@ export function SimpleChatSettings() {
           <p className="mt-3 text-sm text-destructive">{apiKeyError}</p>
         )}
       </div>
+      <SettingsSaveBar
+        dirty={backend !== savedBackend || !!apiKey.trim()}
+        saving={savingBackend || savingApiKey}
+        onSave={() =>
+          void (async () => {
+            await saveBackend(backend);
+            await save();
+          })()
+        }
+        onDiscard={() => {
+          setBackend(savedBackend);
+          setApiKey('');
+        }}
+      />
     </section>
   );
 }

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   settingsListSettings,
-  settingsUpdateSetting,
+  settingsUpdateSettings,
   settingsResetSetting,
 } from '@/generated/api/sdk.gen';
 import { settingsListSettingsQueryKey } from '@/generated/api/@tanstack/react-query.gen';
@@ -44,27 +44,16 @@ export function useCategorySettings(category: SettingCategory) {
     return { ...base, ...draftOverrides };
   }, [settings, draftOverrides]);
 
-  const onMutationSuccess = () => {
-    setDraftOverrides({});
+  const onMutationSuccess = (key: string) => {
+    setDraftOverrides((previous) => {
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
     void queryClient.invalidateQueries({
       queryKey: settingsListSettingsQueryKey({ query: { category } }),
     });
   };
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: SettingDto['value'] | null }) => {
-      const { data } = await settingsUpdateSetting({
-        path: { key },
-        body: { value },
-        throwOnError: true,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      onMutationSuccess();
-      showSnackbar(t('Setting saved'), 'success');
-    },
-  });
 
   const resetMutation = useMutation({
     mutationFn: async (key: string) => {
@@ -74,8 +63,8 @@ export function useCategorySettings(category: SettingCategory) {
       });
       return data;
     },
-    onSuccess: () => {
-      onMutationSuccess();
+    onSuccess: (_data, key) => {
+      onMutationSuccess(key);
       showSnackbar(t('Setting reset'), 'success');
     },
   });
@@ -84,26 +73,75 @@ export function useCategorySettings(category: SettingCategory) {
     setDraftOverrides((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = (setting: SettingDto) => {
-    const parsed = parseDraftValue(setting, drafts[setting.key] ?? '');
-    if (parsed.ok) {
-      updateMutation.mutate({ key: setting.key, value: parsed.value });
-    } else {
-      showSnackbar(t(parsed.error), 'error');
-    }
-  };
-
   const handleReset = (key: string) => {
     resetMutation.mutate(key);
+  };
+
+  const dirtySettings = settings.filter(
+    (setting) => drafts[setting.key] !== formatSettingValue(setting.value),
+  );
+  const batchMutation = useMutation({
+    mutationFn: async (
+      edits: { key: string; value: SettingDto['value'] }[],
+    ) => {
+      const { data } = await settingsUpdateSettings({
+        body: { updates: edits },
+        throwOnError: true,
+      });
+      return data;
+    },
+    onSuccess: (data, edits) => {
+      const updated = new Map(
+        data.settings.map((setting) => [setting.key, setting]),
+      );
+      queryClient.setQueryData(
+        settingsListSettingsQueryKey({ query: { category } }),
+        {
+          settings: settings.map(
+            (setting) => updated.get(setting.key) ?? setting,
+          ),
+        },
+      );
+      const saved = new Set(edits.map((edit) => edit.key));
+      setDraftOverrides((previous) =>
+        Object.fromEntries(
+          Object.entries(previous).filter(([key]) => !saved.has(key)),
+        ),
+      );
+      void queryClient.invalidateQueries({
+        queryKey: settingsListSettingsQueryKey({ query: { category } }),
+      });
+      showSnackbar(t('Setting saved'), 'success');
+    },
+    onError: () =>
+      showSnackbar(
+        t('Failed to save settings. Unsaved changes have been kept.'),
+        'error',
+      ),
+  });
+  const handleSaveAll = async () => {
+    const edits: { key: string; value: SettingDto['value'] }[] = [];
+    for (const setting of dirtySettings) {
+      const parsed = parseDraftValue(setting, drafts[setting.key] ?? '');
+      if (!parsed.ok) {
+        showSnackbar(t(parsed.error), 'error');
+        return;
+      }
+      edits.push({ key: setting.key, value: parsed.value });
+    }
+    if (edits.length)
+      await batchMutation.mutateAsync(edits).catch(() => undefined);
   };
 
   return {
     settings,
     drafts,
     isLoading: settingsQuery.isLoading,
-    isSaving: updateMutation.isPending || resetMutation.isPending,
+    isSaving: resetMutation.isPending || batchMutation.isPending,
+    isDirty: dirtySettings.length > 0,
+    handleSaveAll,
+    discardChanges: () => setDraftOverrides({}),
     handleDraftChange,
-    handleSave,
     handleReset,
   };
 }

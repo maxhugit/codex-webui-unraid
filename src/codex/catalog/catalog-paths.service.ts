@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { cliBinary, cliSelection } from '../cli/managed-cli';
 
 @Injectable()
 export class CatalogPathsService {
@@ -27,7 +28,17 @@ export class CatalogPathsService {
   get binary(): string {
     const override = this.config.get<string>('CODEX_BIN');
     if (override) return override.includes('/') ? resolve(override) : override;
+    const selected = cliSelection(this.home).version;
+    if (selected) return cliBinary(this.home, selected);
     const local = resolve('node_modules/.bin/codex');
     return existsSync(local) ? local : 'codex';
+  }
+  /** Version-matched argv[0] tools for commands dispatched by the managed child. */
+  get childPath(): string | undefined {
+    if (this.config.get<string>('CODEX_BIN')) return process.env.PATH;
+    const selected = cliSelection(this.home).version;
+    return selected
+      ? `${join(cliBinary(this.home, selected), '..', 'helpers')}:${process.env.PATH ?? ''}`
+      : process.env.PATH;
   }
 }

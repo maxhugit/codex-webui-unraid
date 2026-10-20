@@ -59,6 +59,7 @@ export class CatalogMutationInterceptor implements NestInterceptor {
     if (
       ['GET', 'HEAD', 'OPTIONS'].includes(request.method) ||
       request.url.startsWith('/api/codex/catalog') ||
+      /^\/api\/codex\/cli(?:\/|$)/.test(request.url) ||
       request.url.startsWith('/api/auth')
     )
       return next.handle();

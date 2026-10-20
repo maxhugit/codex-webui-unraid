@@ -14,6 +14,9 @@ dans cet ordre :
 
 ## Guide d’utilisation
 
+- [Administration Codex](administration-codex.md) : listes dynamiques,
+  enregistrement par onglet et gestion de la version du CLI.
+
 - [Gestionnaire de tâches](gestionnaire-de-taches.md) : tableau, sous-tâches,
   planning, assistance IA, agents Codex, validation et stockage.
 

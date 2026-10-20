@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CodexCliController } from './cli/codex-cli.controller';
+import { CodexCliService } from './cli/codex-cli.service';
 import { CodexConfigController } from './codex-config.controller';
 import { CodexFeedbackController } from './codex-feedback.controller';
 import { CodexProcessManager } from './codex-process-manager.service';
@@ -19,12 +21,14 @@ import { CatalogService } from './catalog/catalog.service';
 
 @Module({
   controllers: [
+    CodexCliController,
     CodexStatusController,
     CodexConfigController,
     CodexFeedbackController,
     CatalogController,
   ],
   providers: [
+    CodexCliService,
     CodexProcessManager,
     CodexService,
     CodexStatusService,

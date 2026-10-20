@@ -2,6 +2,7 @@
 import { useTranslation } from 'react-i18next';
 import { SettingEditor } from './setting-editor';
 import { useCategorySettings } from './use-category-settings';
+import { SettingsSaveBar } from './settings-save-bar';
 
 export function SecuritySettings() {
   const { t } = useTranslation();
@@ -22,10 +23,15 @@ export function SecuritySettings() {
           draft={ctx.drafts[setting.key] ?? ''}
           disabled={ctx.isSaving}
           onDraftChange={ctx.handleDraftChange}
-          onSave={ctx.handleSave}
           onReset={ctx.handleReset}
         />
       ))}
+      <SettingsSaveBar
+        dirty={ctx.isDirty}
+        saving={ctx.isSaving}
+        onSave={() => void ctx.handleSaveAll()}
+        onDiscard={ctx.discardChanges}
+      />
     </section>
   );
 }

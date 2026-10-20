@@ -22,6 +22,7 @@ import {
   catalogStateQueryKey,
   catalogUseDefaultMutation,
   catalogValidateMutation,
+  modelsListModelsQueryKey,
 } from '@/generated/api/@tanstack/react-query.gen';
 import type { CatalogDocumentDto, CatalogWarningDto } from '@/generated/api';
 
@@ -134,6 +135,7 @@ export function useCatalogDraft() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: catalogStateQueryKey() }),
       queryClient.invalidateQueries({ queryKey: catalogReadDraftQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: modelsListModelsQueryKey() }),
       blockers.refetch(),
     ]);
   }, [blockers, queryClient]);

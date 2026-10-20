@@ -233,7 +233,11 @@ export class CodexProcessManager implements OnModuleInit, OnModuleDestroy {
       ['app-server', '--listen', 'stdio://'],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, CODEX_HOME: this.storage.paths.home },
+        env: {
+          ...process.env,
+          PATH: this.storage.paths.childPath ?? process.env.PATH,
+          CODEX_HOME: this.storage.paths.home,
+        },
       },
     );
     let stderr = '';
