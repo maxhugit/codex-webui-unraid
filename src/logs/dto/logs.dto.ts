@@ -16,6 +16,16 @@ export class LogsQueryDto {
 
   @ApiPropertyOptional()
   source?: string;
+
+  @ApiPropertyOptional({
+    description: 'Comma-separated log levels for a multi-level filter',
+  })
+  levels?: string;
+
+  @ApiPropertyOptional({
+    description: 'Comma-separated exact source names for a multi-source filter',
+  })
+  sources?: string;
 }
 
 /** A single sanitized structured log entry. */
@@ -54,6 +64,12 @@ export class LogsResponseDto {
 
   @ApiProperty()
   hasMore!: boolean;
+
+  @ApiProperty({ type: [String] })
+  availableLevels!: string[];
+
+  @ApiProperty({ type: [String] })
+  availableSources!: string[];
 }
 
 /** Basic runtime metadata bundled with exported diagnostics. */

@@ -12,7 +12,7 @@ import {
   type TestDatabase,
 } from '../database/database.testing';
 import { DRIZZLE_DB } from '../database/database.constants';
-import { people } from '../database/schema';
+import { people, projectParticipants, projects } from '../database/schema';
 import { SettingsController } from '../settings/settings.controller';
 import { SettingsService } from '../settings/settings.service';
 import { AuthController } from './auth.controller';
@@ -53,7 +53,34 @@ beforeEach(async () => {
       })),
     )
     .run();
-  const projects = new ProjectsService(
+  database.db
+    .insert(projects)
+    .values([
+      {
+        id: 'member-project',
+        name: 'Member project',
+        workspacePath: '/workspaces/member',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      {
+        id: 'outside-project',
+        name: 'Outside project',
+        workspacePath: '/workspaces/outside',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ])
+    .run();
+  database.db
+    .insert(projectParticipants)
+    .values({
+      projectId: 'member-project',
+      personId: 'standard',
+      createdAt: 1,
+    })
+    .run();
+  const projectsService = new ProjectsService(
     null as never,
     null as never,
     null as never,
@@ -70,7 +97,7 @@ beforeEach(async () => {
       AuthService,
       IdentityService,
       { provide: DRIZZLE_DB, useValue: database.db },
-      { provide: ProjectsService, useValue: projects },
+      { provide: ProjectsService, useValue: projectsService },
       {
         provide: ConfigService,
         useValue: new ConfigService({ WEBUI_API_KEY: 'isolated-http-test' }),
@@ -184,4 +211,45 @@ it('creates a person with required contacts and a computed full name through the
     email: 'alice@example.com',
     role: 'standard',
   });
+});
+
+it('lets active project members read participants but reserves membership changes for administrators', async () => {
+  const server = app.getHttpAdapter().getInstance();
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/projects/member-project/participants',
+        headers: proxyHeaders(),
+      })
+    ).statusCode,
+  ).toBe(200);
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/projects/outside-project/participants',
+        headers: proxyHeaders(),
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'POST',
+        url: '/api/projects/member-project/participants',
+        headers: proxyHeaders(),
+        payload: { personId: 'administrator' },
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/projects/outside-project/participants',
+        headers: proxyHeaders('administrator@example.com'),
+      })
+    ).statusCode,
+  ).toBe(200);
 });

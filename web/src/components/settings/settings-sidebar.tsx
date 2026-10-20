@@ -6,6 +6,7 @@ import {
   FolderCog,
   FolderOpen,
   MessageCircle,
+  ScrollText,
   Plug,
   ServerCog,
   ShieldCheck,
@@ -135,6 +136,17 @@ export function SettingsSidebar() {
           >
             <Terminal className="h-4 w-4" />
             {t('Terminal')}
+          </button>
+          <button
+            aria-current={pathname === '/logs' ? 'page' : undefined}
+            className={itemClass(pathname === '/logs')}
+            onClick={() => {
+              close(false);
+              void navigate({ to: '/logs' });
+            }}
+          >
+            <ScrollText className="h-4 w-4" />
+            {t('Logs')}
           </button>
           <button
             aria-current={pathname === '/diagnostics' ? 'page' : undefined}

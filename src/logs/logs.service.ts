@@ -31,6 +31,8 @@ export interface LogsQuery {
   limit?: number | string;
   level?: string;
   source?: string;
+  levels?: string;
+  sources?: string;
 }
 
 export interface LogsResponse {
@@ -39,6 +41,8 @@ export interface LogsResponse {
   limit: number;
   total: number;
   hasMore: boolean;
+  availableLevels: string[];
+  availableSources: string[];
 }
 
 export interface LogsExportResponse {
@@ -76,12 +80,23 @@ export class LogsService {
     const limit = this.clampNumber(query.limit, 1, MAX_LIMIT, DEFAULT_LIMIT);
     const level = this.normalizeFilter(query.level);
     const source = this.normalizeFilter(query.source);
+    const levels = this.normalizeListFilter(query.levels);
+    const sources = this.normalizeListFilter(query.sources);
 
     const entries = await this.readAllEntries();
+    const availableLevels = [...new Set(entries.map((entry) => entry.level))]
+      .filter(Boolean)
+      .sort((a, b) => this.levelRank(a) - this.levelRank(b));
+    const availableSources = [...new Set(entries.map((entry) => entry.source))]
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
     const filtered = entries.filter((entry) => {
-      const levelMatches = !level || entry.level === level;
+      const levelMatches =
+        (!level || entry.level === level) &&
+        (!levels.length || levels.includes(entry.level.toLowerCase()));
       const sourceMatches =
-        !source || entry.source.toLowerCase().includes(source);
+        (!source || entry.source.toLowerCase().includes(source)) &&
+        (!sources.length || sources.includes(entry.source.toLowerCase()));
       return levelMatches && sourceMatches;
     });
     const page = filtered.slice(offset, offset + limit);
@@ -92,6 +107,8 @@ export class LogsService {
       limit,
       total: filtered.length,
       hasMore: offset + limit < filtered.length,
+      availableLevels,
+      availableSources,
     };
   }
 
@@ -286,6 +303,30 @@ export class LogsService {
   private normalizeFilter(value: string | undefined): string | null {
     const normalized = value?.trim().toLowerCase();
     return normalized ? normalized : null;
+  }
+
+  private normalizeListFilter(value: string | undefined): string[] {
+    if (!value) return [];
+    return [
+      ...new Set(
+        value
+          .split(',')
+          .map((item) => item.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ];
+  }
+
+  private levelRank(level: string): number {
+    return [
+      'trace',
+      'debug',
+      'info',
+      'warn',
+      'error',
+      'fatal',
+      'unknown',
+    ].indexOf(level);
   }
 
   /**

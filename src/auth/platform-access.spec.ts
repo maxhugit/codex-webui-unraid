@@ -221,6 +221,8 @@ it.each([
   '/projects/project-1/mcp-servers',
   '/projects/project-1/apps',
   '/projects/project-1/agent-settings',
+  '/projects/project-1/participants',
+  '/projects/project-1/participants/person-1',
 ])('blocks standard project configuration writes to %s', (path) => {
   expect(() => guard.canActivate(http(path, 'PATCH').context)).toThrow(
     'Administrator access',

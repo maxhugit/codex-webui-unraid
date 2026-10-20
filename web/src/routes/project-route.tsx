@@ -3,16 +3,21 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import {
   Bot,
+  FolderCog,
   FolderKanban,
   FolderOpen,
   History,
   LayoutDashboard,
   ListTodo,
+  Plug,
   Settings,
+  UsersRound,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { ProjectSettingsDialog } from '@/components/projects/project-settings-dialog';
+import {
+  ProjectSettingsPanel,
+  type ProjectSettingsSection,
+} from '@/components/projects/project-settings-dialog';
 import {
   projectsApi,
   projectsQueryKey,
@@ -20,6 +25,9 @@ import {
   type ProjectSummary,
 } from '@/lib/projects-api';
 import { usePlatformSession } from '@/lib/platform-session';
+import { useParticipants } from '@/lib/people-api';
+
+type ProjectTab = 'general' | 'journal' | ProjectSettingsSection;
 
 export function ProjectRoute() {
   const { projectId } = useParams({ strict: false });
@@ -30,15 +38,29 @@ export function ProjectRoute() {
     queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
   });
   const project = projects.data?.projects.find((item) => item.id === projectId);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'journal'>('general');
+  const [activeTab, setActiveTab] = useState<ProjectTab>('general');
+  const participants = useParticipants(projectId ?? '');
+  const isActiveParticipant = !!(
+    session.data?.active &&
+    session.data.personId &&
+    participants.data?.participants.some(
+      (participant) => participant.personId === session.data?.personId,
+    )
+  );
+  const canSeePeople = session.isAdministrator || isActiveParticipant;
+  const visibleTab: ProjectTab =
+    (activeTab === 'participants' && !canSeePeople) ||
+    (!session.isAdministrator &&
+      ['settings', 'workspaces', 'mcps'].includes(activeTab))
+      ? 'general'
+      : activeTab;
   const activity = useQuery({
     queryKey: ['project-activity', projectId],
     queryFn: () =>
       projectsApi<{ activity: ProjectActivitySummary[] }>(
         `/${projectId}/activity`,
       ),
-    enabled: activeTab === 'journal',
+    enabled: visibleTab === 'journal',
   });
 
   if (projects.isPending)
@@ -68,47 +90,58 @@ export function ProjectRoute() {
         <div
           role="tablist"
           aria-label={t('Project sections')}
-          className="flex min-w-0 flex-1 items-center"
+          className="flex min-w-0 flex-1 items-center overflow-x-auto"
         >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'general'}
-            className={`flex h-10 cursor-pointer items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50 ${activeTab === 'general' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
+          <ProjectTabButton
+            active={visibleTab === 'general'}
+            icon={LayoutDashboard}
+            label={t('General information')}
             onClick={() => setActiveTab('general')}
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            <span>{t('General information')}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'journal'}
-            className={`flex h-10 cursor-pointer items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50 ${activeTab === 'journal' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
+          />
+          <ProjectTabButton
+            active={visibleTab === 'journal'}
+            icon={History}
+            label={t('Journal')}
             onClick={() => setActiveTab('journal')}
-          >
-            <History className="h-4 w-4" />
-            <span>{t('Journal')}</span>
-          </button>
+          />
+          {session.isAdministrator && (
+            <>
+              <ProjectTabButton
+                active={visibleTab === 'settings'}
+                icon={Settings}
+                label={t('General settings')}
+                onClick={() => setActiveTab('settings')}
+              />
+              <ProjectTabButton
+                active={visibleTab === 'workspaces'}
+                icon={FolderCog}
+                label={t('Workspaces')}
+                onClick={() => setActiveTab('workspaces')}
+              />
+            </>
+          )}
+          {canSeePeople && (
+            <ProjectTabButton
+              active={visibleTab === 'participants'}
+              icon={UsersRound}
+              label={t('People')}
+              onClick={() => setActiveTab('participants')}
+            />
+          )}
+          {session.isAdministrator && (
+            <ProjectTabButton
+              active={visibleTab === 'mcps'}
+              icon={Plug}
+              label={t('MCP connectors')}
+              onClick={() => setActiveTab('mcps')}
+            />
+          )}
         </div>
-        {session.isAdministrator && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="mr-2 h-8 w-8 cursor-pointer"
-            onClick={() => setSettingsOpen(true)}
-            aria-label={t('Project administration')}
-            title={t('Project administration')}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
         <div className="mx-auto max-w-6xl space-y-6">
-          {activeTab === 'general' ? (
+          {visibleTab === 'general' ? (
             <>
               <section className="rounded-xl border bg-card p-5">
                 <div className="flex items-start gap-3">
@@ -209,7 +242,7 @@ export function ProjectRoute() {
                 </section>
               </div>
             </>
-          ) : (
+          ) : visibleTab === 'journal' ? (
             <ProjectJournal
               rows={activity.data?.activity ?? []}
               pending={activity.isPending}
@@ -217,18 +250,42 @@ export function ProjectRoute() {
               locale={i18n.language}
               t={t}
             />
+          ) : (
+            <ProjectSettingsPanel
+              key={`${project.id}:${project.updatedAt}:${visibleTab}`}
+              project={project}
+              section={visibleTab}
+              canManageParticipants={session.isAdministrator}
+            />
           )}
         </div>
       </div>
-      {session.isAdministrator && settingsOpen && (
-        <ProjectSettingsDialog
-          key={`${project.id}:${project.updatedAt}`}
-          project={project}
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
     </main>
+  );
+}
+
+function ProjectTabButton({
+  active,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: typeof LayoutDashboard;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      className={`flex h-10 shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50 ${active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
+      onClick={onClick}
+    >
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+    </button>
   );
 }
 
@@ -292,9 +349,7 @@ function ProjectJournal({
         <div>
           <h2 className="font-semibold">{t('Project journal')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t(
-              'Major operations performed on this project are recorded here.',
-            )}
+            {t('Major operations performed on this project are recorded here.')}
           </p>
         </div>
         {rows.length > 0 && (

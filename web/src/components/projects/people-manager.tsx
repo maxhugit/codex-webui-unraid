@@ -41,7 +41,13 @@ export function ResponsiblePerson({ id }: { id: string | null | undefined }) {
   );
 }
 
-export function PeopleManager({ projectId }: { projectId?: string }) {
+export function PeopleManager({
+  projectId,
+  readOnly = false,
+}: {
+  projectId?: string;
+  readOnly?: boolean;
+}) {
   const { t } = useTranslation();
   const client = useQueryClient();
   const people = usePeople();
@@ -85,10 +91,15 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
       setRemoving(null);
     },
   });
-  const rows = (people.data?.people ?? []).filter((p) =>
-    `${p.name} ${p.reference} ${p.email ?? ''}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
+  const participantIds = new Set(
+    (participants.data?.participants ?? []).map((member) => member.personId),
+  );
+  const rows = (people.data?.people ?? []).filter(
+    (person) =>
+      (!projectId || !readOnly || participantIds.has(person.id)) &&
+      `${person.name} ${person.reference} ${person.email ?? ''}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
   );
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -109,7 +120,9 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
           <p className="mt-1 text-sm text-muted-foreground">
             {t(
               projectId
-                ? 'Only active participants can receive new assignments. Existing assignments are preserved when someone leaves.'
+                ? readOnly
+                  ? 'Active project participants are listed here. Only administrators can change this list.'
+                  : 'Only active participants can receive new assignments. Existing assignments are preserved when someone leaves.'
                 : 'Create people before they connect. The manual reference uniquely identifies each person.',
             )}
           </p>
@@ -210,7 +223,7 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
                   </p>
                 )}
               </div>
-              {projectId ? (
+              {projectId && !readOnly ? (
                 <Button
                   size="sm"
                   variant={member ? 'outline' : 'default'}
@@ -233,7 +246,7 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
                   {!member && <UserPlus className="mr-1 h-3 w-3" />}
                   {t(member ? 'Remove participant' : 'Add participant')}
                 </Button>
-              ) : (
+              ) : !projectId ? (
                 <Button
                   size="sm"
                   variant="outline"
@@ -255,7 +268,7 @@ export function PeopleManager({ projectId }: { projectId?: string }) {
                   <Pencil className="mr-1 h-3 w-3" />
                   {t('Edit')}
                 </Button>
-              )}
+              ) : null}
             </div>
           );
         })}

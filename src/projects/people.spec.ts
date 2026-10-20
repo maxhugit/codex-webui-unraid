@@ -98,6 +98,7 @@ describe('people and task responsibility', () => {
     ).toThrow('active project participant');
     service.addParticipant('p', first.id);
     service.addParticipant('p', second.id);
+    expect(service.isParticipant('p', first.id)).toBe(true);
     const parent = service.createTask('p', 'r', {
       title: 'Parent',
       assigneeId: first.id,

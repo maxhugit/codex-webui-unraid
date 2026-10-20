@@ -17,6 +17,7 @@ import { ThreadView } from './thread-view';
 import { FilesRoute } from './files-route';
 import { TerminalRoute } from './terminal-route';
 import { DiagnosticsRoute } from './diagnostics-route';
+import { LogsRoute } from './logs-route';
 import { SimpleChatRoute } from './simple-chat-route';
 import { ProjectResourceRoute } from './project-resource-route';
 import { ProjectRoute } from './project-route';
@@ -123,6 +124,13 @@ const diagnosticsRoute = createRoute({
   component: DiagnosticsRoute,
 });
 
+/** Live structured application logs. */
+const logsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/logs',
+  component: LogsRoute,
+});
+
 /** General-purpose low-cost chat backed directly by the OpenAI API. */
 export const simpleChatRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
@@ -182,6 +190,7 @@ const routeTree = rootRoute.addChildren([
     filesRoute,
     terminalRoute,
     diagnosticsRoute,
+    logsRoute,
     simpleChatRoute,
     projectRoute,
     projectResourceRoute,

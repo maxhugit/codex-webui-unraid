@@ -990,5 +990,19 @@
   "Storage": "Stockage",
   "The database path is configured with WEBUI_DB_PATH and is applied when the server starts.": "Le chemin de la base de données est configuré avec WEBUI_DB_PATH et appliqué au démarrage du serveur.",
   "Write-ahead log": "Journal d’écriture anticipée",
-  "“{{slug}}” is no longer in the draft; the edit was not applied.": "“{{slug}}” n'est plus dans le brouillon ; la modification n'a pas été appliquée."
+  "“{{slug}}” is no longer in the draft; the edit was not applied.": "“{{slug}}” n'est plus dans le brouillon ; la modification n'a pas été appliquée.",
+  "Active project participants are listed here. Only administrators can change this list.": "Les participants actifs du projet sont affichés ici. Seuls les administrateurs peuvent modifier cette liste.",
+  "Logs": "Logs",
+  "Merged view": "Vue fusionnée",
+  "Monitor, merge and filter application logs in real time.": "Surveillez, fusionnez et filtrez les logs de l’application en temps réel.",
+  "Pause live updates": "Suspendre le suivi en direct",
+  "Resume live updates": "Reprendre le suivi en direct",
+  "Search logs": "Rechercher dans les logs",
+  "Search in displayed logs": "Rechercher dans les logs affichés",
+  "Levels": "Niveaux",
+  "Sources": "Sources",
+  "All sources": "Toutes les sources",
+  "Unable to load logs": "Impossible de charger les logs",
+  "No log matches the selected filters.": "Aucun log ne correspond aux filtres sélectionnés.",
+  "displayed": "affichés"
 }

@@ -34,6 +34,8 @@ export class LogsController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'level', required: false })
   @ApiQuery({ name: 'source', required: false })
+  @ApiQuery({ name: 'levels', required: false })
+  @ApiQuery({ name: 'sources', required: false })
   @ApiOkResponse({ type: LogsResponseDto })
   async listLogs(@Query() query: LogsQueryDto): Promise<LogsResponse> {
     return this.logsService.listLogs(query);

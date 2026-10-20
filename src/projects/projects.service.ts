@@ -440,6 +440,20 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     }));
   }
 
+  isParticipant(projectId: string, personId: string) {
+    this.get(projectId);
+    return !!this.db
+      .select({ personId: projectParticipants.personId })
+      .from(projectParticipants)
+      .where(
+        and(
+          eq(projectParticipants.projectId, projectId),
+          eq(projectParticipants.personId, personId),
+        ),
+      )
+      .get();
+  }
+
   addParticipant(projectId: string, personId: string) {
     this.get(projectId);
     if (typeof personId !== 'string' || !personId)

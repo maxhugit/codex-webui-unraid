@@ -86,6 +86,8 @@ export class PlatformAccessGuard implements CanActivate {
       /^\/simple-chat\/(?:api-key|settings)(\/|$)/.test(url) ||
       (request.method !== 'GET' && /^\/projects\/people(\/|$)/.test(url)) ||
       (request.method !== 'GET' &&
+        /^\/projects\/[^/]+\/participants(?:\/|$)/.test(url)) ||
+      (request.method !== 'GET' &&
         /^\/projects\/[^/]+\/(?:mcp-servers|apps|agent-settings)$/.test(url));
     if (admin) this.identities.requireAdministrator(identity);
     if (request.method === 'DELETE') {

@@ -91,6 +91,7 @@ function AuthenticatedWorkspace({
     '/files',
     '/terminal',
     '/diagnostics',
+    '/logs',
   ].some((path) => pathname === path || pathname.startsWith(`${path}/`));
   const adminOnlyView =
     administrationView ||
@@ -274,10 +275,7 @@ function AuthenticatedWorkspace({
             transcript fades out under it instead. See chat-input.tsx. */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col isolate">
           {!pathname.startsWith('/t/') && (
-            <ChatHeader
-              dark={dark}
-              onToggleDark={toggleDark}
-            />
+            <ChatHeader dark={dark} onToggleDark={toggleDark} />
           )}
           <CodexStatusBanner />
           <DetachedDocumentRecovery />

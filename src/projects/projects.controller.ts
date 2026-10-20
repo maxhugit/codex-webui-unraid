@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  ForbiddenException,
   Param,
   Patch,
   Post,
@@ -56,7 +57,14 @@ export class ProjectsController {
   }
 
   @Get(':id/participants')
-  participants(@Param('id') id: string) {
+  participants(@Param('id') id: string, @Req() request: IdentityRequest) {
+    const identity = request.platformIdentity;
+    if (
+      identity?.role !== 'administrator' &&
+      (!identity?.personId ||
+        !this.projects.isParticipant(id, identity.personId))
+    )
+      throw new ForbiddenException('Project participant access required');
     return { participants: this.projects.participants(id) };
   }
 
