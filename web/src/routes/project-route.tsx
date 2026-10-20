@@ -216,7 +216,7 @@ export function ProjectRoute() {
                         </div>
                         {workspace.primary && (
                           <span className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
-                            {t('Default')}
+                            {t('Primary workspace')}
                           </span>
                         )}
                       </div>
@@ -243,7 +243,7 @@ export function ProjectRoute() {
                     </div>
                     <div className="sm:col-span-2">
                       <dt className="text-muted-foreground">
-                        {t('Default workspace')}
+                        {t('Primary workspace')}
                       </dt>
                       <dd className="mt-1 break-all font-medium">
                         {project.workspacePath}

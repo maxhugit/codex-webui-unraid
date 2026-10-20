@@ -1,6 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { createTestDatabase } from '../database/database.testing';
-import { projects, simpleChatMessages } from '../database/schema';
+import {
+  projects,
+  simpleChatMessages,
+  simpleChatThreads,
+} from '../database/schema';
 import type { ThreadsService } from '../threads/threads.service';
 import { SimpleChatService } from './simple-chat.service';
 
@@ -63,6 +67,21 @@ describe('SimpleChatService execution backend', () => {
   it('rejects an unknown backend', () => {
     expect(() => service.setBackend('other')).toThrow(
       'Invalid Simple Chat backend',
+    );
+  });
+
+  it('keeps an existing conversation in its active workspace after the project primary changes', async () => {
+    service.setBackend('codex');
+    const created = service.createThread({ projectId: 'project-1' });
+    database.db
+      .update(simpleChatThreads)
+      .set({ cwd: '/workspaces/legacy' })
+      .where(eq(simpleChatThreads.id, created.thread.id))
+      .run();
+    runProjectStructuredPrompt.mockResolvedValue('Réponse');
+    await service.respond(created.thread.id, { message: 'Continue' });
+    expect(runProjectStructuredPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({ cwd: '/workspaces/legacy' }),
     );
   });
 });

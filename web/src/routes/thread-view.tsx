@@ -88,7 +88,7 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
     cwd ?? null,
   );
   const policy = useThreadSecurityPolicy(threadId);
-  const setDefaultWorkspace = useMutation({
+  const setActiveWorkspace = useMutation({
     mutationFn: async (nextCwd: string) => {
       const authorization = getAuthorizationHeader();
       const endpoint = project
@@ -275,10 +275,7 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <ChatHeader
-          dark={dark}
-          onToggleDark={toggleDark}
-        />
+        <ChatHeader dark={dark} onToggleDark={toggleDark} />
         <WorkspaceControls
           key={desktop ? 'desktop' : 'mobile'}
           workspace={workspace}
@@ -363,8 +360,8 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
       <WorkspaceTree
         cwd={cwd ?? null}
         project={project}
-        defaultWorkspacePending={setDefaultWorkspace.isPending}
-        onDefaultWorkspaceChange={(path) => setDefaultWorkspace.mutate(path)}
+        activeWorkspacePending={setActiveWorkspace.isPending}
+        onActiveWorkspaceChange={(path) => setActiveWorkspace.mutate(path)}
         desktop={desktop}
         mobileOpen={mobileTree}
         onMobileClose={() => setMobileTree(false)}

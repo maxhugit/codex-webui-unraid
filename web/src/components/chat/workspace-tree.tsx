@@ -15,8 +15,8 @@ import { type ProjectSummary } from '@/lib/projects-api';
 interface Props {
   cwd: string | null;
   project?: ProjectSummary;
-  defaultWorkspacePending?: boolean;
-  onDefaultWorkspaceChange?: (path: string) => void;
+  activeWorkspacePending?: boolean;
+  onActiveWorkspaceChange?: (path: string) => void;
   desktop: boolean;
   mobileOpen: boolean;
   onMobileClose: () => void;
@@ -27,8 +27,8 @@ interface Props {
 export function WorkspaceTree({
   cwd,
   project,
-  defaultWorkspacePending = false,
-  onDefaultWorkspaceChange,
+  activeWorkspacePending = false,
+  onActiveWorkspaceChange,
   desktop,
   mobileOpen,
   onMobileClose,
@@ -79,7 +79,7 @@ export function WorkspaceTree({
             const selected = Boolean(
               currentRoot && pathIsWithin(currentRoot, workspace.path),
             );
-            const isDefault = workspace.path === cwd;
+            const isActive = workspace.path === cwd;
             return (
               <div
                 key={workspace.id}
@@ -101,24 +101,24 @@ export function WorkspaceTree({
                       ? t('Primary workspace')
                       : workspace.name}
                   </span>
-                  {isDefault && (
+                  {isActive && (
                     <Badge
                       variant="secondary"
                       className="ml-auto px-1 text-[9px]"
                     >
-                      {t('Default')}
+                      {t('Active workspace')}
                     </Badge>
                   )}
                 </Button>
-                {!isDefault && onDefaultWorkspaceChange && (
+                {!isActive && onActiveWorkspaceChange && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    disabled={defaultWorkspacePending}
-                    title={t('Set as default workspace')}
-                    aria-label={t('Set as default workspace')}
-                    onClick={() => onDefaultWorkspaceChange(workspace.path)}
+                    disabled={activeWorkspacePending}
+                    title={t('Use for this conversation')}
+                    aria-label={t('Use for this conversation')}
+                    onClick={() => onActiveWorkspaceChange(workspace.path)}
                   >
                     <Star className="h-3.5 w-3.5" />
                   </Button>

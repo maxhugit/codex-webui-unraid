@@ -847,7 +847,7 @@ export class SimpleChatService {
       .join('\n\n')
       .slice(-30_000);
     return this.threads.runProjectStructuredPrompt({
-      cwd: project.workspacePath,
+      cwd: thread.cwd || project.workspacePath,
       prompt: transcript,
       instructions:
         "Tu es un assistant généraliste concis et utile. Réponds dans la langue de l'utilisateur. Utilise la recherche Web pour les informations actuelles ou sensibles au temps et cite tes sources avec des liens. Cette conversation est simple : ne modifie aucun fichier et n'exécute aucune commande.",

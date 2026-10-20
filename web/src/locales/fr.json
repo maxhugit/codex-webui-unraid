@@ -1104,5 +1104,11 @@
   "Raw configuration": "Configuration brute",
   "Codex configuration sections": "Sections de la configuration Codex",
   "Manage the server appearance, language, session, and runtime settings.": "Gérez l’apparence, la langue, la session et les paramètres d’exécution du serveur.",
-  "Manage the plugins, applications, and MCP servers available on the platform.": "Gérez les plugins, les applications et les serveurs MCP disponibles sur la plateforme."
+  "Manage the plugins, applications, and MCP servers available on the platform.": "Gérez les plugins, les applications et les serveurs MCP disponibles sur la plateforme.",
+  "Secondary workspace": "Workspace secondaire",
+  "Active workspace": "Workspace actif",
+  "Use for this conversation": "Utiliser pour cette conversation",
+  "A permanent primary workspace is created automatically at /workspaces/<project-id>. You can attach secondary workspaces afterwards.": "Un workspace principal permanent est créé automatiquement dans /workspaces/<identifiant-du-projet>. Vous pourrez ensuite rattacher des workspaces secondaires.",
+  "The primary workspace is permanent. Add or detach secondary workspaces without deleting their files. Choose the active workspace in each conversation. The .webui folder is reserved for the application.": "Le workspace principal est permanent. Ajoutez ou détachez des workspaces secondaires sans supprimer leurs fichiers. Choisissez le workspace actif dans chaque conversation. Le dossier .webui est réservé à l’application.",
+  "Detaching will move these conversations to the primary workspace. They will not be deleted.": "Le détachement basculera ces conversations vers le workspace principal. Elles ne seront pas supprimées."
 }

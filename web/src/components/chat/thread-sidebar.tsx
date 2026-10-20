@@ -182,9 +182,6 @@ export function ThreadSidebar() {
     useState<SimpleChatThread | null>(null);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createProjectValue, setCreateProjectValue] = useState('');
-  const [createProjectPath, setCreateProjectPath] = useState('/workspaces/');
-  const [createProjectPathCustomized, setCreateProjectPathCustomized] =
-    useState(false);
   const [deleteProject, setDeleteProject] = useState<ProjectSummary | null>(
     null,
   );
@@ -749,22 +746,14 @@ export function ThreadSidebar() {
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
   const createProject = useMutation({
-    mutationFn: ({
-      name,
-      workspacePath,
-    }: {
-      name: string;
-      workspacePath: string;
-    }) =>
+    mutationFn: ({ name }: { name: string }) =>
       projectsApi<{ project: ProjectSummary }>('', {
         method: 'POST',
-        body: JSON.stringify({ name, workspacePath }),
+        body: JSON.stringify({ name }),
       }),
     onSuccess: () => {
       setCreateProjectOpen(false);
       setCreateProjectValue('');
-      setCreateProjectPath('/workspaces/');
-      setCreateProjectPathCustomized(false);
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
     },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
@@ -1242,28 +1231,16 @@ export function ThreadSidebar() {
         open={createProjectOpen}
         pending={createProject.isPending}
         name={createProjectValue}
-        workspacePath={createProjectPath}
-        onNameChange={(value) => {
-          setCreateProjectValue(value);
-          if (!createProjectPathCustomized)
-            setCreateProjectPath(`/workspaces/${value.trim()}`);
-        }}
-        onWorkspacePathChange={(value) => {
-          setCreateProjectPath(value);
-          setCreateProjectPathCustomized(true);
-        }}
+        onNameChange={setCreateProjectValue}
         onSave={() => {
-          if (createProjectValue.trim() && createProjectPath.trim())
+          if (createProjectValue.trim())
             createProject.mutate({
               name: createProjectValue.trim(),
-              workspacePath: createProjectPath.trim(),
             });
         }}
         onClose={() => {
           setCreateProjectOpen(false);
           setCreateProjectValue('');
-          setCreateProjectPath('/workspaces/');
-          setCreateProjectPathCustomized(false);
         }}
       />
       <AlertDialog

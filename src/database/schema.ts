@@ -1,4 +1,5 @@
 /** Drizzle table declarations for Codex WebUI persistence. */
+import { sql } from 'drizzle-orm';
 import {
   index,
   integer,
@@ -312,6 +313,9 @@ export const projects = sqliteTable(
     id: text('id').primaryKey(),
     name: text('name').notNull(),
     workspacePath: text('workspace_path').notNull(),
+    workspaceLayoutVersion: integer('workspace_layout_version')
+      .notNull()
+      .default(0),
     mcpServerIds: text('mcp_server_ids', { mode: 'json' })
       .$type<string[]>()
       .notNull()
@@ -555,6 +559,9 @@ export const projectWorkspaces = sqliteTable(
   },
   (table) => [
     uniqueIndex('idx_project_workspaces_path').on(table.path),
+    uniqueIndex('idx_project_workspaces_primary')
+      .on(table.projectId)
+      .where(sql`${table.primary} = 1`),
     index('idx_project_workspaces_project').on(table.projectId),
   ],
 );

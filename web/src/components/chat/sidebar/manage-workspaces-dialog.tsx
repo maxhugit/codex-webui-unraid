@@ -1,4 +1,4 @@
-import { Bot, Folder, FolderPlus, Loader2, Star, Unlink } from 'lucide-react';
+import { Bot, Folder, FolderPlus, Unlink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,6 @@ interface Props {
   pending: boolean;
   onClose: () => void;
   onAdd: (project: ProjectSummary) => void;
-  onSetDefault: (project: ProjectSummary, workspaceId: string) => void;
   onDetach: (project: ProjectSummary, workspaceId: string) => void;
 }
 
@@ -27,7 +26,6 @@ export function ManageWorkspacesDialog({
   pending,
   onClose,
   onAdd,
-  onSetDefault,
   onDetach,
 }: Props) {
   const { t } = useTranslation();
@@ -42,7 +40,7 @@ export function ManageWorkspacesDialog({
             <DialogTitle>{t('Manage workspaces')}</DialogTitle>
             <DialogDescription>
               {t(
-                'Add, choose the default workspace, or detach a workspace without deleting its files.',
+                'The primary workspace is permanent. Add or detach secondary workspaces without deleting their files. Choose the active workspace in each conversation. The .webui folder is reserved for the application.',
               )}
             </DialogDescription>
           </DialogHeader>
@@ -63,7 +61,9 @@ export function ManageWorkspacesDialog({
                       <div className="flex items-center gap-2 font-medium">
                         <span className="truncate">{workspace.name}</span>
                         {workspace.primary && (
-                          <Badge variant="secondary">{t('Default')}</Badge>
+                          <Badge variant="secondary">
+                            {t('Primary workspace')}
+                          </Badge>
                         )}
                       </div>
                       <div
@@ -75,19 +75,6 @@ export function ManageWorkspacesDialog({
                     </div>
                     {!workspace.primary && (
                       <div className="flex shrink-0 gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={pending}
-                          onClick={() => onSetDefault(project, workspace.id)}
-                        >
-                          {pending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Star className="h-3.5 w-3.5" />
-                          )}
-                          {t('Set as default')}
-                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -129,7 +116,7 @@ export function ManageWorkspacesDialog({
                     {!workspace.primary && conversationCount > 0 && (
                       <p className="pt-1 text-[11px] text-muted-foreground">
                         {t(
-                          'Detaching will move these conversations to the default workspace. They will not be deleted.',
+                          'Detaching will move these conversations to the primary workspace. They will not be deleted.',
                         )}
                       </p>
                     )}
