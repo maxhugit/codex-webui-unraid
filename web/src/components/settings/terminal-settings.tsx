@@ -21,17 +21,6 @@ export function TerminalSettings() {
 
   return (
     <section className="space-y-4">
-      <div className="space-y-1">
-        <h2 className="text-sm font-medium text-muted-foreground">
-          {t('Terminal')}
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          {t(
-            'Runtime changes apply only to new terminals and future detach timers.',
-          )}
-        </p>
-      </div>
-
       {ctx.isLoading && (
         <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm text-muted-foreground">
           {t('Loading...')}

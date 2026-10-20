@@ -62,8 +62,12 @@ export function AccountSettings() {
   }, [rateLimitsQuery.data, setRateLimits]);
 
   const invalidateAccount = () => {
-    void queryClient.invalidateQueries({ queryKey: accountReadAccountQueryKey() });
-    void queryClient.invalidateQueries({ queryKey: accountReadRateLimitsQueryKey() });
+    void queryClient.invalidateQueries({
+      queryKey: accountReadAccountQueryKey(),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: accountReadRateLimitsQueryKey(),
+    });
   };
 
   const logoutMutation = useMutation({
@@ -78,15 +82,7 @@ export function AccountSettings() {
 
   return (
     <section className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            {t('Codex Account')}
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {t('Manage Codex app-server auth separately from the WebUI session login.')}
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Button
           size="sm"
           variant="outline"
@@ -113,7 +109,11 @@ export function AccountSettings() {
 
       {isChatGpt && (
         <RateLimitsCard
-          snapshot={storedRateLimits?.rateLimits ?? rateLimitsQuery.data?.rateLimits ?? null}
+          snapshot={
+            storedRateLimits?.rateLimits ??
+            rateLimitsQuery.data?.rateLimits ??
+            null
+          }
           isLoading={rateLimitsQuery.isLoading}
           isError={rateLimitsQuery.isError}
         />
@@ -121,7 +121,9 @@ export function AccountSettings() {
 
       {!isChatGpt && (
         <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-xs text-muted-foreground">
-          {t('Rate limits are not shown for API key or custom provider proxy mode.')}
+          {t(
+            'Rate limits are not shown for API key or custom provider proxy mode.',
+          )}
         </div>
       )}
 
@@ -165,7 +167,8 @@ function AccountSummary({ account }: { account: AccountReadResponseDto }) {
   const provider = account.provider;
   const isChatGpt = account.account?.type === 'chatgpt';
   const isApiKeyMode =
-    account.account?.type === 'apiKey' || (!account.account && Boolean(provider.id));
+    account.account?.type === 'apiKey' ||
+    (!account.account && Boolean(provider.id));
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card/50 px-4 py-3">
@@ -190,7 +193,10 @@ function AccountSummary({ account }: { account: AccountReadResponseDto }) {
       {account.account?.type === 'chatgpt' && (
         <div className="grid gap-2 text-sm sm:grid-cols-2">
           <InfoRow label={t('Email')} value={account.account.email ?? ''} />
-          <InfoRow label={t('Plan')} value={account.account.planType ?? t('unknown')} />
+          <InfoRow
+            label={t('Plan')}
+            value={account.account.planType ?? t('unknown')}
+          />
         </div>
       )}
 

@@ -58,19 +58,8 @@ export function DatabaseSettings() {
   const size = (value: number) => formatBytes(value, i18n.language);
   return (
     <section className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold">{t('Database')}</h2>
-        <p className="text-sm text-muted-foreground">
-          {t('Review the storage configuration and current database status.')}
-        </p>
-      </div>
-
       <div className="grid gap-3 sm:grid-cols-3">
-        <InfoCard
-          icon={Database}
-          label={t('Engine')}
-          value={database.engine}
-        />
+        <InfoCard icon={Database} label={t('Engine')} value={database.engine} />
         <InfoCard
           icon={HardDrive}
           label={t('Current size')}
@@ -91,7 +80,10 @@ export function DatabaseSettings() {
             label={t('Database file')}
             value={size(database.databaseSizeBytes)}
           />
-          <Info label={t('Write-ahead log')} value={size(database.walSizeBytes)} />
+          <Info
+            label={t('Write-ahead log')}
+            value={size(database.walSizeBytes)}
+          />
           <Info
             label={t('Shared memory')}
             value={size(database.sharedMemorySizeBytes)}

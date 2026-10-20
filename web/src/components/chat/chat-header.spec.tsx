@@ -103,6 +103,11 @@ describe('ChatHeader', () => {
 
     expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
     expect(
+      screen.getByText(
+        'Create people before they connect. The manual reference uniquely identifies each person.',
+      ),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole('heading', { name: 'Codex WebUI' }),
     ).not.toBeInTheDocument();
   });

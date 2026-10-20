@@ -50,7 +50,10 @@ import { McpStatusBadge } from './mcp-status-badge';
 import { usePlatformSession } from '@/lib/platform-session';
 import { ProjectResourceHeader } from '@/components/projects/project-resource-header';
 import { ProjectHeader } from '@/components/projects/project-header';
-import { settingsPageLabel } from '@/components/settings/setting-helpers';
+import {
+  settingsPageDescription,
+  settingsPageLabel,
+} from '@/components/settings/setting-helpers';
 import type { SettingsSection } from '@/components/settings/settings-sections';
 import {
   Dialog,
@@ -228,7 +231,11 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
 
   return (
     <>
-      <header className="glass-bar sticky top-0 z-10 flex items-center h-11 shrink-0 gap-2 px-3 sm:gap-3 sm:px-4">
+      <header
+        className={`glass-bar sticky top-0 z-10 flex shrink-0 items-center gap-2 px-3 sm:gap-3 sm:px-4 ${
+          pathname === '/settings' ? 'h-14' : 'h-11'
+        }`}
+      >
         {/* Hamburger (mobile/tablet) or the desktop collapse toggle.
             The desktop toggle renders in both states from this one slot:
             collapsing used to live at the sidebar's bottom edge while only
@@ -352,9 +359,14 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
           ) : projectRoute ? (
             <ProjectHeader projectId={projectRoute[1]} />
           ) : pathname === '/settings' ? (
-            <h1 className="truncate text-lg font-semibold tracking-tight">
-              {t(settingsPageLabel(settingsSection))}
-            </h1>
+            <div className="min-w-0 leading-tight">
+              <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg">
+                {t(settingsPageLabel(settingsSection))}
+              </h1>
+              <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
+                {t(settingsPageDescription(settingsSection))}
+              </p>
+            </div>
           ) : simpleChatTitle ? (
             <h1
               className="truncate text-sm font-semibold tracking-tight"

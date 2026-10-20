@@ -74,6 +74,31 @@ export function settingsPageLabel(section: string): string {
   return sectionLabel(section);
 }
 
+/** Short context displayed below the active administration title. */
+export function settingsPageDescription(section: string): string {
+  const descriptions: Record<string, string> = {
+    general:
+      'Manage the server appearance, language, session, and runtime settings.',
+    people:
+      'Create people before they connect. The manual reference uniquely identifies each person.',
+    account:
+      'Manage Codex app-server auth separately from the WebUI session login.',
+    codex:
+      'Manage Codex app-server settings. Changes are saved to user config.toml and hot-reloaded.',
+    simpleChat:
+      'Choose the execution engine used by Simple Chat conversations.',
+    terminal:
+      'Runtime changes apply only to new terminals and future detach timers.',
+    files: 'File upload limits take effect after server restart.',
+    database: 'Review the storage configuration and current database status.',
+    security:
+      'Workspace root changes take effect immediately for new file operations.',
+    integrations:
+      'Manage the plugins, applications, and MCP servers available on the platform.',
+  };
+  return descriptions[section] ?? '';
+}
+
 export function settingLabel(key: string): string {
   const label = key.split('.').at(-1) ?? key;
   return label.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());

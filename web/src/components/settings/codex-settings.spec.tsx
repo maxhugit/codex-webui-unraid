@@ -3,7 +3,6 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CodexSettings } from './codex-settings';
-import { CatalogSettings } from './catalog/catalog-settings';
 import { catalogFixture, deferred, json } from './catalog/catalog.testing';
 import { codexConfigReadConfigQueryKey } from '@/generated/api/@tanstack/react-query.gen';
 
@@ -42,19 +41,14 @@ it('preserves unsaved TOML through loading, failure and success, then exposes th
     };
     return json({ restartRequired: true, reloaded: false, warnings: [] });
   });
-  fixture.render(
-    <>
-      <CodexSettings />
-      <CatalogSettings />
-    </>,
-  );
+  fixture.render(<CodexSettings />);
+  await user.click(screen.getByRole('tab', { name: 'Raw configuration' }));
   await user.click(screen.getByRole('button', { name: 'Edit config.toml' }));
   const raw = await screen.findByRole('textbox', { name: 'Raw TOML' });
   await waitFor(() => expect(raw).toHaveValue(baseline));
   const edited = 'model = "edited"\n';
   fireEvent.change(raw, { target: { value: edited } });
   await act(async () => config.resolve(json({ message: 'Broken TOML' }, 503)));
-  expect(await screen.findByText('Failed to load Codex config')).toBeVisible();
   expect(raw).toHaveValue(edited);
   fixture.server.overrides.set('GET /api/codex/config', () =>
     json({ config: {}, origins: {} }),
@@ -64,7 +58,11 @@ it('preserves unsaved TOML through loading, failure and success, then exposes th
       queryKey: codexConfigReadConfigQueryKey(),
     }),
   );
-  expect(await screen.findByText('Codex Configuration')).toBeVisible();
+  expect(
+    screen.queryByText(
+      'Manage Codex app-server settings. Changes are saved to user config.toml and hot-reloaded.',
+    ),
+  ).not.toBeInTheDocument();
   expect(screen.getByRole('textbox', { name: 'Raw TOML' })).toHaveValue(edited);
   await user.click(screen.getByRole('button', { name: 'Save & Reload' }));
   await waitFor(() =>
@@ -74,8 +72,48 @@ it('preserves unsaved TOML through loading, failure and success, then exposes th
       body: { content: edited, expectedContent: baseline },
     }),
   );
+  expect(screen.getByRole('textbox', { name: 'Raw TOML' })).toHaveValue(edited);
+  await user.click(screen.getByRole('tab', { name: 'Catalog' }));
   expect(
     await screen.findByRole('button', { name: 'Restart Codex' }),
   ).toBeEnabled();
-  expect(screen.getByRole('textbox', { name: 'Raw TOML' })).toHaveValue(edited);
+});
+
+it('shows Codex setting groups as tabs instead of one long page', async () => {
+  const user = userEvent.setup();
+  fixture.server.overrides.set('GET /api/codex/config', () =>
+    json({
+      config: {
+        model: 'gpt-test',
+        instructions: 'Be concise',
+      },
+      origins: {},
+    }),
+  );
+  fixture.server.overrides.set('GET /api/models', () =>
+    json({ data: [], nextCursor: null }),
+  );
+  fixture.server.overrides.set('GET /api/codex/config/raw', () =>
+    json({ content: '', filePath: 'config.toml' }),
+  );
+
+  fixture.render(<CodexSettings />);
+
+  expect(
+    await screen.findByRole('tab', { name: 'Model', selected: true }),
+  ).toBeVisible();
+  expect(await screen.findByText('Default model name')).toBeVisible();
+  expect(
+    screen.queryByText('User-level instructions for the model'),
+  ).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole('tab', { name: 'Instructions' }));
+
+  expect(
+    screen.getByRole('tab', { name: 'Instructions', selected: true }),
+  ).toBeVisible();
+  expect(
+    screen.getByText('User-level instructions for the model'),
+  ).toBeVisible();
+  expect(screen.queryByText('Default model name')).not.toBeInTheDocument();
 });

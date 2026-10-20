@@ -1007,5 +1007,13 @@
   "Filter log sources": "Filtrer les sources des logs",
   "Unable to load logs": "Impossible de charger les logs",
   "No log matches the selected filters.": "Aucun log ne correspond aux filtres sélectionnés.",
-  "displayed": "affichés"
+  "displayed": "affichés",
+  "Advanced": "Avancé",
+  "Catalog": "Catalogue",
+  "Instructions": "Instructions",
+  "Profile": "Profil",
+  "Raw configuration": "Configuration brute",
+  "Codex configuration sections": "Sections de la configuration Codex",
+  "Manage the server appearance, language, session, and runtime settings.": "Gérez l’apparence, la langue, la session et les paramètres d’exécution du serveur.",
+  "Manage the plugins, applications, and MCP servers available on the platform.": "Gérez les plugins, les applications et les serveurs MCP disponibles sur la plateforme."
 }

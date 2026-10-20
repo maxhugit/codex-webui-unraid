@@ -9,12 +9,24 @@ import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
+  Bot,
+  Brain,
+  FileCode2,
+  FileText,
+  Library,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserCog,
+  Wrench,
+} from 'lucide-react';
+import {
   ApprovalReviewerControl,
   ConfigSelectOverrideControl,
   ConfigSourceBadge,
   type OverrideSelectOption,
 } from '@/components/codex-config/config-override-controls';
 import { RawConfigEditor } from './raw-config-editor';
+import { CatalogSettings } from './catalog/catalog-settings';
 import {
   catalogStateQueryKey,
   codexConfigReadConfigOptions,
@@ -39,6 +51,7 @@ import {
   resolveConfigValue,
 } from '@/lib/codex-config';
 import { ConfigFieldEditor } from './codex-settings-fields';
+import { cn } from '@/lib/utils';
 import {
   FIELD_DEFS,
   type FieldDef,
@@ -51,6 +64,38 @@ import {
 // ---------------------------------------------------------------------------
 
 const SECURITY_READONLY_KEYS = ['sandbox_workspace_write'] as const;
+
+type CodexSettingsTab =
+  | 'profile'
+  | 'model'
+  | 'instructions'
+  | 'reasoning'
+  | 'tools'
+  | 'security'
+  | 'advanced'
+  | 'catalog'
+  | 'raw';
+
+const CODEX_SETTINGS_TABS = [
+  { id: 'profile', label: 'Profile', icon: UserCog },
+  { id: 'model', label: 'Model', icon: Bot },
+  { id: 'instructions', label: 'Instructions', icon: FileText },
+  { id: 'reasoning', label: 'Reasoning', icon: Brain },
+  { id: 'tools', label: 'Tools', icon: Wrench },
+  { id: 'security', label: 'Security', icon: ShieldCheck },
+  { id: 'advanced', label: 'Advanced', icon: SlidersHorizontal },
+  { id: 'catalog', label: 'Catalog', icon: Library },
+  { id: 'raw', label: 'Raw configuration', icon: FileCode2 },
+] as const;
+
+const TAB_GROUPS: Partial<Record<CodexSettingsTab, string>> = {
+  profile: 'Profile',
+  model: 'Model',
+  instructions: 'Instructions',
+  reasoning: 'Reasoning',
+  tools: 'Tools',
+  advanced: 'Advanced',
+};
 
 const SECURITY_FIELD_LABELS: Record<
   (typeof SECURITY_READONLY_KEYS)[number],
@@ -78,12 +123,18 @@ const SECURITY_FIELD_LABELS: Record<
 const APPROVAL_POLICY_VALUES = ['on-request', 'never'] as const;
 type ApprovalPolicyValue = (typeof APPROVAL_POLICY_VALUES)[number];
 const isApprovalPolicyValue = (value: unknown): value is ApprovalPolicyValue =>
-  typeof value === 'string' && (APPROVAL_POLICY_VALUES as readonly string[]).includes(value);
+  typeof value === 'string' &&
+  (APPROVAL_POLICY_VALUES as readonly string[]).includes(value);
 
-const SANDBOX_MODE_VALUES = ['read-only', 'workspace-write', 'danger-full-access'] as const;
+const SANDBOX_MODE_VALUES = [
+  'read-only',
+  'workspace-write',
+  'danger-full-access',
+] as const;
 type SandboxModeValue = (typeof SANDBOX_MODE_VALUES)[number];
 const isSandboxModeValue = (value: unknown): value is SandboxModeValue =>
-  typeof value === 'string' && (SANDBOX_MODE_VALUES as readonly string[]).includes(value);
+  typeof value === 'string' &&
+  (SANDBOX_MODE_VALUES as readonly string[]).includes(value);
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -93,6 +144,7 @@ export function CodexSettings() {
   const { t, i18n } = useTranslation();
   const isNonEnglish = !i18n.language.startsWith('en');
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<CodexSettingsTab>('model');
 
   // ---- Queries ----
   const configQuery = useQuery(codexConfigReadConfigOptions());
@@ -320,23 +372,76 @@ export function CodexSettings() {
     </div>
   );
 
+  const visibleTabs = CODEX_SETTINGS_TABS.filter(
+    (tab) => tab.id !== 'profile' || profileOptions.length > 0,
+  );
+  const activeGroup = TAB_GROUPS[activeTab];
+  const activeFields = activeGroup
+    ? (groupedFields.get(activeGroup) ?? [])
+    : [];
+  const needsStructuredConfig = activeTab !== 'catalog' && activeTab !== 'raw';
+
   return (
     <section className="space-y-6">
-      {!config || configQuery.isError || configQuery.isLoading ? (
+      <div className="-mx-4 border-b sm:-mx-6">
+        <div
+          role="tablist"
+          aria-label={t('Codex configuration sections')}
+          className="flex h-10 min-w-0 items-center overflow-x-auto px-1 sm:px-3"
+          onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
+              return;
+            const tabs = [
+              ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                '[role="tab"]',
+              ),
+            ];
+            const current = tabs.indexOf(
+              document.activeElement as HTMLButtonElement,
+            );
+            const index =
+              event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? tabs.length - 1
+                  : (current +
+                      (event.key === 'ArrowRight' ? 1 : -1) +
+                      tabs.length) %
+                    tabs.length;
+            event.preventDefault();
+            tabs[index]?.focus();
+            tabs[index]?.click();
+          }}
+        >
+          {visibleTabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === id}
+              aria-controls="codex-settings-panel"
+              tabIndex={activeTab === id ? 0 : -1}
+              title={t(label)}
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                'flex h-10 shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]',
+                activeTab === id
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Icon aria-hidden="true" className="h-4 w-4" />
+              <span>{t(label)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {needsStructuredConfig &&
+      (!config || configQuery.isError || configQuery.isLoading) ? (
         unavailable
       ) : (
         <>
-          <div className="space-y-1">
-            <h2 className="text-sm font-medium text-muted-foreground">
-              {t('Codex Configuration')}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                'Manage Codex app-server settings. Changes are saved to user config.toml and hot-reloaded.',
-              )}
-            </p>
-          </div>
-
           {saveWarnings.length > 0 && (
             <ul className="space-y-1 text-xs text-amber-500">
               {saveWarnings.map((warning, index) => (
@@ -348,127 +453,134 @@ export function CodexSettings() {
             </ul>
           )}
 
-          {/* Structured field groups */}
-          {GROUP_ORDER.map((group) => {
-            const fields = groupedFields.get(group);
-            if (!fields?.length) return null;
-            // Hide Profile group when no profiles are defined
-            if (group === 'Profile' && profileOptions.length === 0) return null;
-            return (
-              <div key={group} className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  {t(group)}
-                </h3>
-                {fields.map((def) => (
-                  <ConfigFieldEditor
-                    key={def.key}
-                    def={def}
-                    draft={drafts[def.key] ?? ''}
-                    dirty={dirtyKeys.has(def.key)}
-                    origin={originLabel(origins, def.key)}
-                    overridden={isUserConfigOrigin(origins, def.key)}
-                    saving={updateMutation.isPending}
-                    profileOptions={
-                      def.key === 'profile' ? profileOptions : undefined
-                    }
-                    serviceTierOptions={
-                      def.key === 'service_tier'
-                        ? serviceTierOptions
-                        : undefined
-                    }
-                    onDraftChange={handleDraftChange}
-                    onSave={handleSaveField}
-                    onClear={handleClearField}
-                  />
-                ))}
-              </div>
-            );
-          })}
+          {activeGroup && (
+            <div
+              id="codex-settings-panel"
+              role="tabpanel"
+              className="space-y-3"
+            >
+              {activeFields.map((def) => (
+                <ConfigFieldEditor
+                  key={def.key}
+                  def={def}
+                  draft={drafts[def.key] ?? ''}
+                  dirty={dirtyKeys.has(def.key)}
+                  origin={originLabel(origins, def.key)}
+                  overridden={isUserConfigOrigin(origins, def.key)}
+                  saving={updateMutation.isPending}
+                  profileOptions={
+                    def.key === 'profile' ? profileOptions : undefined
+                  }
+                  serviceTierOptions={
+                    def.key === 'service_tier' ? serviceTierOptions : undefined
+                  }
+                  onDraftChange={handleDraftChange}
+                  onSave={handleSaveField}
+                  onClear={handleClearField}
+                />
+              ))}
+            </div>
+          )}
 
-          {/* Security read-only */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              {t('Security')}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                'Defaults for new conversations. Changing them does not affect a conversation already open — use its security badge for that.',
-              )}
-            </p>
-            <ConfigSelectOverrideControl
-              label={t('Approval Policy')}
-              description={t('When Codex asks before running a command.')}
-              effectiveValue={globalApprovalPolicy.value}
-              source={globalApprovalPolicy.source}
-              overridden={isUserConfigOrigin(origins, 'approval_policy')}
-              saving={updateMutation.isPending}
-              options={APPROVAL_POLICY_VALUES.map((value) => ({
-                value,
-                label: t(value),
-              }))}
-              onCommit={(value) =>
-                updateMutation.mutate({
-                  body: { edits: [{ keyPath: 'approval_policy', value }] },
-                })
-              }
-            />
-            <ConfigSelectOverrideControl
-              label={t('Sandbox Mode')}
-              description={t('What a command may reach by default.')}
-              effectiveValue={globalSandboxMode.value}
-              source={globalSandboxMode.source}
-              overridden={isUserConfigOrigin(origins, 'sandbox_mode')}
-              saving={updateMutation.isPending}
-              options={SANDBOX_MODE_VALUES.map((value) => ({
-                value,
-                label: t(value),
-              }))}
-              onCommit={(value) =>
-                updateMutation.mutate({
-                  body: { edits: [{ keyPath: 'sandbox_mode', value }] },
-                })
-              }
-            />
-            <ApprovalReviewerControl
-              label={t('Approvals Reviewer')}
-              description={t('Default reviewer for approval requests.')}
-              effectiveValue={topLevelReviewer.value}
-              source={topLevelReviewer.source}
-              overridden={isUserConfigOrigin(origins, 'approvals_reviewer')}
-              saving={updateMutation.isPending}
-              options={reviewerOptions}
-              onCommit={(value) =>
-                updateMutation.mutate({
-                  body: {
-                    edits: [{ keyPath: 'approvals_reviewer', value }],
-                  },
-                })
-              }
-            />
-            {SECURITY_READONLY_KEYS.map((key) => (
-              <div
-                key={key}
-                className="space-y-1 overflow-hidden rounded-lg border border-border bg-card/50 px-4 py-3"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {t(SECURITY_FIELD_LABELS[key])}
-                  </span>
-                  {isNonEnglish && (
-                    <code className="text-xs text-muted-foreground">{key}</code>
-                  )}
-                  <ConfigSourceBadge source={originLabel(origins, key)} />
+          {activeTab === 'security' && (
+            <div
+              id="codex-settings-panel"
+              role="tabpanel"
+              className="space-y-3"
+            >
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  'Defaults for new conversations. Changing them does not affect a conversation already open — use its security badge for that.',
+                )}
+              </p>
+              <ConfigSelectOverrideControl
+                label={t('Approval Policy')}
+                description={t('When Codex asks before running a command.')}
+                effectiveValue={globalApprovalPolicy.value}
+                source={globalApprovalPolicy.source}
+                overridden={isUserConfigOrigin(origins, 'approval_policy')}
+                saving={updateMutation.isPending}
+                options={APPROVAL_POLICY_VALUES.map((value) => ({
+                  value,
+                  label: t(value),
+                }))}
+                onCommit={(value) =>
+                  updateMutation.mutate({
+                    body: { edits: [{ keyPath: 'approval_policy', value }] },
+                  })
+                }
+              />
+              <ConfigSelectOverrideControl
+                label={t('Sandbox Mode')}
+                description={t('What a command may reach by default.')}
+                effectiveValue={globalSandboxMode.value}
+                source={globalSandboxMode.source}
+                overridden={isUserConfigOrigin(origins, 'sandbox_mode')}
+                saving={updateMutation.isPending}
+                options={SANDBOX_MODE_VALUES.map((value) => ({
+                  value,
+                  label: t(value),
+                }))}
+                onCommit={(value) =>
+                  updateMutation.mutate({
+                    body: { edits: [{ keyPath: 'sandbox_mode', value }] },
+                  })
+                }
+              />
+              <ApprovalReviewerControl
+                label={t('Approvals Reviewer')}
+                description={t('Default reviewer for approval requests.')}
+                effectiveValue={topLevelReviewer.value}
+                source={topLevelReviewer.source}
+                overridden={isUserConfigOrigin(origins, 'approvals_reviewer')}
+                saving={updateMutation.isPending}
+                options={reviewerOptions}
+                onCommit={(value) =>
+                  updateMutation.mutate({
+                    body: {
+                      edits: [{ keyPath: 'approvals_reviewer', value }],
+                    },
+                  })
+                }
+              />
+              {SECURITY_READONLY_KEYS.map((key) => (
+                <div
+                  key={key}
+                  className="space-y-1 overflow-hidden rounded-lg border border-border bg-card/50 px-4 py-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      {t(SECURITY_FIELD_LABELS[key])}
+                    </span>
+                    {isNonEnglish && (
+                      <code className="text-xs text-muted-foreground">
+                        {key}
+                      </code>
+                    )}
+                    <ConfigSourceBadge source={originLabel(origins, key)} />
+                  </div>
+                  <p className="break-all text-xs text-muted-foreground">
+                    {formatConfigValue(config?.[key])}
+                  </p>
                 </div>
-                <p className="break-all text-xs text-muted-foreground">
-                  {formatConfigValue(config[key])}
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
-      <RawConfigEditor onSaved={invalidate} />
+      {activeTab === 'catalog' && (
+        <div id="codex-settings-panel" role="tabpanel">
+          <CatalogSettings />
+        </div>
+      )}
+      <div
+        id={activeTab === 'raw' ? 'codex-settings-panel' : undefined}
+        role={activeTab === 'raw' ? 'tabpanel' : undefined}
+        className={activeTab === 'raw' ? undefined : 'hidden'}
+      >
+        <RawConfigEditor onSaved={invalidate} />
+      </div>
     </section>
   );
 }

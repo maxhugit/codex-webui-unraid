@@ -44,9 +44,11 @@ export function ResponsiblePerson({ id }: { id: string | null | undefined }) {
 export function PeopleManager({
   projectId,
   readOnly = false,
+  showHeading = true,
 }: {
   projectId?: string;
   readOnly?: boolean;
+  showHeading?: boolean;
 }) {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -113,20 +115,22 @@ export function PeopleManager({
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold">
-            {t(projectId ? 'Project participants' : 'People')}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t(
-              projectId
-                ? readOnly
-                  ? 'Active project participants are listed here. Only administrators can change this list.'
-                  : 'Only active participants can receive new assignments. Existing assignments are preserved when someone leaves.'
-                : 'Create people before they connect. The manual reference uniquely identifies each person.',
-            )}
-          </p>
-        </div>
+        {showHeading && (
+          <div>
+            <h2 className="font-semibold">
+              {t(projectId ? 'Project participants' : 'People')}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t(
+                projectId
+                  ? readOnly
+                    ? 'Active project participants are listed here. Only administrators can change this list.'
+                    : 'Only active participants can receive new assignments. Existing assignments are preserved when someone leaves.'
+                  : 'Create people before they connect. The manual reference uniquely identifies each person.',
+              )}
+            </p>
+          </div>
+        )}
         {!projectId && (
           <Button
             className="cursor-pointer"

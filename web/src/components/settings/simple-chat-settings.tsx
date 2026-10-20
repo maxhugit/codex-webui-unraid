@@ -122,17 +122,13 @@ export function SimpleChatSettings() {
 
   return (
     <section className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold">{t('Simple Chat')}</h2>
-        <p className="text-sm text-muted-foreground">
-          {t('Choose the execution engine used by Simple Chat conversations.')}
-        </p>
-      </div>
-
       <div className="rounded-xl border p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <label htmlFor="simple-chat-backend" className="text-sm font-medium">
+            <label
+              htmlFor="simple-chat-backend"
+              className="text-sm font-medium"
+            >
               {t('Active engine')}
             </label>
             <p className="mt-1 text-xs text-muted-foreground">
