@@ -6,6 +6,7 @@ export const SETTINGS_SECTIONS = [
   'simpleChat',
   'terminal',
   'files',
+  'database',
   'security',
   'integrations',
 ] as const;

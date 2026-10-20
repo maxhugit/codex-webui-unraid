@@ -60,6 +60,7 @@ export function sectionLabel(section: string): string {
     codex: 'Codex',
     terminal: 'Terminal',
     files: 'Files',
+    database: 'Database',
     security: 'Security',
     integrations: 'Integrations',
   };

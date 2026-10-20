@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bot, CheckCircle2, KeyRound, Loader2 } from 'lucide-react';
+import { CheckCircle2, KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getAuthorizationHeader } from '@/auth-token';
@@ -29,9 +29,12 @@ export function SimpleChatSettings() {
   const [status, setStatus] = useState<KeyStatus>();
   const [backend, setBackend] = useState<'openai' | 'codex'>('openai');
   const [apiKey, setApiKey] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string>();
-  const [error, setError] = useState<string>();
+  const [savingBackend, setSavingBackend] = useState(false);
+  const [savingApiKey, setSavingApiKey] = useState(false);
+  const [backendMessage, setBackendMessage] = useState<string>();
+  const [apiKeyMessage, setApiKeyMessage] = useState<string>();
+  const [backendError, setBackendError] = useState<string>();
+  const [apiKeyError, setApiKeyError] = useState<string>();
 
   useEffect(() => {
     Promise.all([
@@ -51,13 +54,16 @@ export function SimpleChatSettings() {
         setStatus(key);
         setBackend(engine.backend);
       })
-      .catch(() => setError(t('Unable to read the Simple Chat settings.')));
+      .catch(() =>
+        setBackendError(t('Unable to read the Simple Chat settings.')),
+      );
   }, [t]);
 
   const saveBackend = async (value: 'openai' | 'codex') => {
-    setSaving(true);
-    setMessage(undefined);
-    setError(undefined);
+    if (value === backend) return;
+    setSavingBackend(true);
+    setBackendMessage(undefined);
+    setBackendError(undefined);
     try {
       const response = await fetch(withBasePath('/api/simple-chat/settings'), {
         method: 'PUT',
@@ -72,23 +78,25 @@ export function SimpleChatSettings() {
           'message' in payload ? payload.message : `HTTP ${response.status}`,
         );
       setBackend(value);
-      setMessage(
+      setBackendMessage(
         value === 'codex'
           ? t('Simple Chat now uses Codex CLI.')
           : t('Simple Chat now uses the OpenAI API.'),
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t('Unable to save.'));
+      setBackendError(
+        caught instanceof Error ? caught.message : t('Unable to save.'),
+      );
     } finally {
-      setSaving(false);
+      setSavingBackend(false);
     }
   };
 
   const save = async () => {
     if (!apiKey.trim()) return;
-    setSaving(true);
-    setMessage(undefined);
-    setError(undefined);
+    setSavingApiKey(true);
+    setApiKeyMessage(undefined);
+    setApiKeyError(undefined);
     try {
       const response = await fetch(withBasePath('/api/simple-chat/api-key'), {
         method: 'PUT',
@@ -102,11 +110,13 @@ export function SimpleChatSettings() {
         throw new Error(payload.message || `HTTP ${response.status}`);
       setStatus(payload);
       setApiKey('');
-      setMessage(t('The API key has been saved and activated.'));
+      setApiKeyMessage(t('The API key has been saved and activated.'));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t('Unable to save.'));
+      setApiKeyError(
+        caught instanceof Error ? caught.message : t('Unable to save.'),
+      );
     } finally {
-      setSaving(false);
+      setSavingApiKey(false);
     }
   };
 
@@ -119,42 +129,54 @@ export function SimpleChatSettings() {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <button
-          type="button"
-          className={`cursor-pointer rounded-xl border p-4 text-left transition-colors hover:bg-accent/40 ${backend === 'openai' ? 'border-primary bg-primary/5' : ''}`}
-          disabled={saving}
-          onClick={() => void saveBackend('openai')}
-        >
-          <div className="flex items-center gap-2 font-medium">
-            <KeyRound className="h-4 w-4" /> {t('OpenAI API')}
+      <div className="rounded-xl border p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <label htmlFor="simple-chat-backend" className="text-sm font-medium">
+              {t('Active engine')}
+            </label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {backend === 'codex'
+                ? t(
+                    'Uses the Codex subscription with the model and reasoning effort configured for the project.',
+                  )
+                : t(
+                    'Uses the API key saved below and the model selected for each conversation.',
+                  )}
+            </p>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t(
-              'Uses the API key saved below and the model selected for each conversation.',
+          <div className="flex shrink-0 items-center gap-2">
+            {savingBackend && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             )}
-          </p>
-        </button>
-        <button
-          type="button"
-          className={`cursor-pointer rounded-xl border p-4 text-left transition-colors hover:bg-accent/40 ${backend === 'codex' ? 'border-primary bg-primary/5' : ''}`}
-          disabled={saving}
-          onClick={() => void saveBackend('codex')}
-        >
-          <div className="flex items-center gap-2 font-medium">
-            <Bot className="h-4 w-4" /> {t('Codex CLI')}
+            <select
+              id="simple-chat-backend"
+              value={backend}
+              disabled={savingBackend}
+              onChange={(event) =>
+                void saveBackend(event.target.value as 'openai' | 'codex')
+              }
+              className="h-10 min-w-48 cursor-pointer rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="openai">{t('OpenAI API')}</option>
+              <option value="codex">{t('Codex CLI')}</option>
+            </select>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t(
-              'Uses the Codex subscription with the model and reasoning effort configured for the project.',
-            )}
-          </p>
-        </button>
+        </div>
+        {backendMessage && (
+          <p className="mt-3 text-sm text-emerald-600">{backendMessage}</p>
+        )}
+        {backendError && (
+          <p className="mt-3 text-sm text-destructive">{backendError}</p>
+        )}
       </div>
 
-      {backend === 'openai' && (
-        <div className="rounded-xl border p-4">
-          <div className="mb-4 flex items-center gap-2 text-sm">
+      <div className="rounded-xl border p-4">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-sm font-semibold">
+            {t('OpenAI API configuration')}
+          </h3>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {status?.configured ? (
               <>
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -168,41 +190,44 @@ export function SimpleChatSettings() {
               </>
             )}
           </div>
-
-          <label
-            htmlFor="openai-api-key"
-            className="mb-1.5 block text-sm font-medium"
-          >
-            {t('New OpenAI API key')}
-          </label>
-          <div className="flex gap-2">
-            <Input
-              id="openai-api-key"
-              type="password"
-              value={apiKey}
-              autoComplete="new-password"
-              placeholder="sk-proj-…"
-              onChange={(event) => setApiKey(event.target.value)}
-            />
-            <Button
-              disabled={!apiKey.trim() || saving}
-              onClick={() => void save()}
-            >
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {t('Save')}
-            </Button>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t(
-              'The key is sent over HTTPS, stored only on the server with restrictive permissions, and can never be read back from the interface.',
-            )}
-          </p>
-          {message && (
-            <p className="mt-3 text-sm text-emerald-600">{message}</p>
-          )}
-          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
         </div>
-      )}
+
+        <label
+          htmlFor="openai-api-key"
+          className="mb-1.5 block text-sm font-medium"
+        >
+          {t('New OpenAI API key')}
+        </label>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            id="openai-api-key"
+            type="password"
+            value={apiKey}
+            autoComplete="new-password"
+            placeholder="sk-proj-…"
+            onChange={(event) => setApiKey(event.target.value)}
+          />
+          <Button
+            className="sm:shrink-0"
+            disabled={!apiKey.trim() || savingApiKey}
+            onClick={() => void save()}
+          >
+            {savingApiKey && <Loader2 className="h-4 w-4 animate-spin" />}
+            {t('Save')}
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t(
+            'The key is sent over HTTPS, stored only on the server with restrictive permissions, and can never be read back from the interface.',
+          )}
+        </p>
+        {apiKeyMessage && (
+          <p className="mt-3 text-sm text-emerald-600">{apiKeyMessage}</p>
+        )}
+        {apiKeyError && (
+          <p className="mt-3 text-sm text-destructive">{apiKeyError}</p>
+        )}
+      </div>
     </section>
   );
 }

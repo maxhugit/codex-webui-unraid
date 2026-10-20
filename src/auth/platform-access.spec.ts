@@ -192,6 +192,7 @@ it.each([
   '/account',
   '/mcp-servers',
   '/logs/export',
+  '/database/status',
   '/plugins',
   '/simple-chat/api-key',
   '/simple-chat/settings',

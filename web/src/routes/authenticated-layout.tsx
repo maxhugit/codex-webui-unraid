@@ -2,7 +2,7 @@
  * Authenticated layout: sidebar + header + main content outlet.
  * Replaces the old App.tsx conditional rendering.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
@@ -86,14 +86,16 @@ function AuthenticatedWorkspace({
 }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const administrationView = ['/settings', '/files', '/terminal'].some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
+  const administrationView = [
+    '/settings',
+    '/files',
+    '/terminal',
+    '/diagnostics',
+  ].some((path) => pathname === path || pathname.startsWith(`${path}/`));
   const adminOnlyView =
     administrationView ||
-    ['/integrations', '/diagnostics'].some(
-      (path) => pathname === path || pathname.startsWith(`${path}/`),
-    );
+    pathname === '/integrations' ||
+    pathname.startsWith('/integrations/');
   const [filesDefaultRoot, setFilesDefaultRoot] = useState<string | null>(null);
 
   const setMaxIdleSubscriptions = useTimelineStore(
@@ -203,9 +205,6 @@ function AuthenticatedWorkspace({
   }, [pathname, filesDefaultRoot, setRootDir]);
 
   const { t } = useTranslation();
-  const handleToggleDiagnostics = useCallback(() => {
-    void navigate({ to: '/diagnostics' });
-  }, [navigate]);
 
   // ── Responsive layout ────────────────────────────────────────────────
   const breakpoint = useBreakpoint();
@@ -278,7 +277,6 @@ function AuthenticatedWorkspace({
             <ChatHeader
               dark={dark}
               onToggleDark={toggleDark}
-              onToggleDiagnostics={handleToggleDiagnostics}
             />
           )}
           <CodexStatusBanner />

@@ -245,6 +245,7 @@ function ProjectJournal({
   locale: string;
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
+  const [actorFilter, setActorFilter] = useState('all');
   const labels: Record<string, string> = {
     project_created: 'Project created',
     project_renamed: 'Project renamed',
@@ -262,6 +263,21 @@ function ProjectJournal({
     app_configuration_updated: 'App configuration updated',
     agent_configuration_updated: 'Agent configuration updated',
   };
+  const actorOptions = Array.from(
+    new Map(
+      rows.map((row) => [
+        activityActorKey(row.actorPersonId, row.actorName),
+        row.actorName,
+      ]),
+    ),
+  );
+  const filteredRows =
+    actorFilter === 'all'
+      ? rows
+      : rows.filter(
+          (row) =>
+            activityActorKey(row.actorPersonId, row.actorName) === actorFilter,
+        );
   if (pending)
     return <p className="text-sm text-muted-foreground">{t('Loading…')}</p>;
   if (error)
@@ -272,19 +288,44 @@ function ProjectJournal({
     );
   return (
     <section className="overflow-hidden rounded-xl border bg-card">
-      <div className="border-b px-5 py-4">
-        <h2 className="font-semibold">{t('Project journal')}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('Major operations performed on this project are recorded here.')}
-        </p>
+      <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="font-semibold">{t('Project journal')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t(
+              'Major operations performed on this project are recorded here.',
+            )}
+          </p>
+        </div>
+        {rows.length > 0 && (
+          <label className="shrink-0">
+            <span className="sr-only">{t('Filter by person')}</span>
+            <select
+              value={actorFilter}
+              onChange={(event) => setActorFilter(event.target.value)}
+              className="h-9 min-w-48 cursor-pointer rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <option value="all">{t('All people')}</option>
+              {actorOptions.map(([key, name]) => (
+                <option key={key} value={key}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       {rows.length === 0 ? (
         <p className="p-8 text-center text-sm text-muted-foreground">
           {t('No project activity yet.')}
         </p>
+      ) : filteredRows.length === 0 ? (
+        <p className="p-8 text-center text-sm text-muted-foreground">
+          {t('No activity for this person.')}
+        </p>
       ) : (
         <div className="divide-y">
-          {rows.map((row) => {
+          {filteredRows.map((row) => {
             const changes = projectActivityChanges(row.details);
             return (
               <div
@@ -339,6 +380,10 @@ function ProjectJournal({
       )}
     </section>
   );
+}
+
+function activityActorKey(actorPersonId: string | null, actorName: string) {
+  return actorPersonId ? `person:${actorPersonId}` : `system:${actorName}`;
 }
 
 function projectActivityChanges(details: Record<string, unknown>) {

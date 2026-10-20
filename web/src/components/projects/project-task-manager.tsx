@@ -3587,6 +3587,23 @@ function TaskActivityJournal({
   statuses: ProjectTaskStatusSummary[];
 }) {
   const { t, i18n } = useTranslation();
+  const [actorFilter, setActorFilter] = useState('all');
+  const actorOptions = Array.from(
+    new Map(
+      board.activity.map((entry) => [
+        taskActivityActorKey(entry.actorPersonId, entry.actorName),
+        entry.actorName || t('System'),
+      ]),
+    ),
+  );
+  const filteredActivity =
+    actorFilter === 'all'
+      ? board.activity
+      : board.activity.filter(
+          (entry) =>
+            taskActivityActorKey(entry.actorPersonId, entry.actorName) ===
+            actorFilter,
+        );
   const fieldLabels: Record<string, string> = {
     title: 'Titre',
     description: 'Description',
@@ -3629,19 +3646,42 @@ function TaskActivityJournal({
   };
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
-      <div className="shrink-0 border-b bg-card px-5 py-4">
-        <h2 className="font-semibold">Journal des modifications</h2>
-        <p className="text-sm text-muted-foreground">
-          Historique chronologique des tâches et des sous-tâches.
-        </p>
+      <div className="flex shrink-0 flex-col gap-3 border-b bg-card px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="font-semibold">Journal des modifications</h2>
+          <p className="text-sm text-muted-foreground">
+            Historique chronologique des tâches et des sous-tâches.
+          </p>
+        </div>
+        {!!board.activity.length && (
+          <label className="shrink-0">
+            <span className="sr-only">{t('Filter by person')}</span>
+            <select
+              value={actorFilter}
+              onChange={(event) => setActorFilter(event.target.value)}
+              className="h-9 min-w-48 cursor-pointer rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <option value="all">{t('All people')}</option>
+              {actorOptions.map(([key, name]) => (
+                <option key={key} value={key}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       {!board.activity.length ? (
         <div className="p-10 text-center text-sm text-muted-foreground">
           Aucune modification enregistrée pour le moment.
         </div>
+      ) : !filteredActivity.length ? (
+        <div className="p-10 text-center text-sm text-muted-foreground">
+          {t('No activity for this person.')}
+        </div>
       ) : (
         <div className="min-h-0 flex-1 divide-y overflow-y-auto">
-          {board.activity.map((entry) => {
+          {filteredActivity.map((entry) => {
             const changes = Object.entries(entry.changes);
             return (
               <article
@@ -3713,6 +3753,13 @@ function TaskActivityJournal({
       )}
     </section>
   );
+}
+
+function taskActivityActorKey(
+  actorPersonId: string | null,
+  actorName: string,
+) {
+  return actorPersonId ? `person:${actorPersonId}` : `system:${actorName}`;
 }
 
 function PrioritySettingsSection({

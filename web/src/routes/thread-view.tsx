@@ -1,6 +1,6 @@
 /** Conversation workspace: one permanent transcript with sibling file and terminal views. */
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useNavigate } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ChatHeader } from '@/components/chat/chat-header';
@@ -68,7 +68,6 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
   const session = usePlatformSession();
   const context = `thread:${threadId}`;
   useTerminalDiscovery(context);
-  const navigate = useNavigate();
   const dark = useThemeStore((s) => s.dark);
   const toggleDark = useThemeStore((s) => s.toggleDark);
   const workspace = useWorkspaceStore(
@@ -279,7 +278,6 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
         <ChatHeader
           dark={dark}
           onToggleDark={toggleDark}
-          onToggleDiagnostics={() => void navigate({ to: '/diagnostics' })}
         />
         <WorkspaceControls
           key={desktop ? 'desktop' : 'mobile'}

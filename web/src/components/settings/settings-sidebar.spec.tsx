@@ -48,6 +48,8 @@ it('keeps global tools distinct from their configuration and supports returning 
   expect(routing.navigate).toHaveBeenLastCalledWith({ to: '/files' });
   fireEvent.click(screen.getByRole('button', { name: 'Terminal' }));
   expect(routing.navigate).toHaveBeenLastCalledWith({ to: '/terminal' });
+  fireEvent.click(screen.getByRole('button', { name: 'Diagnostics' }));
+  expect(routing.navigate).toHaveBeenLastCalledWith({ to: '/diagnostics' });
   fireEvent.click(screen.getByRole('button', { name: 'Back to projects' }));
   expect(routing.navigate).toHaveBeenLastCalledWith({ to: '/' });
 });

@@ -1,4 +1,19 @@
-import { ArrowLeft, FolderOpen, Settings, Terminal } from 'lucide-react';
+import {
+  Activity,
+  ArrowLeft,
+  Bot,
+  Database,
+  FolderCog,
+  FolderOpen,
+  MessageCircle,
+  Plug,
+  ServerCog,
+  ShieldCheck,
+  SquareTerminal,
+  Terminal,
+  UserCircle,
+  UsersRound,
+} from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useLayoutStore } from '@/stores/layout-store';
@@ -6,6 +21,19 @@ import { cn } from '@/lib/utils';
 import { sectionLabel } from './setting-helpers';
 
 import { SETTINGS_SECTIONS } from './settings-sections';
+
+const sectionIcons = {
+  general: ServerCog,
+  people: UsersRound,
+  account: UserCircle,
+  codex: Bot,
+  simpleChat: MessageCircle,
+  terminal: SquareTerminal,
+  files: FolderCog,
+  database: Database,
+  security: ShieldCheck,
+  integrations: Plug,
+} satisfies Record<(typeof SETTINGS_SECTIONS)[number], typeof ServerCog>;
 
 /** Administration navigation, shared by desktop and mobile drawers.
  * This is a navigation boundary, not an authorization boundary. The current
@@ -47,34 +75,40 @@ export function SettingsSidebar() {
           <h2 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('Administration')}
           </h2>
-          {SETTINGS_SECTIONS.map((entry) => (
-            <button
-              key={entry}
-              aria-current={
-                pathname === '/settings' && section === entry
-                  ? 'page'
-                  : undefined
-              }
-              className={itemClass(
-                pathname === '/settings' && section === entry,
-              )}
-              onClick={() => {
-                close(false);
-                void navigate({ to: '/settings', search: { section: entry } });
-              }}
-            >
-              <Settings className="h-4 w-4 shrink-0" />
-              {t(
-                entry === 'general'
-                  ? 'Server general settings'
-                  : entry === 'files'
-                    ? 'File settings'
-                    : entry === 'terminal'
-                      ? 'Terminal settings'
-                      : sectionLabel(entry),
-              )}
-            </button>
-          ))}
+          {SETTINGS_SECTIONS.map((entry) => {
+            const Icon = sectionIcons[entry];
+            return (
+              <button
+                key={entry}
+                aria-current={
+                  pathname === '/settings' && section === entry
+                    ? 'page'
+                    : undefined
+                }
+                className={itemClass(
+                  pathname === '/settings' && section === entry,
+                )}
+                onClick={() => {
+                  close(false);
+                  void navigate({
+                    to: '/settings',
+                    search: { section: entry },
+                  });
+                }}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {t(
+                  entry === 'general'
+                    ? 'Server general settings'
+                    : entry === 'files'
+                      ? 'File settings'
+                      : entry === 'terminal'
+                        ? 'Terminal settings'
+                        : sectionLabel(entry),
+                )}
+              </button>
+            );
+          })}
         </section>
         <section>
           <h2 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -101,6 +135,17 @@ export function SettingsSidebar() {
           >
             <Terminal className="h-4 w-4" />
             {t('Terminal')}
+          </button>
+          <button
+            aria-current={pathname === '/diagnostics' ? 'page' : undefined}
+            className={itemClass(pathname === '/diagnostics')}
+            onClick={() => {
+              close(false);
+              void navigate({ to: '/diagnostics' });
+            }}
+          >
+            <Activity className="h-4 w-4" />
+            {t('Diagnostics')}
           </button>
         </section>
       </div>

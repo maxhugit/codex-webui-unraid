@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseService } from './database.service';
 import { DRIZZLE_DB } from './database.constants';
+import { DatabaseController } from './database.controller';
 
 @Module({
   imports: [ConfigModule],
@@ -14,6 +15,7 @@ import { DRIZZLE_DB } from './database.constants';
       inject: [DatabaseService],
     },
   ],
+  controllers: [DatabaseController],
   exports: [DatabaseService, DRIZZLE_DB],
 })
 export class DatabaseModule {}

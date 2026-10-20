@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Activity,
   Check,
   Edit3,
   EllipsisVertical,
@@ -64,7 +63,6 @@ import {
 function MobileOverflowMenu({
   administrator,
   onSettings,
-  onDiagnostics,
   onToggleDark,
   onToggleLanguage,
   languageLabel,
@@ -73,7 +71,6 @@ function MobileOverflowMenu({
 }: {
   administrator: boolean;
   onSettings: () => void;
-  onDiagnostics: () => void;
   onToggleDark: () => void;
   onToggleLanguage: () => void;
   languageLabel: string;
@@ -107,15 +104,6 @@ function MobileOverflowMenu({
             <Settings className="h-4 w-4" /> {t('Settings')}
           </button>
         )}
-        {administrator && (
-          <button
-            type="button"
-            onClick={() => act(onDiagnostics)}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
-          >
-            <Activity className="h-4 w-4" /> {t('Diagnostics')}
-          </button>
-        )}
         <button
           type="button"
           onClick={() => act(onToggleDark)}
@@ -139,10 +127,9 @@ function MobileOverflowMenu({
 interface Props {
   dark: boolean;
   onToggleDark: () => void;
-  onToggleDiagnostics: () => void;
 }
 
-export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
+export function ChatHeader({ dark, onToggleDark }: Props) {
   const session = usePlatformSession();
   const { isAdministrator } = session;
   const { t, i18n } = useTranslation();
@@ -184,9 +171,6 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
     (s) => s.toggleDesktopSidebarCollapsed,
   );
 
-  const isDiagnostics = useRouterState({
-    select: (s) => s.location.pathname.startsWith('/diagnostics'),
-  });
   // The timeline store deliberately keeps the last opened Codex thread warm
   // while the user visits another screen.  That cached identity must not leak
   // into global pages such as Simple Chat, Files or Settings.
@@ -228,18 +212,6 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
   const sidebarToggleLabel = desktopSidebarCollapsed
     ? t('Expand sidebar')
     : t('Collapse sidebar');
-
-  const handleDiagnosticsToggle = () => {
-    if (isDiagnostics) {
-      if (threadId) {
-        void navigate({ to: '/t/$threadId', params: { threadId } });
-      } else {
-        void navigate({ to: '/' });
-      }
-    } else {
-      onToggleDiagnostics();
-    }
-  };
 
   const isFrench = (i18n.resolvedLanguage ?? i18n.language).startsWith('fr');
   const languageLabel = isFrench ? 'English' : 'Français';
@@ -407,21 +379,6 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
         {/* Desktop: inline action buttons */}
         {isDesktop ? (
           <>
-            {isAdministrator && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={handleDiagnosticsToggle}
-                  >
-                    <Activity className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('Diagnostics')}</TooltipContent>
-              </Tooltip>
-            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -476,7 +433,6 @@ export function ChatHeader({ dark, onToggleDark, onToggleDiagnostics }: Props) {
           <MobileOverflowMenu
             administrator={isAdministrator}
             onSettings={() => void navigate({ to: '/settings' })}
-            onDiagnostics={handleDiagnosticsToggle}
             onToggleDark={onToggleDark}
             onToggleLanguage={toggleLanguage}
             languageLabel={languageLabel}

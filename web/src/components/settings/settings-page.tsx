@@ -25,6 +25,7 @@ import { PluginsTab } from '@/components/integrations/plugins-tab';
 import { AppsTab } from '@/components/integrations/apps-tab';
 import { McpsTab } from '@/components/integrations/mcps-tab';
 import { PeopleManager } from '@/components/projects/people-manager';
+import { DatabaseSettings } from './database-settings';
 
 const INTEGRATION_SECTIONS = ['plugins', 'apps', 'mcps'] as const;
 type IntegrationSection = (typeof INTEGRATION_SECTIONS)[number];
@@ -104,6 +105,7 @@ export function SettingsPage() {
         {section === 'simpleChat' && <SimpleChatSettings />}
         {section === 'terminal' && <TerminalSettings />}
         {section === 'files' && <FilesSettings />}
+        {section === 'database' && <DatabaseSettings />}
         {section === 'security' && <SecuritySettings />}
         {section === 'integrations' && (
           <div className="space-y-6">
