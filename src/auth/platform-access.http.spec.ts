@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { AccessContextInterceptor } from './access-context.interceptor';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import {
@@ -134,6 +135,7 @@ beforeEach(async () => {
       },
       { provide: APP_GUARD, useClass: ApiKeyGuard },
       { provide: APP_GUARD, useClass: PlatformAccessGuard },
+      { provide: APP_INTERCEPTOR, useClass: AccessContextInterceptor },
     ],
   }).compile();
   app = module.createNestApplication<NestFastifyApplication>(
@@ -189,7 +191,7 @@ it('returns 403 on real settings routes for standard users and 200 for administr
   ).toBe(200);
 });
 
-it('reserves the real knowledge editor routes to administrators and validates the payload', async () => {
+it('lets members read knowledge but reserves editing to administrators', async () => {
   const server = app.getHttpAdapter().getInstance();
   for (const method of ['GET', 'PUT'] as const) {
     const response = await server.inject({
@@ -200,7 +202,7 @@ it('reserves the real knowledge editor routes to administrators and validates th
         ? { payload: { files: {}, revision: 'forged' } }
         : {}),
     });
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(method === 'GET' ? 200 : 403);
   }
   const read = await server.inject({
     method: 'GET',

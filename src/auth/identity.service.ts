@@ -1,7 +1,9 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, lte } from 'drizzle-orm';
 import { realpathSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { currentAccess } from './access-context';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
   people,
@@ -9,6 +11,12 @@ import {
   projectWorkspaces,
   projectResources,
   settings,
+  projectParticipants,
+  projectAgentThreads,
+  simpleChatThreads,
+  conversationOwners,
+  conversationBranchEdges,
+  documentAccessSessions,
 } from '../database/schema';
 
 export interface PlatformIdentity {
@@ -116,30 +124,183 @@ export class IdentityService {
       );
   }
   requireAdministrator(identity: PlatformIdentity) {
+    identity = this.current(identity);
     this.requireActive(identity);
     if (identity.role !== 'administrator')
       throw new ForbiddenException('Administrator access required');
   }
 
-  workspaceRoots() {
+  /** Shared policy used by REST, sockets, file capabilities and domain services. */
+  current(identity: PlatformIdentity): PlatformIdentity {
+    if (identity.kind === 'service') return identity;
+    const person = identity.personId
+      ? this.db
+          .select()
+          .from(people)
+          .where(eq(people.id, identity.personId))
+          .get()
+      : undefined;
+    return person
+      ? { ...identity, active: person.active, role: person.role }
+      : { ...identity, active: false, role: null };
+  }
+
+  canReadProject(identity: PlatformIdentity, projectId: string): boolean {
+    identity = this.current(identity);
+    if (!identity.active || !identity.role) return false;
+    if (identity.role === 'administrator') return true;
+    return (
+      !!identity.personId &&
+      !!this.db
+        .select()
+        .from(projectParticipants)
+        .where(
+          and(
+            eq(projectParticipants.projectId, projectId),
+            eq(projectParticipants.personId, identity.personId),
+          ),
+        )
+        .get()
+    );
+  }
+
+  requireProject(identity: PlatformIdentity, projectId: string) {
+    if (!this.canReadProject(identity, projectId))
+      throw new ForbiddenException('Project participant access required');
+  }
+
+  threadProject(id: string, kind: 'agent' | 'simple' = 'agent'): string | null {
+    return kind === 'simple'
+      ? (this.db
+          .select()
+          .from(simpleChatThreads)
+          .where(eq(simpleChatThreads.id, id))
+          .get()?.projectId ?? null)
+      : (this.db
+          .select()
+          .from(projectAgentThreads)
+          .where(eq(projectAgentThreads.threadId, id))
+          .get()?.projectId ?? null);
+  }
+
+  canReadThread(
+    identity: PlatformIdentity,
+    id: string,
+    kind: 'agent' | 'simple' = 'agent',
+  ): boolean {
+    identity = this.current(identity);
+    if (!identity.active || !identity.role) return false;
+    if (identity.role === 'administrator') return true;
+    const seen = new Set<string>();
+    let current: string | undefined = id;
+    while (current) {
+      if (seen.has(current)) return false;
+      seen.add(current);
+      const projectId = this.threadProject(current, kind);
+      const edge: typeof conversationBranchEdges.$inferSelect | undefined =
+        kind === 'agent'
+          ? this.db
+              .select()
+              .from(conversationBranchEdges)
+              .where(eq(conversationBranchEdges.childThreadId, current))
+              .get()
+          : undefined;
+      const owner = this.db
+        .select()
+        .from(conversationOwners)
+        .where(
+          and(
+            eq(conversationOwners.kind, kind),
+            eq(conversationOwners.conversationId, current),
+          ),
+        )
+        .get();
+      if (
+        projectId
+          ? !this.canReadProject(identity, projectId)
+          : owner
+            ? owner.personId !== identity.personId
+            : !edge
+      )
+        return false;
+      // A fork can contain inherited messages: access to its parent is required too.
+      current = edge?.parentThreadId;
+    }
+    return true;
+  }
+
+  requireThread(
+    identity: PlatformIdentity,
+    id: string,
+    kind: 'agent' | 'simple' = 'agent',
+  ) {
+    if (!this.canReadThread(identity, id, kind))
+      throw new ForbiddenException('Conversation access denied');
+  }
+
+  readableAgentIds(identity: PlatformIdentity): string[] {
+    return [
+      ...new Set([
+        ...this.db
+          .select()
+          .from(projectAgentThreads)
+          .all()
+          .map((t) => t.threadId),
+        ...this.db
+          .select()
+          .from(conversationOwners)
+          .all()
+          .filter((o) => o.kind === 'agent')
+          .map((o) => o.conversationId),
+        ...this.db
+          .select()
+          .from(conversationBranchEdges)
+          .all()
+          .map((e) => e.childThreadId),
+      ]),
+    ].filter((id) => this.canReadThread(identity, id));
+  }
+
+  recordConversationOwner(
+    identity: PlatformIdentity,
+    id: string,
+    kind: 'agent' | 'simple',
+  ) {
+    if (identity.personId)
+      this.db
+        .insert(conversationOwners)
+        .values({ kind, conversationId: id, personId: identity.personId })
+        .onConflictDoNothing()
+        .run();
+  }
+
+  workspaceRoots(identity?: PlatformIdentity) {
     return [
       ...new Set([
         ...this.db
           .select()
           .from(projects)
           .all()
+          .filter((p) => !identity || this.canReadProject(identity, p.id))
           .map((p) => p.workspacePath),
         ...this.db
           .select()
           .from(projectWorkspaces)
           .all()
+          .filter(
+            (p) => !identity || this.canReadProject(identity, p.projectId),
+          )
           .map((p) => p.path),
       ]),
     ];
   }
 
   /** Resolve symlinks and the nearest existing parent, including creation paths. */
-  requireWorkspacePath(value: unknown, allowProjectCreation = false) {
+  requireWorkspacePath(
+    value: unknown,
+    allowProjectCreation = false,
+    identity: PlatformIdentity | undefined = currentAccess()?.identity,
+  ) {
     if (typeof value !== 'string' || !isAbsolute(value) || value.includes('\0'))
       throw new ForbiddenException('Access is limited to project workspaces');
     const canonical = (path: string): string => {
@@ -190,13 +351,148 @@ export class IdentityService {
       throw new ForbiddenException(
         'Server private paths require administrator access',
       );
-    const roots = this.workspaceRoots();
+    const roots = this.workspaceRoots(identity);
     if (allowProjectCreation) roots.push('/workspaces');
     const allowed = roots.some((root) => {
       return contains(canonical(root), target);
     });
     if (!allowed)
       throw new ForbiddenException('Access is limited to project workspaces');
+    if (identity) {
+      const owner = this.projectForPath(target);
+      if (owner) this.requireProject(identity, owner);
+      else if (!allowProjectCreation)
+        throw new ForbiddenException('Path has no project owner');
+    }
+  }
+
+  projectForPath(value: string): string | null {
+    const canonical = (p: string) => {
+      let current = resolve(p);
+      const tail: string[] = [];
+      for (;;) {
+        try {
+          return resolve(realpathSync(current), ...tail.reverse());
+        } catch {
+          const parent = dirname(current);
+          if (parent === current)
+            throw new ForbiddenException('Cannot verify document path');
+          tail.push(current.slice(parent.length).replace(/^\//, ''));
+          current = parent;
+        }
+      }
+    };
+    const target = canonical(value);
+    const matches: Array<{ projectId: string; canonical: string }> = this.db
+      .select()
+      .from(projectWorkspaces)
+      .all()
+      .map((w) => ({ projectId: w.projectId, canonical: canonical(w.path) }))
+      .filter((w) => {
+        const rel = relative(w.canonical, target);
+        const reverse = relative(target, w.canonical);
+        return (
+          rel === '' ||
+          (rel !== '..' && !rel.startsWith('../') && !isAbsolute(rel)) ||
+          (reverse !== '..' &&
+            !reverse.startsWith('../') &&
+            !isAbsolute(reverse))
+        );
+      });
+    for (const p of this.db.select().from(projects).all()) {
+      const root = canonical(p.workspacePath);
+      const rel = relative(root, target);
+      const reverse = relative(target, root);
+      if (
+        rel === '' ||
+        (rel !== '..' && !rel.startsWith('../') && !isAbsolute(rel)) ||
+        (reverse !== '..' && !reverse.startsWith('../') && !isAbsolute(reverse))
+      )
+        matches.push({
+          projectId: p.id,
+          canonical: root,
+        });
+    }
+    const owners = new Set(matches.map((w) => w.projectId));
+    if (owners.size > 1)
+      throw new ForbiddenException('Workspace ownership is ambiguous');
+    return matches[0]?.projectId ?? null;
+  }
+
+  createDocumentSession(
+    identity: PlatformIdentity,
+    path: string,
+    writable: boolean,
+  ): string {
+    identity = this.current(identity);
+    this.requireActive(identity);
+    if (identity.role !== 'administrator')
+      this.requireWorkspacePath(path, false, identity);
+    let projectId: string | null = null;
+    try {
+      projectId = this.projectForPath(path);
+    } catch (error) {
+      if (identity.role !== 'administrator') throw error;
+    }
+    const id = randomUUID();
+    this.db
+      .delete(documentAccessSessions)
+      .where(lte(documentAccessSessions.expiresAt, Date.now()))
+      .run();
+    this.db
+      .insert(documentAccessSessions)
+      .values({
+        id,
+        path,
+        projectId,
+        personId: identity.personId,
+        administrator: identity.role === 'administrator',
+        writable,
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      })
+      .run();
+    return id;
+  }
+
+  verifyDocumentSession(id: unknown, path: string, writable = false): boolean {
+    if (typeof id !== 'string') return false;
+    const session = this.db
+      .select()
+      .from(documentAccessSessions)
+      .where(eq(documentAccessSessions.id, id))
+      .get();
+    if (
+      !session ||
+      session.path !== path ||
+      session.expiresAt <= Date.now() ||
+      (writable && !session.writable)
+    )
+      return false;
+    // Service sessions are internal and can only be minted behind authenticated ingress.
+    if (!session.personId) return session.administrator;
+    const person = this.db
+      .select()
+      .from(people)
+      .where(eq(people.id, session.personId))
+      .get();
+    if (!person?.active) return false;
+    if (session.administrator) return person.role === 'administrator';
+    try {
+      const identity: PlatformIdentity = {
+        kind: 'person',
+        personId: person.id,
+        name: person.name,
+        role: person.role,
+        active: person.active,
+      };
+      if (!session.projectId || this.projectForPath(path) !== session.projectId)
+        return false;
+      this.requireProject(identity, session.projectId);
+      this.requireWorkspacePath(path, false, identity);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   clientConfig() {

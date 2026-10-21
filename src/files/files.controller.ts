@@ -318,7 +318,7 @@ export class FilesController {
   @ApiOkResponse({ type: WorkspaceRootsResponseDto })
   getRoots(@Req() request: IdentityRequest) {
     if (request.platformIdentity?.role !== 'administrator') {
-      const roots = this.identities.workspaceRoots();
+      const roots = this.identities.workspaceRoots(request.platformIdentity);
       return { roots, homeDir: roots[0] ?? '' };
     }
     return {

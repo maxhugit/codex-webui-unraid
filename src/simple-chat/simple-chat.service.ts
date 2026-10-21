@@ -1,4 +1,11 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import {
+  canReadThread,
+  currentAccess,
+  requireProjectAccess,
+  requireThreadAccess,
+  requireExecutionAccess,
+} from '../auth/access-context';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
 import { KnowledgeProposalsService } from '../project-knowledge/knowledge-proposals.service';
 import { DeliverablesService } from '../deliverables/deliverables.service';
@@ -630,7 +637,8 @@ export class SimpleChatService {
         .select()
         .from(simpleChatThreads)
         .orderBy(desc(simpleChatThreads.updatedAt))
-        .all(),
+        .all()
+        .filter((t) => canReadThread(t.id, 'simple')),
     };
   }
 
@@ -649,6 +657,13 @@ export class SimpleChatService {
       updatedAt: now,
     };
     this.db.insert(simpleChatThreads).values(thread).run();
+    const access = currentAccess();
+    if (access)
+      access.identities.recordConversationOwner(
+        access.identity,
+        thread.id,
+        'simple',
+      );
     return { thread, messages: [] };
   }
 
@@ -721,6 +736,7 @@ export class SimpleChatService {
         'A project is required',
       );
     }
+    requireProjectAccess(value.trim());
     const project = this.db
       .select()
       .from(projects)
@@ -873,6 +889,7 @@ export class SimpleChatService {
     previousMessages: Array<{ role: string; content: string }>,
     message: string,
   ): Promise<string> {
+    requireExecutionAccess();
     const project = this.resolveProject(thread.projectId);
     const transcript = [...previousMessages, { role: 'user', content: message }]
       .map(
@@ -960,6 +977,7 @@ export class SimpleChatService {
   }
 
   private requireThread(threadId: string) {
+    requireThreadAccess(threadId, 'simple');
     const thread = this.db
       .select()
       .from(simpleChatThreads)

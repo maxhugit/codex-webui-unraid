@@ -2,6 +2,12 @@
  * Handles thread and turn operations by delegating to Codex app-server.
  */
 import { HttpStatus, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  canReadThread,
+  currentAccess,
+  requireThreadAccess,
+  requireExecutionAccess,
+} from '../auth/access-context';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
 import { DeliverablesService } from '../deliverables/deliverables.service';
 import { CodexService } from '../codex/codex.service';
@@ -92,6 +98,7 @@ export class ThreadsService {
   async startThread(
     params: v2.ThreadStartParams,
   ): Promise<v2.ThreadStartResponse> {
+    requireExecutionAccess();
     const projectPolicy = await this.projectConnections.policyForCwd(
       params.cwd,
     );
@@ -134,12 +141,20 @@ export class ThreadsService {
       settingsGeneration,
     );
     this.resumeRegistry.markResumed(response.thread.id);
+    const access = currentAccess();
+    if (access)
+      access.identities.recordConversationOwner(
+        access.identity,
+        response.thread.id,
+        'agent',
+      );
     this.metadata.publishStartedThread(response.thread);
     return response;
   }
 
   /** Changes the persisted cwd used by subsequent turns in a conversation. */
   async setThreadCwd(threadId: string, cwd: string): Promise<string[]> {
+    requireExecutionAccess();
     const memberIds = this.branches.listKnownTreeThreadIds(threadId);
     for (const memberId of memberIds) {
       this.deletionRegistry.assertMutable(memberId);
@@ -170,6 +185,40 @@ export class ThreadsService {
   async listThreads(
     params: v2.ThreadListParams,
   ): Promise<v2.ThreadListResponse> {
+    if (currentAccess()?.identity.role !== 'administrator' && currentAccess()) {
+      const snapshot = await this.metadata.read();
+      const data = this.workspaceOverrides
+        .applyToThreads(
+          snapshot.entries
+            .filter((e) => e.archived === Boolean(params.archived))
+            .map((e) => e.thread),
+        )
+        .filter((t) => canReadThread(t.id))
+        .filter((t) => !t.forkedFromId || canReadThread(t.forkedFromId))
+        .filter((t) => !params.cwd || t.cwd === params.cwd)
+        .filter(
+          (t) =>
+            !params.searchTerm ||
+            (t.name ?? '').includes(params.searchTerm) ||
+            t.preview.includes(params.searchTerm),
+        )
+        .sort((a, b) =>
+          params.sortKey === 'created_at'
+            ? b.createdAt - a.createdAt
+            : b.updatedAt - a.updatedAt,
+        );
+      const offset = Number(params.cursor ?? 0);
+      if (!Number.isSafeInteger(offset) || offset < 0)
+        throw new Error('Invalid cursor');
+      const limit = params.limit ?? 100;
+      return {
+        data: data.slice(offset, offset + limit),
+        nextCursor:
+          offset + limit < data.length ? String(offset + limit) : null,
+        backwardsCursor:
+          offset > 0 ? String(Math.max(0, offset - limit)) : null,
+      };
+    }
     return this.codex.request<v2.ThreadListResponse>('thread/list', params);
   }
 
@@ -189,6 +238,26 @@ export class ThreadsService {
   async listLoadedThreads(
     params: v2.ThreadLoadedListParams,
   ): Promise<v2.ThreadLoadedListResponse> {
+    if (currentAccess()?.identity.role !== 'administrator' && currentAccess()) {
+      const ids: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await this.codex.request<v2.ThreadLoadedListResponse>(
+          'thread/loaded/list',
+          { limit: 100, cursor },
+        );
+        ids.push(...page.data.filter((id) => canReadThread(id)));
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      const offset = Number(params.cursor ?? 0);
+      if (!Number.isSafeInteger(offset) || offset < 0)
+        throw new Error('Invalid cursor');
+      const limit = params.limit ?? 100;
+      return {
+        data: ids.slice(offset, offset + limit),
+        nextCursor: offset + limit < ids.length ? String(offset + limit) : null,
+      };
+    }
     return this.codex.request<v2.ThreadLoadedListResponse>(
       'thread/loaded/list',
       params,
@@ -207,7 +276,10 @@ export class ThreadsService {
    * @returns Metadata-only browser-safe thread data
    */
   async readThread(threadId: string): Promise<ClientThreadReadResponse> {
+    requireThreadAccess(threadId);
     const response = await this.history.readThreadMetadata(threadId);
+    if (response.thread.forkedFromId)
+      requireThreadAccess(response.thread.forkedFromId);
     return projectThreadReadForClient(response);
   }
 
@@ -223,6 +295,7 @@ export class ThreadsService {
     threadId: string,
     options: { recordActive?: boolean; fullHistory?: boolean } = {},
   ): Promise<ThreadOpenResponseDto> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(threadId);
     let response = options.fullHistory
       ? await this.resumeRegistry.ensureOpened(threadId, 20, 'full')
@@ -288,6 +361,9 @@ export class ThreadsService {
     sortDirection?: SortDirection;
     itemsView?: TurnItemsView;
   }): Promise<ThreadTurnsPageDto> {
+    requireThreadAccess(params.threadId);
+    if (currentAccess()?.identity.role === 'standard')
+      await this.readThread(params.threadId);
     return this.history.listTurns(params);
   }
 
@@ -306,6 +382,9 @@ export class ThreadsService {
     turnId: string,
     cursor?: string,
   ): Promise<ThreadTurnItemsResponseDto> {
+    requireThreadAccess(threadId);
+    if (currentAccess()?.identity.role === 'standard')
+      await this.readThread(threadId);
     const { entries, ...coverage } = await this.history.listTurnItems(
       threadId,
       turnId,
@@ -316,6 +395,7 @@ export class ThreadsService {
 
   /** Counts graph-node turns without resuming; failures become unknown counts. */
   async countTurns(threadIds: string[]): Promise<ThreadTurnCountsResponseDto> {
+    for (const id of threadIds) requireThreadAccess(id);
     return {
       counts: await this.history.countTurnsForThreads(threadIds),
     };
@@ -328,6 +408,7 @@ export class ThreadsService {
    * @returns The created turn
    */
   async startTurn(params: v2.TurnStartParams): Promise<v2.TurnStartResponse> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(params.threadId);
     const beforeTurn = this.metadata.getHeldThread(params.threadId);
     const shouldAutoName = Boolean(
@@ -394,6 +475,7 @@ export class ThreadsService {
     instructions: string;
     outputSchema?: v2.TurnStartParams['outputSchema'];
   }): Promise<string> {
+    requireExecutionAccess();
     const started = await this.startThread({
       cwd: input.cwd,
       ephemeral: true,
@@ -486,6 +568,7 @@ export class ThreadsService {
    * @returns The turn id accepted by app-server
    */
   async steerTurn(params: v2.TurnSteerParams): Promise<v2.TurnSteerResponse> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(params.threadId);
     return this.codex.request<v2.TurnSteerResponse>('turn/steer', params);
   }
@@ -497,6 +580,7 @@ export class ThreadsService {
    * @param turnId - The turn to interrupt
    */
   async interruptTurn(threadId: string, turnId: string): Promise<void> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(threadId);
     await this.codex.request('turn/interrupt', { threadId, turnId });
   }
@@ -507,6 +591,7 @@ export class ThreadsService {
    * @param threadId - The thread identifier
    */
   async archiveThread(threadId: string): Promise<void> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(threadId);
     await this.applyToBranchTree(threadId, async (treeThreadId) => {
       this.deletionRegistry.assertMutable(treeThreadId);
@@ -524,6 +609,7 @@ export class ThreadsService {
    * @returns The restored thread
    */
   async unarchiveThread(threadId: string): Promise<v2.ThreadUnarchiveResponse> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(threadId);
     let requested: v2.ThreadUnarchiveResponse | undefined;
     await this.applyToBranchTree(threadId, async (treeThreadId) => {
@@ -546,6 +632,7 @@ export class ThreadsService {
    * @param threadId - The thread identifier
    */
   async compactThread(threadId: string): Promise<void> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(threadId);
     // This guard is ours, not a mirror of app-server: verified against 0.149.0,
     // `thread/compact/start` accepts a thread that has forks (unlike
@@ -590,6 +677,7 @@ export class ThreadsService {
     threadId: string,
     options: { carryGoal?: boolean; ephemeral?: boolean } = {},
   ): Promise<v2.ThreadForkResponse> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(threadId);
     if (options.carryGoal && options.ephemeral) {
       throw BusinessException.badRequest(
@@ -699,6 +787,7 @@ export class ThreadsService {
     sourceThreadId: string,
     body: CreateMessageBranchDto,
   ): Promise<CreateMessageBranchResult> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(sourceThreadId);
     return this.branching.createMessageBranch(sourceThreadId, body);
   }
@@ -711,17 +800,34 @@ export class ThreadsService {
    * where one scan of the thread list is affordable and a read is not.
    */
   readBranchState(threadId: string): BranchStateDto {
+    if (currentAccess()) this.readBranchTree(threadId);
     return this.branches.readBranchState(threadId);
   }
 
   /** Returns the complete locally tracked branch tree for a thread. */
   readBranchTree(threadId: string): BranchTreeDto {
-    return this.branches.readBranchTree(threadId);
+    requireThreadAccess(threadId);
+    const tree = this.branches.readBranchTree(threadId);
+    requireThreadAccess(tree.treeRootThreadId);
+    for (const member of tree.members) requireThreadAccess(member.threadId);
+    for (const group of tree.groups)
+      for (const version of group.versions)
+        requireThreadAccess(version.threadId);
+    return tree;
   }
 
   /** Returns every locally tracked branch tree. */
   listBranchTrees(): BranchTreeDto[] {
-    return this.branches.listBranchTrees();
+    return this.branches
+      .listBranchTrees()
+      .filter(
+        (tree) =>
+          canReadThread(tree.treeRootThreadId) &&
+          tree.members.every((member) => canReadThread(member.threadId)) &&
+          tree.groups.every((group) =>
+            group.versions.every((version) => canReadThread(version.threadId)),
+          ),
+      );
   }
 
   /**
@@ -731,6 +837,7 @@ export class ThreadsService {
    * @param name - Non-empty display name
    */
   async setThreadName(threadId: string, name: string): Promise<void> {
+    requireExecutionAccess();
     this.deletionRegistry.assertMutable(threadId);
     await this.codex.request<v2.ThreadSetNameResponse>('thread/name/set', {
       threadId,

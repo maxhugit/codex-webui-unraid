@@ -7,6 +7,7 @@ import {
   type Socket,
 } from '../../web/node_modules/socket.io-client/build/cjs/index.js';
 import { AuthService } from '../auth/auth.service';
+import { IdentityService } from '../auth/identity.service';
 import { FilesGateway } from './files.gateway';
 import { FileWatchCoordinatorService } from './file-watch-coordinator.service';
 
@@ -33,6 +34,18 @@ it('authenticates watch handlers even without a global or conversation gateway g
   const module = await Test.createTestingModule({
     providers: [
       FilesGateway,
+      {
+        provide: IdentityService,
+        useValue: {
+          resolve: () => ({
+            active: true,
+            role: 'administrator',
+            kind: 'service',
+          }),
+          requireActive: () => undefined,
+          requireAdministrator: () => undefined,
+        },
+      },
       {
         provide: FileWatchCoordinatorService,
         useValue: { acquire, releaseSocket, subscribe: () => () => undefined },

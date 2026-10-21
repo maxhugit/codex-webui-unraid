@@ -21,7 +21,13 @@ const descriptions = [
   'Agreed decisions, their reasons and any conditions for reconsidering them.',
 ];
 
-export function ProjectKnowledgePanel({ projectId }: { projectId: string }) {
+export function ProjectKnowledgePanel({
+  projectId,
+  readOnly = false,
+}: {
+  projectId: string;
+  readOnly?: boolean;
+}) {
   const { t } = useTranslation();
   const client = useQueryClient();
   const key = ['project-knowledge', projectId];
@@ -52,7 +58,7 @@ export function ProjectKnowledgePanel({ projectId }: { projectId: string }) {
     },
   });
   const snapshot = query.data;
-  const files = draft?.files ?? snapshot?.files;
+  const files = readOnly ? snapshot?.files : (draft?.files ?? snapshot?.files);
   const dirty =
     !!files &&
     !!snapshot &&
@@ -116,6 +122,7 @@ export function ProjectKnowledgePanel({ projectId }: { projectId: string }) {
             id={`knowledge-${name}`}
             rows={8}
             value={files[name]}
+            readOnly={readOnly}
             disabled={save.isPending || proposalBusy}
             className="font-mono text-sm"
             onChange={(event) => {
@@ -132,17 +139,19 @@ export function ProjectKnowledgePanel({ projectId }: { projectId: string }) {
           </p>
         </div>
       ))}
-      <KnowledgeProposalsPanel
-        projectId={projectId}
-        revision={snapshot.revision}
-        unsaved={dirty}
-        onBusyChange={setProposalBusy}
-        onApplied={() => {
-          setDraft(null);
-          client.setQueryData(draftKey, null);
-          void client.invalidateQueries({ queryKey: key });
-        }}
-      />
+      {!readOnly && (
+        <KnowledgeProposalsPanel
+          projectId={projectId}
+          revision={snapshot.revision}
+          unsaved={dirty}
+          onBusyChange={setProposalBusy}
+          onApplied={() => {
+            setDraft(null);
+            client.setQueryData(draftKey, null);
+            void client.invalidateQueries({ queryKey: key });
+          }}
+        />
+      )}
       {save.error && (
         <p role="alert" className="text-sm text-destructive">
           {t(
@@ -160,31 +169,33 @@ export function ProjectKnowledgePanel({ projectId }: { projectId: string }) {
           {t('Each knowledge file is limited to 32 KiB of UTF-8 text.')}
         </p>
       )}
-      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 border-t bg-background py-3">
-        <span role="status" className="text-sm text-muted-foreground">
-          {dirty ? t('Unsaved changes') : t('No pending changes')}
-        </span>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            disabled={save.isPending || proposalBusy || query.isFetching}
-            onClick={() => void reload()}
-          >
-            {dirty ? t('Reload and discard changes') : t('Reload')}
-          </Button>
-          <Button
-            disabled={!dirty || tooLarge || save.isPending || proposalBusy}
-            onClick={() =>
-              save.mutate({
-                files,
-                revision: draft?.revision ?? snapshot.revision,
-              })
-            }
-          >
-            {save.isPending ? t('Saving…') : t('Save')}
-          </Button>
+      {!readOnly && (
+        <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 border-t bg-background py-3">
+          <span role="status" className="text-sm text-muted-foreground">
+            {dirty ? t('Unsaved changes') : t('No pending changes')}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              disabled={save.isPending || proposalBusy || query.isFetching}
+              onClick={() => void reload()}
+            >
+              {dirty ? t('Reload and discard changes') : t('Reload')}
+            </Button>
+            <Button
+              disabled={!dirty || tooLarge || save.isPending || proposalBusy}
+              onClick={() =>
+                save.mutate({
+                  files,
+                  revision: draft?.revision ?? snapshot.revision,
+                })
+              }
+            >
+              {save.isPending ? t('Saving…') : t('Save')}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

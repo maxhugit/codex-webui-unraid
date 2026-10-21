@@ -1,5 +1,6 @@
 /** Server-side branch-collapsed projection for the conversation sidebar. */
 import { Injectable } from '@nestjs/common';
+import { canReadThread } from '../auth/access-context';
 import type { v2 } from '../codex/codex-schema';
 import { resolve } from 'node:path';
 import {
@@ -60,10 +61,17 @@ export class ThreadsOverviewService {
     const effectiveThreads = this.workspaceOverrides.applyToThreads(
       storedEntries.map((entry) => entry.thread),
     );
-    const entries = storedEntries.map((entry, index) => ({
-      ...entry,
-      thread: effectiveThreads[index],
-    }));
+    const entries = storedEntries
+      .map((entry, index) => ({
+        ...entry,
+        thread: effectiveThreads[index],
+      }))
+      .filter(
+        (entry) =>
+          canReadThread(entry.thread.id) &&
+          (!entry.thread.forkedFromId ||
+            canReadThread(entry.thread.forkedFromId)),
+      );
     const cwd = params.cwd !== undefined ? resolve(params.cwd) : null;
     // Measured against 0.153.2: search is a literal, case-sensitive substring
     // match against either the explicit name or the first-message preview.
@@ -121,6 +129,8 @@ export class ThreadsOverviewService {
     const parentByChild = new Map<string, string>();
     const childrenByParent = new Map<string, Set<string>>();
     const addEdge = (childThreadId: string, parentThreadId: string) => {
+      if (!canReadThread(childThreadId) || !canReadThread(parentThreadId))
+        return;
       if (childThreadId === parentThreadId) return;
       if (parentByChild.has(childThreadId)) return;
       parentByChild.set(childThreadId, parentThreadId);

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { AccessContextInterceptor } from './auth/access-context.interceptor';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { LoggerModule } from 'nestjs-pino';
 import { join } from 'node:path';
@@ -152,6 +153,7 @@ const PINO_REDACT = {
       useClass: ApiKeyGuard,
     },
     { provide: APP_GUARD, useClass: PlatformAccessGuard },
+    { provide: APP_INTERCEPTOR, useClass: AccessContextInterceptor },
   ],
 })
 export class AppModule {}

@@ -11,7 +11,12 @@ import {
   createTestDatabase,
   type TestDatabase,
 } from '../database/database.testing';
-import { people, projects, projectWorkspaces } from '../database/schema';
+import {
+  people,
+  projects,
+  projectWorkspaces,
+  projectParticipants,
+} from '../database/schema';
 import { IdentityService } from './identity.service';
 import {
   PlatformAccessGuard,
@@ -112,9 +117,14 @@ beforeEach(() => {
     })
     .run();
   identities = new IdentityService(database.db);
+  database.db
+    .insert(projectParticipants)
+    .values({ projectId: 'p', personId: 'standard', createdAt: now })
+    .run();
   auth = new AuthService(
     new ConfigService({ WEBUI_API_KEY: 'isolated-test-key' }),
     new JwtService(),
+    identities,
   );
   guard = new PlatformAccessGuard(identities, new Reflector(), auth);
 });
@@ -199,7 +209,7 @@ it.each([
   '/plugins',
   '/simple-chat/api-key',
   '/simple-chat/settings',
-  '/projects/project-1/knowledge',
+  '/projects/project-1/knowledge/proposals',
 ])(
   'blocks standard access to %s even with a direct request or a forged body role',
   (path) => {
@@ -396,7 +406,7 @@ it('also protects physical workspace deletion through project and legacy workspa
         body: { deleteWorkspaceIds: ['private-workspace'] },
       }).context,
     ),
-  ).toThrow('private paths');
+  ).toThrow('Administrator access');
   expect(() =>
     guard.canActivate(
       http('/workspaces/name', 'DELETE', {

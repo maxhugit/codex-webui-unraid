@@ -1,3 +1,4 @@
+import { requireProjectAccess, currentAccess } from '../auth/access-context';
 import {
   BadRequestException,
   ConflictException,
@@ -154,6 +155,7 @@ export class DeliverablesService {
     return this.getVersion(id, versionId).files;
   }
   private resource(projectId: string, resourceId: string) {
+    requireProjectAccess(projectId);
     const resource = this.db
       .select()
       .from(projectResources)
@@ -258,7 +260,9 @@ export class DeliverablesService {
           item.id,
         ),
         versions: history.filter(
-          (version) => version.deliverableId === item.id,
+          (version) =>
+            version.deliverableId === item.id &&
+            version.files.every((file) => this.canReadSource(file.sourcePath)),
         ),
       })),
     };
@@ -569,6 +573,13 @@ export class DeliverablesService {
     const file = this.getVersion(id, versionId).files[index];
     if (!Number.isSafeInteger(index) || index < 0 || !file)
       throw new NotFoundException('File not found');
+    const access = currentAccess();
+    if (access && access.identity.role !== 'administrator')
+      this.identities.requireWorkspacePath(
+        file.sourcePath,
+        false,
+        access.identity,
+      );
     const folder = await this.directory(
       projectId,
       ['.webui', 'history', 'deliverables', id, versionId],
@@ -586,6 +597,17 @@ export class DeliverablesService {
         'Version file was modified outside the manager',
       );
     return file;
+  }
+
+  private canReadSource(path: string): boolean {
+    const access = currentAccess();
+    if (!access || access.identity.role === 'administrator') return true;
+    try {
+      this.identities.requireWorkspacePath(path, false, access.identity);
+      return true;
+    } catch {
+      return false;
+    }
   }
   async review(
     projectId: string,

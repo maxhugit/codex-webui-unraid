@@ -132,12 +132,21 @@ export class OnlyOfficeController {
       metadata.size,
     );
     const baseUrl = this.resolveBaseUrl(request);
-    const documentUrl = this.buildDocumentUrl(baseUrl, metadata.path);
+    const accessSessionId = this.authService.createDocumentSession(
+      metadata.path,
+      editorMode === 'edit',
+    );
+    const documentUrl = this.buildDocumentUrl(
+      baseUrl,
+      metadata.path,
+      accessSessionId,
+    );
     const callbackUrl = this.buildCallbackUrl(
       baseUrl,
       metadata.path,
       documentKey,
       secret,
+      accessSessionId,
     );
 
     const config: OnlyOfficeEditorConfig = {
@@ -258,6 +267,14 @@ export class OnlyOfficeController {
 
       // 2. Verify callback state token (signed path + key)
       const state = this.verifyCallbackState(stateToken, secret);
+      if (
+        !this.authService.verifyDocumentSession(
+          state.accessSessionId,
+          filePath,
+          true,
+        )
+      )
+        return { error: 1 };
       if (state.path !== filePath) {
         this.logger.warn(
           { path: filePath, statePath: state.path },
@@ -317,7 +334,7 @@ export class OnlyOfficeController {
   private verifyCallbackState(
     stateToken: string | undefined,
     secret: string,
-  ): { path: string; key: string } {
+  ): { path: string; key: string; accessSessionId: unknown } {
     if (!stateToken) {
       throw BusinessException.badRequest(
         ErrorCode.onlyoffice.missingCallbackState,
@@ -338,7 +355,11 @@ export class OnlyOfficeController {
         'Invalid OnlyOffice callback state token payload',
       );
     }
-    return { path: record.path, key: record.key };
+    return {
+      path: record.path,
+      key: record.key,
+      accessSessionId: record.accessSessionId,
+    };
   }
 
   /** Verifies the OnlyOffice outgoing callback JWT (body.token or Authorization header). */
@@ -550,10 +571,17 @@ export class OnlyOfficeController {
   }
 
   /** Builds an absolute file-serving URL reachable by the OnlyOffice Document Server. */
-  private buildDocumentUrl(baseUrl: string, filePath: string): string {
+  private buildDocumentUrl(
+    baseUrl: string,
+    filePath: string,
+    sessionId: string,
+  ): string {
     const params = new URLSearchParams({ path: filePath });
     // Never disclose the deployment credential in the editor config/browser.
-    params.set('access_token', this.authService.signFileAccess(filePath));
+    params.set(
+      'access_token',
+      this.authService.signFileAccess(filePath, sessionId),
+    );
     return this.joinUrl(baseUrl, `/api/files/serve?${params.toString()}`);
   }
 
@@ -563,12 +591,13 @@ export class OnlyOfficeController {
     filePath: string,
     documentKey: string,
     secret: string | null,
+    accessSessionId: string,
   ): string {
     const params = new URLSearchParams({ path: filePath });
     if (secret) {
       params.set(
         'state',
-        sign({ path: filePath, key: documentKey }, secret, {
+        sign({ path: filePath, key: documentKey, accessSessionId }, secret, {
           algorithm: 'HS256',
           expiresIn: '24h',
         }),

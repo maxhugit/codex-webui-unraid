@@ -48,8 +48,12 @@ export class PlatformAccessGuard implements CanActivate {
       // Reserve server execution until per-user OS isolation exists.
       if (event?.startsWith('terminal.') || event === 'codex.serverResponse')
         this.identities.requireAdministrator(identity);
+      if (event === 'thread.subscribe') {
+        if (typeof data.threadId !== 'string') return false;
+        this.identities.requireThread(identity, data.threadId);
+      }
       if (event === 'fs.watch.acquire')
-        this.identities.requireWorkspacePath(data.path);
+        this.identities.requireWorkspacePath(data.path, false, identity);
       return true;
     }
     const request = context.switchToHttp().getRequest<IdentityRequest>();
@@ -71,8 +75,35 @@ export class PlatformAccessGuard implements CanActivate {
     if (url === '/auth/me') return true;
     this.identities.requireActive(identity);
     if (identity.role === 'administrator') return true;
+    const projectId = request.params?.projectId ?? request.params?.id;
+    if (
+      url.startsWith('/projects/') &&
+      typeof projectId === 'string' &&
+      !/^\/projects\/people(?:\/|$)/.test(url)
+    )
+      this.identities.requireProject(identity, projectId);
+    if (typeof request.body?.projectId === 'string')
+      this.identities.requireProject(identity, request.body.projectId);
+    if (typeof request.params?.threadId === 'string')
+      this.identities.requireThread(
+        identity,
+        request.params.threadId,
+        url.startsWith('/simple-chat/') ? 'simple' : 'agent',
+      );
+    const ids = request.body?.threadIds ?? request.query?.threadIds;
+    if (ids !== undefined) {
+      const values =
+        typeof ids === 'string' ? ids.split(',').filter(Boolean) : ids;
+      if (!Array.isArray(values) || values.some((id) => typeof id !== 'string'))
+        return false;
+      for (const id of values)
+        this.identities.requireThread(identity, id as string);
+    }
     const admin =
-      /^\/projects\/[^/]+\/knowledge(?:\/|$)/.test(url) ||
+      (/^\/projects\/[^/]+\/knowledge(?:\/|$)/.test(url) &&
+        !(
+          request.method === 'GET' && /^\/projects\/[^/]+\/knowledge$/.test(url)
+        )) ||
       /^\/(settings|logs|database|mcp-servers|plugins|apps|codex\/config|codex\/catalog|codex\/cli)(\/|$)/.test(
         url,
       ) ||
@@ -90,7 +121,12 @@ export class PlatformAccessGuard implements CanActivate {
         /^\/projects\/[^/]+\/participants(?:\/|$)/.test(url)) ||
       (request.method !== 'GET' &&
         /^\/projects\/[^/]+\/(?:mcp-servers|apps|agent-settings)$/.test(url));
-    if (admin) this.identities.requireAdministrator(identity);
+    if (
+      admin ||
+      url === '/projects/reconcile-workspaces' ||
+      (request.method === 'DELETE' && /^\/projects\/[^/]+$/.test(url))
+    )
+      this.identities.requireAdministrator(identity);
     if (request.method === 'DELETE') {
       const projectId = url.match(/^\/projects\/([^/]+)$/)?.[1];
       if (projectId)
@@ -102,6 +138,8 @@ export class PlatformAccessGuard implements CanActivate {
         const name = request.params?.name;
         this.identities.requireWorkspacePath(
           typeof name === 'string' ? `/workspaces/${name}` : undefined,
+          false,
+          identity,
         );
       }
     }
@@ -111,9 +149,14 @@ export class PlatformAccessGuard implements CanActivate {
       )?.[1];
       const serverExecution =
         /\/deliverables\/[^/]+\/agent$/.test(url) ||
+        /\/(?:ai-plan|ai-replan|ai-advice|ai-subtasks)$/.test(url) ||
+        /^\/projects\/[^/]+\/agents\//.test(url) ||
         (url.startsWith('/threads') && url !== '/threads/turn-counts') ||
         /\/automations(?:\/|$)|\/automation-runs(?:\/|$)/.test(url) ||
         request.body?.type === 'automation_board' ||
+        (request.body?.agentState !== undefined &&
+          request.body.agentState !== 'manual') ||
+        request.body?.executionMode === 'agent' ||
         (resource && this.identities.isAutomationResource(resource));
       if (serverExecution) this.identities.requireAdministrator(identity);
     }
@@ -123,7 +166,7 @@ export class PlatformAccessGuard implements CanActivate {
     ) {
       if (Array.isArray(request.body?.paths)) {
         for (const path of request.body.paths)
-          this.identities.requireWorkspacePath(path);
+          this.identities.requireWorkspacePath(path, false, identity);
       }
       for (const key of [
         'path',
@@ -136,6 +179,7 @@ export class PlatformAccessGuard implements CanActivate {
           this.identities.requireWorkspacePath(
             request.body[key],
             url.startsWith('/projects'),
+            identity,
           );
       }
     }
@@ -149,7 +193,7 @@ export class PlatformAccessGuard implements CanActivate {
           'cwd',
         ]) {
           if (source?.[key] !== undefined)
-            this.identities.requireWorkspacePath(source[key]);
+            this.identities.requireWorkspacePath(source[key], false, identity);
         }
       }
     }

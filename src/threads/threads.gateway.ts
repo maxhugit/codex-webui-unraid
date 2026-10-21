@@ -7,6 +7,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
@@ -59,8 +60,14 @@ export type CodexSocketLifecycleEvent =
 @WebSocketGateway({ namespace: '/ws', cors: { origin: '*' } })
 @UseGuards(ApiKeyGuard, PlatformAccessGuard)
 export class ThreadsGateway
-  implements OnGatewayInit, OnGatewayConnection, OnModuleDestroy
+  implements
+    OnGatewayInit,
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnModuleDestroy
 {
+  private readonly clients = new Map<string, Socket>();
+  private readonly subscriptions = new Map<string, Set<string>>();
   private readonly logger = new Logger(ThreadsGateway.name);
   private readonly changes = new Subscription();
 
@@ -86,21 +93,16 @@ export class ThreadsGateway
 
   afterInit(): void {
     const revoke = (personId: string) => {
-      void this.server
-        .in(AUTHENTICATED_ROOM)
-        .fetchSockets()
-        .then((sockets) => {
-          for (const socket of sockets) {
-            if (
-              this.identities.resolve(socket.handshake.headers).personId ===
-              personId
-            )
-              socket.disconnect(true);
-          }
-        })
-        .catch(() =>
-          this.logger.warn('Could not revoke changed identity sockets'),
-        );
+      for (const socket of this.clients.values()) {
+        if (
+          this.identities.resolve(socket.handshake.headers).personId ===
+          personId
+        ) {
+          socket.emit('access.revoked');
+          socket.disconnect(true);
+          this.handleDisconnect(socket);
+        }
+      }
     };
     identityEvents.on('changed', revoke);
     this.changes.add(() => identityEvents.off('changed', revoke));
@@ -133,9 +135,7 @@ export class ThreadsGateway
             this.suppressedRequests.set(request.threadId, remaining);
           else this.suppressedRequests.delete(request.threadId);
         }
-        this.server
-          .to(AUTHENTICATED_ROOM)
-          .emit('conversation.pending.resolved', request);
+        this.emitAuthorized('conversation.pending.resolved', request);
       }),
     );
     this.codexManager.addListener(
@@ -152,9 +152,7 @@ export class ThreadsGateway
     );
     this.changes.add(
       this.pendingApprovals.failures.subscribe((failure) => {
-        this.server
-          .to(AUTHENTICATED_ROOM)
-          .emit('codex.serverRequestFailed', failure);
+        this.emitAuthorized('codex.serverRequestFailed', failure);
       }),
     );
 
@@ -171,6 +169,35 @@ export class ThreadsGateway
   /** Releases observable subscriptions when the gateway is destroyed. */
   onModuleDestroy(): void {
     this.changes.unsubscribe();
+    this.clients.clear();
+    this.subscriptions.clear();
+  }
+
+  handleDisconnect(client: Socket): void {
+    this.clients.delete(client.id);
+    this.subscriptions.delete(client.id);
+  }
+
+  /** Check current permissions at delivery, not just when joining a room. */
+  private emitAuthorized(
+    event: string,
+    payload: unknown,
+    threadId?: string,
+    subscribed = false,
+  ): void {
+    for (const client of this.clients.values()) {
+      const identity = this.identities.resolve(client.handshake.headers);
+      if (!identity.active || !identity.role) continue;
+      if (
+        threadId
+          ? !this.identities.canReadThread(identity, threadId)
+          : identity.role !== 'administrator'
+      )
+        continue;
+      if (subscribed && !this.subscriptions.get(client.id)?.has(threadId!))
+        continue;
+      this.server.to(client.id).emit(event, payload);
+    }
   }
 
   /** Broadcasts a content-free invalidation to authenticated clients, independent of thread rooms. */
@@ -202,6 +229,8 @@ export class ThreadsGateway
       return;
     }
     await client.join(AUTHENTICATED_ROOM);
+    if (client.disconnected) return;
+    this.clients.set(client.id, client);
     // A reconnect may have missed every lifecycle event. These initial signals
     // request current baselines without replaying events or restoring transcripts.
     const signal: ConversationChangeSignal = {
@@ -222,6 +251,14 @@ export class ThreadsGateway
     @MessageBody() data: { threadId?: unknown } | null | undefined,
   ): { ok: boolean } {
     const threadId = this.parseThreadId(data);
+    this.identities.requireThread(
+      this.identities.resolve(client.handshake.headers),
+      threadId,
+    );
+    const subscriptions =
+      this.subscriptions.get(client.id) ?? new Set<string>();
+    subscriptions.add(threadId);
+    this.subscriptions.set(client.id, subscriptions);
     const room = `thread:${threadId}`;
     void client.join(room);
     this.logger.debug(`Client ${client.id} subscribed to ${room}`);
@@ -236,6 +273,7 @@ export class ThreadsGateway
   ): { ok: boolean } {
     const threadId = this.parseThreadId(data);
     const room = `thread:${threadId}`;
+    this.subscriptions.get(client.id)?.delete(threadId);
     void client.leave(room);
     this.logger.debug(`Client ${client.id} unsubscribed from ${room}`);
     return { ok: true };
@@ -253,12 +291,10 @@ export class ThreadsGateway
     const projected = projectNotificationForClient(notification);
 
     if (threadId) {
-      this.server
-        .to(`thread:${threadId}`)
-        .emit('codex.notification', projected);
+      this.emitAuthorized('codex.notification', projected, threadId, true);
     } else {
       // Broadcast non-thread-scoped notifications to all connected clients
-      this.server.emit('codex.notification', projected);
+      this.emitAuthorized('codex.notification', projected);
     }
   }
 
@@ -286,7 +322,7 @@ export class ThreadsGateway
       );
       for (const request of held) {
         if (!stillPending.has(request.instanceId)) continue;
-        this.server.to(AUTHENTICATED_ROOM).emit('codex.serverRequest', request);
+        this.emitAuthorized('codex.serverRequest', request);
         this.logger.log(
           `Replayed suppressed server request ${String(request.id)} for thread ${threadId}`,
         );
@@ -324,7 +360,7 @@ export class ThreadsGateway
       return;
     }
 
-    this.server.to(AUTHENTICATED_ROOM).emit('codex.serverRequest', event);
+    this.emitAuthorized('codex.serverRequest', event);
   }
 
   /**
@@ -347,7 +383,7 @@ export class ThreadsGateway
 
   /** Emits WebUI lifecycle events that are not app-server notifications. */
   emitLifecycle(event: CodexSocketLifecycleEvent): void {
-    this.server.emit('codex.lifecycle', event);
+    this.emitAuthorized('codex.lifecycle', event);
   }
 
   /** Validates thread room payloads from untrusted socket clients. */

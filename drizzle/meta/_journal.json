@@ -232,6 +232,13 @@
       "when": 1792521122304,
       "tag": "0032_project_deliverables",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1792580000000,
+      "tag": "0033_project_authorization",
+      "breakpoints": true
     }
   ]
 }

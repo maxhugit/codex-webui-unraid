@@ -8,6 +8,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { OnModuleDestroy, UseFilters, UseGuards } from '@nestjs/common';
+import { IdentityService } from '../auth/identity.service';
 import { Server, Socket } from 'socket.io';
 import { FilesExceptionFilter } from './files-ws-errors';
 import { ApiKeyGuard } from '../auth/api-key.guard';
@@ -31,12 +32,15 @@ export class FilesGateway implements OnGatewayDisconnect, OnModuleDestroy {
 
   private unsubscribe: (() => void) | null = null;
 
-  constructor(private readonly watches: FileWatchCoordinatorService) {}
+  constructor(
+    private readonly watches: FileWatchCoordinatorService,
+    private readonly identities: IdentityService,
+  ) {}
 
   afterInit(): void {
-    this.unsubscribe = this.watches.subscribe((change) =>
-      this.emitChange(change),
-    );
+    this.unsubscribe = this.watches.subscribe((change) => {
+      void this.emitChange(change);
+    });
   }
 
   async handleDisconnect(client: Socket): Promise<void> {
@@ -71,14 +75,29 @@ export class FilesGateway implements OnGatewayDisconnect, OnModuleDestroy {
   }
 
   /** Sends changes only to sockets that hold the corresponding lease. */
-  private emitChange(change: FileWatchChange): void {
+  private async emitChange(change: FileWatchChange): Promise<void> {
     const payload = {
       watchPath: change.watchPath,
       refresh: change.refresh,
       changedPaths: change.changedPaths,
     };
     for (const socketId of change.socketIds) {
-      this.server.to(socketId).emit('fs.changed', payload);
+      try {
+        const sockets = await this.server.in(socketId).fetchSockets();
+        for (const socket of sockets) {
+          const identity = this.identities.resolve(socket.handshake.headers);
+          this.identities.requireActive(identity);
+          if (identity.role !== 'administrator')
+            this.identities.requireWorkspacePath(
+              change.watchPath,
+              false,
+              identity,
+            );
+          socket.emit('fs.changed', payload);
+        }
+      } catch {
+        /* Revocation or a disappearing socket must not deliver content. */
+      }
     }
   }
 }

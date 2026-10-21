@@ -757,3 +757,31 @@ export const simpleChatMessages = sqliteTable(
     ),
   ],
 );
+
+/** Unknown legacy owners deliberately remain absent (administrator-only). */
+export const conversationOwners = sqliteTable(
+  'conversation_owners',
+  {
+    kind: text('kind').$type<'agent' | 'simple'>().notNull(),
+    conversationId: text('conversation_id').notNull(),
+    personId: text('person_id')
+      .notNull()
+      .references(() => people.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.kind, table.conversationId] })],
+);
+
+/** Revocable server-to-server document capabilities, never general login tokens. */
+export const documentAccessSessions = sqliteTable('document_access_sessions', {
+  id: text('id').primaryKey(),
+  path: text('path').notNull(),
+  projectId: text('project_id').references(() => projects.id, {
+    onDelete: 'cascade',
+  }),
+  personId: text('person_id').references(() => people.id, {
+    onDelete: 'cascade',
+  }),
+  administrator: integer('administrator', { mode: 'boolean' }).notNull(),
+  writable: integer('writable', { mode: 'boolean' }).notNull(),
+  expiresAt: integer('expires_at').notNull(),
+});

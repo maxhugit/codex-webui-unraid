@@ -13,6 +13,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { PeopleManager } from './people-manager';
 import { ProjectKnowledgePanel } from './project-knowledge-panel';
+import { usePlatformSession } from '@/lib/platform-session';
 import { DirectoryPickerDialog } from '@/components/chat/sidebar/directory-picker-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ export function ProjectSettingsPanel({
   canManageParticipants: boolean;
 }) {
   const { t } = useTranslation();
+  const session = usePlatformSession();
   const client = useQueryClient();
   const [name, setName] = useState(project.name);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -165,7 +167,10 @@ export function ProjectSettingsPanel({
     <>
       <div className="rounded-xl border bg-card p-5">
         {section === 'knowledge' && (
-          <ProjectKnowledgePanel projectId={project.id} />
+          <ProjectKnowledgePanel
+            projectId={project.id}
+            readOnly={!session.isAdministrator}
+          />
         )}
         {section === 'settings' && (
           <section className="space-y-6">

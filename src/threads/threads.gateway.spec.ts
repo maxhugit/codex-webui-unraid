@@ -6,6 +6,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ThreadsGateway } from './threads.gateway';
 import { CodexProcessManager } from '../codex/codex-process-manager.service';
 import { AuthService } from '../auth/auth.service';
+import { IdentityService } from '../auth/identity.service';
 import { PendingApprovalsService } from '../pending-approvals/pending-approvals.service';
 import { ThreadDeletionRegistryService } from '../thread-deletion/thread-deletion-registry.service';
 import { permissionApprovalFixture } from '../pending-approvals/pending-approvals.testing';
@@ -67,6 +68,19 @@ describe('ThreadsGateway', () => {
       providers: [
         ThreadsGateway,
         {
+          provide: IdentityService,
+          useValue: {
+            resolve: () => ({
+              active: true,
+              role: 'administrator',
+              kind: 'service',
+            }),
+            requireActive: () => undefined,
+            requireThread: () => undefined,
+            canReadThread: () => true,
+          },
+        },
+        {
           provide: ThreadMetadataService,
           useValue: { changes: metadataChanges },
         },
@@ -91,6 +105,16 @@ describe('ThreadsGateway', () => {
     gateway = module.get(ThreadsGateway);
     gateway.server = mockServer as never;
     gateway.afterInit();
+    mockAuthService.authenticateToken.mockResolvedValue({ ok: true });
+    const socket = {
+      id: 'authorized',
+      handshake: { headers: {}, auth: { token: 'test' } },
+      join: vi.fn(),
+      emit: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    await gateway.handleConnection(socket as never);
+    gateway.handleSubscribe(socket as never, { threadId: 't1' });
 
     vi.clearAllMocks();
     mockServer.to.mockReturnThis();
@@ -124,7 +148,7 @@ describe('ThreadsGateway', () => {
   }
 
   it('should join room on subscribe', () => {
-    const client = { id: 'c1', join: vi.fn() };
+    const client = { id: 'c1', join: vi.fn(), handshake: { headers: {} } };
     const result = gateway.handleSubscribe(client as never, {
       threadId: 't1',
     });
@@ -164,7 +188,7 @@ describe('ThreadsGateway', () => {
 
     listeners['notification'](notification);
 
-    expect(mockServer.to).toHaveBeenCalledWith('thread:t1');
+    expect(mockServer.to).toHaveBeenCalledWith('authorized');
     expect(mockServer.emit).toHaveBeenCalledWith(
       'codex.notification',
       notification,
@@ -218,7 +242,7 @@ describe('ThreadsGateway', () => {
 
     listeners['notification'](notification);
 
-    expect(mockServer.to).not.toHaveBeenCalled();
+    expect(mockServer.to).toHaveBeenCalledWith('authorized');
     expect(mockServer.emit).toHaveBeenCalledWith(
       'codex.notification',
       notification,
@@ -252,7 +276,7 @@ describe('ThreadsGateway', () => {
     ]);
     releaseListener?.(['t1']);
 
-    expect(mockServer.to).toHaveBeenCalledWith('webui:authenticated');
+    expect(mockServer.to).toHaveBeenCalledWith('authorized');
     expect(mockServer.emit).toHaveBeenCalledWith('codex.serverRequest', {
       id: '7',
       instanceId: 'instance-7',
