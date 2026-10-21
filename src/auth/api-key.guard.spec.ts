@@ -4,6 +4,7 @@ import { Reflector } from '@nestjs/core';
 import { BusinessException } from '../common/business.exception';
 import { ApiKeyGuard } from './api-key.guard';
 import { AuthService } from './auth.service';
+import { LocalAuthService } from './local-auth.service';
 
 function mockRequest(
   url: string,
@@ -120,6 +121,43 @@ describe('ApiKeyGuard', () => {
       const req = mockRequest('/api/threads', 'GET');
       await expect(guard.canActivate(mockContext(req))).rejects.toThrow(
         BusinessException,
+      );
+    });
+  });
+
+  describe('local session cookie', () => {
+    it('accepts safe requests authenticated by a local session', async () => {
+      const localAuth = {
+        authenticateCookie: vi.fn().mockReturnValue('person-1'),
+      } as unknown as LocalAuthService;
+      const reflector = {
+        getAllAndOverride: () => false,
+      } as unknown as Reflector;
+      guard = new ApiKeyGuard(authService as AuthService, reflector, localAuth);
+      const request = mockRequest('/api/threads', 'GET', {
+        cookie: 'codex_webui_session=opaque',
+      }) as { authenticatedPersonId?: string };
+
+      await expect(guard.canActivate(mockContext(request))).resolves.toBe(true);
+      expect(request.authenticatedPersonId).toBe('person-1');
+    });
+
+    it('rejects cross-origin writes made with a local session cookie', async () => {
+      const localAuth = {
+        authenticateCookie: vi.fn().mockReturnValue('person-1'),
+      } as unknown as LocalAuthService;
+      const reflector = {
+        getAllAndOverride: () => false,
+      } as unknown as Reflector;
+      guard = new ApiKeyGuard(authService as AuthService, reflector, localAuth);
+      const request = mockRequest('/api/settings', 'PATCH', {
+        cookie: 'codex_webui_session=opaque',
+        origin: 'https://attacker.example',
+        host: 'codex.example',
+      });
+
+      await expect(guard.canActivate(mockContext(request))).rejects.toThrow(
+        'Cross-origin cookie request rejected',
       );
     });
   });

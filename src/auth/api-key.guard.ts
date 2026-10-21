@@ -2,7 +2,12 @@
  * Global guard that validates API and WebSocket requests with JWT or API key.
  * Static assets are served outside controllers; API routes and gateway events are protected.
  */
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
 import { Reflector } from '@nestjs/core';
@@ -10,6 +15,8 @@ import { FastifyRequest } from 'fastify';
 import type { Socket } from 'socket.io';
 import { AuthService } from './auth.service';
 import { IS_PUBLIC_KEY } from './public.decorator';
+import { LocalAuthService } from './local-auth.service';
+import type { IdentityRequest } from './platform-access.guard';
 
 interface HttpToken {
   value: string;
@@ -21,6 +28,7 @@ export class ApiKeyGuard implements CanActivate {
   constructor(
     private readonly authService: AuthService,
     private readonly reflector: Reflector,
+    @Optional() private readonly localAuth?: LocalAuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -34,6 +42,19 @@ export class ApiKeyGuard implements CanActivate {
 
     if (context.getType() === 'ws') {
       const socket = context.switchToWs().getClient<Socket>();
+      const personId = this.localAuth?.authenticateCookie(
+        socket.handshake.headers.cookie,
+      );
+      if (personId) {
+        this.requireSameOrigin(
+          socket.handshake.headers.origin,
+          socket.handshake.headers['x-forwarded-host'] ??
+            socket.handshake.headers.host,
+        );
+        (socket.data as Record<string, unknown>).authenticatedPersonId =
+          personId;
+        return true;
+      }
       const token = this.getSocketToken(socket);
       if (!token) {
         throw BusinessException.unauthorized(
@@ -51,7 +72,15 @@ export class ApiKeyGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<FastifyRequest>();
+    const request = context
+      .switchToHttp()
+      .getRequest<FastifyRequest & IdentityRequest>();
+    const personId = this.localAuth?.authenticateCookie(request.headers.cookie);
+    if (personId) {
+      this.requireSameOriginForUnsafeCookieRequest(request);
+      request.authenticatedPersonId = personId;
+      return true;
+    }
     const httpToken = this.getHttpToken(request);
     if (!httpToken) {
       throw BusinessException.unauthorized(
@@ -138,5 +167,44 @@ export class ApiKeyGuard implements CanActivate {
   private getRequestId(request: FastifyRequest): string | undefined {
     const id = (request as unknown as { id?: unknown }).id;
     return typeof id === 'string' ? id : undefined;
+  }
+
+  private requireSameOriginForUnsafeCookieRequest(
+    request: FastifyRequest,
+  ): void {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
+    this.requireSameOrigin(
+      request.headers.origin,
+      request.headers['x-forwarded-host'] ?? request.headers.host,
+    );
+  }
+
+  private requireSameOrigin(originValue: unknown, hostValue: unknown): void {
+    const origin: unknown = Array.isArray(originValue)
+      ? (originValue as unknown[])[0]
+      : originValue;
+    const host: unknown = Array.isArray(hostValue)
+      ? (hostValue as unknown[])[0]
+      : hostValue;
+    if (typeof origin !== 'string' || typeof host !== 'string')
+      throw BusinessException.unauthorized(
+        ErrorCode.auth.invalidToken,
+        'Missing origin for cookie-authenticated request',
+      );
+    let originHost: string;
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      throw BusinessException.unauthorized(
+        ErrorCode.auth.invalidToken,
+        'Invalid request origin',
+      );
+    }
+    const expectedHost = host.split(',')[0].trim();
+    if (originHost !== expectedHost)
+      throw BusinessException.unauthorized(
+        ErrorCode.auth.invalidToken,
+        'Cross-origin cookie request rejected',
+      );
   }
 }

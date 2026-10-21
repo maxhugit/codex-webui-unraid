@@ -6,11 +6,25 @@ import { AuthService } from './auth.service';
 import { DatabaseModule } from '../database/database.module';
 import { IdentityService } from './identity.service';
 import { PlatformAccessGuard } from './platform-access.guard';
+import { AuthConfigService } from './auth-config.service';
+import { LocalAuthService } from './local-auth.service';
 
 @Module({
   imports: [JwtModule.register({}), DatabaseModule],
   controllers: [AuthController],
-  providers: [AuthService, IdentityService, PlatformAccessGuard],
-  exports: [AuthService, IdentityService, PlatformAccessGuard],
+  providers: [
+    AuthService,
+    AuthConfigService,
+    LocalAuthService,
+    IdentityService,
+    PlatformAccessGuard,
+  ],
+  exports: [
+    AuthService,
+    AuthConfigService,
+    LocalAuthService,
+    IdentityService,
+    PlatformAccessGuard,
+  ],
 })
 export class AuthModule {}

@@ -39,6 +39,7 @@
     "@nestjs/serve-static": "^5.0.5",
     "@nestjs/swagger": "^11.4.2",
     "@nestjs/websockets": "^11.1.19",
+    "@node-rs/argon2": "^2.2.2",
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/headless": "^6.0.0",
     "better-sqlite3": "^12.10.0",

@@ -126,6 +126,33 @@ export class IdentityService {
     });
   }
 
+  /** Resolves a server-authenticated local session to its person profile. */
+  resolvePerson(personId: string): PlatformIdentity {
+    const person = this.db
+      .select()
+      .from(people)
+      .where(eq(people.id, personId))
+      .get();
+    if (!person)
+      return {
+        kind: 'unlinked',
+        personId: null,
+        name: null,
+        role: null,
+        active: false,
+      };
+    return {
+      kind: 'person',
+      personId: person.id,
+      name: person.name,
+      role: person.role,
+      active: person.active,
+      email: person.email ?? undefined,
+      theme: person.theme,
+      language: person.language,
+    };
+  }
+
   updatePreferences(
     identity: PlatformIdentity,
     input: { theme?: unknown; language?: unknown },

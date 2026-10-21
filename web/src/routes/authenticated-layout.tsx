@@ -44,6 +44,7 @@ const IDLE_SUBSCRIPTION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 export function AuthenticatedLayout() {
   const session = usePlatformSession();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   if (session.isPending)
     return <div className="p-6">{t('Verifying identity…')}</div>;
   if (session.isError || !session.data?.active)
@@ -68,6 +69,17 @@ export function AuthenticatedLayout() {
           onClick={() => void session.refetch()}
         >
           {t('Retry')}
+        </button>
+        <button
+          className="cursor-pointer rounded-md border px-4 py-2 hover:bg-accent"
+          onClick={() =>
+            void navigate({
+              to: '/login',
+              search: { redirect: window.location.pathname },
+            })
+          }
+        >
+          {t('Use another authentication method')}
         </button>
       </main>
     );

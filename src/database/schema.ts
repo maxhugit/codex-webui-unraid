@@ -456,6 +456,49 @@ export const people = sqliteTable('people', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+/** Local credentials are optional and kept separate from the person profile. */
+export const localAuthCredentials = sqliteTable(
+  'local_auth_credentials',
+  {
+    id: text('id').primaryKey(),
+    personId: text('person_id')
+      .notNull()
+      .references(() => people.id, { onDelete: 'cascade' }),
+    username: text('username').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    failedAttempts: integer('failed_attempts').notNull().default(0),
+    lockedUntil: integer('locked_until'),
+    lastLoginAt: integer('last_login_at'),
+    passwordChangedAt: integer('password_changed_at').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('uidx_local_auth_credentials_person').on(table.personId),
+    uniqueIndex('uidx_local_auth_credentials_username').on(table.username),
+  ],
+);
+
+/** Opaque browser sessions; only a SHA-256 digest of the cookie is stored. */
+export const authSessions = sqliteTable(
+  'auth_sessions',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    personId: text('person_id')
+      .notNull()
+      .references(() => people.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull(),
+    lastSeenAt: integer('last_seen_at').notNull(),
+    expiresAt: integer('expires_at').notNull(),
+    revokedAt: integer('revoked_at'),
+    userAgent: text('user_agent'),
+  },
+  (table) => [
+    index('idx_auth_sessions_person').on(table.personId),
+    index('idx_auth_sessions_expires').on(table.expiresAt),
+  ],
+);
+
 export const projectParticipants = sqliteTable(
   'project_participants',
   {

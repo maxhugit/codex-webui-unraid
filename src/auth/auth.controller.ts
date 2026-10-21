@@ -5,9 +5,13 @@ import {
   HttpCode,
   HttpStatus,
   Get,
+  Delete,
+  Param,
+  Put,
   Patch,
   Post,
   Req,
+  Res,
 } from '@nestjs/common';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
@@ -19,13 +23,15 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ApiErrorResponseDto } from '../common/dto/api-responses.dto';
 import { AuthService } from './auth.service';
 import { LoginRequestDto, LoginResponseDto } from './dto/auth.dto';
 import { Public } from './public.decorator';
 import { IdentityService } from './identity.service';
 import type { IdentityRequest } from './platform-access.guard';
+import { AuthConfigService } from './auth-config.service';
+import { LocalAuthService } from './local-auth.service';
 
 function getRequestId(request: FastifyRequest): string | undefined {
   const id = (request as unknown as { id?: unknown }).id;
@@ -38,7 +44,53 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly identities: IdentityService,
+    private readonly authConfig: AuthConfigService,
+    private readonly localAuth: LocalAuthService,
   ) {}
+
+  /** Public capability discovery used by the login page. */
+  @Public()
+  @Get('methods')
+  methods() {
+    return this.localAuth.methods();
+  }
+
+  /** Administrator-facing configuration; secrets are write-only. */
+  @Get('configuration')
+  configuration() {
+    return { ...this.authConfig.getPublic(), path: this.authConfig.path };
+  }
+
+  @Patch('configuration')
+  updateConfiguration(@Body() body: unknown) {
+    const current = this.authConfig.get();
+    const requested = body as { local?: { enabled?: unknown } } | null;
+    if (!current.local.enabled && requested?.local?.enabled === true)
+      this.localAuth.ensureLocalCanBeEnabled();
+    const updated = this.authConfig.update(body);
+    if (current.local.enabled && !updated.local.enabled)
+      this.localAuth.revokeAllSessions();
+    return { ...updated, path: this.authConfig.path };
+  }
+
+  @Get('local-accounts')
+  localAccounts() {
+    return { accounts: this.localAuth.listAccounts() };
+  }
+
+  @Put('local-accounts/:personId')
+  async setLocalAccount(
+    @Param('personId') personId: string,
+    @Body() body: { username?: unknown; password?: unknown },
+  ) {
+    return { account: await this.localAuth.setAccount(personId, body ?? {}) };
+  }
+
+  @Delete('local-accounts/:personId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeLocalAccount(@Param('personId') personId: string): void {
+    this.localAuth.removeAccount(personId);
+  }
 
   @Get('me')
   me(@Req() request: IdentityRequest) {
@@ -94,10 +146,76 @@ export class AuthController {
     return this.authService.signJwt();
   }
 
-  /** Stateless logout; the browser clears the stored JWT. */
+  /** Creates an opaque, revocable server-side session for a local account. */
+  @Public()
+  @Post('local-login')
+  @HttpCode(HttpStatus.OK)
+  async localLogin(
+    @Body() body: { username?: unknown; password?: unknown },
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    this.requireSameOrigin(request);
+    const session = await this.localAuth.login(
+      body?.username,
+      body?.password,
+      request.headers['user-agent'],
+    );
+    reply.header(
+      'set-cookie',
+      this.localAuth.cookie(session, this.secureCookie(request)),
+    );
+    return { expiresAt: session.expiresAt };
+  }
+
+  /** Revoke the local session, then clear the authentication cookie. */
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Logout the current WebUI session' })
   @ApiNoContentResponse()
-  logout(): void {}
+  logout(
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): void {
+    this.localAuth.logout(request.headers.cookie);
+    reply.header(
+      'set-cookie',
+      this.localAuth.clearCookie(this.secureCookie(request)),
+    );
+  }
+
+  private secureCookie(request: FastifyRequest): boolean {
+    const forwarded = request.headers['x-forwarded-proto'];
+    const protocol = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+    return (
+      protocol?.split(',')[0].trim() === 'https' ||
+      process.env.NODE_ENV === 'production'
+    );
+  }
+
+  private requireSameOrigin(request: FastifyRequest): void {
+    const originValue = request.headers.origin;
+    const hostValue =
+      request.headers['x-forwarded-host'] ?? request.headers.host;
+    const origin: unknown = Array.isArray(originValue)
+      ? (originValue as unknown[])[0]
+      : originValue;
+    const host: unknown = Array.isArray(hostValue)
+      ? (hostValue as unknown[])[0]
+      : hostValue;
+    if (typeof origin !== 'string' || typeof host !== 'string')
+      throw BusinessException.unauthorized(
+        ErrorCode.auth.invalidToken,
+        'Missing origin for local login',
+      );
+    try {
+      if (new URL(origin).host !== host.split(',')[0].trim())
+        throw new Error('Cross-origin request');
+    } catch {
+      throw BusinessException.unauthorized(
+        ErrorCode.auth.invalidToken,
+        'Cross-origin local login rejected',
+      );
+    }
+  }
 }

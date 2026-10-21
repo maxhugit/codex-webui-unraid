@@ -13,10 +13,15 @@ export function configureApiClient() {
   if (clientAny.__codexWebuiConfigured) return;
   clientAny.__codexWebuiConfigured = true;
 
-  client.setConfig({ baseUrl: BASE_PATH });
+  client.setConfig({ baseUrl: BASE_PATH, credentials: 'same-origin' });
 
   client.interceptors.request.use((request) => {
-    if (request.url.includes('/api/auth/login')) return request;
+    if (
+      request.url.includes('/api/auth/login') ||
+      request.url.includes('/api/auth/local-login') ||
+      request.url.includes('/api/auth/methods')
+    )
+      return request;
     const token = getApiToken();
     if (token) {
       request.headers.set('Authorization', `Bearer ${token}`);

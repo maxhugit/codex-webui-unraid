@@ -26,6 +26,8 @@ import { AuthService } from './auth.service';
 import { ApiKeyGuard } from './api-key.guard';
 import { PlatformAccessGuard } from './platform-access.guard';
 import { IdentityService } from './identity.service';
+import { AuthConfigService } from './auth-config.service';
+import { LocalAuthService } from './local-auth.service';
 import { ProjectsController } from '../projects/projects.controller';
 import { ProjectsService } from '../projects/projects.service';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
@@ -115,6 +117,8 @@ beforeEach(async () => {
     ],
     providers: [
       AuthService,
+      AuthConfigService,
+      LocalAuthService,
       IdentityService,
       ProjectKnowledgeService,
       KnowledgeProposalsService,
@@ -192,6 +196,24 @@ it('returns 403 on real settings routes for standard users and 200 for administr
       await server.inject({
         method: 'GET',
         url: '/api/settings',
+        headers: proxyHeaders('administrator@example.com'),
+      })
+    ).statusCode,
+  ).toBe(200);
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/auth/configuration',
+        headers: proxyHeaders(),
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/auth/configuration',
         headers: proxyHeaders('administrator@example.com'),
       })
     ).statusCode,
