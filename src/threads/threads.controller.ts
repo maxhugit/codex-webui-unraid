@@ -248,7 +248,10 @@ export class ThreadsController {
   ) {
     // This validates existence, directory type and workspace containment.
     this.filesService.addWorkspaceRoot(body.cwd);
-    const threadIds = await this.threadsService.setThreadCwd(threadId, body.cwd);
+    const threadIds = await this.threadsService.setThreadCwd(
+      threadId,
+      body.cwd,
+    );
     return { ok: true, cwd: body.cwd, threadIds };
   }
 
