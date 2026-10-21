@@ -79,7 +79,7 @@ export function settingsPageLabel(section: string): string {
 export function settingsPageDescription(section: string): string {
   const descriptions: Record<string, string> = {
     general:
-      'Manage the server appearance, language, session, and runtime settings.',
+      'Manage server session and runtime settings. Personal appearance is available from My account.',
     people:
       'Create people before they connect. The manual reference uniquely identifies each person.',
     account:

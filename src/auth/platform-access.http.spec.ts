@@ -67,6 +67,7 @@ beforeEach(async () => {
         id: 'member-project',
         name: 'Member project',
         workspacePath: '/workspaces/member',
+        workspaceLayoutVersion: 1,
         createdAt: 1,
         updatedAt: 1,
       },
@@ -74,6 +75,7 @@ beforeEach(async () => {
         id: 'outside-project',
         name: 'Outside project',
         workspacePath: '/workspaces/outside',
+        workspaceLayoutVersion: 1,
         createdAt: 1,
         updatedAt: 1,
       },
@@ -189,6 +191,34 @@ it('returns 403 on real settings routes for standard users and 200 for administr
       })
     ).statusCode,
   ).toBe(200);
+});
+
+it('persists appearance preferences on the connected person profile', async () => {
+  const server = app.getHttpAdapter().getInstance();
+  const update = await server.inject({
+    method: 'PATCH',
+    url: '/api/auth/preferences',
+    headers: proxyHeaders(),
+    payload: { theme: 'nord', language: 'en' },
+  });
+  expect(update.statusCode).toBe(200);
+  expect(update.json()).toEqual({ theme: 'nord', language: 'en' });
+
+  const me = await server.inject({
+    method: 'GET',
+    url: '/api/auth/me',
+    headers: proxyHeaders(),
+  });
+  expect(me.statusCode).toBe(200);
+  expect(me.json()).toMatchObject({ theme: 'nord', language: 'en' });
+
+  const invalid = await server.inject({
+    method: 'PATCH',
+    url: '/api/auth/preferences',
+    headers: proxyHeaders(),
+    payload: { theme: 'unknown' },
+  });
+  expect(invalid.statusCode).toBe(400);
 });
 
 it('lets members read knowledge but reserves editing to administrators', async () => {

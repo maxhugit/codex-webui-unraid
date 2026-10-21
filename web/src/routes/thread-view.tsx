@@ -4,7 +4,6 @@ import { useParams } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ChatHeader } from '@/components/chat/chat-header';
-import { useThemeStore } from '@/stores/theme-store';
 import { ConversationFrame } from '@/components/chat/conversation-frame';
 import { WorkspaceControls } from '@/components/chat/workspace-controls';
 import { WorkspaceTree } from '@/components/chat/workspace-tree';
@@ -68,8 +67,6 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
   const session = usePlatformSession();
   const context = `thread:${threadId}`;
   useTerminalDiscovery(context);
-  const dark = useThemeStore((s) => s.dark);
-  const toggleDark = useThemeStore((s) => s.toggleDark);
   const workspace = useWorkspaceStore(
     (s) => s.contexts[context] ?? EMPTY_WORKSPACE,
   );
@@ -275,7 +272,7 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <ChatHeader dark={dark} onToggleDark={toggleDark} />
+        <ChatHeader />
         <WorkspaceControls
           key={desktop ? 'desktop' : 'mobile'}
           workspace={workspace}

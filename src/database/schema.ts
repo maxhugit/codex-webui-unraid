@@ -446,6 +446,8 @@ export const people = sqliteTable('people', {
     .default('standard'),
   identitySubject: text('identity_subject').unique(),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  theme: text('theme').notNull().default('light'),
+  language: text('language').notNull().default('fr'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
