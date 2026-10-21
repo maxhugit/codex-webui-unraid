@@ -13,6 +13,28 @@ export interface PlatformSession {
   theme?: string;
   language?: string;
 }
+
+const SESSION_RETRY_DELAYS_MS = [500, 1_500, 3_000] as const;
+
+export class AuthResourceError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'AuthResourceError';
+    this.status = status;
+  }
+}
+
+export function shouldRetryPlatformSession(
+  failureCount: number,
+  error: Error,
+): boolean {
+  if (failureCount >= SESSION_RETRY_DELAYS_MS.length) return false;
+  if (error instanceof AuthResourceError)
+    return error.status === 408 || error.status === 429 || error.status >= 500;
+  return true;
+}
 export async function updateAuthResource<T>(
   path: string,
   body: Record<string, unknown>,
@@ -33,12 +55,22 @@ export async function updateAuthResource<T>(
 export const platformSessionKey = ['platform-session'] as const;
 export async function readAuthResource<T>(path: string): Promise<T> {
   const authorization = getAuthorizationHeader();
-  const response = await fetch(withBasePath(`/api/auth/${path}`), {
-    credentials: 'same-origin',
-    headers: authorization ? { Authorization: authorization } : {},
-  });
-  if (!response.ok) throw new Error('Unable to verify your identity');
-  return response.json() as Promise<T>;
+  try {
+    const response = await fetch(withBasePath(`/api/auth/${path}`), {
+      credentials: 'same-origin',
+      headers: authorization ? { Authorization: authorization } : {},
+    });
+    if (!response.ok)
+      throw new AuthResourceError(
+        'Unable to verify your identity',
+        response.status,
+      );
+    return response.json() as Promise<T>;
+  } catch (error) {
+    if (!(error instanceof AuthResourceError))
+      window.dispatchEvent(new Event('codex-webui:transport-recover'));
+    throw error;
+  }
 }
 export function usePlatformSession() {
   const query = useQuery({
@@ -46,7 +78,14 @@ export function usePlatformSession() {
     queryFn: () => readAuthResource<PlatformSession>('me'),
     staleTime: 10_000,
     refetchInterval: 30_000,
-    retry: false,
+    refetchIntervalInBackground: false,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    retry: shouldRetryPlatformSession,
+    retryDelay: (attemptIndex) =>
+      SESSION_RETRY_DELAYS_MS[
+        Math.min(attemptIndex, SESSION_RETRY_DELAYS_MS.length - 1)
+      ],
   });
   return {
     ...query,
