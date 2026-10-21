@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { clearApiToken } from '@/auth-token';
+import { authLogout } from '@/generated/api';
 import { resetSocket } from '@/socket';
 import type { SettingsSection } from './settings-sections';
 import { cn } from '@/lib/utils';
@@ -90,7 +91,8 @@ export function SettingsPage() {
   const [integrationSection, setIntegrationSection] =
     useState<IntegrationSection>('plugins');
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authLogout({ throwOnError: false }).catch(() => undefined);
     clearApiToken();
     resetSocket();
     void navigate({ to: '/login', search: { redirect: '/' } });

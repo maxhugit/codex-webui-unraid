@@ -11,6 +11,7 @@ import { AuthService } from './auth.service';
 export interface IdentityRequest {
   headers: IdentityHeaders;
   platformIdentity?: PlatformIdentity;
+  authenticatedPersonId?: string;
   method: string;
   url: string;
   query?: Record<string, unknown>;
@@ -35,10 +36,15 @@ export class PlatformAccessGuard implements CanActivate {
     )
       return true;
     if (context.getType() === 'ws') {
-      const socket = context
-        .switchToWs()
-        .getClient<{ handshake: { headers: IdentityHeaders } }>();
-      const identity = this.identities.resolve(socket.handshake.headers);
+      const socket = context.switchToWs().getClient<{
+        handshake: { headers: IdentityHeaders };
+        data?: { authenticatedPersonId?: unknown };
+      }>();
+      const authenticatedPersonId = socket.data?.authenticatedPersonId;
+      const identity =
+        typeof authenticatedPersonId === 'string'
+          ? this.identities.resolvePerson(authenticatedPersonId)
+          : this.identities.resolve(socket.handshake.headers);
       this.identities.requireActive(identity);
       if (identity.role === 'administrator') return true;
       const data =
@@ -70,7 +76,9 @@ export class PlatformAccessGuard implements CanActivate {
         )
       );
     }
-    const identity = this.identities.resolve(request.headers);
+    const identity = request.authenticatedPersonId
+      ? this.identities.resolvePerson(request.authenticatedPersonId)
+      : this.identities.resolve(request.headers);
     request.platformIdentity = identity;
     if (url === '/auth/me') return true;
     this.identities.requireActive(identity);
@@ -116,6 +124,7 @@ export class PlatformAccessGuard implements CanActivate {
       (request.method !== 'GET' &&
         /^\/simple-chat\/(config|settings|models)(\/|$)/.test(url)) ||
       /^\/simple-chat\/(?:api-key|settings)(\/|$)/.test(url) ||
+      /^\/auth\/(?:configuration|local-accounts)(\/|$)/.test(url) ||
       (request.method !== 'GET' && /^\/projects\/people(\/|$)/.test(url)) ||
       (request.method !== 'GET' &&
         /^\/projects\/[^/]+\/participants(?:\/|$)/.test(url)) ||

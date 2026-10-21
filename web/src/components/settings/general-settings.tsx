@@ -6,9 +6,10 @@ import { Separator } from '@/components/ui/separator';
 import { SettingEditor } from './setting-editor';
 import { SettingsSaveBar } from './settings-save-bar';
 import { useCategorySettings } from './use-category-settings';
+import { AuthenticationSettings } from './authentication-settings';
 
 interface Props {
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
 }
 
 export function GeneralSettings({ onLogout }: Props) {
@@ -17,6 +18,10 @@ export function GeneralSettings({ onLogout }: Props) {
 
   return (
     <>
+      <AuthenticationSettings />
+
+      <Separator />
+
       <section className="space-y-4">
         <div className="space-y-1">
           <h2 className="text-sm font-medium text-muted-foreground">
@@ -68,7 +73,7 @@ export function GeneralSettings({ onLogout }: Props) {
             variant="destructive"
             size="sm"
             className="h-8"
-            onClick={onLogout}
+            onClick={() => void onLogout()}
           >
             {t('Logout')}
           </Button>

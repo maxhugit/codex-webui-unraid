@@ -95,18 +95,13 @@ const rootRoute = createRootRoute({
   component: () => <Outlet />,
 });
 
-/** Login route — redirects to / if already authenticated. */
+/** Login route — remains reachable to switch authentication methods. */
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
   validateSearch: (search: Record<string, unknown>): LoginSearch => ({
     redirect: sanitizeRedirect(search.redirect),
   }),
-  beforeLoad: ({ search }) => {
-    if (getApiToken()) {
-      throw redirect({ to: search.redirect });
-    }
-  },
   component: LoginRoute,
 });
 

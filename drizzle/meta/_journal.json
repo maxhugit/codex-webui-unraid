@@ -253,6 +253,13 @@
       "when": 1792582000000,
       "tag": "0035_powerful_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1792583923133,
+      "tag": "0036_short_marvel_zombies",
+      "breakpoints": true
     }
   ]
 }

@@ -1,39 +1,102 @@
-/**
- * Login route component — self-contained auth flow with router navigation.
- * Reads ?redirect= search param to return to the original page after login.
- */
-import { useCallback } from 'react';
+/** Login route component for local sessions and API-key fallback. */
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { LoginPage } from '@/components/login';
 import { SnackbarContainer } from '@/components/snackbar/snackbar-container';
 import { authLogin, filesGetRoots } from '@/generated/api';
 import { setApiToken, clearApiToken } from '@/auth-token';
 import { resetSocket } from '@/socket';
+import { withBasePath } from '@/base-path';
+import { useTranslation } from 'react-i18next';
+
+interface AuthMethods {
+  localEnabled: boolean;
+  oidcEnabled: boolean;
+  apiKeyEnabled: boolean;
+}
 
 export function LoginRoute() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { redirect } = useSearch({ from: '/login' });
+  const [methods, setMethods] = useState<AuthMethods | null>(null);
 
-  const handleLogin = useCallback(async (apiKey: string): Promise<boolean> => {
+  useEffect(() => {
+    fetch(withBasePath('/api/auth/methods'), { credentials: 'same-origin' })
+      .then(async (response) => {
+        if (response.ok) setMethods((await response.json()) as AuthMethods);
+      })
+      .catch(() =>
+        setMethods({
+          localEnabled: false,
+          oidcEnabled: false,
+          apiKeyEnabled: true,
+        }),
+      );
+  }, []);
+
+  const completeLogin = useCallback(async (): Promise<boolean> => {
     try {
-      const { data: loginData } = await authLogin({
-        body: { apiKey },
-        throwOnError: true,
-      });
-      setApiToken(loginData.accessToken);
       await filesGetRoots({ throwOnError: true });
       resetSocket();
       void navigate({ to: redirect });
       return true;
     } catch {
-      clearApiToken();
       return false;
     }
   }, [navigate, redirect]);
 
+  const handleApiKeyLogin = useCallback(
+    async (apiKey: string): Promise<boolean> => {
+      try {
+        const { data: loginData } = await authLogin({
+          body: { apiKey },
+          throwOnError: true,
+        });
+        setApiToken(loginData.accessToken);
+        const ok = await completeLogin();
+        if (!ok) clearApiToken();
+        return ok;
+      } catch {
+        clearApiToken();
+        return false;
+      }
+    },
+    [completeLogin],
+  );
+
+  const handleLocalLogin = useCallback(
+    async (username: string, password: string): Promise<boolean> => {
+      try {
+        clearApiToken();
+        const response = await fetch(withBasePath('/api/auth/local-login'), {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        if (!response.ok) return false;
+        return completeLogin();
+      } catch {
+        return false;
+      }
+    },
+    [completeLogin],
+  );
+
   return (
     <>
-      <LoginPage onLogin={handleLogin} />
+      {methods ? (
+        <LoginPage
+          localEnabled={methods.localEnabled}
+          onLocalLogin={handleLocalLogin}
+          onApiKeyLogin={handleApiKeyLogin}
+        />
+      ) : (
+        <div className="flex h-[var(--app-vh,100dvh)] items-center justify-center bg-background text-sm text-muted-foreground">
+          {t('Loading…')}
+        </div>
+      )}
       <SnackbarContainer />
     </>
   );
