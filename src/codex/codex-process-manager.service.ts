@@ -40,6 +40,16 @@ export function isCatalogStartupFailure(error: unknown): boolean {
   );
 }
 
+/** A deliberately absent CLI waits for administrator installation, not a retry loop. */
+export function isCliNotInstalledStartupFailure(error: unknown): boolean {
+  return (
+    error instanceof CodexStartupError &&
+    /(?:Codex CLI is not installed|spawn\s+[^\n]*\s+ENOENT)/i.test(
+      `${error.message}\n${error.stderr}`,
+    )
+  );
+}
+
 @Injectable()
 export class CodexProcessManager implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CodexProcessManager.name);
@@ -396,7 +406,11 @@ export class CodexProcessManager implements OnModuleInit, OnModuleDestroy {
    */
   private failUnattendedStart(error: unknown): void {
     this.unavailable(error);
-    if (isCatalogStartupFailure(error)) return;
+    if (
+      isCatalogStartupFailure(error) ||
+      isCliNotInstalledStartupFailure(error)
+    )
+      return;
     if (this.isStopped()) this.scheduleRestart();
     // Still holding a child that would not stop. Defer the retry to its close
     // rather than dropping it, so self-healing survives a slow shutdown.

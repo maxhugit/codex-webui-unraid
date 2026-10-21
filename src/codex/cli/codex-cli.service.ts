@@ -178,6 +178,12 @@ export class CodexCliService {
     }
   }
 
+  protected hasLegacyCli(): boolean {
+    return existsSync(
+      join(this.paths.home, '..', '.local', 'share', 'mise', 'shims', 'codex'),
+    );
+  }
+
   async releaseNotes(force = false) {
     const state = await this.status(force);
     const fromVersion = state.installedVersion;
@@ -312,10 +318,17 @@ export class CodexCliService {
     }
     const selection = cliSelection(this.paths.home);
     const externalBinary = Boolean(this.config.get<string>('CODEX_BIN'));
+    const installationState = externalBinary
+      ? 'external'
+      : selection.version
+        ? 'managed'
+        : installedVersion
+          ? 'legacy'
+          : 'missing';
+    if (installationState === 'missing') installedError = null;
     return {
       installedVersion,
       latestVersion,
-      imageVersion: this.config.get<string>('CODEX_CLI_VERSION') ?? null,
       updateAvailable:
         installedVersion && latestVersion
           ? isNewerVersion(latestVersion, installedVersion)
@@ -327,9 +340,57 @@ export class CodexCliService {
       checkError,
       busy: this.busy,
       canManage: this.canManageCli(),
-      canRollback: !externalBinary && selection.version !== null,
+      canRollback:
+        !externalBinary &&
+        selection.version !== null &&
+        (selection.previous !== null || this.hasLegacyCli()),
       selectedVersion: selection.version,
+      installationState,
     };
+  }
+
+  /** First installation is allowed while the managed app-server is unavailable. */
+  async installFirst(expectedTarget: unknown) {
+    if (typeof expectedTarget !== 'string' || !CLI_VERSION.test(expectedTarget))
+      throw new BadRequestException('Invalid expected CLI version');
+    if (!this.canManageCli())
+      throw new ConflictException(
+        'This CLI installation is managed externally',
+      );
+    if (this.busy)
+      throw new ConflictException('A CLI update is already in progress');
+    try {
+      await this.version();
+      throw new ConflictException('Codex CLI is already installed');
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+    }
+    const target = await this.latest(true);
+    if (target !== expectedTarget)
+      throw new ConflictException(
+        'Latest CLI version changed; refresh before continuing',
+      );
+    const before = cliSelection(this.paths.home);
+    const release = this.admission.begin();
+    this.busy = true;
+    let switched = false;
+    try {
+      await this.requireIdle(true);
+      await this.install(target);
+      await this.requireIdle(true);
+      await mkdir(cliRoot(this.paths.home), { recursive: true, mode: 0o700 });
+      this.manager.suspendRetries();
+      this.select({ version: target, previous: before.version });
+      switched = true;
+      await this.manager.restartControlled(release);
+      return { success: true };
+    } catch (error) {
+      if (switched) this.select(before);
+      throw error;
+    } finally {
+      this.busy = false;
+      release();
+    }
   }
 
   /** Download to a fresh directory; no mutation of the running executable or global npm prefix. */
@@ -431,6 +492,8 @@ export class CodexCliService {
       if (rollback && before.version === null)
         throw new ConflictException('No previous managed CLI version');
       const target = rollback ? before.previous : await this.latest(true);
+      if (rollback && target === null && !this.hasLegacyCli())
+        throw new ConflictException('No previous CLI installation');
       if (!rollback && expectedTarget !== target)
         throw new ConflictException(
           'Latest CLI version changed; refresh before continuing',

@@ -9,25 +9,25 @@ dispose jamais directement des secrets OpenAI, SSH ou MCP.
 
 ## Arborescence
 
-| Chemin | Contenu |
-|---|---|
-| `src/` | backend NestJS, API, base SQLite, terminaux, fichiers et intégrations |
-| `web/` | interface React, PWA et affichage mobile |
-| `drizzle/` | migrations de la base de données |
-| `skills/` | compétences disponibles dans le conteneur, notamment Office |
-| `deployment/` | définition reproductible des trois conteneurs Unraid |
-| `docs/` | documentation d’architecture, installation et exploitation |
-| `codex_probe/` | outils de vérification du protocole Codex |
-| `.github/workflows/` | construction et publication de l’image GHCR |
-| `Dockerfile` | construction multiétape de l’application complète |
+| Chemin               | Contenu                                                               |
+| -------------------- | --------------------------------------------------------------------- |
+| `src/`               | backend NestJS, API, base SQLite, terminaux, fichiers et intégrations |
+| `web/`               | interface React, PWA et affichage mobile                              |
+| `drizzle/`           | migrations de la base de données                                      |
+| `skills/`            | compétences disponibles dans le conteneur, notamment Office           |
+| `deployment/`        | définition reproductible des trois conteneurs Unraid                  |
+| `docs/`              | documentation d’architecture, installation et exploitation            |
+| `codex_probe/`       | outils de vérification du protocole Codex                             |
+| `.github/workflows/` | construction et publication de l’image GHCR                           |
+| `Dockerfile.unraid`  | construction multiétape de l’image publiée pour Unraid                 |
 
 ## Construction de l’image
 
-Le `Dockerfile` effectue les opérations suivantes :
+Le `Dockerfile.unraid` effectue les opérations suivantes :
 
 1. compilation de l’interface React ;
 2. compilation du backend NestJS ;
-3. installation de Codex CLI et des outils MCP ;
+3. installation des outils MCP et du gestionnaire d'installation du CLI ;
 4. installation des dépendances système, Python et Office ;
 5. copie des migrations et des fichiers compilés dans l’image finale.
 
@@ -39,14 +39,14 @@ les tags `latest` et `sha-<commit>`. Le tag SHA est recommandé en production.
 Le code et les dépendances vivent dans l’image. Les données vivent hors de
 l’image dans `STATE_ROOT` :
 
-| Dossier ou fichier | Rôle |
-|---|---|
-| `home/` | configuration Codex, base SQLite, OAuth, MCP et préférences |
-| `workspace/` | fichiers des espaces de travail |
-| `logs/` | journaux applicatifs |
-| `ssh/` | clés et `known_hosts`, montés en lecture seule |
-| `backend-token*.txt` | secret partagé entre Nginx et le backend |
-| `openai-api-key.txt` | clé du chat simple |
+| Dossier ou fichier   | Rôle                                                        |
+| -------------------- | ----------------------------------------------------------- |
+| `home/`              | configuration Codex, base SQLite, OAuth, MCP et préférences |
+| `workspace/`         | fichiers des espaces de travail                             |
+| `logs/`              | journaux applicatifs                                        |
+| `ssh/`               | clés et `known_hosts`, montés en lecture seule              |
+| `backend-token*.txt` | secret partagé entre Nginx et le backend                    |
+| `openai-api-key.txt` | clé du chat simple                                          |
 
 Le montage `/appdata` donne à l’application un accès en lecture/écriture aux
 configurations Unraid. Cette capacité est puissante : elle doit rester réservée
@@ -65,3 +65,8 @@ configurations Unraid. Cette capacité est puissante : elle doit rester réserv�
 Le projet d’origine n’est pas fusionné automatiquement. Toute correction externe
 est étudiée et reprise manuellement. Une mise à jour normale de ce dépôt produit
 une nouvelle image ; les données persistantes ne sont pas remplacées.
+
+Codex CLI n'est pas intégré à l'image d'exécution. Sa première installation et
+ses mises à jour sont pilotées depuis **Administration > Codex CLI**, puis
+stockées dans `home/.codex/webui/cli`. Une nouvelle image ne remplace donc jamais
+la version du CLI choisie par l'administrateur.

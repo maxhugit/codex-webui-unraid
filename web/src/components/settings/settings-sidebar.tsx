@@ -42,13 +42,22 @@ const sectionIcons = {
 
 function CodexCliUpdateIndicator() {
   const { t } = useTranslation();
-  const [available, setAvailable] = useState(false);
+  const [state, setState] = useState<'current' | 'update' | 'missing'>(
+    'current',
+  );
   useEffect(() => {
     let active = true;
     const refresh = () => {
       void requestCli<CliStatus>()
         .then((status) => {
-          if (active) setAvailable(status.updateAvailable);
+          if (active)
+            setState(
+              status.installationState === 'missing'
+                ? 'missing'
+                : status.updateAvailable
+                  ? 'update'
+                  : 'current',
+            );
         })
         .catch(() => undefined);
     };
@@ -59,11 +68,15 @@ function CodexCliUpdateIndicator() {
       window.clearInterval(timer);
     };
   }, []);
-  if (!available) return null;
+  if (state === 'current') return null;
   return (
     <span
       aria-hidden="true"
-      title={t('A CLI update is available')}
+      title={t(
+        state === 'missing'
+          ? 'Codex CLI installation is required'
+          : 'A CLI update is available',
+      )}
       className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-xs font-semibold text-white"
     >
       !

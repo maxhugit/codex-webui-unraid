@@ -14,6 +14,11 @@ export class ChangeCliDto {
   expectedVersion!: string;
 }
 
+export class InstallCliDto {
+  @ApiProperty({ example: '0.163.0' })
+  targetVersion!: string;
+}
+
 @ApiTags('codex')
 @ApiBearerAuth()
 @Controller('codex/cli')
@@ -32,6 +37,12 @@ export class CodexCliController {
   })
   releases(@Query('refresh') refresh?: string) {
     return this.cli.releaseNotes(refresh === 'true');
+  }
+  @Post('install')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Install and activate the first managed CLI' })
+  install(@Body() body: InstallCliDto) {
+    return this.cli.installFirst(body?.targetVersion);
   }
   @Post('update')
   @HttpCode(200)

@@ -3,7 +3,11 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CodexProcessManager } from './codex-process-manager.service';
+import {
+  CodexProcessManager,
+  CodexStartupError,
+  isCliNotInstalledStartupFailure,
+} from './codex-process-manager.service';
 import { catalogFixture } from './catalog/catalog.testing';
 
 const mocks = vi.hoisted(() => ({ spawn: vi.fn() }));
@@ -13,14 +17,17 @@ vi.mock('node:child_process', () => ({ spawn: mocks.spawn }));
  * Builds a child stub that dies immediately, the way a transient spawn fault
  * looks: the handshake never completes and the process is gone.
  */
-function failingChild() {
+function failingChild(stderr = '') {
   const child = Object.assign(new EventEmitter(), {
     stdin: new PassThrough(),
     stdout: new PassThrough(),
     stderr: new PassThrough(),
     kill: vi.fn(() => true),
   });
-  queueMicrotask(() => child.emit('close', 1, null));
+  queueMicrotask(() => {
+    if (stderr) child.stderr.write(stderr);
+    child.emit('close', 1, null);
+  });
   return child;
 }
 
@@ -33,6 +40,17 @@ describe('CodexProcessManager unattended start failures', () => {
     fixture = catalogFixture();
     manager = new CodexProcessManager(fixture.storage);
     mocks.spawn.mockImplementation(() => failingChild());
+  });
+
+  it('recognizes an intentionally missing CLI as a non-transient startup state', () => {
+    expect(
+      isCliNotInstalledStartupFailure(
+        new CodexStartupError(
+          'Codex app-server exited before initialization',
+          'Codex CLI is not installed. Open Administration > Codex CLI to install it.',
+        ),
+      ),
+    ).toBe(true);
   });
 
   afterEach(() => {
@@ -55,6 +73,21 @@ describe('CodexProcessManager unattended start failures', () => {
     await vi.advanceTimersByTimeAsync(3_000);
     await vi.advanceTimersByTimeAsync(0);
     expect(mocks.spawn.mock.calls.length).toBeGreaterThan(afterFirst);
+  });
+
+  it('does not retry when the administrator must perform the first CLI installation', async () => {
+    mocks.spawn.mockImplementation(() =>
+      failingChild(
+        'Codex CLI is not installed. Open Administration > Codex CLI to install it.',
+      ),
+    );
+
+    await manager.onModuleInit();
+
+    expect(manager.getStartupError()).toContain('Codex CLI is not installed');
+    const attempts = mocks.spawn.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(mocks.spawn.mock.calls.length).toBe(attempts);
   });
 
   it('stays down for a rejected catalog so a deterministic failure cannot loop', async () => {
