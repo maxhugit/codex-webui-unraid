@@ -436,12 +436,12 @@ export function CodexSettings() {
       : [];
 
   return (
-    <section className="space-y-6">
-      <div className="-mx-4 border-b sm:-mx-6">
+    <section className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-10 min-w-0 shrink-0 items-center border-b bg-background">
         <div
           role="tablist"
           aria-label={t('codexConfigurationSections')}
-          className="flex h-10 min-w-0 items-center overflow-x-auto px-1 sm:px-3"
+          className="flex min-w-0 flex-1 items-center overflow-x-auto"
           onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
               return;
@@ -491,208 +491,212 @@ export function CodexSettings() {
         </div>
       </div>
 
-      {needsStructuredConfig &&
-      (!config || configQuery.isError || configQuery.isLoading) ? (
-        unavailable
-      ) : (
-        <>
-          {saveWarnings.length > 0 && (
-            <ul className="space-y-1 text-xs text-amber-500">
-              {saveWarnings.map((warning, index) => (
-                <li key={index}>
-                  {warning.model ? `${warning.model}: ` : ''}
-                  {warning.message}
-                </li>
-              ))}
-            </ul>
-          )}
+      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
+        {needsStructuredConfig &&
+        (!config || configQuery.isError || configQuery.isLoading) ? (
+          unavailable
+        ) : (
+          <>
+            {saveWarnings.length > 0 && (
+              <ul className="space-y-1 text-xs text-amber-500">
+                {saveWarnings.map((warning, index) => (
+                  <li key={index}>
+                    {warning.model ? `${warning.model}: ` : ''}
+                    {warning.message}
+                  </li>
+                ))}
+              </ul>
+            )}
 
-          {activeGroup && (
-            <div
-              id="codex-settings-panel"
-              role="tabpanel"
-              className="space-y-3"
-            >
-              {modelsQuery.isError &&
-                ['model', 'reasoning', 'advanced'].includes(activeTab) && (
-                  <p role="alert" className="text-xs text-amber-500">
-                    {t(
-                      'liveModelChoicesAreUnavailableExistingValuesArePreservedCustomModelIdentifiersCb466fb89',
-                    )}
-                  </p>
-                )}
-              {activeFields.map((def) => (
-                <ConfigFieldEditor
-                  key={def.key}
-                  def={def}
-                  draft={drafts[def.key] ?? ''}
-                  dirty={dirtyKeys.has(def.key)}
-                  origin={originLabel(origins, def.key)}
-                  overridden={isUserConfigOrigin(origins, def.key)}
-                  saving={updateMutation.isPending}
-                  batch
-                  modelOptions={
-                    def.key === 'model' || def.key === 'review_model'
-                      ? modelOptions
-                      : def.key === 'model_provider'
-                        ? providerOptions
+            {activeGroup && (
+              <div
+                id="codex-settings-panel"
+                role="tabpanel"
+                className="space-y-3"
+              >
+                {modelsQuery.isError &&
+                  ['model', 'reasoning', 'advanced'].includes(activeTab) && (
+                    <p role="alert" className="text-xs text-amber-500">
+                      {t(
+                        'liveModelChoicesAreUnavailableExistingValuesArePreservedCustomModelIdentifiersCb466fb89',
+                      )}
+                    </p>
+                  )}
+                {activeFields.map((def) => (
+                  <ConfigFieldEditor
+                    key={def.key}
+                    def={def}
+                    draft={drafts[def.key] ?? ''}
+                    dirty={dirtyKeys.has(def.key)}
+                    origin={originLabel(origins, def.key)}
+                    overridden={isUserConfigOrigin(origins, def.key)}
+                    saving={updateMutation.isPending}
+                    batch
+                    modelOptions={
+                      def.key === 'model' || def.key === 'review_model'
+                        ? modelOptions
+                        : def.key === 'model_provider'
+                          ? providerOptions
+                          : undefined
+                    }
+                    dynamicOptions={
+                      def.key === 'model_reasoning_effort'
+                        ? reasoningOptions
                         : undefined
+                    }
+                    profileOptions={
+                      def.key === 'profile' ? profileOptions : undefined
+                    }
+                    serviceTierOptions={
+                      def.key === 'service_tier'
+                        ? serviceTierOptions
+                        : undefined
+                    }
+                    onDraftChange={handleDraftChange}
+                    onSave={saveActiveTab}
+                    onClear={handleClearField}
+                  />
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'security' && (
+              <div
+                id="codex-settings-panel"
+                role="tabpanel"
+                className="space-y-3"
+              >
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    'defaultsForNewConversationsChangingThemDoesNotAffectAConversationAlreadyOpenUse71a22217',
+                  )}
+                </p>
+                <ConfigSelectOverrideControl
+                  deferred
+                  label={t('approvalPolicy')}
+                  description={t('whenCodexAsksBeforeRunningACommand')}
+                  effectiveValue={
+                    (drafts.approval_policy ||
+                      globalApprovalPolicy.value) as ApprovalPolicyValue
                   }
-                  dynamicOptions={
-                    def.key === 'model_reasoning_effort'
-                      ? reasoningOptions
-                      : undefined
+                  source={globalApprovalPolicy.source}
+                  overridden={isUserConfigOrigin(origins, 'approval_policy')}
+                  saving={updateMutation.isPending}
+                  options={APPROVAL_POLICY_VALUES.map((value) => ({
+                    value,
+                    label: t(translationKey(value)),
+                  }))}
+                  onCommit={(value) =>
+                    value === null
+                      ? handleClearField('approval_policy')
+                      : handleDraftChange('approval_policy', value)
                   }
-                  profileOptions={
-                    def.key === 'profile' ? profileOptions : undefined
-                  }
-                  serviceTierOptions={
-                    def.key === 'service_tier' ? serviceTierOptions : undefined
-                  }
-                  onDraftChange={handleDraftChange}
-                  onSave={saveActiveTab}
-                  onClear={handleClearField}
                 />
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'security' && (
-            <div
-              id="codex-settings-panel"
-              role="tabpanel"
-              className="space-y-3"
-            >
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  'defaultsForNewConversationsChangingThemDoesNotAffectAConversationAlreadyOpenUse71a22217',
-                )}
-              </p>
-              <ConfigSelectOverrideControl
-                deferred
-                label={t('approvalPolicy')}
-                description={t('whenCodexAsksBeforeRunningACommand')}
-                effectiveValue={
-                  (drafts.approval_policy ||
-                    globalApprovalPolicy.value) as ApprovalPolicyValue
-                }
-                source={globalApprovalPolicy.source}
-                overridden={isUserConfigOrigin(origins, 'approval_policy')}
-                saving={updateMutation.isPending}
-                options={APPROVAL_POLICY_VALUES.map((value) => ({
-                  value,
-                  label: t(translationKey(value)),
-                }))}
-                onCommit={(value) =>
-                  value === null
-                    ? handleClearField('approval_policy')
-                    : handleDraftChange('approval_policy', value)
-                }
-              />
-              <ConfigSelectOverrideControl
-                deferred
-                label={t('sandboxMode')}
-                description={t('whatACommandMayReachByDefault')}
-                effectiveValue={
-                  (drafts.sandbox_mode ||
-                    globalSandboxMode.value) as SandboxModeValue
-                }
-                source={globalSandboxMode.source}
-                overridden={isUserConfigOrigin(origins, 'sandbox_mode')}
-                saving={updateMutation.isPending}
-                options={SANDBOX_MODE_VALUES.map((value) => ({
-                  value,
-                  label: t(translationKey(value)),
-                }))}
-                onCommit={(value) =>
-                  value === null
-                    ? handleClearField('sandbox_mode')
-                    : handleDraftChange('sandbox_mode', value)
-                }
-              />
-              <ApprovalReviewerControl
-                deferred
-                label={t('approvalsReviewer')}
-                description={t('defaultReviewerForApprovalRequests')}
-                effectiveValue={
-                  (drafts.approvals_reviewer ||
-                    topLevelReviewer.value) as ApprovalReviewerValue
-                }
-                source={topLevelReviewer.source}
-                overridden={isUserConfigOrigin(origins, 'approvals_reviewer')}
-                saving={updateMutation.isPending}
-                options={reviewerOptions}
-                onCommit={(value) =>
-                  value === null
-                    ? handleClearField('approvals_reviewer')
-                    : handleDraftChange('approvals_reviewer', value)
-                }
-              />
-              {SECURITY_READONLY_KEYS.map((key) => (
-                <div
-                  key={key}
-                  className="space-y-1 overflow-hidden rounded-lg border border-border bg-card/50 px-4 py-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      {t(translationKey(SECURITY_FIELD_LABELS[key]))}
-                    </span>
-                    {isNonEnglish && (
-                      <code className="text-xs text-muted-foreground">
-                        {key}
-                      </code>
-                    )}
-                    <ConfigSourceBadge source={originLabel(origins, key)} />
+                <ConfigSelectOverrideControl
+                  deferred
+                  label={t('sandboxMode')}
+                  description={t('whatACommandMayReachByDefault')}
+                  effectiveValue={
+                    (drafts.sandbox_mode ||
+                      globalSandboxMode.value) as SandboxModeValue
+                  }
+                  source={globalSandboxMode.source}
+                  overridden={isUserConfigOrigin(origins, 'sandbox_mode')}
+                  saving={updateMutation.isPending}
+                  options={SANDBOX_MODE_VALUES.map((value) => ({
+                    value,
+                    label: t(translationKey(value)),
+                  }))}
+                  onCommit={(value) =>
+                    value === null
+                      ? handleClearField('sandbox_mode')
+                      : handleDraftChange('sandbox_mode', value)
+                  }
+                />
+                <ApprovalReviewerControl
+                  deferred
+                  label={t('approvalsReviewer')}
+                  description={t('defaultReviewerForApprovalRequests')}
+                  effectiveValue={
+                    (drafts.approvals_reviewer ||
+                      topLevelReviewer.value) as ApprovalReviewerValue
+                  }
+                  source={topLevelReviewer.source}
+                  overridden={isUserConfigOrigin(origins, 'approvals_reviewer')}
+                  saving={updateMutation.isPending}
+                  options={reviewerOptions}
+                  onCommit={(value) =>
+                    value === null
+                      ? handleClearField('approvals_reviewer')
+                      : handleDraftChange('approvals_reviewer', value)
+                  }
+                />
+                {SECURITY_READONLY_KEYS.map((key) => (
+                  <div
+                    key={key}
+                    className="space-y-1 overflow-hidden rounded-lg border border-border bg-card/50 px-4 py-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        {t(translationKey(SECURITY_FIELD_LABELS[key]))}
+                      </span>
+                      {isNonEnglish && (
+                        <code className="text-xs text-muted-foreground">
+                          {key}
+                        </code>
+                      )}
+                      <ConfigSourceBadge source={originLabel(origins, key)} />
+                    </div>
+                    <p className="break-all text-xs text-muted-foreground">
+                      {formatConfigValue(config?.[key])}
+                    </p>
                   </div>
-                  <p className="break-all text-xs text-muted-foreground">
-                    {formatConfigValue(config?.[key])}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-      {activeTab === 'catalog' && (
-        <div id="codex-settings-panel" role="tabpanel">
-          <CatalogSettings />
+        {activeTab === 'catalog' && (
+          <div id="codex-settings-panel" role="tabpanel">
+            <CatalogSettings />
+          </div>
+        )}
+        <div
+          id={activeTab === 'raw' ? 'codex-settings-panel' : undefined}
+          role={activeTab === 'raw' ? 'tabpanel' : undefined}
+          className={activeTab === 'raw' ? undefined : 'hidden'}
+        >
+          <RawConfigEditor onSaved={invalidate} />
         </div>
-      )}
-      <div
-        id={activeTab === 'raw' ? 'codex-settings-panel' : undefined}
-        role={activeTab === 'raw' ? 'tabpanel' : undefined}
-        className={activeTab === 'raw' ? undefined : 'hidden'}
-      >
-        <RawConfigEditor onSaved={invalidate} />
+        {needsStructuredConfig && config && !configQuery.isError && (
+          <>
+            {activeKeys.some((key) => clearedKeys.has(key)) && (
+              <p role="status" className="text-xs text-amber-500">
+                {t('returnToInheritancePendingSaveThisTabToApply')}
+              </p>
+            )}
+            <SettingsSaveBar
+              dirty={activeDirtyKeys.length > 0}
+              saving={updateMutation.isPending}
+              onSave={saveActiveTab}
+              onDiscard={() => {
+                setClearedKeys(
+                  (previous) =>
+                    new Set(
+                      [...previous].filter((key) => !activeKeys.includes(key)),
+                    ),
+                );
+                setDraftOverrides((previous) => {
+                  const next = { ...previous };
+                  for (const key of activeKeys) delete next[key];
+                  return next;
+                });
+              }}
+            />
+          </>
+        )}
       </div>
-      {needsStructuredConfig && config && !configQuery.isError && (
-        <>
-          {activeKeys.some((key) => clearedKeys.has(key)) && (
-            <p role="status" className="text-xs text-amber-500">
-              {t('returnToInheritancePendingSaveThisTabToApply')}
-            </p>
-          )}
-          <SettingsSaveBar
-            dirty={activeDirtyKeys.length > 0}
-            saving={updateMutation.isPending}
-            onSave={saveActiveTab}
-            onDiscard={() => {
-              setClearedKeys(
-                (previous) =>
-                  new Set(
-                    [...previous].filter((key) => !activeKeys.includes(key)),
-                  ),
-              );
-              setDraftOverrides((previous) => {
-                const next = { ...previous };
-                for (const key of activeKeys) delete next[key];
-                return next;
-              });
-            }}
-          />
-        </>
-      )}
     </section>
   );
 }
