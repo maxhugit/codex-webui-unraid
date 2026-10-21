@@ -154,6 +154,14 @@ it('separates overview, schema and paginated read-only data', async () => {
     'data-child',
     'true',
   );
+  expect(screen.getByText('Parent tables')).toBeVisible();
+  expect(screen.getByText('Child tables')).toBeVisible();
+
+  fireEvent.click(screen.getByText('projects'));
+  expect(screen.getByTestId('database-table-people')).toHaveAttribute(
+    'data-parent',
+    'true',
+  );
 
   fireEvent.doubleClick(screen.getByText('projects'));
   expect(
