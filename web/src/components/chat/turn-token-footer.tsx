@@ -25,23 +25,23 @@ export function TurnTokenFooter({ turnId }: Props) {
     <div className="mt-1 flex items-center gap-3 text-[11px] tabular-nums text-muted-foreground">
       <Zap className="h-3 w-3" />
       <span>
-        {t('Input')} {formatTokens(billableInput)}
+        {t('input')} {formatTokens(billableInput)}
       </span>
       {last.cachedInputTokens > 0 && (
         <span>
-          {t('Cached')} {formatTokens(last.cachedInputTokens)}
+          {t('cached')} {formatTokens(last.cachedInputTokens)}
         </span>
       )}
       <span>
-        {t('Output')} {formatTokens(last.outputTokens)}
+        {t('output')} {formatTokens(last.outputTokens)}
       </span>
       {last.reasoningOutputTokens > 0 && (
         <span>
-          {t('Reasoning')} {formatTokens(last.reasoningOutputTokens)}
+          {t('reasoning')} {formatTokens(last.reasoningOutputTokens)}
         </span>
       )}
       <span className="font-medium">
-        {t('Total')} {formatTokens(last.totalTokens)}
+        {t('total')} {formatTokens(last.totalTokens)}
       </span>
     </div>
   );

@@ -265,11 +265,11 @@ export function VirtualTranscript({
             <button
               type="button"
               onClick={() => owner.jumpToLatest()}
-              aria-label={t('Jump to latest')}
+              aria-label={t('jumpToLatest')}
               className="pointer-events-auto flex items-center gap-1 rounded-full border bg-card px-3 py-1.5 text-xs shadow-md"
             >
               <ArrowDown className="h-3 w-3" />
-              {t('Jump to latest')}
+              {t('jumpToLatest')}
             </button>
           </div>
         )}

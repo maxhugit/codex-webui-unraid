@@ -12,7 +12,7 @@ import type { ThreadDeletePreviewDto } from '@/generated/api/types.gen';
 import { DeleteConversationDialog } from './delete-conversation-dialog';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: globalThis.__testTranslate }),
 }));
 
 vi.mock('@/hooks/use-breakpoint', () => ({ useIsMobile: () => true }));
@@ -50,7 +50,9 @@ function makePreview(
   } as unknown as ThreadDeletePreviewDto;
 }
 
-function renderDialog(props: Partial<{ pending: boolean; canDelete: boolean }> = {}) {
+function renderDialog(
+  props: Partial<{ pending: boolean; canDelete: boolean }> = {},
+) {
   const onConfirm = vi.fn();
   const ui = (pending: boolean) => (
     <DeleteConversationDialog

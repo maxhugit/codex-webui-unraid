@@ -161,7 +161,7 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
   if (!rootDir)
     return (
       <div className="space-y-2 px-3 py-4 text-xs">
-        <p>{t('No workspace directory')}</p>
+        <p>{t('noWorkspaceDirectory')}</p>
         <DirectorySelectionTree
           selectedPath={null}
           onSelectedPathChange={setRootDir}
@@ -239,7 +239,7 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
                   }
                   setNavigationEdit(null);
                   inline.cancel();
-                  showSnackbar(t('Cannot load directories'), 'error');
+                  showSnackbar(t('cannotLoadDirectories'), 'error');
                 }}
                 onRowCreate={startRowCreate}
               />
@@ -249,7 +249,7 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
             <div className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary bg-background/90 text-center text-primary shadow-lg">
               <UploadCloud className="h-8 w-8" />
               <div className="px-4 text-sm font-medium">
-                {t('Drop files into this workspace')}
+                {t('dropFilesIntoThisWorkspace')}
               </div>
               <div className="max-w-full truncate px-4 font-mono text-[10px] text-muted-foreground">
                 {rootDir}
@@ -259,12 +259,12 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
           {ops.uploadFiles.isPending && ops.uploadProgress !== null && (
             <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 rounded-lg border bg-background/95 px-3 py-2 shadow-lg">
               <div className="mb-1.5 flex items-center justify-between text-xs">
-                <span>{t('Uploading files')}</span>
+                <span>{t('uploadingFiles')}</span>
                 <span className="tabular-nums">{ops.uploadProgress}%</span>
               </div>
               <div
                 role="progressbar"
-                aria-label={t('Upload progress')}
+                aria-label={t('uploadProgress')}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={ops.uploadProgress}
@@ -306,8 +306,8 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
       <FilePathDialog
         open={dialog.type === 'copy'}
         onOpenChange={(open) => !open && closeDialog()}
-        title={t('Copy to...')}
-        description={t('Select destination directory')}
+        title={t('copyTo')}
+        description={t('selectDestinationDirectory')}
         onConfirm={(dest) =>
           ops.copyPath.mutate({
             body: {
@@ -320,8 +320,8 @@ export function FileTree({ onFileClick }: FileTreeProps = {}) {
       <FilePathDialog
         open={dialog.type === 'move'}
         onOpenChange={(open) => !open && closeDialog()}
-        title={t('Move to...')}
-        description={t('Select destination directory')}
+        title={t('moveTo')}
+        description={t('selectDestinationDirectory')}
         onConfirm={(dest) =>
           ops.movePath.mutate({
             body: {
@@ -430,12 +430,12 @@ function FlatDirectory(props: FlatDirectoryProps) {
       {query.isLoading && (
         <div className="flex items-center gap-1 px-3 py-4 text-xs text-muted-foreground">
           <Loader2 className="h-3 w-3 animate-spin" />
-          {t('Loading...')}
+          {t('loadingb04ba49f')}
         </div>
       )}
       {isError && (
         <div className="px-3 py-8 text-center text-xs text-destructive">
-          {t('Cannot load directories')}
+          {t('cannotLoadDirectories')}
         </div>
       )}
       {data?.map((entry) => (
@@ -463,7 +463,7 @@ function FlatDirectory(props: FlatDirectoryProps) {
       {createRow}
       {!query.isLoading && !isError && !data?.length && !props.edit && (
         <div className="px-3 py-8 text-center text-xs italic text-muted-foreground">
-          {t('Empty directory')}
+          {t('emptyDirectory')}
         </div>
       )}
     </div>

@@ -3,7 +3,11 @@ import Editor from '@monaco-editor/react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { fetchPreviewText, previewSourceLabel, type PreviewSource } from './preview-source';
+import {
+  fetchPreviewText,
+  previewSourceLabel,
+  type PreviewSource,
+} from './preview-source';
 
 interface Props {
   source: PreviewSource;
@@ -18,9 +22,14 @@ export function ReadOnlyCodeViewer({ source }: Props) {
   });
 
   if (isLoading) {
-    return <CenteredMessage icon={<Loader2 className="h-4 w-4 animate-spin" />} message={t('Loading...')} />;
+    return (
+      <CenteredMessage
+        icon={<Loader2 className="h-4 w-4 animate-spin" />}
+        message={t('loadingb04ba49f')}
+      />
+    );
   }
-  if (error) return <CenteredMessage message={t('Failed to load file')} />;
+  if (error) return <CenteredMessage message={t('failedToLoadFile')} />;
 
   return (
     <Editor
@@ -42,7 +51,13 @@ export function ReadOnlyCodeViewer({ source }: Props) {
   );
 }
 
-function CenteredMessage({ icon, message }: { icon?: React.ReactNode; message: string }) {
+function CenteredMessage({
+  icon,
+  message,
+}: {
+  icon?: React.ReactNode;
+  message: string;
+}) {
   return (
     <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
       {icon}

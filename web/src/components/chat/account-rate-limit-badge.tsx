@@ -83,7 +83,7 @@ export function AccountRateLimitBadge() {
     ? credits.unlimited
       ? t('unlimited')
       : credits.hasCredits
-        ? credits.balance ?? t('credits')
+        ? (credits.balance ?? t('credits66c22fad'))
         : null
     : null;
   const primaryReset = formatReset(primary?.resetsAt ?? null);
@@ -91,7 +91,7 @@ export function AccountRateLimitBadge() {
   const secondaryLabel = periodLabel(secondary?.windowDurationMins ?? null);
   const primaryTitle = primaryReset
     ? `Limite du compte · réinitialisation : ${primaryReset}`
-    : t('Account rate limits');
+    : t('accountRateLimits');
   const secondaryTitle = secondaryReset
     ? `${secondaryLabel} · réinitialisation : ${secondaryReset}`
     : secondaryLabel;
@@ -103,7 +103,8 @@ export function AccountRateLimitBadge() {
         {used !== null && <span>{used}%</span>}
         {creditLabel && (
           <span className="hidden sm:inline text-muted-foreground">
-            {used !== null ? '· ' : ''}{creditLabel}
+            {used !== null ? '· ' : ''}
+            {creditLabel}
           </span>
         )}
       </Badge>

@@ -74,7 +74,7 @@ function SaveAsForm({
   const submit = async () => {
     if (!documentId || !directory || !name.trim() || busy) return;
     if (name === '.' || name === '..' || /[/\\\0]/.test(name)) {
-      setError(t('Enter a name without path separators.'));
+      setError(t('enterANameWithoutPathSeparators'));
       return;
     }
     setBusy(true);
@@ -85,7 +85,7 @@ function SaveAsForm({
     if (!ok) {
       setError(
         useDocumentStore.getState().documents[documentId]?.error ??
-          t('Request failed'),
+          t('requestFailed'),
       );
       return;
     }
@@ -96,9 +96,9 @@ function SaveAsForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{t('Save As')}</DialogTitle>
+        <DialogTitle>{t('saveAs')}</DialogTitle>
         <DialogDescription>
-          {t('Choose a directory and a new file name for this buffer.')}
+          {t('chooseADirectoryAndANewFileNameForThisBuffer')}
         </DialogDescription>
       </DialogHeader>
       <DirectorySelectionTree
@@ -109,7 +109,7 @@ function SaveAsForm({
       <Input
         value={name}
         onChange={(event) => setName(event.target.value)}
-        placeholder={t('File name')}
+        placeholder={t('fileName')}
         disabled={busy}
       />
       {error && (
@@ -119,13 +119,13 @@ function SaveAsForm({
       )}
       <DialogFooter>
         <Button variant="ghost" onClick={onClose} disabled={busy}>
-          {t('Cancel')}
+          {t('cancel')}
         </Button>
         <Button
           onClick={() => void submit()}
           disabled={busy || !directory || !name.trim()}
         >
-          {busy ? t('Saving...') : t('Save As')}
+          {busy ? t('saving') : t('saveAs')}
         </Button>
       </DialogFooter>
     </>

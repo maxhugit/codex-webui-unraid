@@ -34,7 +34,7 @@ export async function restoreHistoryBookmark(threadId: string): Promise<void> {
       saveTranscriptBookmark(threadId, { ...bookmark, anchor: null });
       store.setOpenStateForThread(threadId, {
         historyError: i18n.t(
-          'The previous reading position is outside the available history. Showing retained messages.',
+          'thePreviousReadingPositionIsOutsideTheAvailableHistoryShowingRetainedMessages',
         ),
       });
     }
@@ -73,7 +73,7 @@ export async function restoreHistoryBookmark(threadId: string): Promise<void> {
     saveTranscriptBookmark(threadId, { ...bookmark, anchor: null });
     store.setOpenStateForThread(threadId, {
       historyError: i18n.t(
-        'The previous reading position is outside the available history. Showing retained messages.',
+        'thePreviousReadingPositionIsOutsideTheAvailableHistoryShowingRetainedMessages',
       ),
     });
   }

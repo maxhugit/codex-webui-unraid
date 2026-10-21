@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** Shared hook for category-based runtime settings: query, drafts, mutations. */
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -65,7 +66,7 @@ export function useCategorySettings(category: SettingCategory) {
     },
     onSuccess: (_data, key) => {
       onMutationSuccess(key);
-      showSnackbar(t('Setting reset'), 'success');
+      showSnackbar(t('settingReset'), 'success');
     },
   });
 
@@ -111,11 +112,11 @@ export function useCategorySettings(category: SettingCategory) {
       void queryClient.invalidateQueries({
         queryKey: settingsListSettingsQueryKey({ query: { category } }),
       });
-      showSnackbar(t('Setting saved'), 'success');
+      showSnackbar(t('settingSaved'), 'success');
     },
     onError: () =>
       showSnackbar(
-        t('Failed to save settings. Unsaved changes have been kept.'),
+        t('failedToSaveSettingsUnsavedChangesHaveBeenKept'),
         'error',
       ),
   });
@@ -124,7 +125,7 @@ export function useCategorySettings(category: SettingCategory) {
     for (const setting of dirtySettings) {
       const parsed = parseDraftValue(setting, drafts[setting.key] ?? '');
       if (!parsed.ok) {
-        showSnackbar(t(parsed.error), 'error');
+        showSnackbar(t(translationKey(parsed.error)), 'error');
         return;
       }
       edits.push({ key: setting.key, value: parsed.value });

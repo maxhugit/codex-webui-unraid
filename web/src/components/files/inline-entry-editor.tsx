@@ -67,7 +67,7 @@ export function InlineEntryEditor({
         value={value}
         readOnly={pending}
         aria-busy={pending}
-        aria-label={t('File or directory name')}
+        aria-label={t('fileOrDirectoryName')}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? errorId : undefined}
         className="h-6 text-xs"

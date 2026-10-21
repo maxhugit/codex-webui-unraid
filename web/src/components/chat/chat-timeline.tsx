@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * Virtualized scrollable message timeline.
  * Uses TanStack Virtual for efficient rendering of long conversations.
@@ -90,11 +91,10 @@ function ReadOnlyBanner({ reason }: { reason: string }) {
       <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <div>
         <p className="font-medium">
-          {t('Read-only: this conversation is open in another client.')}
+          {t('readOnlyThisConversationIsOpenInAnotherClient')}
         </p>
         <p className="opacity-80">
-          {reason ||
-            t('Close it there, then reopen this conversation to continue it.')}
+          {reason || t('closeItThereThenReopenThisConversationToContinueIt')}
         </p>
       </div>
     </div>
@@ -250,9 +250,11 @@ export function ChatTimeline({
                 onClick={() => void loadOlderHistory()}
               >
                 {t(
-                  historyLoading
-                    ? 'Loading earlier messages…'
-                    : 'Load earlier messages',
+                  translationKey(
+                    historyLoading
+                      ? 'Loading earlier messages…'
+                      : 'Load earlier messages',
+                  ),
                 )}
               </button>
             ) : undefined
@@ -280,7 +282,7 @@ export function ChatTimeline({
             style={{ paddingBottom: bottomInset }}
           >
             <Bot className="mb-4 h-10 w-10 opacity-30" />
-            {t('Send a message to start the conversation.')}
+            {t('sendAMessageToStartTheConversation')}
           </div>
         )}
       </div>
@@ -291,15 +293,15 @@ export function ChatTimeline({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Edit this message?')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('editThisMessagec1b1e058')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                'This creates a new version of the message. The current conversation is kept as a sibling version you can switch back to. File changes will NOT be reverted.',
+                'thisCreatesANewVersionOfTheMessageTheCurrentConversationIsKeptAsASiblingVersion3bdb7f73',
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={createBranch.isPending}
               onClick={() => {
@@ -313,7 +315,7 @@ export function ChatTimeline({
                 });
               }}
             >
-              {t('Confirm')}
+              {t('confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

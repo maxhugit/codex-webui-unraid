@@ -10,8 +10,14 @@ import type {
   AppToolSummaryDto,
   ConfigEditDto,
 } from '@/generated/api/types.gen';
-import type { AppToolApprovalModeValue, ConfigRecord } from '@/lib/codex-config';
-import { isEditableConfigSegment, isUserConfigOrigin } from '@/lib/codex-config';
+import type {
+  AppToolApprovalModeValue,
+  ConfigRecord,
+} from '@/lib/codex-config';
+import {
+  isEditableConfigSegment,
+  isUserConfigOrigin,
+} from '@/lib/codex-config';
 import { PolicySection, WarningBanner } from './app-detail-layout';
 import { resolveApprovalMode, resolveBoolean } from './app-config-helpers';
 
@@ -52,9 +58,9 @@ export function ToolSummaries({
 
   if (tools === null) {
     return (
-      <PolicySection title={t('Tools')}>
+      <PolicySection title={t('tools')}>
         <p className="text-sm text-muted-foreground">
-          {t('Tool summaries are not available for this app.')}
+          {t('toolSummariesAreNotAvailableForThisApp')}
         </p>
       </PolicySection>
     );
@@ -62,14 +68,14 @@ export function ToolSummaries({
 
   if (tools.length === 0) {
     return (
-      <PolicySection title={t('Tools')}>
-        <p className="text-sm text-muted-foreground">{t('No tools reported')}</p>
+      <PolicySection title={t('tools')}>
+        <p className="text-sm text-muted-foreground">{t('noToolsReported')}</p>
       </PolicySection>
     );
   }
 
   return (
-    <PolicySection title={`${t('Tools')} (${tools.length})`}>
+    <PolicySection title={`${t('tools')} (${tools.length})`}>
       <div className="space-y-3">
         {tools.map((tool) => (
           <ToolPolicyRow
@@ -120,10 +126,12 @@ function ToolPolicyRow({
 }: ToolPolicyRowProps) {
   const { t } = useTranslation();
   const toolBase = `apps.${appId}.tools.${tool.name}`;
-  const enabled = resolveBoolean(config, origins, [
-    `${toolBase}.enabled`,
-    `apps.${appId}.default_tools_enabled`,
-  ], true);
+  const enabled = resolveBoolean(
+    config,
+    origins,
+    [`${toolBase}.enabled`, `apps.${appId}.default_tools_enabled`],
+    true,
+  );
   const approvalMode = resolveApprovalMode(config, origins, [
     `${toolBase}.approval_mode`,
     `apps.${appId}.default_tools_approval_mode`,
@@ -140,11 +148,11 @@ function ToolPolicyRow({
             variant={tool.isEnabled ? 'secondary' : 'outline'}
             className="text-[10px]"
           >
-            {tool.isEnabled ? t('runtime enabled') : t('runtime disabled')}
+            {tool.isEnabled ? t('runtimeEnabled') : t('runtimeDisabled')}
           </Badge>
           {tool.isReadOnly && (
             <Badge variant="outline" className="text-[10px]">
-              {t('read-only')}
+              {t('readOnly')}
             </Badge>
           )}
         </div>
@@ -161,7 +169,7 @@ function ToolPolicyRow({
       {editable ? (
         <div className="space-y-2">
           <ConfigBooleanOverrideControl
-            label={t('Tool enabled')}
+            label={t('toolEnabled')}
             effectiveValue={enabled.value}
             source={enabled.source}
             overridden={isUserConfigOrigin(origins, `${toolBase}.enabled`)}
@@ -169,10 +177,13 @@ function ToolPolicyRow({
             onCommit={(value) => onWrite(`${toolBase}.enabled`, value)}
           />
           <ConfigSelectOverrideControl
-            label={t('Tool approval')}
+            label={t('toolApproval')}
             effectiveValue={approvalMode.value}
             source={approvalMode.source}
-            overridden={isUserConfigOrigin(origins, `${toolBase}.approval_mode`)}
+            overridden={isUserConfigOrigin(
+              origins,
+              `${toolBase}.approval_mode`,
+            )}
             saving={saving}
             options={approvalModeOptions}
             onCommit={(value) => onWrite(`${toolBase}.approval_mode`, value)}
@@ -180,9 +191,7 @@ function ToolPolicyRow({
         </div>
       ) : (
         <WarningBanner
-          message={t(
-            'This tool name cannot be edited through the curated config path.',
-          )}
+          message={t('thisToolNameCannotBeEditedThroughTheCuratedConfigPath')}
         />
       )}
     </div>

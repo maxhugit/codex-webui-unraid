@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * Palette triggered by `/` at the start of the composer draft.
  * Pure display component — filtering and selection live in useSlashCommands.
@@ -43,7 +44,7 @@ export function SlashPopover({
       <div ref={listRef} className="max-h-64 overflow-y-auto py-1">
         {filtered.length === 0 && (
           <div className="px-3 py-2 text-xs text-muted-foreground">
-            {t('No matching commands')}
+            {t('noMatchingCommands')}
           </div>
         )}
         {filtered.map((command, index) => {
@@ -74,7 +75,9 @@ export function SlashPopover({
                 /{command.name}
               </span>
               <span className="flex-1 truncate text-xs text-muted-foreground">
-                {disabled ? t(blockedReason) : t(command.description)}
+                {disabled
+                  ? t(translationKey(blockedReason))
+                  : t(translationKey(command.description))}
               </span>
             </button>
           );

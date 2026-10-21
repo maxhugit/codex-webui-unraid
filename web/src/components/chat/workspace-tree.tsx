@@ -64,10 +64,10 @@ export function WorkspaceTree({
   const contents = (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-10 shrink-0 items-center border-b px-3 text-xs font-medium">
-        <span className="flex-1">{project ? project.name : t('Explorer')}</span>
+        <span className="flex-1">{project ? project.name : t('explorer')}</span>
         <button
           type="button"
-          aria-label={t('Close explorer')}
+          aria-label={t('closeExplorer')}
           onClick={() => (desktop ? setCollapsed(true) : onMobileClose())}
         >
           <X className="h-4 w-4" />
@@ -97,16 +97,14 @@ export function WorkspaceTree({
                 >
                   <Folder className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">
-                    {workspace.primary
-                      ? t('Primary workspace')
-                      : workspace.name}
+                    {workspace.primary ? t('primaryWorkspace') : workspace.name}
                   </span>
                   {isActive && (
                     <Badge
                       variant="secondary"
                       className="ml-auto px-1 text-[9px]"
                     >
-                      {t('Active workspace')}
+                      {t('activeWorkspace')}
                     </Badge>
                   )}
                 </Button>
@@ -116,8 +114,8 @@ export function WorkspaceTree({
                     variant="ghost"
                     size="icon-sm"
                     disabled={activeWorkspacePending}
-                    title={t('Use for this conversation')}
-                    aria-label={t('Use for this conversation')}
+                    title={t('useForThisConversation')}
+                    aria-label={t('useForThisConversation')}
                     onClick={() => onActiveWorkspaceChange(workspace.path)}
                   >
                     <Star className="h-3.5 w-3.5" />
@@ -144,7 +142,7 @@ export function WorkspaceTree({
           className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground"
         >
           <Loader2 className="h-4 w-4 animate-spin" />
-          {t('Loading...')}
+          {t('loadingb04ba49f')}
         </div>
       )}
     </div>
@@ -160,7 +158,7 @@ export function WorkspaceTree({
           className="!w-[min(85vw,360px)] p-0"
           showCloseButton={false}
         >
-          <SheetTitle className="sr-only">{t('Explorer')}</SheetTitle>
+          <SheetTitle className="sr-only">{t('explorer')}</SheetTitle>
           {contents}
         </SheetContent>
       </Sheet>
@@ -193,7 +191,7 @@ function ExplorerDivider() {
     <>
       <div
         role="separator"
-        aria-label={t('Explorer width')}
+        aria-label={t('explorerWidth')}
         aria-orientation="vertical"
         tabIndex={0}
         className="absolute inset-y-0 -left-1 z-30 w-2 cursor-col-resize touch-none"

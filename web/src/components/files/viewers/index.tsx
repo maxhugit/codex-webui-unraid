@@ -33,11 +33,22 @@ interface Props {
 }
 
 /** Dispatches to the appropriate viewer component based on file extension. */
-export function FileContentViewer({ filePath, documentId, source, viewId = `preview:${filePath}`, active = true }: Props) {
+export function FileContentViewer({
+  filePath,
+  documentId,
+  source,
+  viewId = `preview:${filePath}`,
+  active = true,
+}: Props) {
   const { t } = useTranslation();
   const previewSource = source ?? filePreviewSource(filePath);
-  const buffer = useDocumentStore((state) => documentId ? state.documents[documentId] : undefined);
-  const category = buffer?.model && (buffer.dirty || buffer.detached) ? 'code' : getFileCategory(filePath);
+  const buffer = useDocumentStore((state) =>
+    documentId ? state.documents[documentId] : undefined,
+  );
+  const category =
+    buffer?.model && (buffer.dirty || buffer.detached)
+      ? 'code'
+      : getFileCategory(filePath);
   const onlyOfficeUrl = useOnlyOfficeUrl();
   const canUseOnlyOffice = previewSource.kind === 'file' && !!onlyOfficeUrl;
 
@@ -52,10 +63,13 @@ export function FileContentViewer({ filePath, documentId, source, viewId = `prev
     // Consumed rather than left standing, so it cannot latch onto whichever
     // text file the user opens next.
     consumeReveal(viewId, reveal.request);
-    showSnackbar(t('Line navigation is not available for this file type'), 'info');
+    showSnackbar(t('lineNavigationIsNotAvailableForThisFileType'), 'info');
   }, [reveal, honoursLine, consumeReveal, viewId, active, t]);
 
-  if ((category === 'docx' || category === 'xlsx' || category === 'pptx') && canUseOnlyOffice) {
+  if (
+    (category === 'docx' || category === 'xlsx' || category === 'pptx') &&
+    canUseOnlyOffice
+  ) {
     return <OnlyOfficeViewer filePath={filePath} />;
   }
 
@@ -74,20 +88,31 @@ export function FileContentViewer({ filePath, documentId, source, viewId = `prev
       return previewSource.kind === 'file' ? (
         <ArchiveViewer filePath={filePath} />
       ) : (
-        <UnsupportedViewer message={t('Nested archive previews are not supported')} />
+        <UnsupportedViewer
+          message={t('nestedArchivePreviewsAreNotSupported')}
+        />
       );
     case 'docx':
       return <DocxViewer source={previewSource} />;
     case 'xlsx':
       return <XlsxViewer source={previewSource} />;
     case 'pptx':
-      return <UnsupportedViewer message={t('Configure OnlyOffice to preview presentations')} />;
+      return (
+        <UnsupportedViewer
+          message={t('configureOnlyOfficeToPreviewPresentations')}
+        />
+      );
     case 'binary':
       return <BinaryViewer source={previewSource} />;
     case 'code':
     default:
       return previewSource.kind === 'file' ? (
-        <CodeViewer filePath={filePath} documentId={documentId} viewId={viewId} active={active} />
+        <CodeViewer
+          filePath={filePath}
+          documentId={documentId}
+          viewId={viewId}
+          active={active}
+        />
       ) : (
         <ReadOnlyCodeViewer source={previewSource} />
       );
@@ -107,7 +132,9 @@ function useOnlyOfficeUrl(): string | null {
     },
     staleTime: 30_000,
   });
-  const setting = query.data?.find((item) => item.key === 'general.onlyofficeUrl');
+  const setting = query.data?.find(
+    (item) => item.key === 'general.onlyofficeUrl',
+  );
   return typeof setting?.value === 'string' && setting.value.trim()
     ? setting.value.trim()
     : null;

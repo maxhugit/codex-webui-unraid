@@ -84,7 +84,7 @@ export function useFileOperations() {
         kind: 'invalidate',
         paths: [variables.body!.path],
       });
-      showSnackbar(t('File created'), 'success');
+      showSnackbar(t('fileCreated'), 'success');
     },
   });
 
@@ -98,7 +98,7 @@ export function useFileOperations() {
         kind: 'invalidate',
         paths: [variables.body!.path],
       });
-      showSnackbar(t('Directory created'), 'success');
+      showSnackbar(t('directoryCreated'), 'success');
     },
   });
 
@@ -114,7 +114,7 @@ export function useFileOperations() {
           oldPath: res.oldPath,
           newPath: res.newPath,
         });
-      showSnackbar(t('Renamed successfully'), 'success');
+      showSnackbar(t('renamedSuccessfully'), 'success');
     },
   });
 
@@ -129,7 +129,7 @@ export function useFileOperations() {
         kind: 'invalidate',
         paths: [variables.body!.destinationPath],
       });
-      showSnackbar(t('Copied successfully'), 'success');
+      showSnackbar(t('copiedSuccessfully'), 'success');
     },
   });
 
@@ -146,7 +146,7 @@ export function useFileOperations() {
           oldPath: res.oldPath,
           newPath: res.newPath,
         });
-      showSnackbar(t('Moved successfully'), 'success');
+      showSnackbar(t('movedSuccessfully'), 'success');
     },
   });
 
@@ -158,7 +158,7 @@ export function useFileOperations() {
     onSuccess: (_res, variables) => {
       const deleted = variables.query!.path;
       emitFileChange({ source: 'local', kind: 'delete', path: deleted });
-      showSnackbar(t('Deleted successfully'), 'success');
+      showSnackbar(t('deletedSuccessfully'), 'success');
     },
   });
 
@@ -191,7 +191,7 @@ export function useFileOperations() {
             Math.min(99, Math.round((event.loaded / event.total) * 100)),
           );
         };
-        xhr.onerror = () => reject(new Error(t('Upload failed')));
+        xhr.onerror = () => reject(new Error(t('uploadFailed')));
         xhr.onload = () => {
           handleUnauthorized(xhr.status);
           let body: unknown;
@@ -203,7 +203,7 @@ export function useFileOperations() {
           if (xhr.status < 200 || xhr.status >= 300) {
             reject(
               new Error(
-                readApiError(body, `${t('Upload failed')}: ${xhr.status}`),
+                readApiError(body, `${t('uploadFailed')}: ${xhr.status}`),
               ),
             );
             return;
@@ -222,10 +222,10 @@ export function useFileOperations() {
           ...res.files.map((file) => file.path),
         ],
       });
-      showSnackbar(t('Upload complete'), 'success');
+      showSnackbar(t('uploadComplete'), 'success');
     },
     onError: (err: Error) => {
-      showSnackbar(getApiErrorMessage(err, t('Upload failed')), 'error');
+      showSnackbar(getApiErrorMessage(err, t('uploadFailed')), 'error');
     },
   });
 
@@ -250,7 +250,7 @@ export function useFileOperations() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      showSnackbar(t('Download failed'), 'error');
+      showSnackbar(t('downloadFailed'), 'error');
     }
   };
 

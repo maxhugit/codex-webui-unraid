@@ -173,7 +173,7 @@ export function DirectorySelectionTree({
             onClick={() => selectedPath && startCreate(selectedPath)}
           >
             <FolderPlus className="h-3.5 w-3.5" />
-            {t('New Folder')}
+            {t('newFolder')}
           </Button>
         </div>
       )}
@@ -182,11 +182,11 @@ export function DirectorySelectionTree({
           {rootsQuery.isLoading ? (
             <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {t('Loading...')}
+              {t('loadingb04ba49f')}
             </div>
           ) : rootsQuery.isError || roots.length === 0 ? (
             <div className="px-3 py-8 text-center text-xs text-muted-foreground">
-              {t('Cannot load directories')}
+              {t('cannotLoadDirectories')}
             </div>
           ) : (
             roots.map((root) => (
@@ -223,16 +223,15 @@ export function DirectorySelectionTree({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Delete')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('delete')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t(
-                'Are you sure you want to delete the directory "{{name}}" and all its contents?',
-                { name: deleteTarget?.name },
-              )}
+              {t('confirmDeleteDirectoryWithContents', {
+                name: deleteTarget?.name,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (!deleteTarget) return;
@@ -242,7 +241,7 @@ export function DirectorySelectionTree({
                 );
               }}
             >
-              {t('Delete')}
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -393,7 +392,7 @@ function DirectoryChildren({
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
         <Loader2 className="h-3 w-3 animate-spin" />
-        {t('Loading...')}
+        {t('loadingb04ba49f')}
       </div>
     );
   if (query.isError)
@@ -402,7 +401,7 @@ function DirectoryChildren({
         className="py-1 text-xs text-muted-foreground"
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
-        {t('Cannot load directories')}
+        {t('cannotLoadDirectories')}
       </div>
     );
   const dirs = (query.data ?? []).filter((entry) => entry.type === 'directory');
@@ -441,7 +440,7 @@ function DirectoryChildren({
           className="py-1 text-xs italic text-muted-foreground"
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
         >
-          {t('No subdirectories')}
+          {t('noSubdirectories')}
         </div>
       )}
     </>

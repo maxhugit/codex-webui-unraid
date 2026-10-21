@@ -146,8 +146,8 @@ export function ThreadRow({
           ref={dragHandleRef}
           type="button"
           className="touch-none cursor-grab rounded p-0.5 text-muted-foreground/50 hover:bg-accent/50 hover:text-foreground active:cursor-grabbing"
-          aria-label={t('Move conversation')}
-          title={t('Move conversation')}
+          aria-label={t('moveConversation')}
+          title={t('moveConversation')}
         >
           <GripVertical className="h-3.5 w-3.5" />
         </button>
@@ -166,7 +166,7 @@ export function ThreadRow({
       >
         {statusIcon}
         <span className="truncate">
-          {threadLabel(thread, t('New work agent'))}
+          {threadLabel(thread, t('newWorkAgent'))}
         </span>
         {pendingApprovalCount > 1 && (
           <span className="ml-auto rounded-full bg-yellow-500/15 px-1.5 py-0.5 text-[10px] font-medium leading-none text-yellow-600 dark:text-yellow-400">
@@ -206,7 +206,7 @@ export function ThreadRow({
             onClick={onRename}
           >
             <Pencil className="h-3.5 w-3.5" />
-            {t('Rename')}
+            {t('rename')}
           </Button>
           {archived ? (
             <Button
@@ -220,7 +220,7 @@ export function ThreadRow({
               ) : (
                 <ArchiveRestore className="h-3.5 w-3.5" />
               )}
-              {t('Unarchive')}
+              {t('unarchive')}
             </Button>
           ) : (
             <Button
@@ -230,7 +230,7 @@ export function ThreadRow({
               onClick={onArchive}
             >
               <Archive className="h-3.5 w-3.5" />
-              {t('Archive')}
+              {t('archive')}
             </Button>
           )}
           {!archived && (
@@ -242,15 +242,13 @@ export function ThreadRow({
               }
               title={
                 hasBranchDescendants
-                  ? t(
-                      'This conversation has message versions branching from it.',
-                    )
+                  ? t('thisConversationHasMessageVersionsBranchingFromIt')
                   : undefined
               }
               onClick={onCompact}
             >
               <Minimize2 className="h-3.5 w-3.5" />
-              {t('Compact')}
+              {t('compact')}
             </Button>
           )}
           <Button
@@ -264,7 +262,7 @@ export function ThreadRow({
             ) : (
               <GitFork className="h-3.5 w-3.5" />
             )}
-            {t('Fork')}
+            {t('fork')}
           </Button>
           {hasBranchDescendants && onShowBranchGraph && (
             <Button
@@ -273,7 +271,7 @@ export function ThreadRow({
               onClick={onShowBranchGraph}
             >
               <Network className="h-3.5 w-3.5" />
-              {t('Branch graph')}
+              {t('branchGraph')}
             </Button>
           )}
           <Button
@@ -284,7 +282,7 @@ export function ThreadRow({
             onClick={onDelete}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            {t('Delete')}
+            {t('delete')}
           </Button>
         </PopoverContent>
       </Popover>

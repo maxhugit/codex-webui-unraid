@@ -12,7 +12,7 @@ import { ProjectKnowledgePanel } from './project-knowledge-panel';
 const api = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/projects-api', () => ({ projectsApi: api }));
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: globalThis.__testTranslate }),
 }));
 const original = {
   files: {

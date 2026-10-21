@@ -95,13 +95,13 @@ export function FileContextMenu({
             {actions.onNewFile && (
               <ContextMenuItem onSelect={() => select(actions.onNewFile)}>
                 <FilePlus className="h-3.5 w-3.5" />
-                {t('New File')}
+                {t('newFile')}
               </ContextMenuItem>
             )}
             {actions.onNewFolder && (
               <ContextMenuItem onSelect={() => select(actions.onNewFolder)}>
                 <FolderPlus className="h-3.5 w-3.5" />
-                {t('New Folder')}
+                {t('newFolder')}
               </ContextMenuItem>
             )}
             <ContextMenuSeparator />
@@ -110,25 +110,25 @@ export function FileContextMenu({
         {actions.onRename && (
           <ContextMenuItem onSelect={() => select(actions.onRename)}>
             <Pencil className="h-3.5 w-3.5" />
-            {t('Rename')}
+            {t('rename')}
           </ContextMenuItem>
         )}
         {actions.onCopy && (
           <ContextMenuItem onSelect={() => select(actions.onCopy)}>
             <Copy className="h-3.5 w-3.5" />
-            {t('Copy to...')}
+            {t('copyTo')}
           </ContextMenuItem>
         )}
         {actions.onMove && (
           <ContextMenuItem onSelect={() => select(actions.onMove)}>
             <Move className="h-3.5 w-3.5" />
-            {t('Move to...')}
+            {t('moveTo')}
           </ContextMenuItem>
         )}
         {!isDir && actions.onDownload && (
           <ContextMenuItem onSelect={() => select(actions.onDownload)}>
             <Download className="h-3.5 w-3.5" />
-            {t('Download')}
+            {t('download')}
           </ContextMenuItem>
         )}
         {isDir && (actions.onUploadFiles || actions.onUploadFolder) && (
@@ -137,13 +137,13 @@ export function FileContextMenu({
             {actions.onUploadFiles && (
               <ContextMenuItem onSelect={() => select(actions.onUploadFiles)}>
                 <Upload className="h-3.5 w-3.5" />
-                {t('Upload files here...')}
+                {t('uploadFilesHere')}
               </ContextMenuItem>
             )}
             {actions.onUploadFolder && (
               <ContextMenuItem onSelect={() => select(actions.onUploadFolder)}>
                 <FolderUp className="h-3.5 w-3.5" />
-                {t('Upload folder here...')}
+                {t('uploadFolderHere')}
               </ContextMenuItem>
             )}
           </>
@@ -153,7 +153,7 @@ export function FileContextMenu({
             <ContextMenuSeparator />
             <ContextMenuItem onSelect={() => select(actions.onAttachToChat)}>
               <MessageSquarePlus className="h-3.5 w-3.5" />
-              {t('Attach to chat')}
+              {t('attachToChat')}
             </ContextMenuItem>
           </>
         )}
@@ -162,7 +162,7 @@ export function FileContextMenu({
             <ContextMenuSeparator />
             <ContextMenuItem onSelect={() => select(actions.onRefresh)}>
               <RefreshCw className="h-3.5 w-3.5" />
-              {t('Refresh')}
+              {t('refresh')}
             </ContextMenuItem>
           </>
         )}
@@ -174,7 +174,7 @@ export function FileContextMenu({
               onSelect={() => select(actions.onDelete)}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              {t('Delete')}
+              {t('delete')}
             </ContextMenuItem>
           </>
         )}
@@ -207,32 +207,32 @@ export function FileListingContextMenu({
         {actions.onNewFile && (
           <ContextMenuItem onSelect={() => select(actions.onNewFile)}>
             <FilePlus className="h-3.5 w-3.5" />
-            {t('New File')}
+            {t('newFile')}
           </ContextMenuItem>
         )}
         {actions.onNewFolder && (
           <ContextMenuItem onSelect={() => select(actions.onNewFolder)}>
             <FolderPlus className="h-3.5 w-3.5" />
-            {t('New Folder')}
+            {t('newFolder')}
           </ContextMenuItem>
         )}
         {(actions.onNewFile || actions.onNewFolder) && <ContextMenuSeparator />}
         {actions.onUploadFiles && (
           <ContextMenuItem onSelect={() => select(actions.onUploadFiles)}>
             <Upload className="h-3.5 w-3.5" />
-            {t('Upload files here...')}
+            {t('uploadFilesHere')}
           </ContextMenuItem>
         )}
         {actions.onUploadFolder && (
           <ContextMenuItem onSelect={() => select(actions.onUploadFolder)}>
             <FolderUp className="h-3.5 w-3.5" />
-            {t('Upload folder here...')}
+            {t('uploadFolderHere')}
           </ContextMenuItem>
         )}
         {actions.onRefresh && (
           <ContextMenuItem onSelect={() => select(actions.onRefresh)}>
             <RefreshCw className="h-3.5 w-3.5" />
-            {t('Refresh')}
+            {t('refresh')}
           </ContextMenuItem>
         )}
       </ContextMenuContent>

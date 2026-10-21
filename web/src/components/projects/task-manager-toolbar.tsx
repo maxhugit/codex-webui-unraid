@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import {
   CalendarDays,
   Columns3,
@@ -40,7 +41,7 @@ export function TaskManagerToolbar({
     <div className="flex h-10 min-w-0 shrink-0 items-center border-b bg-background">
       <div
         role="tablist"
-        aria-label={t('Task manager views')}
+        aria-label={t('taskManagerViews')}
         className="flex min-w-0 flex-1 items-center overflow-x-auto"
         onKeyDown={(event) => {
           if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
@@ -75,8 +76,8 @@ export function TaskManagerToolbar({
             role="tab"
             aria-selected={view === id}
             aria-controls={panelId}
-            aria-label={t(label)}
-            title={t(label)}
+            aria-label={t(translationKey(label))}
+            title={t(translationKey(label))}
             tabIndex={view === id ? 0 : -1}
             onClick={() => onViewChange(id)}
             className={cn(
@@ -87,7 +88,7 @@ export function TaskManagerToolbar({
             )}
           >
             <Icon aria-hidden="true" className="h-4 w-4" />
-            <span className="hidden sm:inline">{t(label)}</span>
+            <span className="hidden sm:inline">{t(translationKey(label))}</span>
           </button>
         ))}
       </div>
@@ -98,11 +99,11 @@ export function TaskManagerToolbar({
           size="sm"
           className="h-8 cursor-pointer"
           onClick={onPlan}
-          aria-label={t('Plan with AI')}
-          title={t('Plan with AI')}
+          aria-label={t('planWithAi')}
+          title={t('planWithAi')}
         >
           <Sparkles />
-          <span className="hidden lg:inline">{t('Plan with AI')}</span>
+          <span className="hidden lg:inline">{t('planWithAi')}</span>
         </Button>
         <Button
           type="button"
@@ -110,11 +111,11 @@ export function TaskManagerToolbar({
           size="sm"
           className="h-8 cursor-pointer"
           onClick={onNewTask}
-          aria-label={t('New task')}
-          title={t('New task')}
+          aria-label={t('newTask')}
+          title={t('newTask')}
         >
           <Plus />
-          <span className="hidden sm:inline">{t('New task')}</span>
+          <span className="hidden sm:inline">{t('newTask')}</span>
         </Button>
         <Button
           type="button"
@@ -122,8 +123,8 @@ export function TaskManagerToolbar({
           size="icon"
           className="h-8 w-8 cursor-pointer"
           onClick={onSettings}
-          aria-label={t('Task board settings')}
-          title={t('Task board settings')}
+          aria-label={t('taskBoardSettings')}
+          title={t('taskBoardSettings')}
         >
           <Settings />
         </Button>

@@ -1,6 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
 const webRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -20,6 +21,9 @@ const localeNames = (await readdir(localesRoot, { withFileTypes: true }))
   .sort();
 
 const failures = [];
+const semanticSegment = /^[a-z][A-Za-z0-9]*$/;
+const isSemanticKey = (key) =>
+  key.split('.').every((part) => semanticSegment.test(part));
 if (!localeNames.includes(sourceLocale))
   failures.push(`Missing source locale: ${sourceLocale}`);
 if (JSON.stringify(localeNames) !== JSON.stringify(declaredLocales))
@@ -119,16 +123,134 @@ for (const locale of localeNames) {
       }
     }
 
-    if (namespace !== 'legacy') {
-      for (const key of sourceKeys) {
-        if (!key.split('.').every((part) => /^[a-z][A-Za-z0-9]*$/.test(part))) {
-          failures.push(
-            `${sourceLocale}/${namespace}:${key}: semantic keys must use lower camel case segments`,
-          );
-        }
+    for (const key of sourceKeys) {
+      const segments = key.split('.');
+      const leaf = segments.pop();
+      const semanticLeaf = leaf?.replace(
+        /_(?:zero|one|two|few|many|other)$/,
+        '',
+      );
+      if (
+        !segments.every((part) => semanticSegment.test(part)) ||
+        !semanticLeaf ||
+        !semanticSegment.test(semanticLeaf)
+      ) {
+        failures.push(
+          `${sourceLocale}/${namespace}:${key}: semantic keys must use lower camel case segments`,
+        );
       }
     }
   }
+}
+
+const sourceKeyMap = JSON.parse(
+  await readFile(path.join(localesRoot, 'source-key-map.json'), 'utf8'),
+);
+const commonKeys = await readCatalog(sourceLocale, 'common');
+const declaredKeys = new Set();
+for (const namespace of sourceNamespaces) {
+  for (const key of (await readCatalog(sourceLocale, namespace)).keys()) {
+    declaredKeys.add(key);
+  }
+}
+for (const [source, key] of Object.entries(sourceKeyMap)) {
+  if (!source.trim())
+    failures.push('Runtime source-key map contains an empty source');
+  if (!isSemanticKey(key.replace(/_(?:zero|one|two|few|many|other)$/, ''))) {
+    failures.push(`Runtime source-key map has a non-semantic target: ${key}`);
+  }
+  if (!commonKeys.has(key)) {
+    failures.push(
+      `Runtime source-key map targets a missing common key: ${key}`,
+    );
+  }
+}
+
+const sourceFiles = [];
+const collectSourceFiles = async (directory) => {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) await collectSourceFiles(fullPath);
+    else if (
+      /\.(?:ts|tsx)$/.test(entry.name) &&
+      !entry.name.endsWith('.d.ts')
+    ) {
+      sourceFiles.push(fullPath);
+    }
+  }
+};
+await collectSourceFiles(path.join(webRoot, 'src'));
+
+const translationCall = (node) =>
+  ts.isCallExpression(node) &&
+  node.arguments.length > 0 &&
+  ((ts.isIdentifier(node.expression) && node.expression.text === 't') ||
+    (ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 't'));
+
+for (const filename of sourceFiles) {
+  const source = await readFile(filename, 'utf8');
+  const sourceFile = ts.createSourceFile(
+    filename,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    filename.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const visit = (node) => {
+    if (translationCall(node)) {
+      const argument = node.arguments[0];
+      const wrapped =
+        ts.isCallExpression(argument) &&
+        ts.isIdentifier(argument.expression) &&
+        argument.expression.text === 'translationKey';
+      let hasNonSemanticLiteral = false;
+      let hasLiteral = false;
+      const inspect = (child) => {
+        if (ts.isStringLiteralLike(child)) {
+          hasLiteral = true;
+          if (!isSemanticKey(child.text)) hasNonSemanticLiteral = true;
+          else if (
+            !declaredKeys.has(child.text) &&
+            !declaredKeys.has(`${child.text}_one`) &&
+            !declaredKeys.has(`${child.text}_other`)
+          ) {
+            const line = sourceFile.getLineAndCharacterOfPosition(
+              child.getStart(sourceFile),
+            ).line + 1;
+            failures.push(
+              `${path.relative(webRoot, filename)}:${line}: missing source translation key: ${child.text}`,
+            );
+          }
+          return;
+        }
+        if (ts.isParenthesizedExpression(child)) inspect(child.expression);
+        else if (ts.isConditionalExpression(child)) {
+          inspect(child.whenTrue);
+          inspect(child.whenFalse);
+        } else if (
+          ts.isBinaryExpression(child) &&
+          (child.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken ||
+            child.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+        ) {
+          inspect(child.left);
+          inspect(child.right);
+        }
+      };
+      if (!wrapped) inspect(argument);
+      if (!wrapped && (!hasLiteral || hasNonSemanticLiteral)) {
+        const line =
+          sourceFile.getLineAndCharacterOfPosition(
+            argument.getStart(sourceFile),
+          ).line + 1;
+        failures.push(
+          `${path.relative(webRoot, filename)}:${line}: translations must receive a semantic key or use translationKey for runtime source text`,
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
 }
 
 const migratedAuthenticationFiles = [

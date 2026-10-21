@@ -73,7 +73,10 @@ function HoverPopover({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         asChild
-        onMouseEnter={() => { cancelClose(); setOpen(true); }}
+        onMouseEnter={() => {
+          cancelClose();
+          setOpen(true);
+        }}
         onMouseLeave={scheduleClose}
       >
         {children}
@@ -114,7 +117,10 @@ export function TokenUsageRing() {
 
   return (
     <HoverPopover detail={<TokenBreakdown usage={usage} t={t} />}>
-      <div className="relative flex cursor-default items-center justify-center" style={{ width: SIZE, height: SIZE }}>
+      <div
+        className="relative flex cursor-default items-center justify-center"
+        style={{ width: SIZE, height: SIZE }}
+      >
         <svg width={SIZE} height={SIZE} className="-rotate-90">
           {/* Background track */}
           <circle
@@ -160,18 +166,20 @@ function TokenBreakdown({
   const hasWindow = modelContextWindow != null && modelContextWindow > 0;
   return (
     <div className="space-y-1 text-xs">
-      <div className="font-medium">{t('Context Usage')}</div>
+      <div className="font-medium">{t('contextUsage')}</div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 tabular-nums">
-        <span className="text-muted-foreground">{t('Context')}</span>
+        <span className="text-muted-foreground">{t('context')}</span>
         <span>{formatTokens(last.inputTokens)}</span>
         {hasWindow && (
           <>
-            <span className="text-muted-foreground">{t('Window')}</span>
+            <span className="text-muted-foreground">{t('window')}</span>
             <span>{formatTokens(modelContextWindow)}</span>
           </>
         )}
-        <span className="mt-1 text-muted-foreground">{t('Thread Total')}</span>
-        <span className="mt-1 font-medium">{formatTokens(total.totalTokens)}</span>
+        <span className="mt-1 text-muted-foreground">{t('threadTotal')}</span>
+        <span className="mt-1 font-medium">
+          {formatTokens(total.totalTokens)}
+        </span>
       </div>
       {/*
         The window is whatever app-server reports, and it routinely differs from
@@ -184,7 +192,7 @@ function TokenBreakdown({
       {hasWindow && (
         <p className="max-w-[15rem] pt-1 text-[10px] leading-snug text-muted-foreground">
           {t(
-            'Effective window reported by Codex. It can be smaller than model_context_window in config.toml, which is capped by the model.',
+            'effectiveWindowReportedByCodexItCanBeSmallerThanModelContextWindowInConfigTomlWc14c05a8',
           )}
         </p>
       )}

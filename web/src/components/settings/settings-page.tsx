@@ -105,7 +105,7 @@ export function SettingsPage() {
         <Suspense
           fallback={
             <div className="p-6 text-sm text-muted-foreground" role="status">
-              {t('Loading…')}
+              {t('loading')}
             </div>
           }
         >
@@ -133,10 +133,10 @@ export function SettingsPage() {
                   >
                     {t(
                       item === 'plugins'
-                        ? 'Plugins'
+                        ? 'plugins'
                         : item === 'apps'
-                          ? 'Apps'
-                          : 'MCP Servers',
+                          ? 'apps'
+                          : 'mcpServers',
                     )}
                   </Button>
                 ))}

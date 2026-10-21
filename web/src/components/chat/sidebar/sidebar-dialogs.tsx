@@ -43,9 +43,9 @@ export function RenameDialog({
     <AlertDialog open={open} onOpenChange={(o) => !o && !pending && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{title ?? t('Rename thread')}</AlertDialogTitle>
+          <AlertDialogTitle>{title ?? t('renameThread')}</AlertDialogTitle>
           <AlertDialogDescription>
-            {description ?? t('Enter a non-empty thread name.')}
+            {description ?? t('enterANonEmptyThreadName')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <Input
@@ -59,7 +59,7 @@ export function RenameDialog({
         />
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>
-            {t('Cancel')}
+            {t('cancel')}
           </AlertDialogCancel>
           <AlertDialogAction
             disabled={!value.trim() || pending}
@@ -68,7 +68,7 @@ export function RenameDialog({
             {pending ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : null}
-            {saveLabel ?? t('Save')}
+            {saveLabel ?? t('save')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -100,26 +100,24 @@ export function ConfirmDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>
             {action?.type === 'compact'
-              ? t('Compact this thread?')
-              : t('Archive this thread?')}
+              ? t('compactThisThread')
+              : t('archiveThisThread')}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {action?.type === 'compact'
-              ? t(
-                  'Compaction permanently compresses context and cannot be undone.',
-                )
-              : t('Archived threads move to the read-only archive group.')}
+              ? t('compactionPermanentlyCompressesContextAndCannotBeUndone')
+              : t('archivedThreadsMoveToTheReadOnlyArchiveGroup')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>
-            {t('Cancel')}
+            {t('cancel')}
           </AlertDialogCancel>
           <AlertDialogAction disabled={pending} onClick={onConfirm}>
             {pending ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : null}
-            {action?.type === 'compact' ? t('Compact') : t('Archive')}
+            {action?.type === 'compact' ? t('compact') : t('archive')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

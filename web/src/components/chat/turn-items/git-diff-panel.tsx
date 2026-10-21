@@ -64,7 +64,11 @@ function parseFileNames(diff: string, fallback: string) {
     if (oldFileName && newFileName) break;
   }
   const display = newFileName ?? oldFileName ?? fallback;
-  return { oldFileName: oldFileName ?? display, newFileName: newFileName ?? display, display };
+  return {
+    oldFileName: oldFileName ?? display,
+    newFileName: newFileName ?? display,
+    display,
+  };
 }
 
 /** Returns true when a diff has @@ hunks that DiffView can render. */
@@ -76,15 +80,23 @@ function hasRenderableHunks(diff: string): boolean {
 // ── Raw fallback renderer ────────────────────────────────────────────
 
 function rawLineClassName(line: string): string {
-  if (line.startsWith('+') && !line.startsWith('+++')) return 'bg-green-500/10 text-green-400';
-  if (line.startsWith('-') && !line.startsWith('---')) return 'bg-red-500/10 text-red-400';
+  if (line.startsWith('+') && !line.startsWith('+++'))
+    return 'bg-green-500/10 text-green-400';
+  if (line.startsWith('-') && !line.startsWith('---'))
+    return 'bg-red-500/10 text-red-400';
   if (line.startsWith('@@')) return 'text-blue-400';
   if (line.startsWith('diff --git')) return 'font-semibold text-foreground';
   return 'text-muted-foreground';
 }
 
 /** Lightweight fallback for streaming, invalid, empty, or unsupported diffs. */
-function RawDiffBlock({ diff, maxHeightClassName }: { diff: string; maxHeightClassName?: string }) {
+function RawDiffBlock({
+  diff,
+  maxHeightClassName,
+}: {
+  diff: string;
+  maxHeightClassName?: string;
+}) {
   const lines = diff ? diff.split('\n') : [''];
   return (
     <pre
@@ -95,7 +107,9 @@ function RawDiffBlock({ diff, maxHeightClassName }: { diff: string; maxHeightCla
       )}
     >
       {lines.map((line, i) => (
-        <div key={i} className={rawLineClassName(line)}>{line}</div>
+        <div key={i} className={rawLineClassName(line)}>
+          {line}
+        </div>
       ))}
     </pre>
   );
@@ -103,19 +117,29 @@ function RawDiffBlock({ diff, maxHeightClassName }: { diff: string; maxHeightCla
 
 // ── Error boundary ───────────────────────────────────────────────────
 
-interface BoundaryProps { resetKey: string; fallback: ReactNode; children: ReactNode }
-interface BoundaryState { hasError: boolean }
+interface BoundaryProps {
+  resetKey: string;
+  fallback: ReactNode;
+  children: ReactNode;
+}
+interface BoundaryState {
+  hasError: boolean;
+}
 
 /** Catches DiffView parse/render failures and falls back to raw diff text. */
 class DiffRenderBoundary extends Component<BoundaryProps, BoundaryState> {
   state: BoundaryState = { hasError: false };
-  static getDerivedStateFromError(): BoundaryState { return { hasError: true }; }
+  static getDerivedStateFromError(): BoundaryState {
+    return { hasError: true };
+  }
   componentDidUpdate(prev: BoundaryProps) {
     if (prev.resetKey !== this.props.resetKey && this.state.hasError) {
       this.setState({ hasError: false });
     }
   }
-  render() { return this.state.hasError ? this.props.fallback : this.props.children; }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
 }
 
 // ── Main component ───────────────────────────────────────────────────
@@ -131,29 +155,48 @@ export function GitDiffPanel({
   const { t } = useTranslation();
   const dark = useThemeStore((s) => s.dark);
   const [mode, setMode] = useState(DiffModeEnum.Unified);
-  const [highlighter, setHighlighter] = useState<DiffViewHighlighter | null>(null);
+  const [highlighter, setHighlighter] = useState<DiffViewHighlighter | null>(
+    null,
+  );
 
-  const fallbackName = filePath ?? t('Diff');
-  const fileNames = useMemo(() => parseFileNames(diff, fallbackName), [diff, fallbackName]);
+  const fallbackName = filePath ?? t('diff');
+  const fileNames = useMemo(
+    () => parseFileNames(diff, fallbackName),
+    [diff, fallbackName],
+  );
   const canRender = hasRenderableHunks(diff);
-  const fullDiff = useMemo(() => ensureDiffHeaders(diff, filePath), [diff, filePath]);
-  const diffData = useMemo(() => ({
-    oldFile: { fileName: fileNames.oldFileName },
-    newFile: { fileName: fileNames.newFileName },
-    hunks: [fullDiff],
-  }), [fullDiff, fileNames.oldFileName, fileNames.newFileName]);
+  const fullDiff = useMemo(
+    () => ensureDiffHeaders(diff, filePath),
+    [diff, filePath],
+  );
+  const diffData = useMemo(
+    () => ({
+      oldFile: { fileName: fileNames.oldFileName },
+      newFile: { fileName: fileNames.newFileName },
+      hunks: [fullDiff],
+    }),
+    [fullDiff, fileNames.oldFileName, fileNames.newFileName],
+  );
   const theme = dark ? 'dark' : 'light';
 
   useEffect(() => {
     if (!canRender) return;
     let cancelled = false;
     void loadHighlighter()
-      .then((h) => { if (!cancelled) setHighlighter(h); })
-      .catch(() => { if (!cancelled) setHighlighter(null); });
-    return () => { cancelled = true; };
+      .then((h) => {
+        if (!cancelled) setHighlighter(h);
+      })
+      .catch(() => {
+        if (!cancelled) setHighlighter(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [canRender]);
 
-  const fallback = <RawDiffBlock diff={diff} maxHeightClassName={maxHeightClassName} />;
+  const fallback = (
+    <RawDiffBlock diff={diff} maxHeightClassName={maxHeightClassName} />
+  );
 
   return (
     <div className={cn('border-t border-border', className)}>
@@ -173,7 +216,7 @@ export function GitDiffPanel({
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              {t('Unified')}
+              {t('unified')}
             </button>
             <button
               type="button"
@@ -185,14 +228,17 @@ export function GitDiffPanel({
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              {t('Split')}
+              {t('split')}
             </button>
           </div>
         </div>
       )}
 
       {canRender ? (
-        <DiffRenderBoundary resetKey={`${mode}:${theme}:${fullDiff}`} fallback={fallback}>
+        <DiffRenderBoundary
+          resetKey={`${mode}:${theme}:${fullDiff}`}
+          fallback={fallback}
+        >
           <div
             className={cn(
               'overflow-auto text-xs',
@@ -211,7 +257,9 @@ export function GitDiffPanel({
             />
           </div>
         </DiffRenderBoundary>
-      ) : fallback}
+      ) : (
+        fallback
+      )}
     </div>
   );
 }

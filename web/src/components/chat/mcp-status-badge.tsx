@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** MCP aggregate status badge with server detail popover and reload action. */
 import {
   AlertCircle,
@@ -71,7 +72,7 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
   const reloadMutation = useMutation({
     mutationFn: () => mcpServersReloadAll({ throwOnError: true }),
     onSuccess: () => {
-      showSnackbar(t('MCP servers reloading'), 'success');
+      showSnackbar(t('mcpServersReloading'), 'success');
       void queryClient.invalidateQueries({
         queryKey: mcpServersListServersQueryKey(),
       });
@@ -108,9 +109,7 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
         ) : (
           <Loader2 className="h-3 w-3 animate-spin" />
         )}
-        {failed > 0
-          ? t('MCP {{count}} failed', { count: failed })
-          : t('MCP starting')}
+        {failed > 0 ? t('mcpCountFailed', { count: failed }) : t('mcpStarting')}
       </Badge>
     );
   }
@@ -124,15 +123,13 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
         disabled
       >
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        {t('MCP')}
+        {t('mcp')}
       </Button>
     );
   }
 
   const label =
-    total > 0
-      ? t('{{ready}}/{{total}} ready', { ready, total })
-      : t('MCP unavailable');
+    total > 0 ? t('readyTotalReady', { ready, total }) : t('mcpUnavailable');
   const risky = failed > 0;
   const busy = starting > 0;
 
@@ -146,7 +143,7 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
             'h-7 gap-1 rounded-lg px-2 text-xs',
             risky && 'text-destructive',
           )}
-          title={t('MCP servers')}
+          title={t('mcpServers8d9a304f')}
         >
           {risky ? (
             <AlertCircle className="h-3.5 w-3.5" />
@@ -166,7 +163,7 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-xs font-medium text-muted-foreground">
-              {t('MCP Servers')}
+              {t('mcpServers')}
             </div>
             <div className="text-xs text-muted-foreground">{label}</div>
           </div>
@@ -182,13 +179,13 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
             ) : (
               <RefreshCw className="h-3.5 w-3.5" />
             )}
-            {t('Reload All')}
+            {t('reloadAll')}
           </Button>
         </div>
 
         {serversQuery.isError && (
           <p className="rounded-md bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-            {t('Failed to load MCP servers')}
+            {t('failedToLoadMcpServers')}
           </p>
         )}
 
@@ -198,7 +195,7 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
           ))}
           {rows.length === 0 && (
             <p className="px-2 py-1.5 text-xs text-muted-foreground">
-              {t('No MCP servers reported')}
+              {t('noMcpServersReported')}
             </p>
           )}
         </div>
@@ -231,18 +228,18 @@ function ServerRow({ row }: { row: McpRow }) {
           {row.name}
         </span>
         <Badge variant={row.status === 'failed' ? 'destructive' : 'secondary'}>
-          {t(row.status)}
+          {t(translationKey(row.status))}
         </Badge>
       </div>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-5 text-[11px] text-muted-foreground">
         {row.authStatus && (
           <span>
-            {t('auth')}: {t(row.authStatus)}
+            {t('auth')}: {t(translationKey(row.authStatus))}
           </span>
         )}
         {row.toolCount !== undefined && (
           <span>
-            {t('tools')}: {row.toolCount}
+            {t('tools0284c6ac')}: {row.toolCount}
           </span>
         )}
       </div>

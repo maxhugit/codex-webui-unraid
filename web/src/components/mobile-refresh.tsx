@@ -107,10 +107,10 @@ export function MobileRefresh() {
     >
       {t(
         blocked
-          ? 'Refresh blocked: edits or session to preserve'
+          ? 'refreshBlockedEditsOrSessionToPreserve'
           : distance >= 80
-            ? 'Release to refresh'
-            : 'Pull to refresh',
+            ? 'releaseToRefresh'
+            : 'pullToRefresh',
       )}
     </div>
   );

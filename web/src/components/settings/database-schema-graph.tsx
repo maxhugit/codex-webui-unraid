@@ -273,7 +273,7 @@ function DatabaseTableNode({ data }: NodeProps<Node<TableNodeData>>) {
           {object.name}
         </div>
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-          {t(object.type === 'table' ? 'Table' : 'View')}
+          {t(object.type === 'table' ? 'table' : 'view')}
         </div>
       </div>
       <div>
@@ -293,12 +293,12 @@ function DatabaseTableNode({ data }: NodeProps<Node<TableNodeData>>) {
               />
               {isPrimary ? (
                 <KeyRound
-                  aria-label={t('Primary key')}
+                  aria-label={t('primaryKey')}
                   className="h-3 w-3 shrink-0 text-amber-500"
                 />
               ) : isForeign ? (
                 <Link2
-                  aria-label={t('Foreign key')}
+                  aria-label={t('foreignKey')}
                   className="h-3 w-3 shrink-0 text-sky-500"
                 />
               ) : (
@@ -434,32 +434,30 @@ export function DatabaseSchemaGraph({
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <p>
-          {t(
-            'Interactive map of tables, columns and declared foreign-key relationships.',
-          )}
+          {t('interactiveMapOfTablesColumnsAndDeclaredForeignKeyRelationships')}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {selectedTable && (
             <span
               className="flex items-center gap-3"
-              aria-label={t('Relationship legend')}
+              aria-label={t('relationshipLegend')}
             >
               <span className="inline-flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-amber-500" />
-                {t('Parent tables')}
+                {t('parentTables')}
               </span>
               <span className="inline-flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-sky-500" />
-                {t('Child tables')}
+                {t('childTables')}
               </span>
             </span>
           )}
-          <span>{t('{{count}} relation', { count: edges.length })}</span>
+          <span>{t('countRelation', { count: edges.length })}</span>
         </div>
       </div>
       <div
         role="img"
-        aria-label={t('Database relationship map')}
+        aria-label={t('databaseRelationshipMap')}
         className="min-h-[420px] w-full flex-1 overflow-hidden rounded-xl border bg-muted/20"
       >
         <ReactFlow
@@ -505,7 +503,7 @@ export function DatabaseSchemaGraph({
       </div>
       {edges.length === 0 && (
         <p className="shrink-0 text-xs text-muted-foreground">
-          {t('No declared foreign-key relationship was found.')}
+          {t('noDeclaredForeignKeyRelationshipWasFound')}
         </p>
       )}
     </div>

@@ -1,10 +1,10 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * Localization for English text that originates in an upstream service.
  *
  * Upstream APIs such as the app-server catalog and the official Codex release
- * feed return English source copy. This app keys translations by that source
- * string, so a lookup covers whatever we have translated and leaves everything
- * else unchanged.
+ * feed return English source copy. The source map resolves that copy to a
+ * stable semantic key; unknown upstream text remains unchanged.
  */
 import i18n from '@/i18n';
 
@@ -20,7 +20,10 @@ import i18n from '@/i18n';
  * @returns The localized string when one exists, otherwise `value` untouched.
  */
 export function localizedSourceCopy(value: string): string {
-  return i18n.exists(value) ? i18n.t(value) : value;
+  const key = translationKey(value);
+  return key !== value && i18n.exists(key)
+    ? i18n.t(translationKey(value))
+    : value;
 }
 
 /** Backward-compatible, domain-specific name used by the model catalog UI. */

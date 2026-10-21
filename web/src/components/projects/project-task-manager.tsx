@@ -2194,16 +2194,16 @@ export function ProjectTaskManager({
           )}
           <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-6 py-3">
             <label className="grid gap-1 text-xs text-muted-foreground">
-              {t('Task title')}
+              {t('taskTitle')}
               <Input
                 autoFocus
-                placeholder={t('Task title')}
+                placeholder={t('taskTitle')}
                 value={draft.title}
                 onChange={(e) => setDraft({ ...draft, title: e.target.value })}
               />
             </label>
             <label className="grid gap-1 text-xs text-muted-foreground">
-              {t('Responsible person')}
+              {t('responsiblePerson')}
               <select
                 className="h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground"
                 value={draft.assigneeId}
@@ -2217,7 +2217,7 @@ export function ProjectTaskManager({
                   setDraft({ ...draft, assigneeId: e.target.value })
                 }
               >
-                <option value="">{t('Unassigned person')}</option>
+                <option value="">{t('unassignedPerson')}</option>
                 {(people.data?.people ?? [])
                   .filter(
                     (person) =>
@@ -2237,7 +2237,7 @@ export function ProjectTaskManager({
                       <option key={person.id} value={person.id}>
                         {personLabel(person)}
                         {!eligible
-                          ? ` · ${t('Inactive or outside this project')}`
+                          ? ` · ${t('inactiveOrOutsideThisProject')}`
                           : ''}
                       </option>
                     );
@@ -2246,22 +2246,20 @@ export function ProjectTaskManager({
               {draft.assigneeId &&
                 !people.data?.people.some(
                   (person) => person.id === draft.assigneeId,
-                ) && <span>{t('Loading responsible person…')}</span>}
+                ) && <span>{t('loadingResponsiblePerson')}</span>}
               {(people.isError || participants.isError) && (
                 <span role="alert" className="text-destructive">
-                  {t('Unable to load people.')}
+                  {t('unableToLoadPeople')}
                 </span>
               )}
               <span>
-                {t(
-                  'Add eligible people using the project’s Manage participants menu.',
-                )}
+                {t('addEligiblePeopleUsingTheProjectSManageParticipantsMenu')}
               </span>
             </label>
             <label className="grid gap-1 text-xs text-muted-foreground">
-              {t('Description')}
+              {t('description')}
               <DictatedTextarea
-                placeholder={t('Detailed description')}
+                placeholder={t('detailedDescription')}
                 value={draft.description}
                 onChange={(description) => setDraft({ ...draft, description })}
               />
@@ -2269,7 +2267,7 @@ export function ProjectTaskManager({
             <div className="grid grid-cols-2 gap-2">
               {draft.parentTaskId ? (
                 <label className="grid gap-1 text-xs text-muted-foreground">
-                  {t('Execution mode')}
+                  {t('executionMode')}
                   <select
                     className="h-8 rounded-lg border bg-background px-2 text-sm text-foreground"
                     value={draft.executionMode}
@@ -2280,15 +2278,15 @@ export function ProjectTaskManager({
                       })
                     }
                   >
-                    <option value="manual">{t('Manual subtask')}</option>
-                    <option value="agent">{t('AI agent')}</option>
+                    <option value="manual">{t('manualSubtask')}</option>
+                    <option value="agent">{t('aiAgent')}</option>
                   </select>
                 </label>
               ) : (
                 <label className="grid gap-1 text-xs text-muted-foreground">
-                  {t('Execution mode')}
+                  {t('executionMode')}
                   <div className="flex h-8 items-center rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground">
-                    {t('Manual main task')}
+                    {t('manualMainTask')}
                   </div>
                 </label>
               )}
@@ -2296,8 +2294,8 @@ export function ProjectTaskManager({
                 {editing &&
                 !editing.parentTaskId &&
                 childrenFor(editing.id).length > 0
-                  ? t('Calculated workload (sum of subtasks)')
-                  : t('Estimated workload (hours)')}
+                  ? t('calculatedWorkloadSumOfSubtasks')
+                  : t('estimatedWorkloadHours')}
                 <Input
                   type="number"
                   min="0"
@@ -2319,8 +2317,8 @@ export function ProjectTaskManager({
               {editing &&
               !editing.parentTaskId &&
               childrenFor(editing.id).length > 0
-                ? t('Progress calculated from subtasks')
-                : t('Progress')}
+                ? t('progressCalculatedFromSubtasks')
+                : t('progress')}
               <div className="flex items-center gap-3">
                 <input
                   type="range"
@@ -2359,7 +2357,7 @@ export function ProjectTaskManager({
             </label>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-xs text-muted-foreground">
-                {t('Start date')}
+                {t('startDate')}
                 <Input
                   type="date"
                   min={dateValue(dateParent?.startAt ?? null) || undefined}
@@ -2371,7 +2369,7 @@ export function ProjectTaskManager({
                 />
               </label>
               <label className="text-xs text-muted-foreground">
-                {t('Planned end')}
+                {t('plannedEnd')}
                 <Input
                   type="date"
                   min={dateValue(dateParent?.startAt ?? null) || undefined}
@@ -2384,9 +2382,9 @@ export function ProjectTaskManager({
               </label>
             </div>
             <label className="grid gap-1 text-xs text-muted-foreground">
-              {t('Acceptance criteria')}
+              {t('acceptanceCriteria')}
               <DictatedTextarea
-                placeholder={t('Acceptance criteria')}
+                placeholder={t('acceptanceCriteria')}
                 value={draft.validationCriteria}
                 onChange={(validationCriteria) =>
                   setDraft({ ...draft, validationCriteria })
@@ -2395,7 +2393,7 @@ export function ProjectTaskManager({
             </label>
             {!draft.parentTaskId && (
               <label className="grid gap-1 text-xs text-muted-foreground">
-                {t('Working folder')}
+                {t('workingFolder')}
                 <button
                   type="button"
                   className="flex h-9 items-center gap-2 rounded-lg border px-3 text-left text-sm text-foreground"
@@ -2408,7 +2406,7 @@ export function ProjectTaskManager({
                 >
                   <FolderOpen className="h-4 w-4" />
                   <span className="min-w-0 flex-1 truncate">
-                    {draft.workspacePath || t('Choose a folder')}
+                    {draft.workspacePath || t('chooseAFolder')}
                   </span>
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -2419,7 +2417,7 @@ export function ProjectTaskManager({
             >
               {!draft.parentTaskId && (
                 <label className="grid gap-1 text-xs text-muted-foreground">
-                  {t('Priority')}
+                  {t('priority')}
                   <select
                     className="h-8 rounded-lg border bg-background px-2 text-sm text-foreground"
                     value={draft.priority}
@@ -2440,7 +2438,7 @@ export function ProjectTaskManager({
               )}
               {editing && !editing.parentTaskId && (
                 <label className="grid gap-1 text-xs text-muted-foreground">
-                  {t('Status')}
+                  {t('status')}
                   <select
                     className="h-8 rounded-lg border bg-background px-2 text-sm text-foreground"
                     value={draft.statusId}
@@ -2467,7 +2465,7 @@ export function ProjectTaskManager({
               )}
               {draft.parentTaskId && (
                 <label className="grid gap-1 text-xs text-muted-foreground">
-                  {t('Subtask status')}
+                  {t('subtaskStatus')}
                   <select
                     className="h-8 rounded-lg border bg-background px-2 text-sm text-foreground"
                     value={draft.subtaskStatus}
@@ -2495,7 +2493,7 @@ export function ProjectTaskManager({
             </div>
             <fieldset className="rounded-lg border p-3">
               <legend className="px-1 text-xs text-muted-foreground">
-                {t('Labels')}
+                {t('labels')}
               </legend>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -2559,9 +2557,9 @@ export function ProjectTaskManager({
             </fieldset>
             {!draft.parentTaskId && (
               <label className="grid gap-1 text-xs text-muted-foreground">
-                {t('Linked file (optional)')}
+                {t('linkedFileOptional')}
                 <Input
-                  placeholder={t('Linked file (optional)')}
+                  placeholder={t('linkedFileOptional')}
                   value={draft.linkedFilePath}
                   onChange={(e) =>
                     setDraft({ ...draft, linkedFilePath: e.target.value })
@@ -2572,7 +2570,7 @@ export function ProjectTaskManager({
             {!draft.parentTaskId && (
               <fieldset className="rounded-lg border p-3">
                 <legend className="px-1 text-xs text-muted-foreground">
-                  {t('Depends on')}
+                  {t('dependsOn')}
                 </legend>
                 <div className="max-h-28 space-y-1 overflow-auto">
                   {board.tasks
@@ -2610,11 +2608,11 @@ export function ProjectTaskManager({
             {editing && (
               <fieldset className="rounded-lg border bg-muted/20 p-3">
                 <legend className="px-1 text-xs text-muted-foreground">
-                  {t('System information')}
+                  {t('systemInformation')}
                 </legend>
                 <dl className="grid gap-3 text-xs sm:grid-cols-2">
                   <div>
-                    <dt className="text-muted-foreground">{t('Created on')}</dt>
+                    <dt className="text-muted-foreground">{t('createdOn')}</dt>
                     <dd className="mt-1 font-medium">
                       {new Date(editing.createdAt).toLocaleString(
                         i18n.language,
@@ -2623,7 +2621,7 @@ export function ProjectTaskManager({
                   </div>
                   <div>
                     <dt className="text-muted-foreground">
-                      {t('Last modified')}
+                      {t('lastModified')}
                     </dt>
                     <dd className="mt-1 font-medium">
                       {new Date(editing.updatedAt).toLocaleString(
@@ -3592,7 +3590,7 @@ function TaskActivityJournal({
     new Map(
       board.activity.map((entry) => [
         taskActivityActorKey(entry.actorPersonId, entry.actorName),
-        entry.actorName || t('System'),
+        entry.actorName || t('system'),
       ]),
     ),
   );
@@ -3622,7 +3620,7 @@ function TaskActivityJournal({
     linkedFilePath: 'Fichier lié',
     parentTaskId: 'Tâche parente',
     position: 'Position',
-    assigneeId: t('Responsible person'),
+    assigneeId: t('responsiblePerson'),
   };
   const formatValue = (field: string, value: unknown) => {
     if (value === null || value === undefined || value === '') return '—';
@@ -3655,13 +3653,13 @@ function TaskActivityJournal({
         </div>
         {!!board.activity.length && (
           <label className="shrink-0">
-            <span className="sr-only">{t('Filter by person')}</span>
+            <span className="sr-only">{t('filterByPerson')}</span>
             <select
               value={actorFilter}
               onChange={(event) => setActorFilter(event.target.value)}
               className="h-9 min-w-48 cursor-pointer rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
-              <option value="all">{t('All people')}</option>
+              <option value="all">{t('allPeople')}</option>
               {actorOptions.map(([key, name]) => (
                 <option key={key} value={key}>
                   {name}
@@ -3677,7 +3675,7 @@ function TaskActivityJournal({
         </div>
       ) : !filteredActivity.length ? (
         <div className="p-10 text-center text-sm text-muted-foreground">
-          {t('No activity for this person.')}
+          {t('noActivityForThisPerson')}
         </div>
       ) : (
         <div className="min-h-0 flex-1 divide-y overflow-y-auto">
@@ -3691,8 +3689,8 @@ function TaskActivityJournal({
                 <time className="text-xs text-muted-foreground">
                   {new Date(entry.createdAt).toLocaleString(i18n.language)}
                   <span className="mt-1 block">
-                    {t('By {{name}}', {
-                      name: entry.actorName || t('System'),
+                    {t('byName', {
+                      name: entry.actorName || t('system'),
                     })}
                   </span>
                 </time>
@@ -3755,10 +3753,7 @@ function TaskActivityJournal({
   );
 }
 
-function taskActivityActorKey(
-  actorPersonId: string | null,
-  actorName: string,
-) {
+function taskActivityActorKey(actorPersonId: string | null, actorName: string) {
   return actorPersonId ? `person:${actorPersonId}` : `system:${actorName}`;
 }
 

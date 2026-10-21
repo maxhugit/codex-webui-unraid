@@ -13,7 +13,7 @@ import {
 } from './task-manager-toolbar';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: globalThis.__testTranslate }),
 }));
 afterEach(cleanup);
 function setup() {

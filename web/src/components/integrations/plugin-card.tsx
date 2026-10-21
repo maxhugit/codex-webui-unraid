@@ -51,14 +51,22 @@ export function PluginCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{displayName}</span>
-          {featured && <Star className="h-3 w-3 shrink-0 fill-yellow-400 text-yellow-400" />}
+          {featured && (
+            <Star className="h-3 w-3 shrink-0 fill-yellow-400 text-yellow-400" />
+          )}
           {plugin.installed && (
             <Badge variant="secondary" className="text-[10px]">
-              {plugin.installPolicy === 'INSTALLED_BY_DEFAULT' ? t('Built-in') : t('Installed')}
+              {plugin.installPolicy === 'INSTALLED_BY_DEFAULT'
+                ? t('builtIn')
+                : t('installed')}
             </Badge>
           )}
         </div>
-        {desc && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{desc}</p>}
+        {desc && (
+          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+            {desc}
+          </p>
+        )}
         {plugin.interface?.developerName && (
           <p className="mt-0.5 text-[11px] text-muted-foreground/70">
             {plugin.interface.developerName}
@@ -96,12 +104,16 @@ function PluginAction({
   if (plugin.installPolicy === 'NOT_AVAILABLE') {
     return (
       <Button size="sm" variant="ghost" disabled className="h-7 text-xs">
-        {t('Unavailable')}
+        {t('unavailable')}
       </Button>
     );
   }
   if (plugin.installPolicy === 'INSTALLED_BY_DEFAULT') {
-    return <Badge variant="outline" className="text-[10px]">{t('Built-in')}</Badge>;
+    return (
+      <Badge variant="outline" className="text-[10px]">
+        {t('builtIn')}
+      </Badge>
+    );
   }
   if (plugin.installed) {
     return (
@@ -113,14 +125,20 @@ function PluginAction({
         onClick={onUninstall}
       >
         <Trash2 className="h-3 w-3" />
-        {t('Uninstall')}
+        {t('uninstall')}
       </Button>
     );
   }
   return (
-    <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" disabled={disabled} onClick={onInstall}>
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-7 gap-1 text-xs"
+      disabled={disabled}
+      onClick={onInstall}
+    >
       <Download className="h-3 w-3" />
-      {t('Install')}
+      {t('install')}
     </Button>
   );
 }

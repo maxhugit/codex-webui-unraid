@@ -10,7 +10,9 @@ interface Props {
 
 /** Stable key for render-phase state reset when source changes. */
 function sourceKey(source: PreviewSource): string {
-  return source.kind === 'file' ? source.filePath : `${source.archivePath}:${source.entryPath}`;
+  return source.kind === 'file'
+    ? source.filePath
+    : `${source.archivePath}:${source.entryPath}`;
 }
 
 export function AudioViewer({ source }: Props) {
@@ -29,7 +31,7 @@ export function AudioViewer({ source }: Props) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
         <Music className="h-8 w-8 opacity-40" />
-        <span className="text-sm">{t('Failed to load audio')}</span>
+        <span className="text-sm">{t('failedToLoadAudio')}</span>
       </div>
     );
   }

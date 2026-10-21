@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import { useEffect } from 'react';
 import { BookOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -82,11 +83,11 @@ export function HelpRoute() {
         <header className="space-y-3">
           <BookOpen aria-hidden="true" className="h-7 w-7 text-primary" />
           <h1 className="text-2xl font-semibold tracking-tight">
-            {t('How the platform works')}
+            {t('howThePlatformWorks')}
           </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {t(
-              'Organize your projects, work with Codex agents and keep track of shared knowledge, actions and deliverables. This guide explains where to start and how the features fit together.',
+              'organizeYourProjectsWorkWithCodexAgentsAndKeepTrackOfSharedKnowledgeActionsAndDd1196aee',
             )}
           </p>
         </header>
@@ -95,27 +96,23 @@ export function HelpRoute() {
           className="rounded-xl border bg-card p-4 sm:p-6"
         >
           <h2 id="getting-started" className="text-lg font-semibold">
-            {t('Getting started')}
+            {t('gettingStarted')}
           </h2>
           <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed">
+            <li>{t('createAProjectFromTheBesideProjectsAndChooseItsName')}</li>
             <li>
               {t(
-                'Create a project from the + beside Projects and choose its name.',
+                'addSharedInstructionsAndAttachAnySecondaryWorkspacesYouNeedInTheProjectSettings',
               )}
             </li>
             <li>
               {t(
-                'Add shared instructions and attach any secondary workspaces you need in the project settings.',
+                'useTheProjectMenuToStartAConversationOrAddTheManagersYouNeed',
               )}
             </li>
             <li>
               {t(
-                'Use the project + menu to start a conversation or add the managers you need.',
-              )}
-            </li>
-            <li>
-              {t(
-                'Give the agent a clear goal, follow its work, then review the result and keep useful decisions in shared knowledge.',
+                'giveTheAgentAClearGoalFollowItsWorkThenReviewTheResultAndKeepUsefulDecisionsInScbe7d574',
               )}
             </li>
           </ol>
@@ -128,14 +125,14 @@ export function HelpRoute() {
               className="rounded-xl border bg-card p-4 sm:p-6"
             >
               <h2 id={topic.id} className="scroll-mt-4 text-lg font-semibold">
-                {t(topic.title)}
+                {t(translationKey(topic.title))}
               </h2>
               {topic.paragraphs.map((paragraph) => (
                 <p
                   key={paragraph}
                   className="mt-3 text-sm leading-relaxed text-muted-foreground"
                 >
-                  {t(paragraph)}
+                  {t(translationKey(paragraph))}
                 </p>
               ))}
             </section>

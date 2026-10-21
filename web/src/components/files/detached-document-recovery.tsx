@@ -31,9 +31,7 @@ export function DetachedDocumentRecovery() {
           role="status"
           className="flex shrink-0 items-center gap-2 overflow-x-auto border-b px-3 py-1 text-xs"
         >
-          <span className="shrink-0">
-            {t('Unsaved files no longer on disk')}
-          </span>
+          <span className="shrink-0">{t('unsavedFilesNoLongerOnDisk')}</span>
           {detached.map((document) => (
             <div key={document.id} className="flex shrink-0 items-center gap-1">
               <Button
@@ -42,7 +40,7 @@ export function DetachedDocumentRecovery() {
                 title={document.lastPath}
                 onClick={() => setRecoverId(document.id)}
               >
-                {t('Recover {{name}}', {
+                {t('recoverName', {
                   name: document.lastPath.split('/').pop(),
                 })}
               </Button>
@@ -51,7 +49,7 @@ export function DetachedDocumentRecovery() {
                 variant="ghost"
                 onClick={() => setDiscardId(document.id)}
               >
-                {t('Discard')}
+                {t('discard')}
               </Button>
             </div>
           ))}
@@ -68,20 +66,20 @@ export function DetachedDocumentRecovery() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Discard unsaved changes?')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('discardUnsavedChanges')}</AlertDialogTitle>
             <AlertDialogDescription>
               {documents[discardId ?? '']?.lastPath}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (discardId) discardDocument(discardId);
                 setDiscardId(null);
               }}
             >
-              {t('Discard')}
+              {t('discard')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import type { TFunction } from 'i18next';
 
 const authenticationErrorKeys: Record<string, string> = {
@@ -35,5 +36,5 @@ export function authenticationErrorMessage(
   fallbackKey: string,
 ): string {
   const message = error instanceof Error ? error.message : '';
-  return t(authenticationErrorKeys[message] ?? fallbackKey);
+  return t(translationKey(authenticationErrorKeys[message] ?? fallbackKey));
 }

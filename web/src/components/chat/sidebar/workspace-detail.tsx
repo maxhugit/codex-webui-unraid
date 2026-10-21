@@ -48,12 +48,12 @@ export function WorkspaceDetail({
         onClick={onBack}
       >
         <ChevronLeft className="h-3.5 w-3.5" />
-        {t('Back')}
+        {t('back')}
       </button>
       <div className="px-2 text-sm font-medium text-foreground/80">
         {sidebarView.type === 'workspaceDetail'
           ? (projectName ?? workspaceLabel(sidebarView.cwd))
-          : t('Archived projects')}
+          : t('archivedProjects')}
       </div>
       <div className="space-y-0.5">
         {isLoading ? (
@@ -71,7 +71,7 @@ export function WorkspaceDetail({
             {!archived && simpleChats.map(renderSimpleChatRow)}
             {threads.length === 0 && (archived || simpleChats.length === 0) && (
               <p className="px-2 py-8 text-center text-xs text-muted-foreground">
-                {t('No threads yet')}
+                {t('noThreadsYet')}
               </p>
             )}
           </>
@@ -84,7 +84,7 @@ export function WorkspaceDetail({
           disabled={!hasPrevious || isLoading}
           onClick={onPrevious}
         >
-          {t('Previous')}
+          {t('previous')}
         </Button>
         <Button
           size="sm"
@@ -92,7 +92,7 @@ export function WorkspaceDetail({
           disabled={!hasNext || isLoading}
           onClick={onNext}
         >
-          {t('Next')}
+          {t('next')}
         </Button>
       </div>
     </div>

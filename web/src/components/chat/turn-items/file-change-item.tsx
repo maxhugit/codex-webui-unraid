@@ -44,7 +44,7 @@ export function FileChangeItem({ item, approval }: Props) {
       : item.filePath
         ? [{ path: item.filePath, diff: item.fileDiff ?? '' }]
         : [];
-  const fileName = changes[0]?.path.split('/').pop() ?? t('File change');
+  const fileName = changes[0]?.path.split('/').pop() ?? t('fileChange');
   const { additions, deletions, hasDiff } = summarizeChangeSet(changes);
 
   const isPending = approval?.status === 'pending';
@@ -56,7 +56,6 @@ export function FileChangeItem({ item, approval }: Props) {
   const isDeclined = approval?.status === 'declined';
   const isCancelled = approval?.status === 'cancelled';
   const isResolved = approval?.status === 'resolved';
-
 
   return (
     <div
@@ -76,7 +75,7 @@ export function FileChangeItem({ item, approval }: Props) {
         <FileCode className="h-3.5 w-3.5 shrink-0 text-orange-400" />
         <span className="min-w-0 truncate font-mono text-muted-foreground">
           {changes.length > 1
-            ? t('{{count}} files', { count: changes.length })
+            ? t('countFiles', { count: changes.length })
             : (changes[0]?.path ?? fileName)}
         </span>
 
@@ -100,33 +99,35 @@ export function FileChangeItem({ item, approval }: Props) {
         {/* Approval status badges (non-pending) */}
         {approval?.status === 'accepted' && (
           <span className="ml-auto flex shrink-0 items-center gap-1 text-green-500">
-            <Check className="h-3 w-3" /> {t('Accepted')}
+            <Check className="h-3 w-3" /> {t('accepted')}
           </span>
         )}
         {approval?.status === 'acceptedForSession' && (
           <span className="ml-auto flex shrink-0 items-center gap-1 text-green-500">
-            <CheckCheck className="h-3 w-3" /> {t('Accepted for session')}
+            <CheckCheck className="h-3 w-3" /> {t('acceptedForSession')}
           </span>
         )}
         {isDeclined && (
           <span className="ml-auto flex shrink-0 items-center gap-1 text-red-500">
-            <X className="h-3 w-3" /> {t('Declined')}
+            <X className="h-3 w-3" /> {t('declined')}
           </span>
         )}
         {isCancelled && (
           <span className="ml-auto flex shrink-0 items-center gap-1 text-orange-500">
-            <Ban className="h-3 w-3" /> {t('Cancelled')}
+            <Ban className="h-3 w-3" /> {t('cancelled')}
           </span>
         )}
         {isResolved && (
           <span className="ml-auto flex shrink-0 items-center gap-1 text-muted-foreground">
-            <CheckCircle className="h-3 w-3" /> {t('Resolved')}
+            <CheckCircle className="h-3 w-3" /> {t('resolved')}
           </span>
         )}
 
         {/* Completed badge (no approval) */}
         {item.completed && !approval && (
-          <span className="ml-auto shrink-0 text-green-400">{t('Applied')}</span>
+          <span className="ml-auto shrink-0 text-green-400">
+            {t('applied')}
+          </span>
         )}
 
         <ChevronDown
@@ -142,7 +143,7 @@ export function FileChangeItem({ item, approval }: Props) {
         <div className="flex flex-wrap items-center gap-2 border-t border-yellow-500/30 px-3 py-1.5">
           <ShieldAlert className="h-3.5 w-3.5 text-yellow-500" />
           <span className="text-xs font-medium text-yellow-500">
-            {t('File Change Approval')}
+            {t('fileChangeApproval')}
           </span>
           {approval.reason && (
             <span className="truncate text-xs text-muted-foreground">
@@ -151,13 +152,15 @@ export function FileChangeItem({ item, approval }: Props) {
           )}
           {approval.grantRoot && (
             <span className="truncate text-xs text-muted-foreground">
-              {t('Requesting write access to:')}{' '}
-              <code className="rounded bg-muted px-1">{approval.grantRoot}</code>
+              {t('requestingWriteAccessTo')}{' '}
+              <code className="rounded bg-muted px-1">
+                {approval.grantRoot}
+              </code>
             </span>
           )}
           {!canApprove && (
             <span className="text-xs text-amber-500">
-              {t('Changes unavailable — decline only')}
+              {t('changesUnavailableDeclineOnly')}
             </span>
           )}
           <div className="ml-auto flex flex-wrap justify-end gap-1.5">
@@ -168,20 +171,26 @@ export function FileChangeItem({ item, approval }: Props) {
                   size="sm"
                   variant="outline"
                   className="h-6 border-green-500/50 px-2 text-xs text-green-500 hover:bg-green-500/10"
-                  onClick={(e) => { e.stopPropagation(); handleDecision('accepted'); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDecision('accepted');
+                  }}
                 >
                   <Check className="mr-1 h-3 w-3" />
-                  {t('Accept')}
+                  {t('accept')}
                 </Button>
                 <Button
                   disabled={submitting}
                   size="sm"
                   variant="outline"
                   className="h-6 border-green-500/30 px-2 text-xs text-green-600 hover:bg-green-500/10"
-                  onClick={(e) => { e.stopPropagation(); handleDecision('acceptedForSession'); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDecision('acceptedForSession');
+                  }}
                 >
                   <CheckCheck className="mr-1 h-3 w-3" />
-                  {t('Accept for session')}
+                  {t('acceptForSession')}
                 </Button>
               </>
             )}
@@ -190,27 +199,39 @@ export function FileChangeItem({ item, approval }: Props) {
               size="sm"
               variant="outline"
               className="h-6 border-red-500/50 px-2 text-xs text-red-500 hover:bg-red-500/10"
-              onClick={(e) => { e.stopPropagation(); handleDecision('declined'); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDecision('declined');
+              }}
             >
               <X className="mr-1 h-3 w-3" />
-              {t('Decline')}
+              {t('decline')}
             </Button>
             <Button
               disabled={submitting}
               size="sm"
               variant="outline"
               className="h-6 border-orange-500/50 px-2 text-xs text-orange-500 hover:bg-orange-500/10"
-              onClick={(e) => { e.stopPropagation(); handleDecision('cancelled'); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDecision('cancelled');
+              }}
             >
               <Ban className="mr-1 h-3 w-3" />
-              {t('Cancel')}
+              {t('cancel')}
             </Button>
           </div>
         </div>
       )}
 
       {/* Collapsible diff body — every proposed file, not just the first */}
-      {expanded && <FileChangeSet changes={changes} settled={Boolean(approval?.reviewChanges?.length) || item.completed} alwaysLabelPaths />}
+      {expanded && (
+        <FileChangeSet
+          changes={changes}
+          settled={Boolean(approval?.reviewChanges?.length) || item.completed}
+          alwaysLabelPaths
+        />
+      )}
     </div>
   );
 }

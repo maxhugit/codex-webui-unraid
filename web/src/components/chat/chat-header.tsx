@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import { useState } from 'react';
 import {
   Check,
@@ -86,7 +87,7 @@ function MobileOverflowMenu({
           size="icon"
           variant="ghost"
           className="h-9 w-9"
-          aria-label={t('More actions')}
+          aria-label={t('moreActions')}
         >
           <EllipsisVertical className="h-5 w-5" />
         </Button>
@@ -97,7 +98,7 @@ function MobileOverflowMenu({
           onClick={() => act(onSettings)}
           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
         >
-          <MonitorCog className="h-4 w-4" /> {t('Platform settings')}
+          <MonitorCog className="h-4 w-4" /> {t('platformSettings')}
         </button>
       </PopoverContent>
     </Popover>
@@ -190,8 +191,8 @@ export function ChatHeader() {
   // One label drives the accessible name and the tooltip, so they can never
   // disagree about which direction the control goes.
   const sidebarToggleLabel = desktopSidebarCollapsed
-    ? t('Expand sidebar')
-    : t('Collapse sidebar');
+    ? t('expandSidebar')
+    : t('collapseSidebar');
 
   const handleLogout = async () => {
     await authLogout({ throwOnError: false }).catch(() => undefined);
@@ -220,7 +221,7 @@ export function ChatHeader() {
             variant="ghost"
             className="h-9 w-9 shrink-0 lg:hidden"
             onClick={toggleSidebarOpen}
-            aria-label={t('Open navigation')}
+            aria-label={t('openNavigation')}
           >
             <Menu className="h-5 w-5" />
           </Button>
@@ -295,7 +296,7 @@ export function ChatHeader() {
                     variant="ghost"
                     className="h-7 w-7"
                     onClick={startEditing}
-                    title={t('Rename')}
+                    title={t('rename')}
                   >
                     <Edit3 className="h-3.5 w-3.5" />
                   </Button>
@@ -307,17 +308,17 @@ export function ChatHeader() {
                           variant="ghost"
                           className="h-7 w-7"
                           onClick={() => setGraphOpen(true)}
-                          aria-label={t('Branch graph')}
+                          aria-label={t('branchGraph')}
                         >
                           <Network className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>{t('Branch graph')}</TooltipContent>
+                      <TooltipContent>{t('branchGraph')}</TooltipContent>
                     </Tooltip>
                   )}
                   {threadMode === 'readOnly' && (
                     <Badge variant="secondary" className="text-xs">
-                      {t('Archived read-only')}
+                      {t('archivedReadOnly')}
                     </Badge>
                   )}
                 </>
@@ -333,10 +334,10 @@ export function ChatHeader() {
           ) : pathname === '/settings' ? (
             <div className="min-w-0 leading-tight">
               <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg">
-                {t(settingsPageLabel(settingsSection))}
+                {t(translationKey(settingsPageLabel(settingsSection)))}
               </h1>
               <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
-                {t(settingsPageDescription(settingsSection))}
+                {t(translationKey(settingsPageDescription(settingsSection)))}
               </p>
             </div>
           ) : simpleChatTitle ? (
@@ -348,7 +349,7 @@ export function ChatHeader() {
             </h1>
           ) : (
             <h1 className="text-lg font-semibold tracking-tight">
-              {pathname === '/help' ? t('Platform guide') : 'Codex WebUI'}
+              {pathname === '/help' ? t('platformGuide') : 'Codex WebUI'}
             </h1>
           )}
         </div>
@@ -367,7 +368,7 @@ export function ChatHeader() {
             }`}
           />
           <span className="hidden sm:inline">
-            {connected ? t('Connected') : t('Disconnected')}
+            {connected ? t('connected') : t('disconnected')}
           </span>
         </Badge>
 
@@ -382,12 +383,12 @@ export function ChatHeader() {
                     variant="ghost"
                     className="h-8 w-8"
                     onClick={() => void navigate({ to: '/settings' })}
-                    aria-label={t('Platform settings')}
+                    aria-label={t('platformSettings')}
                   >
                     <MonitorCog className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t('Platform settings')}</TooltipContent>
+                <TooltipContent>{t('platformSettings')}</TooltipContent>
               </Tooltip>
             )}
           </>
@@ -405,12 +406,12 @@ export function ChatHeader() {
               variant="ghost"
               className="h-8 w-8 shrink-0"
               onClick={() => setAccountOpen(true)}
-              aria-label={t('Account')}
+              aria-label={t('account')}
             >
               <UserRound className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{t('Account')}</TooltipContent>
+          <TooltipContent>{t('account')}</TooltipContent>
         </Tooltip>
       </header>
       <Separator />
@@ -421,38 +422,38 @@ export function ChatHeader() {
       <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t('My account')}</DialogTitle>
+            <DialogTitle>{t('myAccount')}</DialogTitle>
             <DialogDescription>
-              {t('Information about the identity currently connected.')}
+              {t('informationAboutTheIdentityCurrentlyConnected')}
             </DialogDescription>
           </DialogHeader>
           <dl className="grid gap-4 text-sm">
             <div>
-              <dt className="text-muted-foreground">{t('Full name')}</dt>
+              <dt className="text-muted-foreground">{t('fullName')}</dt>
               <dd className="mt-1 font-medium">
-                {session.data?.name || t('Unlinked identity')}
+                {session.data?.name || t('unlinkedIdentity')}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('Email')}</dt>
+              <dt className="text-muted-foreground">{t('email')}</dt>
               <dd className="mt-1 break-all font-medium">
                 {session.data?.email || '—'}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('Platform role')}</dt>
+              <dt className="text-muted-foreground">{t('platformRole')}</dt>
               <dd className="mt-1 font-medium">
                 {session.data?.role === 'administrator'
-                  ? t('Administrator')
+                  ? t('administrator')
                   : session.data?.role === 'standard'
-                    ? t('Standard')
+                    ? t('standard')
                     : '—'}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('Account status')}</dt>
+              <dt className="text-muted-foreground">{t('accountStatus')}</dt>
               <dd className="mt-1 font-medium">
-                {session.data?.active ? t('Active') : t('Inactive')}
+                {session.data?.active ? t('active') : t('inactive')}
               </dd>
             </div>
           </dl>
@@ -460,10 +461,10 @@ export function ChatHeader() {
           <DialogFooter className="sm:justify-between">
             <Button variant="destructive" onClick={() => void handleLogout()}>
               <LogOut className="h-4 w-4" />
-              {t('Logout')}
+              {t('logout')}
             </Button>
             <Button variant="secondary" onClick={() => setAccountOpen(false)}>
-              {t('Close')}
+              {t('close')}
             </Button>
           </DialogFooter>
         </DialogContent>

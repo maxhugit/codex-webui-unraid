@@ -39,7 +39,7 @@ export function DocxViewer({ source }: Props) {
       .catch(() => {
         if (!cancelled) {
           setLoading(false);
-          setError(t('Failed to load document'));
+          setError(t('failedToLoadDocument'));
         }
       });
 
@@ -51,14 +51,28 @@ export function DocxViewer({ source }: Props) {
 
   return (
     <div className="relative h-full overflow-auto bg-muted/20 p-4">
-      {loading && <DocxMessage icon={<Loader2 className="h-4 w-4 animate-spin" />} message={t('Loading...')} />}
+      {loading && (
+        <DocxMessage
+          icon={<Loader2 className="h-4 w-4 animate-spin" />}
+          message={t('loadingb04ba49f')}
+        />
+      )}
       {error && <DocxMessage message={error} />}
-      <div ref={containerRef} className="mx-auto max-w-5xl bg-background text-foreground" />
+      <div
+        ref={containerRef}
+        className="mx-auto max-w-5xl bg-background text-foreground"
+      />
     </div>
   );
 }
 
-function DocxMessage({ icon, message }: { icon?: React.ReactNode; message: string }) {
+function DocxMessage({
+  icon,
+  message,
+}: {
+  icon?: React.ReactNode;
+  message: string;
+}) {
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-background/80 text-sm text-muted-foreground">
       {icon ?? <FileText className="h-5 w-5 opacity-50" />}

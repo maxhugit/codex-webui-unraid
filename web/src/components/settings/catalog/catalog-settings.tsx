@@ -65,7 +65,7 @@ export function CatalogSettings() {
     // Deleted from under the dialog, most likely through the raw editor.
     setConflict(
       'missing' in result
-        ? t('“{{slug}}” is no longer in the draft; the edit was not applied.', {
+        ? t('slugIsNoLongerInTheDraftTheEditWasNotApplied', {
             slug: result.missing,
           })
         : null,
@@ -97,10 +97,10 @@ export function CatalogSettings() {
   return (
     <section className="space-y-4 rounded-lg border border-border bg-card p-4">
       <header className="space-y-1">
-        <h2 className="text-sm font-semibold">{t('Model catalog')}</h2>
+        <h2 className="text-sm font-semibold">{t('modelCatalog')}</h2>
         <p className="text-xs text-muted-foreground">
           {t(
-            'Codex clamps model_context_window to each model’s max_context_window. A custom catalog is the only way to raise that ceiling, or to list a model Codex does not ship.',
+            'codexClampsModelContextWindowToEachModelSMaxContextWindowACustomCatalogIsTheOnla4fbfb36',
           )}
         </p>
         {/* "No user-level override" is all this endpoint can prove. A lower
@@ -110,14 +110,14 @@ export function CatalogSettings() {
         {state && !state.repairError && (
           <p className="text-xs text-muted-foreground">
             {pointer
-              ? t('Configured catalog: {{path}}', { path: pointer })
-              : t('No user-level catalog override.')}
-            {!managed && pointer && ` · ${t('not managed by this server')}`}
+              ? t('configuredCatalogPath', { path: pointer })
+              : t('noUserLevelCatalogOverride')}
+            {!managed && pointer && ` · ${t('notManagedByThisServer')}`}
           </p>
         )}
         {running.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            {t('Codex loaded: {{path}}', { path: running.join(', ') })}
+            {t('codexLoadedPath', { path: running.join(', ') })}
           </p>
         )}
         {state?.ready &&
@@ -125,14 +125,14 @@ export function CatalogSettings() {
           !pointer &&
           running.length === 0 && (
             <p className="text-xs text-muted-foreground">
-              {t('Codex is using the catalog it ships with.')}
+              {t('codexIsUsingTheCatalogItShipsWith')}
             </p>
           )}
         {state?.ready && !pointerApplied && (
           <div className="space-y-1.5">
             <p className="text-xs text-amber-500">
               {t(
-                'The running catalog differs from what the configuration points at now. Restart to align them.',
+                'theRunningCatalogDiffersFromWhatTheConfigurationPointsAtNowRestartToAlignThem',
               )}
             </p>
             {/* A pointer changed through raw config leaves a perfectly healthy
@@ -148,15 +148,15 @@ export function CatalogSettings() {
           <p className="flex items-center gap-2 text-xs font-medium text-destructive">
             <AlertTriangle className="h-3.5 w-3.5" />
             {state.startupError
-              ? t('Codex could not start')
-              : t('Catalog state could not be read')}
+              ? t('codexCouldNotStart')
+              : t('catalogStateCouldNotBeRead')}
           </p>
           <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all text-[11px]">
             {state.startupError ?? state.repairError}
           </pre>
           <p className="text-xs text-muted-foreground">
             {t(
-              'Restore the previous catalog, or repair config.toml directly below, then retry startup.',
+              'restoreThePreviousCatalogOrRepairConfigTomlDirectlyBelowThenRetryStartup',
             )}
           </p>
           {/* The only in-browser way out of a failed start: everything else in
@@ -177,7 +177,7 @@ export function CatalogSettings() {
             })
           }
         >
-          {t('Seed from bundled catalog')}
+          {t('seedFromBundledCatalog')}
         </Button>
         <Button
           size="sm"
@@ -189,7 +189,7 @@ export function CatalogSettings() {
             })
           }
         >
-          {t('Seed from current catalog')}
+          {t('seedFromCurrentCatalog')}
         </Button>
         <Button
           size="sm"
@@ -201,14 +201,14 @@ export function CatalogSettings() {
           }}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
-          {t('Add model')}
+          {t('addModel')}
         </Button>
       </div>
 
       {catalog.draft.isSuccess && catalog.working === null && (
         <p className="text-xs text-muted-foreground">
           {t(
-            'No draft yet. Seed one first — a catalog replaces the whole model list, so starting from the full set avoids losing every official model.',
+            'noDraftYetSeedOneFirstACatalogReplacesTheWholeModelListSoStartingFromTheFullSet1870dd18',
           )}
         </p>
       )}
@@ -218,7 +218,7 @@ export function CatalogSettings() {
       {catalog.working !== null && !catalog.parsed && (
         <p className="text-xs text-amber-500">
           {t(
-            'This draft is not a readable catalog, so the model list is unavailable. Fix it in the JSON editor below.',
+            'thisDraftIsNotAReadableCatalogSoTheModelListIsUnavailableFixItInTheJsonEditorBelow',
           )}
         </p>
       )}
@@ -232,7 +232,7 @@ export function CatalogSettings() {
         <div className="space-y-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
           <p className="text-xs text-amber-600 dark:text-amber-500">
             {t(
-              'The saved draft changed elsewhere while you were editing. Saving now would overwrite it.',
+              'theSavedDraftChangedElsewhereWhileYouWereEditingSavingNowWouldOverwriteIt',
             )}
           </p>
           <Button
@@ -250,7 +250,7 @@ export function CatalogSettings() {
                 .finally(() => setDiscarding(false));
             }}
           >
-            {t('Discard my edits and load the saved draft')}
+            {t('discardMyEditsAndLoadTheSavedDraft')}
           </Button>
           {discardError && (
             <p className="text-xs text-destructive">{discardError}</p>
@@ -287,7 +287,7 @@ export function CatalogSettings() {
                     setDialogOpen(true);
                   }}
                 >
-                  {t('Edit')}
+                  {t('edit')}
                 </Button>
                 <Button
                   size="sm"
@@ -344,7 +344,7 @@ export function CatalogSettings() {
             });
           }}
         >
-          {t('Apply & restart Codex')}
+          {t('applyRestartCodex')}
         </Button>
         {managed && (
           <Button
@@ -355,7 +355,7 @@ export function CatalogSettings() {
               catalog.useDefault.mutate({ body: { expectedPointer: pointer } })
             }
           >
-            {t('Use default catalog')}
+            {t('useDefaultCatalog')}
           </Button>
         )}
         {/* Mirrors the backend precondition exactly. A failed activation leaves
@@ -372,7 +372,7 @@ export function CatalogSettings() {
             }
           >
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-            {t('Restore previous')}
+            {t('restorePrevious')}
           </Button>
         )}
       </div>
@@ -418,7 +418,7 @@ function RestartButton({
       onClick={() => catalog.restart.mutate({})}
     >
       <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-      {t('Restart Codex')}
+      {t('restartCodex')}
     </Button>
   );
 }

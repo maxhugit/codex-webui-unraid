@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** A retained xterm view follows one durable terminal while binding input to its current physical shell. */
 import {
   useCallback,
@@ -130,7 +131,7 @@ export function TerminalPane({
       attachedRef.current = false;
       output = [];
       replaying = false;
-      setFailure(response.error ?? t('Terminal operation failed'));
+      setFailure(response.error ?? t('terminalOperationFailed'));
       setPhase(
         response.errorCode === 'terminal.closed'
           ? 'closed'
@@ -217,7 +218,7 @@ export function TerminalPane({
         setPhase('ready');
         if (attachedTerminal.status === 'exited')
           term.write(
-            `\r\n[${t('Process exited with code {{code}}', { code: attachedTerminal.exitCode ?? '?' })}]\r\n`,
+            `\r\n[${t('processExitedWithCodeCode', { code: attachedTerminal.exitCode ?? '?' })}]\r\n`,
           );
         requestAnimationFrame(() => {
           if (!disposed) fitVisible();
@@ -267,7 +268,7 @@ export function TerminalPane({
       } else if (event.terminal?.sessionId === sessionRef.current) {
         attachedRef.current = false;
         term.write(
-          `\r\n[${t('Process exited with code {{code}}', { code: event.terminal.exitCode ?? '?' })}]\r\n`,
+          `\r\n[${t('processExitedWithCodeCode', { code: event.terminal.exitCode ?? '?' })}]\r\n`,
         );
       }
     };
@@ -336,17 +337,17 @@ export function TerminalPane({
           role="status"
           className="shrink-0 border-b border-border px-3 py-2 text-xs"
         >
-          {t(
-            'Previous terminal was lost. Replacement shell {{shell}} started in {{cwd}}.',
-            { shell: terminal.shell, cwd: terminal.cwd },
-          )}
+          {t('previousTerminalWasLostReplacementShellShellStartedInCwd', {
+            shell: terminal.shell,
+            cwd: terminal.cwd,
+          })}
         </div>
       )}
       {previousOutput !== null && (
         <details className="shrink-0 border-b border-border px-3 py-1 text-xs">
-          <summary>{t('Previous shell output (read-only)')}</summary>
+          <summary>{t('previousShellOutputReadOnly')}</summary>
           <pre className="max-h-40 overflow-auto whitespace-pre-wrap">
-            {previousOutput || t('No retained output')}
+            {previousOutput || t('noRetainedOutput')}
           </pre>
         </details>
       )}
@@ -357,23 +358,21 @@ export function TerminalPane({
         >
           <span>
             {closed
-              ? t('Terminal closed')
+              ? t('terminalClosed')
               : closing
-                ? t('Terminal close is awaiting confirmation. Retry Close.')
+                ? t('terminalCloseIsAwaitingConfirmationRetryClose')
                 : phase === 'limited'
-                  ? t('Automatic recovery paused: three attempts in 24 hours.')
+                  ? t('automaticRecoveryPausedThreeAttemptsIn24Hours')
                   : phase === 'lost'
-                    ? t(
-                        'Terminal session lost. Select this terminal to recover it.',
-                      )
+                    ? t('terminalSessionLostSelectThisTerminalToRecoverIt')
                     : phase === 'connecting'
-                      ? t('Connecting terminal…')
+                      ? t('connectingTerminal')
                       : failure
                         ? // Natural-language keys are this project's convention, so a
                           // server message is localized when translated and shown as
                           // sent when not. The sentence is both lookup key and fallback.
-                          t(failure)
-                        : t('Terminal connection is offline')}
+                          t(translationKey(failure))
+                        : t('terminalConnectionIsOffline')}
           </span>
           {!closed && !closing && phase !== 'connecting' && (
             <Button
@@ -382,8 +381,8 @@ export function TerminalPane({
               onClick={() => connectRef.current(phase === 'limited')}
             >
               {phase === 'limited'
-                ? t('Start replacement shell')
-                : t('Retry connection')}
+                ? t('startReplacementShell')
+                : t('retryConnection')}
             </Button>
           )}
         </div>

@@ -79,7 +79,7 @@ export function ModelSelector() {
 
   const displayModel = activeModel
     ? modelLabel(activeModel)
-    : (activeModelId ?? t('Default'));
+    : (activeModelId ?? t('default'));
   const displayEffort = activeEffort ?? '';
 
   if (project) {
@@ -91,15 +91,15 @@ export function ModelSelector() {
       ? configuredModel
         ? modelLabel(configuredModel)
         : project.agentModel
-      : t('Server default');
-    const projectEffort = project.agentReasoningEffort || t('Model default');
+      : t('serverDefault');
+    const projectEffort = project.agentReasoningEffort || t('modelDefault');
     return (
       <Button
         type="button"
         variant="ghost"
         size="sm"
         className="h-7 cursor-default gap-1 rounded-lg px-2 text-xs hover:bg-transparent"
-        title={t('Defined by project')}
+        title={t('definedByProject')}
         aria-readonly="true"
       >
         <Bot className="h-3.5 w-3.5" />
@@ -141,7 +141,7 @@ export function ModelSelector() {
           variant="ghost"
           size="sm"
           className="h-7 gap-1 rounded-lg px-2 text-xs"
-          title={t('Model & reasoning effort')}
+          title={t('modelReasoningEffort')}
         >
           <Bot className="h-3.5 w-3.5" />
           <span className="hidden sm:inline max-w-[120px] truncate">
@@ -164,7 +164,7 @@ export function ModelSelector() {
         {/* Model list */}
         <div className="space-y-1">
           <div className="text-xs font-medium text-muted-foreground">
-            {t('Model')}
+            {t('model')}
           </div>
           <div className="max-h-56 space-y-0.5 overflow-y-auto">
             {listedModels.map((model) => (
@@ -173,7 +173,7 @@ export function ModelSelector() {
                 active={model.model === activeModelId}
                 badge={
                   model.isDefault
-                    ? t('default')
+                    ? t('default7505d64a')
                     : model.hidden
                       ? t('hidden')
                       : undefined
@@ -185,7 +185,7 @@ export function ModelSelector() {
             ))}
             {listedModels.length === 0 && (
               <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                {t('No models available')}
+                {t('noModelsAvailable')}
               </p>
             )}
           </div>
@@ -202,8 +202,8 @@ export function ModelSelector() {
               onClick={() => setShowHidden((value) => !value)}
             >
               {showHidden
-                ? t('Hide hidden models')
-                : t('Show hidden models ({{count}})', {
+                ? t('hideHiddenModels')
+                : t('showHiddenModelsCount', {
                     count: hiddenModels.length,
                   })}
             </button>
@@ -213,7 +213,7 @@ export function ModelSelector() {
         {/* Reasoning effort — always shown, falls back to standard options */}
         <div className="space-y-1 border-t border-border pt-2">
           <div className="text-xs font-medium text-muted-foreground">
-            {t('Reasoning effort')}
+            {t('reasoningEffortcd32c0f5')}
           </div>
           <div className="max-h-56 space-y-0.5 overflow-y-auto">
             {(activeModel && activeModel.supportedReasoningEfforts.length > 0
@@ -225,7 +225,7 @@ export function ModelSelector() {
                 active={opt.reasoningEffort === activeEffort}
                 badge={
                   opt.reasoningEffort === activeModel?.defaultReasoningEffort
-                    ? t('default')
+                    ? t('default7505d64a')
                     : undefined
                 }
                 description={

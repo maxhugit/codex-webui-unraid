@@ -20,10 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-breakpoint';
-import {
-  flattenForList,
-  layoutBranchGraph,
-} from '@/lib/branch-graph-layout';
+import { flattenForList, layoutBranchGraph } from '@/lib/branch-graph-layout';
 import { cn } from '@/lib/utils';
 import type { ThreadDeletePreviewDto } from '@/generated/api/types.gen';
 import type { BranchGraphItem } from './branch-graph';
@@ -75,7 +72,10 @@ export function DeleteConversationDialog({
       threadId: thread.threadId,
       parentThreadId: thread.parentThreadId ?? null,
       data: {
-        label: thread.name?.trim() || thread.preview?.trim() || thread.threadId.slice(0, 8),
+        label:
+          thread.name?.trim() ||
+          thread.preview?.trim() ||
+          thread.threadId.slice(0, 8),
         isTarget: thread.threadId === preview.targetThreadId,
         isCurrent: thread.threadId === currentThreadId,
         isDoomed: true,
@@ -120,15 +120,18 @@ export function DeleteConversationDialog({
   }, [pending]);
 
   return (
-    <AlertDialog open={open} onOpenChange={(next) => !next && !pending && onClose()}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => !next && !pending && onClose()}
+    >
       <AlertDialogContent className="max-w-3xl">
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {t('Delete this conversation and everything branched from it?')}
+            {t('deleteThisConversationAndEverythingBranchedFromIt')}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {t(
-              'This cannot be undone. Files already written to the workspace are not reverted.',
+              'thisCannotBeUndoneFilesAlreadyWrittenToTheWorkspaceAreNotReverted',
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -136,7 +139,7 @@ export function DeleteConversationDialog({
         {loading && (
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            {t('Working out what would be deleted…')}
+            {t('workingOutWhatWouldBeDeleted')}
           </div>
         )}
 
@@ -149,7 +152,7 @@ export function DeleteConversationDialog({
         {preview && !loading && (
           <div className="space-y-3">
             <p className="text-sm font-medium">
-              {t('{{count}} conversation(s) will be permanently deleted:', {
+              {t('countConversationSWillBePermanentlyDeleted', {
                 count: preview.threadIds.length,
               })}
             </p>
@@ -157,7 +160,9 @@ export function DeleteConversationDialog({
             <div
               className={cn(
                 'grid gap-3',
-                !isMobile && items.length > 1 && 'grid-cols-[minmax(0,1fr)_320px]',
+                !isMobile &&
+                  items.length > 1 &&
+                  'grid-cols-[minmax(0,1fr)_320px]',
               )}
             >
               <ScrollArea className="max-h-64 rounded-md border">
@@ -181,25 +186,25 @@ export function DeleteConversationDialog({
                             {thread?.active && (
                               <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400">
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                                {t('Running — will be interrupted')}
+                                {t('runningWillBeInterrupted')}
                               </span>
                             )}
                             {(thread?.pendingApprovalCount ?? 0) > 0 && (
                               <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400">
                                 <ShieldQuestion className="h-3 w-3" />
-                                {t('Approval request will be cancelled')}
+                                {t('approvalRequestWillBeCancelled')}
                               </span>
                             )}
                             {thread?.archived && (
                               <span className="flex items-center gap-0.5">
                                 <Archive className="h-3 w-3" />
-                                {t('Archived')}
+                                {t('archived')}
                               </span>
                             )}
                             {thread?.source === 'server' && (
                               <span className="flex items-center gap-0.5">
                                 <CircleHelp className="h-3 w-3" />
-                                {t('External branch (fork point unknown)')}
+                                {t('externalBranchForkPointUnknown')}
                               </span>
                             )}
                           </span>
@@ -211,9 +216,7 @@ export function DeleteConversationDialog({
               </ScrollArea>
 
               {!isMobile && items.length > 1 && (
-                <Suspense
-                  fallback={<div className="h-64 rounded-md border" />}
-                >
+                <Suspense fallback={<div className="h-64 rounded-md border" />}>
                   <BranchGraphPreview
                     items={items}
                     className="h-64 rounded-md border"
@@ -227,11 +230,11 @@ export function DeleteConversationDialog({
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>
                   {runningCount > 0 &&
-                    t('{{count}} running reply will be interrupted.', {
+                    t('countRunningReplyWillBeInterrupted', {
                       count: runningCount,
                     })}{' '}
                   {approvalCount > 0 &&
-                    t('{{count}} pending approval request will be cancelled.', {
+                    t('countPendingApprovalRequestWillBeCancelled', {
                       count: approvalCount,
                     })}
                 </span>
@@ -241,7 +244,7 @@ export function DeleteConversationDialog({
             {blocked && (
               <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 <p className="font-medium">
-                  {t('Deletion is blocked for this branch tree:')}
+                  {t('deletionIsBlockedForThisBranchTree')}
                 </p>
                 <ul className="mt-1 list-disc pl-4">
                   {preview.blockers.map((blocker, index) => (
@@ -254,7 +257,9 @@ export function DeleteConversationDialog({
         )}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>{t('Cancel')}</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>
+            {t('cancel')}
+          </AlertDialogCancel>
           <AlertDialogAction
             disabled={!canConfirm}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -276,7 +281,7 @@ export function DeleteConversationDialog({
             }}
           >
             {pending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-            {pending ? t('Deleting…') : t('Delete permanently')}
+            {pending ? t('deleting') : t('deletePermanently')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

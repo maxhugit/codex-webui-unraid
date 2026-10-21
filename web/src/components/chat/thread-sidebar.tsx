@@ -482,7 +482,7 @@ export function ThreadSidebar() {
       void setActiveThread(
         res.thread.id,
         res.cwd,
-        threadLabel(res.thread, t('New work agent')),
+        threadLabel(res.thread, t('newWorkAgent')),
       );
       invalidateThreads();
       void navigate({
@@ -1047,14 +1047,14 @@ export function ThreadSidebar() {
     <div className="flex shrink-0 items-center justify-between px-1 py-2">
       <span className="flex items-center gap-2 text-sm font-semibold text-foreground/90">
         <FolderKanban aria-hidden="true" className="h-4 w-4 shrink-0" />
-        {t('Projects')}
+        {t('projects')}
       </span>
       <Button
         size="icon"
         variant="ghost"
         className="h-6 w-6"
-        aria-label={t('New project')}
-        title={t('New project')}
+        aria-label={t('newProject')}
+        title={t('newProject')}
         onClick={() => setCreateProjectOpen(true)}
       >
         <Plus className="h-3.5 w-3.5" />
@@ -1079,7 +1079,7 @@ export function ThreadSidebar() {
           )}
         >
           <BookOpen aria-hidden="true" className="h-4 w-4 shrink-0" />
-          {t('Platform guide')}
+          {t('platformGuide')}
         </button>
         <button
           type="button"
@@ -1092,7 +1092,7 @@ export function ThreadSidebar() {
           )}
         >
           <House className="h-4 w-4 shrink-0" />
-          {t('Home')}
+          {t('home')}
         </button>
       </div>
 
@@ -1239,11 +1239,9 @@ export function ThreadSidebar() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Choose a workspace')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('chooseAWorkspace')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t(
-                'Choose the file and execution context for this conversation.',
-              )}
+              {t('chooseTheFileAndExecutionContextForThisConversation')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="grid gap-2">
@@ -1263,12 +1261,12 @@ export function ThreadSidebar() {
                 }
               >
                 <FolderOpen className="h-4 w-4" />
-                {workspace.primary ? t('Primary workspace') : workspace.name}
+                {workspace.primary ? t('primaryWorkspace') : workspace.name}
               </Button>
             ))}
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1285,7 +1283,7 @@ export function ThreadSidebar() {
             });
         }}
         onClose={() => setRenameResource(null)}
-        title={t('Rename task manager')}
+        title={t('renameTaskManager')}
       />
       <AlertDialog
         open={deleteResource !== null}
@@ -1295,18 +1293,14 @@ export function ThreadSidebar() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('Delete this task manager?')}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteThisTaskManager')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t(
-                'This task board and all of its future tasks will be permanently deleted.',
-              )}
+              {t('thisTaskBoardAndAllOfItsFutureTasksWillBePermanentlyDeleted')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteProjectResource.isPending}>
-              {t('Cancel')}
+              {t('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -1315,7 +1309,7 @@ export function ThreadSidebar() {
                 deleteResource && deleteProjectResource.mutate(deleteResource)
               }
             >
-              {t('Delete permanently')}
+              {t('deletePermanently')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1386,16 +1380,16 @@ export function ThreadSidebar() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Delete this project?')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteThisProject')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                'Work agents and simple conversations in this project will be permanently deleted.',
+                'workAgentsAndSimpleConversationsInThisProjectWillBePermanentlyDeleted',
               )}
             </AlertDialogDescription>
             {deleteProject && (
               <div className="space-y-2 text-sm">
                 <p className="font-medium">
-                  {t('Select the workspace folders to delete permanently:')}
+                  {t('selectTheWorkspaceFoldersToDeletePermanently')}
                 </p>
                 <div className="max-h-40 space-y-2 overflow-auto rounded border border-border p-2">
                   {deleteProject.workspaces.map((workspace) => (
@@ -1437,7 +1431,7 @@ export function ThreadSidebar() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteProjectMutation.isPending}>
-              {t('Cancel')}
+              {t('cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -1447,7 +1441,7 @@ export function ThreadSidebar() {
                 if (deleteProject) deleteProjectMutation.mutate(deleteProject);
               }}
             >
-              {t('Delete permanently')}
+              {t('deletePermanently')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

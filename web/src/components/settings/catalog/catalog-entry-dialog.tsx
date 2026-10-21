@@ -84,10 +84,7 @@ export function CatalogEntryDialog({
 
   // The selected template is already copied into base. Consulting the live
   // template again would let another browser reshape this form mid-edit.
-  const fields = useMemo(
-    () => (base ? catalogFields(base, null) : []),
-    [base],
-  );
+  const fields = useMemo(() => (base ? catalogFields(base, null) : []), [base]);
   const visible = showAll ? fields : fields.slice(0, PRIMARY_COUNT);
 
   const update = (field: CatalogField, raw: string | boolean) => {
@@ -137,15 +134,18 @@ export function CatalogEntryDialog({
         <DialogHeader>
           <DialogTitle>
             {entry
-              ? t('Edit model: {{name}}', { name: entryLabel(entry) })
-              : t('Add model')}
+              ? t('editModelName', { name: entryLabel(entry) })
+              : t('addModel')}
           </DialogTitle>
         </DialogHeader>
 
         {!entry && (
           <div className="space-y-1">
-            <label htmlFor={templateId} className="text-xs font-medium text-muted-foreground">
-              {t('Inherit from')}
+            <label
+              htmlFor={templateId}
+              className="text-xs font-medium text-muted-foreground"
+            >
+              {t('inheritFrom')}
             </label>
             <select
               id={templateId}
@@ -153,16 +153,19 @@ export function CatalogEntryDialog({
               value={templateSlug}
               onChange={(event) => chooseTemplate(event.target.value)}
             >
-              <option value="">{t('Choose a template model…')}</option>
+              <option value="">{t('chooseATemplateModel')}</option>
               {templates.map((item) => (
-                <option key={entryText(item, 'slug')} value={entryText(item, 'slug')}>
+                <option
+                  key={entryText(item, 'slug')}
+                  value={entryText(item, 'slug')}
+                >
                   {entryLabel(item)}
                 </option>
               ))}
             </select>
             <p className="text-xs text-muted-foreground">
               {t(
-                'Every field is copied from the template, including the base instructions a model needs to work. Change only what differs.',
+                'everyFieldIsCopiedFromTheTemplateIncludingTheBaseInstructionsAModelNeedsToWorkC2094440e',
               )}
             </p>
           </div>
@@ -186,8 +189,8 @@ export function CatalogEntryDialog({
                 onClick={() => setShowAll((value) => !value)}
               >
                 {showAll
-                  ? t('Show fewer fields')
-                  : t('Show all {{count}} fields', { count: fields.length })}
+                  ? t('showFewerFields')
+                  : t('showAllCountFields', { count: fields.length })}
               </button>
             )}
           </div>
@@ -195,13 +198,13 @@ export function CatalogEntryDialog({
 
         {duplicate && (
           <p className="text-xs text-destructive">
-            {t('A model with this slug already exists')}
+            {t('aModelWithThisSlugAlreadyExists')}
           </p>
         )}
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            {t('Cancel')}
+            {t('cancel')}
           </Button>
           <Button
             disabled={blocked}
@@ -209,7 +212,7 @@ export function CatalogEntryDialog({
               if (draft) onSubmit(draft);
             }}
           >
-            {t('Save')}
+            {t('save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -233,7 +236,10 @@ function FieldEditor({
   const id = useId();
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="flex items-center gap-2 text-xs font-medium">
+      <label
+        htmlFor={id}
+        className="flex items-center gap-2 text-xs font-medium"
+      >
         <code>{field.key}</code>
         {field.nullable && (
           <span className="text-[10px] text-muted-foreground">

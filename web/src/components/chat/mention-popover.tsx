@@ -31,14 +31,25 @@ interface Props {
   onNavigateUp: (relativePath: string) => void;
 }
 
-export function MentionPopover({ open, browseRelative, filtered, isLoading, selectedIndex, onSelect, onNavigate, onNavigateUp }: Props) {
+export function MentionPopover({
+  open,
+  browseRelative,
+  filtered,
+  isLoading,
+  selectedIndex,
+  onSelect,
+  onNavigate,
+  onNavigateUp,
+}: Props) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement>(null);
 
   // Scroll selected item into view
   useEffect(() => {
     if (!listRef.current) return;
-    const item = listRef.current.children[selectedIndex] as HTMLElement | undefined;
+    const item = listRef.current.children[selectedIndex] as
+      | HTMLElement
+      | undefined;
     item?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex]);
 
@@ -68,7 +79,9 @@ export function MentionPopover({ open, browseRelative, filtered, isLoading, sele
               >
                 {unescapeMentionPath(seg)}
               </button>
-              {i < pathSegments.length - 1 && <span className="opacity-40">/</span>}
+              {i < pathSegments.length - 1 && (
+                <span className="opacity-40">/</span>
+              )}
             </span>
           );
         })}
@@ -77,11 +90,11 @@ export function MentionPopover({ open, browseRelative, filtered, isLoading, sele
       {isLoading ? (
         <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          {t('Loading...')}
+          {t('loadingb04ba49f')}
         </div>
       ) : filtered.length === 0 ? (
         <div className="p-3 text-xs text-muted-foreground">
-          {t('No matching files')}
+          {t('noMatchingFiles')}
         </div>
       ) : (
         <div ref={listRef} className="max-h-52 overflow-y-auto py-1">
@@ -90,7 +103,9 @@ export function MentionPopover({ open, browseRelative, filtered, isLoading, sele
               key={entry.path}
               className={cn(
                 'group flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors',
-                i === selectedIndex ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent/50',
+                i === selectedIndex
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-foreground hover:bg-accent/50',
               )}
             >
               {entry.type === 'directory' ? (
@@ -105,7 +120,7 @@ export function MentionPopover({ open, browseRelative, filtered, isLoading, sele
                   </button>
                   <button
                     type="button"
-                    title={t('Attach to chat')}
+                    title={t('attachToChat')}
                     onClick={() => onSelect(entry)}
                     className="hover-reveal shrink-0 rounded p-0.5 text-muted-foreground transition-opacity hover:bg-background hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
                   >

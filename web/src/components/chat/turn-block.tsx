@@ -113,7 +113,10 @@ function ItemBody({
   });
 
   const inputCard = userInputRequest ? (
-    <UserInputCard key={pendingRequestKey(userInputRequest)} request={userInputRequest} />
+    <UserInputCard
+      key={pendingRequestKey(userInputRequest)}
+      request={userInputRequest}
+    />
   ) : null;
 
   switch (item.type) {
@@ -146,24 +149,31 @@ function ItemBody({
               policy-amendment section repeated it as well. */}
           <CommandItem
             item={item}
-            approvals={approvals.filter((approval) => approval.kind !== 'fileChange')}
+            approvals={approvals.filter(
+              (approval) => approval.kind !== 'fileChange',
+            )}
           />
           {inputCard}
         </>
       );
     case 'fileChange': {
-      const files = approvals.filter((approval) => approval.kind === 'fileChange');
-      const primary = files.find((approval) => approval.status === 'pending') ?? files[0];
+      const files = approvals.filter(
+        (approval) => approval.kind === 'fileChange',
+      );
+      const primary =
+        files.find((approval) => approval.status === 'pending') ?? files[0];
       return (
         <>
-          <FileChangeItem
-            item={item}
-            approval={primary}
-          />
+          <FileChangeItem item={item} approval={primary} />
           {/* Item identity must not hide another independently answerable RPC. */}
-          {files.filter((approval) => approval !== primary).map((approval) => (
-            <ApprovalItem key={pendingRequestKey(approval)} approval={approval} />
-          ))}
+          {files
+            .filter((approval) => approval !== primary)
+            .map((approval) => (
+              <ApprovalItem
+                key={pendingRequestKey(approval)}
+                approval={approval}
+              />
+            ))}
           {inputCard}
         </>
       );
@@ -253,7 +263,11 @@ function ItemBody({
 
 /** Stable item markers survive regrouping and add no extent outside the measured turn row. */
 function ItemWithRequests(props: Parameters<typeof ItemBody>[0]) {
-  return <div data-transcript-item={props.item.itemId}><ItemBody {...props} /></div>;
+  return (
+    <div data-transcript-item={props.item.itemId}>
+      <ItemBody {...props} />
+    </div>
+  );
 }
 
 export function TurnBlock({ entry }: Props) {
@@ -266,7 +280,10 @@ export function TurnBlock({ entry }: Props) {
   const approvals = useTimelineStore(
     useShallow((s) =>
       Object.values(s.approvals).filter(
-        (approval) => approval.turnId === entry.turnId && approval.kind !== 'permissions' && approval.kind !== 'elicitation',
+        (approval) =>
+          approval.turnId === entry.turnId &&
+          approval.kind !== 'permissions' &&
+          approval.kind !== 'elicitation',
       ),
     ),
   );
@@ -385,10 +402,7 @@ export function TurnBlock({ entry }: Props) {
         })}
 
         {unattachedApprovals.map((approval) => (
-          <ApprovalItem
-            key={pendingRequestKey(approval)}
-            approval={approval}
-          />
+          <ApprovalItem key={pendingRequestKey(approval)} approval={approval} />
         ))}
 
         {unattachedInputs.map((req) => (
@@ -402,7 +416,7 @@ export function TurnBlock({ entry }: Props) {
         {showPlaceholder && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            {t('Thinking...')}
+            {t('thinkinga7311e3e')}
           </div>
         )}
       </div>

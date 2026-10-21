@@ -13,7 +13,10 @@ interface OnlyOfficeEditor {
 }
 
 interface OnlyOfficeApi {
-  DocEditor: new (elementId: string, config: Record<string, unknown>) => OnlyOfficeEditor;
+  DocEditor: new (
+    elementId: string,
+    config: Record<string, unknown>,
+  ) => OnlyOfficeEditor;
 }
 
 declare global {
@@ -26,7 +29,9 @@ export function OnlyOfficeViewer({ filePath }: Props) {
   const { t } = useTranslation();
   const elementId = `onlyoffice-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const editorRef = useRef<OnlyOfficeEditor | null>(null);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  );
 
   // Reset status when filePath changes (adjusting state during render)
   const [prevFilePath, setPrevFilePath] = useState(filePath);
@@ -43,7 +48,10 @@ export function OnlyOfficeViewer({ filePath }: Props) {
         await loadOnlyOfficeScript(data.scriptUrl);
         if (cancelled || !window.DocsAPI) return;
         editorRef.current?.destroyEditor?.();
-        editorRef.current = new window.DocsAPI.DocEditor(elementId, data.config);
+        editorRef.current = new window.DocsAPI.DocEditor(
+          elementId,
+          data.config,
+        );
         setStatus('ready');
       })
       .catch(() => {
@@ -60,9 +68,14 @@ export function OnlyOfficeViewer({ filePath }: Props) {
   return (
     <div className="relative h-full">
       {status === 'loading' && (
-        <OnlyOfficeMessage icon={<Loader2 className="h-4 w-4 animate-spin" />} message={t('Loading...')} />
+        <OnlyOfficeMessage
+          icon={<Loader2 className="h-4 w-4 animate-spin" />}
+          message={t('loadingb04ba49f')}
+        />
       )}
-      {status === 'error' && <OnlyOfficeMessage message={t('Failed to load OnlyOffice editor')} />}
+      {status === 'error' && (
+        <OnlyOfficeMessage message={t('failedToLoadOnlyOfficeEditor')} />
+      )}
       <div id={elementId} className="h-full w-full" />
     </div>
   );
@@ -72,10 +85,16 @@ export function OnlyOfficeViewer({ filePath }: Props) {
 async function loadOnlyOfficeScript(scriptUrl: string): Promise<void> {
   if (window.DocsAPI) return;
   await new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[data-onlyoffice-url="${scriptUrl}"]`);
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[data-onlyoffice-url="${scriptUrl}"]`,
+    );
     if (existing) {
       existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error('OnlyOffice script failed')), { once: true });
+      existing.addEventListener(
+        'error',
+        () => reject(new Error('OnlyOffice script failed')),
+        { once: true },
+      );
       return;
     }
     const script = document.createElement('script');
@@ -88,7 +107,13 @@ async function loadOnlyOfficeScript(scriptUrl: string): Promise<void> {
   });
 }
 
-function OnlyOfficeMessage({ icon, message }: { icon?: React.ReactNode; message: string }) {
+function OnlyOfficeMessage({
+  icon,
+  message,
+}: {
+  icon?: React.ReactNode;
+  message: string;
+}) {
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-background text-sm text-muted-foreground">
       {icon ?? <FileText className="h-5 w-5 opacity-50" />}

@@ -90,8 +90,7 @@ export function recoverTurnItems(
           ...(cursor && { query: { cursor } }),
         });
         if (currentRecoveryEpoch(threadId) !== epoch) return false;
-        if (!data)
-          throw new Error(i18n.t('Failed to recover conversation items.'));
+        if (!data) throw new Error(i18n.t('failedToRecoverConversationItems'));
         items.push(...(data.items as Array<Record<string, unknown>>));
         // `complete` is the only completeness signal. A null cursor alone does
         // not mean the history ended — it can also mean paging is unavailable
@@ -117,7 +116,7 @@ export function recoverTurnItems(
       if (!complete)
         throw new Error(
           i18n.t(
-            'Conversation item recovery returned incomplete data. Retry refreshing history.',
+            'conversationItemRecoveryReturnedIncompleteDataRetryRefreshingHistory',
           ),
         );
       return true;
@@ -178,8 +177,7 @@ async function recoverTurnLifecycle(
                 },
               })
             ).data;
-      if (!data)
-        throw new Error(i18n.t('Failed to recover conversation history.'));
+      if (!data) throw new Error(i18n.t('failedToRecoverConversationHistory'));
       assertFullHistoryPage(data);
       if (currentRecoveryEpoch(threadId) !== epoch) return false;
       const seen = new Set(turns.map((turn) => turn.id));
@@ -391,7 +389,7 @@ async function runThreadRecovery(
         if (!store.getThreadRuntime(threadId)?.historyError)
           store.setOpenStateForThread(threadId, {
             historyError: i18n.t(
-              'Some older messages could not be refreshed. Reopen the conversation to retry.',
+              'someOlderMessagesCouldNotBeRefreshedReopenTheConversationToRetry',
             ),
           });
         console.warn(

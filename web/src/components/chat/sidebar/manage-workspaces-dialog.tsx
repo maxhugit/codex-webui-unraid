@@ -37,10 +37,10 @@ export function ManageWorkspacesDialog({
       {project && (
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t('Manage workspaces')}</DialogTitle>
+            <DialogTitle>{t('manageWorkspaces')}</DialogTitle>
             <DialogDescription>
               {t(
-                'The primary workspace is permanent. Add or detach secondary workspaces without deleting their files. Choose the active workspace in each conversation. The .webui folder is reserved for the application.',
+                'thePrimaryWorkspaceIsPermanentAddOrDetachSecondaryWorkspacesWithoutDeletingThei69867b01',
               )}
             </DialogDescription>
           </DialogHeader>
@@ -62,7 +62,7 @@ export function ManageWorkspacesDialog({
                         <span className="truncate">{workspace.name}</span>
                         {workspace.primary && (
                           <Badge variant="secondary">
-                            {t('Primary workspace')}
+                            {t('primaryWorkspace')}
                           </Badge>
                         )}
                       </div>
@@ -83,18 +83,18 @@ export function ManageWorkspacesDialog({
                           onClick={() => onDetach(project, workspace.id)}
                         >
                           <Unlink className="h-3.5 w-3.5" />
-                          {t('Detach')}
+                          {t('detach')}
                         </Button>
                       </div>
                     )}
                   </div>
                   <div className="ml-7 space-y-1.5 border-l border-border pl-3">
                     <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      {t('Associated conversations')} ({conversationCount})
+                      {t('associatedConversations')} ({conversationCount})
                     </div>
                     {conversationCount === 0 ? (
                       <p className="text-xs italic text-muted-foreground">
-                        {t('No associated conversation')}
+                        {t('noAssociatedConversation')}
                       </p>
                     ) : (
                       <div className="space-y-1">
@@ -106,8 +106,8 @@ export function ManageWorkspacesDialog({
                             <Bot className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">{thread.title}</span>
                             <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                              {t('Work agent')}
-                              {thread.archived ? ` · ${t('Archived')}` : ''}
+                              {t('workAgent')}
+                              {thread.archived ? ` · ${t('archived')}` : ''}
                             </span>
                           </div>
                         ))}
@@ -116,7 +116,7 @@ export function ManageWorkspacesDialog({
                     {!workspace.primary && conversationCount > 0 && (
                       <p className="pt-1 text-[11px] text-muted-foreground">
                         {t(
-                          'Detaching will move these conversations to the primary workspace. They will not be deleted.',
+                          'detachingWillMoveTheseConversationsToThePrimaryWorkspaceTheyWillNotBeDeleted',
                         )}
                       </p>
                     )}
@@ -132,10 +132,10 @@ export function ManageWorkspacesDialog({
               onClick={() => onAdd(project)}
             >
               <FolderPlus className="h-4 w-4" />
-              {t('Add a workspace')}
+              {t('addAWorkspace')}
             </Button>
             <Button variant="secondary" disabled={pending} onClick={onClose}>
-              {t('Close')}
+              {t('close')}
             </Button>
           </DialogFooter>
         </DialogContent>

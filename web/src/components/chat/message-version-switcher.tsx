@@ -75,7 +75,7 @@ export function MessageVersionSwitcher({
   const isGroupOriginal = current?.kind === 'original';
   const blockedReason = isGroupOriginal
     ? t(
-        'This is the original version. Deleting it would remove every other version of this message along with it — delete the whole branch from the outer version switcher or the sidebar instead.',
+        'thisIsTheOriginalVersionDeletingItWouldRemoveEveryOtherVersionOfThisMessageAlon87e6b01a',
       )
     : deleteBlockedReason;
   const showDeleteVersion = Boolean(onDeleteVersion) && Boolean(current);
@@ -95,7 +95,7 @@ export function MessageVersionSwitcher({
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label={t('Previous version')}
+            aria-label={t('previousVersion')}
             disabled={position <= 1 || isDeleting}
             className="flex cursor-pointer items-center rounded p-0.5 transition-colors hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
             onClick={() => goTo(position - 1)}
@@ -103,7 +103,7 @@ export function MessageVersionSwitcher({
             <ChevronLeft className="h-3 w-3" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">{t('Previous version')}</TooltipContent>
+        <TooltipContent side="bottom">{t('previousVersion')}</TooltipContent>
       </Tooltip>
 
       <span className="tabular-nums">
@@ -114,7 +114,7 @@ export function MessageVersionSwitcher({
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label={t('Next version')}
+            aria-label={t('nextVersion')}
             disabled={position >= total || isDeleting}
             className="flex cursor-pointer items-center rounded p-0.5 transition-colors hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
             onClick={() => goTo(position + 1)}
@@ -122,7 +122,7 @@ export function MessageVersionSwitcher({
             <ChevronRight className="h-3 w-3" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">{t('Next version')}</TooltipContent>
+        <TooltipContent side="bottom">{t('nextVersion')}</TooltipContent>
       </Tooltip>
 
       {showDeleteVersion && (
@@ -130,9 +130,7 @@ export function MessageVersionSwitcher({
           <TooltipTrigger asChild>
             <button
               type="button"
-              aria-label={
-                isDeleting ? t('Deleting…') : t('Delete this version')
-              }
+              aria-label={isDeleting ? t('deleting') : t('deleteThisVersion')}
               disabled={Boolean(blockedReason) || isDeleting}
               title={blockedReason ?? undefined}
               // Dimmed when unavailable, but not while deleting: a 30%-opacity
@@ -160,8 +158,8 @@ export function MessageVersionSwitcher({
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-xs">
             {isDeleting
-              ? t('Deleting…')
-              : (blockedReason ?? t('Delete this version and its branches'))}
+              ? t('deleting')
+              : (blockedReason ?? t('deleteThisVersionAndItsBranches'))}
           </TooltipContent>
         </Tooltip>
       )}

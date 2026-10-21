@@ -139,7 +139,7 @@ export function WorkspaceOverview({
             aria-expanded={!archivedCollapsed}
           >
             <Archive aria-hidden="true" className="h-4 w-4 shrink-0" />
-            {t('Archived projects')}
+            {t('archivedProjects')}
             {archivedCollapsed ? (
               <ChevronRight
                 aria-hidden="true"
@@ -156,8 +156,8 @@ export function WorkspaceOverview({
             type="button"
             className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             onClick={onOpenArchivedDetail}
-            aria-label={t('View more')}
-            title={t('View more')}
+            aria-label={t('viewMore')}
+            title={t('viewMore')}
           >
             <Eye className="h-3.5 w-3.5" />
           </button>
@@ -177,7 +177,7 @@ export function WorkspaceOverview({
                 {archivedThreads.map((thread) => renderThreadRow(thread, true))}
                 {archivedThreads.length === 0 && (
                   <p className="py-2 pl-5 text-xs text-muted-foreground">
-                    {t('No archived threads')}
+                    {t('noArchivedThreads')}
                   </p>
                 )}
               </div>
@@ -211,7 +211,7 @@ export function WorkspaceOverview({
                 className="flex h-7 shrink-0 cursor-pointer items-center text-muted-foreground hover:text-foreground"
                 onClick={() => onToggleCollapse(group.cwd)}
                 aria-label={
-                  collapsed ? t('Expand project') : t('Collapse project')
+                  collapsed ? t('expandProject') : t('collapseProject')
                 }
               >
                 {collapsed ? (
@@ -247,8 +247,8 @@ export function WorkspaceOverview({
                     <button
                       type="button"
                       className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      aria-label={t('Project actions')}
-                      title={t('Project actions')}
+                      aria-label={t('projectActions')}
+                      title={t('projectActions')}
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
@@ -263,7 +263,7 @@ export function WorkspaceOverview({
                       }}
                     >
                       <Bot className="h-3.5 w-3.5" />
-                      {t('Work agent')}
+                      {t('workAgent')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -274,7 +274,7 @@ export function WorkspaceOverview({
                       }}
                     >
                       <MessageCircle className="h-3.5 w-3.5" />
-                      {t('Simple conversation')}
+                      {t('simpleConversation')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -285,7 +285,7 @@ export function WorkspaceOverview({
                       }}
                     >
                       <ListTodo className="h-3.5 w-3.5" />
-                      {t('Task manager')}
+                      {t('taskManager')}
                     </Button>
                     {onCreateAutomationBoard && (
                       <Button
@@ -302,7 +302,7 @@ export function WorkspaceOverview({
                         }}
                       >
                         <Zap className="h-3.5 w-3.5" />
-                        {t('Automations')}
+                        {t('automations')}
                       </Button>
                     )}
                     {onCreateDeliverables && (
@@ -320,7 +320,7 @@ export function WorkspaceOverview({
                         }}
                       >
                         <Package className="h-3.5 w-3.5" />
-                        {t('Deliverables management')}
+                        {t('deliverablesManagement')}
                       </Button>
                     )}
                     <Button
@@ -332,7 +332,7 @@ export function WorkspaceOverview({
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                      {t('Delete project')}
+                      {t('deleteProject')}
                     </Button>
                   </PopoverContent>
                 </Popover>
@@ -341,8 +341,8 @@ export function WorkspaceOverview({
                     type="button"
                     className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                     onClick={() => onOpenWorkspaceDetail(group.cwd)}
-                    aria-label={t('View more')}
-                    title={t('View more')}
+                    aria-label={t('viewMore')}
+                    title={t('viewMore')}
                   >
                     <Eye className="h-3.5 w-3.5" />
                   </button>
@@ -397,7 +397,7 @@ export function WorkspaceOverview({
 
       {workspaceGroups.length === 0 && archivedThreads.length === 0 && (
         <p className="px-2 py-8 text-center text-xs text-muted-foreground">
-          {t('No threads yet')}
+          {t('noThreadsYet')}
         </p>
       )}
     </div>

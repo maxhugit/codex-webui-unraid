@@ -24,12 +24,14 @@ interface FileDiffSection {
 
 /** Counts added content lines while excluding unified diff metadata. */
 function countAdditions(lines: string[]): number {
-  return lines.filter((line) => line.startsWith('+') && !line.startsWith('+++')).length;
+  return lines.filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+    .length;
 }
 
 /** Counts deleted content lines while excluding unified diff metadata. */
 function countDeletions(lines: string[]): number {
-  return lines.filter((line) => line.startsWith('-') && !line.startsWith('---')).length;
+  return lines.filter((line) => line.startsWith('-') && !line.startsWith('---'))
+    .length;
 }
 
 /** Extracts the new-side path from a diff --git header when possible. */
@@ -102,11 +104,18 @@ export function DiffViewer({ diff }: Props) {
   const [expanded, setExpanded] = useState(false);
   const sections = useMemo(() => splitFileDiffSections(diff), [diff]);
   const fileCount = sections.length;
-  const additions = sections.reduce((total, section) => total + section.additions, 0);
-  const deletions = sections.reduce((total, section) => total + section.deletions, 0);
-  const fileCountLabel = fileCount === 1
-    ? t('{{count}} file changed', { count: fileCount })
-    : t('{{count}} files changed', { count: fileCount });
+  const additions = sections.reduce(
+    (total, section) => total + section.additions,
+    0,
+  );
+  const deletions = sections.reduce(
+    (total, section) => total + section.deletions,
+    0,
+  );
+  const fileCountLabel =
+    fileCount === 1
+      ? t('countFileChanged', { count: fileCount })
+      : t('countFilesChanged', { count: fileCount });
 
   return (
     <div className="mt-2 rounded-lg border border-border bg-muted/30 text-sm">

@@ -14,10 +14,7 @@ interface Props {
   item: Extract<
     TurnItem,
     {
-      type:
-        | 'contextCompaction'
-        | 'enteredReviewMode'
-        | 'exitedReviewMode';
+      type: 'contextCompaction' | 'enteredReviewMode' | 'exitedReviewMode';
     }
   >;
 }
@@ -59,9 +56,7 @@ function describeMarker(
     case 'contextCompaction':
       return {
         icon: Shrink,
-        label: item.completed
-          ? t('Context compacted')
-          : t('Compacting context...'),
+        label: item.completed ? t('contextCompacted') : t('compactingContext'),
       };
     case 'enteredReviewMode':
       // `content` is the review subject, e.g. "current changes". It is absent
@@ -69,10 +64,10 @@ function describeMarker(
       return {
         icon: ScanSearch,
         label: item.content
-          ? `${t('Reviewing')}: ${item.content}`
-          : t('Review started'),
+          ? `${t('reviewing')}: ${item.content}`
+          : t('reviewStarted'),
       };
     case 'exitedReviewMode':
-      return { icon: ScanText, label: t('Review finished') };
+      return { icon: ScanText, label: t('reviewFinished') };
   }
 }

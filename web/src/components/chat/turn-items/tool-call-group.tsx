@@ -44,10 +44,10 @@ export function ToolCallGroup({ items, children }: Props) {
         />
         <Wrench className="h-3.5 w-3.5 shrink-0" />
         <span className="font-medium">
-          {t('{{count}} tool calls', { count: items.length })}
+          {t('countToolCalls', { count: items.length })}
         </span>
         {allCompleted ? (
-          <span className="text-green-500">{t('done')}</span>
+          <span className="text-green-500">{t('donee5fd9cfe')}</span>
         ) : (
           <Loader2 className="h-3 w-3 animate-spin" />
         )}

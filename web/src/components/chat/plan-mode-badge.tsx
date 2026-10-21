@@ -38,14 +38,14 @@ export function PlanModeBadge({ state, pending, disabled, onToggle }: Props) {
       )}
       disabled={disabled || pending}
       onClick={onToggle}
-      title={t('Plan mode applies to the next turn. Click to turn it off.')}
+      title={t('planModeAppliesToTheNextTurnClickToTurnItOff')}
     >
       {pending ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
       ) : (
         <Telescope className="h-3.5 w-3.5" />
       )}
-      <span>{t('Plan')}</span>
+      <span>{t('plan')}</span>
     </Button>
   );
 }

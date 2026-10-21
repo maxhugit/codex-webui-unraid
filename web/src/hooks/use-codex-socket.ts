@@ -356,9 +356,7 @@ export function useCodexSocket(enabled = true) {
           store.setThreadStatusForThread(threadId, { type: 'systemError' });
           store.addSystemMessageForThread(
             threadId,
-            i18n.t(
-              'Codex app-server is restarting. Waiting to resume this thread.',
-            ),
+            i18n.t('codexAppServerIsRestartingWaitingToResumeThisThread'),
             'warning',
           );
         }
@@ -379,7 +377,7 @@ export function useCodexSocket(enabled = true) {
       )) {
         store.addSystemMessageForThread(
           threadId,
-          i18n.t('Auto-resume failed. Reopen this thread to retry.'),
+          i18n.t('autoResumeFailedReopenThisThreadToRetry'),
           'error',
         );
       }
@@ -389,7 +387,7 @@ export function useCodexSocket(enabled = true) {
       )) {
         store.addSystemMessageForThread(
           threadId,
-          i18n.t('Thread resumed after app-server restart.'),
+          i18n.t('threadResumedAfterAppServerRestart'),
           'info',
         );
         // The backend already owns execution reattachment. Only this viewed
@@ -397,7 +395,7 @@ export function useCodexSocket(enabled = true) {
         void restoreThread(threadId, 'appServerRestart').catch(() =>
           store.addSystemMessageForThread(
             threadId,
-            i18n.t('State recovery failed after resume.'),
+            i18n.t('stateRecoveryFailedAfterResume'),
             'warning',
           ),
         );

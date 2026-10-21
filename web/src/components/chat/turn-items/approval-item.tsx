@@ -45,10 +45,10 @@ export function ApprovalItem({ approval }: Props) {
   const Icon = approval.kind === 'fileChange' ? FileCode : Terminal;
   const label =
     approval.kind === 'command'
-      ? t('Command Approval')
+      ? t('commandApproval')
       : approval.kind === 'writeStdin'
-        ? t('Terminal Input Approval')
-        : t('File Change Approval');
+        ? t('terminalInputApproval')
+        : t('fileChangeApproval');
 
   const changes = approval.reviewChanges;
   // `null` on a file approval is a distinct, actionable state, not "nothing to
@@ -84,7 +84,7 @@ export function ApprovalItem({ approval }: Props) {
         {changes && changes.length > 0 && (
           <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
             {changes.length > 1
-              ? t('{{count}} files', { count: changes.length })
+              ? t('countFiles', { count: changes.length })
               : changes[0].path}
           </span>
         )}
@@ -128,13 +128,13 @@ export function ApprovalItem({ approval }: Props) {
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
             <span className="text-muted-foreground">
               {t(
-                'The proposed changes could not be retrieved, so they cannot be shown here.',
+                'theProposedChangesCouldNotBeRetrievedSoTheyCannotBeShownHere',
               )}
               {/* The advice is only advice while there is still a decision to
                   make. Telling someone to decline a request they already
                   answered reads as though their answer had not registered. */}
               {isPending &&
-                ` ${t('Declining is the only safe answer; the agent can propose them again.')}`}
+                ` ${t('decliningIsTheOnlySafeAnswerTheAgentCanProposeThemAgain')}`}
             </span>
           </div>
         )}
@@ -143,7 +143,9 @@ export function ApprovalItem({ approval }: Props) {
       </div>
 
       {/* The whole change set, drawn by the card because no item is doing it. */}
-      {changes && changes.length > 0 && <FileChangeSet changes={changes} settled alwaysLabelPaths />}
+      {changes && changes.length > 0 && (
+        <FileChangeSet changes={changes} settled alwaysLabelPaths />
+      )}
     </div>
   );
 }

@@ -4,7 +4,11 @@ import opentype from 'opentype.js';
 import { Loader2, Type } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Textarea } from '@/components/ui/textarea';
-import { fetchPreviewBlob, previewSourceLabel, type PreviewSource } from './preview-source';
+import {
+  fetchPreviewBlob,
+  previewSourceLabel,
+  type PreviewSource,
+} from './preview-source';
 
 interface Props {
   source: PreviewSource;
@@ -18,7 +22,8 @@ interface FontMetadata {
   glyphCount: number;
 }
 
-const DEFAULT_SAMPLE = 'The quick brown fox jumps over the lazy dog 0123456789\nPortez ce vieux whisky au juge blond qui fume';
+const DEFAULT_SAMPLE =
+  'The quick brown fox jumps over the lazy dog 0123456789\nPortez ce vieux whisky au juge blond qui fume';
 
 export function FontViewer({ source }: Props) {
   const { t } = useTranslation();
@@ -49,14 +54,17 @@ export function FontViewer({ source }: Props) {
         setBlobUrl(currentUrl);
         const font = opentype.parse(buffer);
         setMetadata({
-          family: englishName(font.names.fontFamily) ?? previewSourceLabel(source),
-          subfamily: englishName(font.names.fontSubfamily) ?? t('Unknown'),
-          version: englishName(font.names.version) ?? t('Unknown'),
-          weight: String(font.tables.os2?.usWeightClass ?? t('Unknown')),
+          family:
+            englishName(font.names.fontFamily) ?? previewSourceLabel(source),
+          subfamily: englishName(font.names.fontSubfamily) ?? t('unknown'),
+          version: englishName(font.names.version) ?? t('unknown'),
+          weight: String(font.tables.os2?.usWeightClass ?? t('unknown')),
           glyphCount: font.glyphs.length,
         });
       })
-      .catch(() => { if (!cancelled) setError(t('Failed to load font')); });
+      .catch(() => {
+        if (!cancelled) setError(t('failedToLoadFont'));
+      });
 
     return () => {
       cancelled = true;
@@ -66,21 +74,33 @@ export function FontViewer({ source }: Props) {
 
   if (error) return <FontMessage message={error} />;
   if (!blobUrl || !metadata) {
-    return <FontMessage icon={<Loader2 className="h-4 w-4 animate-spin" />} message={t('Loading...')} />;
+    return (
+      <FontMessage
+        icon={<Loader2 className="h-4 w-4 animate-spin" />}
+        message={t('loadingb04ba49f')}
+      />
+    );
   }
 
   return (
     <div className="flex h-full flex-col overflow-auto p-4">
       <style>{`@font-face { font-family: '${fontFamily}'; src: url('${blobUrl}'); }`}</style>
       <div className="mb-4 grid gap-2 rounded-lg border border-border bg-card/50 p-4 text-sm md:grid-cols-2">
-        <Metadata label={t('Family')} value={metadata.family} />
-        <Metadata label={t('Style')} value={metadata.subfamily} />
-        <Metadata label={t('Weight')} value={metadata.weight} />
-        <Metadata label={t('Glyphs')} value={String(metadata.glyphCount)} />
-        <Metadata label={t('Version')} value={metadata.version} />
+        <Metadata label={t('family')} value={metadata.family} />
+        <Metadata label={t('style')} value={metadata.subfamily} />
+        <Metadata label={t('weight')} value={metadata.weight} />
+        <Metadata label={t('glyphs')} value={String(metadata.glyphCount)} />
+        <Metadata label={t('version')} value={metadata.version} />
       </div>
-      <Textarea value={sample} onChange={(event) => setSample(event.target.value)} className="mb-4 min-h-24" />
-      <div className="rounded-lg border border-border bg-background p-6 text-4xl leading-relaxed" style={{ fontFamily }}>
+      <Textarea
+        value={sample}
+        onChange={(event) => setSample(event.target.value)}
+        className="mb-4 min-h-24"
+      />
+      <div
+        className="rounded-lg border border-border bg-background p-6 text-4xl leading-relaxed"
+        style={{ fontFamily }}
+      >
         {sample}
       </div>
     </div>
@@ -96,7 +116,13 @@ function Metadata({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FontMessage({ icon, message }: { icon?: React.ReactNode; message: string }) {
+function FontMessage({
+  icon,
+  message,
+}: {
+  icon?: React.ReactNode;
+  message: string;
+}) {
   return (
     <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
       {icon ?? <Type className="h-5 w-5 opacity-50" />}

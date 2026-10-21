@@ -45,7 +45,9 @@ export function ToolCallItem({ item }: Props) {
         {item.toolServer}/{item.toolName}
       </span>
       {!item.completed && <Loader2 className="h-3 w-3 animate-spin" />}
-      {item.completed && <span className="text-green-500">{t('done')}</span>}
+      {item.completed && (
+        <span className="text-green-500">{t('donee5fd9cfe')}</span>
+      )}
     </>
   );
 

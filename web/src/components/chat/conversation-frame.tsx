@@ -25,9 +25,13 @@ export function ConversationFrame({
   const [layoutReady, setLayoutReady] = useState(false);
   const [sendSignal, setSendSignal] = useState(0);
   const selected = useTimelineStore((s) => s.threadId === threadId);
-  const hydrated = useTimelineStore((s) => s.threadsById[threadId]?.hydrated ?? false);
+  const hydrated = useTimelineStore(
+    (s) => s.threadsById[threadId]?.hydrated ?? false,
+  );
   const openState = useTimelineStore((s) => s.threadsById[threadId]?.openState);
-  const historyError = useTimelineStore((s) => s.threadsById[threadId]?.historyError);
+  const historyError = useTimelineStore(
+    (s) => s.threadsById[threadId]?.historyError,
+  );
   const dataReady = selected && hydrated && openState === 'ready';
   const measureReady = useCallback(
     (measured: boolean) =>
@@ -59,10 +63,7 @@ export function ConversationFrame({
           scrollToLatestSignal={sendSignal}
           onEditMessage={(text) => input.current?.setInput(text)}
         />
-        <div
-          ref={composer}
-          className="absolute inset-x-0 bottom-0 w-full"
-        >
+        <div ref={composer} className="absolute inset-x-0 bottom-0 w-full">
           <ChatInput
             ref={input}
             active={active && selected}
@@ -78,12 +79,12 @@ export function ConversationFrame({
               <>
                 <AlertTriangle />
                 <p>{historyError}</p>
-                <Button onClick={onRetry}>{t('Retry')}</Button>
+                <Button onClick={onRetry}>{t('retry')}</Button>
               </>
             ) : (
               <>
                 <Loader2 className="animate-spin" />
-                {t('Loading conversation…')}
+                {t('loadingConversation')}
               </>
             )}
           </div>
@@ -92,7 +93,7 @@ export function ConversationFrame({
           <div className="absolute inset-x-0 top-0 z-20 flex items-center gap-3 border-b bg-background px-4 py-2 text-xs">
             <span className="flex-1">{historyError}</span>
             <Button size="sm" variant="ghost" onClick={onRetry}>
-              {t('Retry')}
+              {t('retry')}
             </Button>
           </div>
         )}

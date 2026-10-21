@@ -179,7 +179,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       set({ config: response.config, configLoaded: true });
     else
       showSnackbar(
-        response.error ?? i18n.t('Failed to load terminal config'),
+        response.error ?? i18n.t('failedToLoadTerminalConfig'),
         'error',
       );
     return get().config;
@@ -232,10 +232,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   listContext: async (contextKey) => {
     const response = await emitTerminalAck('terminal.list', { contextKey });
     if (!response.ok || !response.terminals) {
-      showSnackbar(
-        response.error ?? i18n.t('Failed to list terminals'),
-        'error',
-      );
+      showSnackbar(response.error ?? i18n.t('failedToListTerminals'), 'error');
       return null;
     }
     if (response.config) set({ config: response.config, configLoaded: true });
@@ -255,10 +252,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       cwd,
     });
     if (!response.ok || !response.terminal) {
-      showSnackbar(
-        response.error ?? i18n.t('Failed to open terminal'),
-        'error',
-      );
+      showSnackbar(response.error ?? i18n.t('failedToOpenTerminal'), 'error');
       return null;
     }
     if (contextEpoch(contextKey) !== epoch) {
@@ -313,10 +307,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
         closing: { ...state.closing, [terminalId]: uncertain },
       }));
       get().recordFailure(terminalId, response);
-      showSnackbar(
-        response.error ?? i18n.t('Failed to close terminal'),
-        'error',
-      );
+      showSnackbar(response.error ?? i18n.t('failedToCloseTerminal'), 'error');
       return false;
     }
     get().markTerminalClosed(contextKey, terminalId);
@@ -349,10 +340,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       title,
     });
     if (!response.ok || !response.terminal) {
-      showSnackbar(
-        response.error ?? i18n.t('Failed to rename terminal'),
-        'error',
-      );
+      showSnackbar(response.error ?? i18n.t('failedToRenameTerminal'), 'error');
       return false;
     }
     get().upsertTerminal(response.terminal);
@@ -379,7 +367,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       { contextKey, terminalId },
     );
     if (!response.ok || !response.data) {
-      showSnackbar(response.error ?? i18n.t('Download failed'), 'error');
+      showSnackbar(response.error ?? i18n.t('downloadFailed'), 'error');
       return;
     }
     saveTerminalOutput(response.data.content, response.data.filename);
@@ -444,7 +432,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
               status: 'closed',
               attachedCount: 0,
               errorCode: 'terminal.closed',
-              error: i18n.t('Terminal closed'),
+              error: i18n.t('terminalClosed'),
             },
           }
         : state.terminals,

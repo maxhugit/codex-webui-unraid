@@ -30,11 +30,7 @@ interface DeviceCodeState {
   userCode: string;
 }
 
-export function AccountLoginDialog({
-  open,
-  onOpenChange,
-  onChanged,
-}: Props) {
+export function AccountLoginDialog({ open, onOpenChange, onChanged }: Props) {
   const { t } = useTranslation();
   const setLoginStarted = useAccountStore((s) => s.setLoginStarted);
   const clearLogin = useAccountStore((s) => s.clearLogin);
@@ -72,7 +68,7 @@ export function AccountLoginDialog({
         });
         return;
       }
-      showSnackbar(t('Codex account updated'), 'success');
+      showSnackbar(t('codexAccountUpdated'), 'success');
       onChanged();
       onOpenChange(false);
     },
@@ -84,7 +80,7 @@ export function AccountLoginDialog({
     onSuccess: () => {
       clearLogin();
       setDeviceResponse(null);
-      showSnackbar(t('Login cancelled'), 'info');
+      showSnackbar(t('loginCancelled'), 'info');
     },
   });
 
@@ -106,11 +102,9 @@ export function AccountLoginDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('Login to Codex')}</DialogTitle>
+          <DialogTitle>{t('loginToCodex')}</DialogTitle>
           <DialogDescription>
-            {t(
-              'Use API Key mode for proxies, or ChatGPT device code for account quotas.',
-            )}
+            {t('useApiKeyModeForProxiesOrChatGptDeviceCodeForAccountQuotas')}
           </DialogDescription>
         </DialogHeader>
 
@@ -121,7 +115,7 @@ export function AccountLoginDialog({
             size="sm"
             onClick={() => setMode('chatgptDeviceCode')}
           >
-            {t('ChatGPT')}
+            {t('chatGpt')}
           </Button>
           <Button
             type="button"
@@ -129,7 +123,7 @@ export function AccountLoginDialog({
             size="sm"
             onClick={() => setMode('apiKey')}
           >
-            {t('API Key')}
+            {t('apiKey')}
           </Button>
         </div>
 
@@ -138,13 +132,13 @@ export function AccountLoginDialog({
             type="password"
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
-            placeholder={t('Codex API Key')}
+            placeholder={t('codexApiKey')}
             autoFocus
           />
         ) : deviceResponse ? (
           <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
             <p className="text-muted-foreground">
-              {t('Open the verification URL and enter this code:')}
+              {t('openTheVerificationUrlAndEnterThisCode')}
             </p>
             <div className="rounded-md bg-background px-3 py-2 text-center font-mono text-lg tracking-widest">
               {deviceResponse.userCode}
@@ -161,9 +155,7 @@ export function AccountLoginDialog({
           </div>
         ) : (
           <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-            {t(
-              'Start a device-code login and complete it in your browser.',
-            )}
+            {t('startADeviceCodeLoginAndCompleteItInYourBrowser')}
           </p>
         )}
 
@@ -174,7 +166,7 @@ export function AccountLoginDialog({
               disabled={pending}
               onClick={() => cancelMutation.mutate(deviceResponse.loginId)}
             >
-              {t('Cancel login')}
+              {t('cancelLogin')}
             </Button>
           ) : null}
           <Button
@@ -182,9 +174,7 @@ export function AccountLoginDialog({
             onClick={() => loginMutation.mutate()}
           >
             {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {mode === 'apiKey'
-              ? t('Login with API Key')
-              : t('Start device login')}
+            {mode === 'apiKey' ? t('loginWithApiKey') : t('startDeviceLogin')}
           </Button>
         </DialogFooter>
       </DialogContent>

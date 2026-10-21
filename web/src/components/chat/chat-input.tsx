@@ -421,14 +421,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
       {readOnly && (
         <p className="mb-2 rounded-lg bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
           {deletedRemotely
-            ? t('This conversation was deleted and can no longer be used.')
+            ? t('thisConversationWasDeletedAndCanNoLongerBeUsed')
             : readOnlyReason !== null
-              ? t(
-                  'Held open by another client. Close it there to continue here.',
-                )
-              : t(
-                  'Archived threads are read-only. Unarchive or fork to continue.',
-                )}
+              ? t('heldOpenByAnotherClientCloseItThereToContinueHere')
+              : t('archivedThreadsAreReadOnlyUnarchiveOrForkToContinue')}
         </p>
       )}
       {/* Goal is a durable objective, not a transcript entry, so it stays
@@ -480,12 +476,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             onPaste={handlePaste}
             placeholder={
               readOnly
-                ? t('Archived thread is read-only')
+                ? t('archivedThreadIsReadOnly')
                 : hasActiveTurn
-                  ? t('Add input to the active turn...')
+                  ? t('addInputToTheActiveTurn')
                   : threadId
-                    ? t('Type a message... (@ to mention files, paste images)')
-                    : t('Create a thread first')
+                    ? t('typeAMessageToMentionFilesPasteImages')
+                    : t('createAThreadFirst')
             }
             disabled={!threadId || readOnly}
             rows={1}
@@ -523,9 +519,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                     className="h-7 rounded-lg px-2.5 text-xs transition-transform duration-200 hover:scale-105 active:scale-95"
                     disabled={!hasContent || !canSteer || steer.isPending}
                     onClick={handleSubmit}
-                    title={t('Steer current turn')}
+                    title={t('steerCurrentTurn')}
                   >
-                    {t('Steer')}
+                    {t('steer')}
                   </Button>
                   <Button
                     size="icon"
@@ -533,7 +529,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                     className="h-7 w-7 rounded-lg transition-transform duration-200 hover:scale-105 active:scale-95"
                     disabled={interruptTurn.isPending}
                     onClick={handleStop}
-                    title={t('Stop current turn')}
+                    title={t('stopCurrentTurn')}
                   >
                     <Square className="h-3.5 w-3.5" />
                   </Button>

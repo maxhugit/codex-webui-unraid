@@ -56,7 +56,7 @@ export function LogsMonitor() {
   const end = Math.min(offset + PAGE_SIZE, total);
   const merged = sources.length !== 1;
   const selectedSourcesLabel =
-    sources.length === 0 ? t('All sources') : sources.join(', ');
+    sources.length === 0 ? t('allSources') : sources.join(', ');
 
   const toggle = (
     value: string,
@@ -77,14 +77,14 @@ export function LogsMonitor() {
         <div className="flex flex-wrap items-start gap-3">
           <div className="mr-auto">
             <div className="flex items-center gap-2">
-              <h1 className="font-semibold">{t('Logs')}</h1>
+              <h1 className="font-semibold">{t('logs')}</h1>
               <Badge variant="secondary" className="gap-1 font-normal">
                 <Layers3 className="h-3 w-3" />
-                {merged ? t('Merged view') : sources[0]}
+                {merged ? t('mergedView') : sources[0]}
               </Badge>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {t('Monitor, merge and filter application logs in real time.')}
+              {t('monitorMergeAndFilterApplicationLogsInRealTime')}
             </p>
           </div>
           <Button
@@ -98,7 +98,7 @@ export function LogsMonitor() {
             ) : (
               <Play className="h-3.5 w-3.5" />
             )}
-            {live ? t('Pause live updates') : t('Resume live updates')}
+            {live ? t('pauseLiveUpdates') : t('resumeLiveUpdates')}
           </Button>
           <Button
             variant="outline"
@@ -110,28 +110,28 @@ export function LogsMonitor() {
             <RefreshCw
               className={cn('h-3.5 w-3.5', query.isFetching && 'animate-spin')}
             />
-            {t('Refresh')}
+            {t('refresh')}
           </Button>
         </div>
 
         <div className="grid gap-3 xl:grid-cols-[minmax(14rem,1fr)_minmax(0,3fr)]">
           <label className="relative block">
-            <span className="sr-only">{t('Search logs')}</span>
+            <span className="sr-only">{t('searchLogs')}</span>
             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={t('Search in displayed logs')}
+              placeholder={t('searchInDisplayedLogs')}
               className="pl-9"
             />
           </label>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-xs font-medium text-muted-foreground">
-              {t('Levels')}
+              {t('levels')}
             </span>
             <FilterButton
               active={levels.length === 0}
-              label={t('All')}
+              label={t('all')}
               onClick={() => {
                 setOffset(0);
                 setLevels([]);
@@ -151,13 +151,13 @@ export function LogsMonitor() {
 
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0 text-xs font-medium text-muted-foreground">
-            {t('Sources')}
+            {t('sources')}
           </span>
           <Popover>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                aria-label={t('Filter log sources')}
+                aria-label={t('filterLogSources')}
                 title={selectedSourcesLabel}
                 className="flex h-9 min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-left text-sm shadow-xs outline-none transition-[color,box-shadow] hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
@@ -171,7 +171,7 @@ export function LogsMonitor() {
             >
               <SourceOption
                 checked={sources.length === 0}
-                label={t('All sources')}
+                label={t('allSources')}
                 onChange={() => {
                   setOffset(0);
                   setSources([]);
@@ -196,11 +196,11 @@ export function LogsMonitor() {
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
         {query.isError ? (
           <p role="alert" className="p-6 text-sm text-destructive">
-            {t('Unable to load logs')}: {query.error.message}
+            {t('unableToLoadLogs')}: {query.error.message}
           </p>
         ) : !query.isPending && visibleEntries.length === 0 ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
-            {t('No log matches the selected filters.')}
+            {t('noLogMatchesTheSelectedFilters')}
           </p>
         ) : (
           <div className="divide-y">
@@ -229,7 +229,7 @@ export function LogsMonitor() {
             onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
-            {t('Previous')}
+            {t('previous')}
           </Button>
           <Button
             variant="outline"
@@ -238,7 +238,7 @@ export function LogsMonitor() {
             disabled={!query.data?.hasMore}
             onClick={() => setOffset(offset + PAGE_SIZE)}
           >
-            {t('Next')}
+            {t('next')}
             <ChevronRight className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -326,12 +326,10 @@ function LogRow({ entry, locale }: { entry: LogEntry; locale: string }) {
         </span>
       </div>
       <div className="min-w-0">
-        <p className="break-words text-sm">
-          {entry.message || t('(no message)')}
-        </p>
+        <p className="break-words text-sm">{entry.message || t('noMessage')}</p>
         <details className="mt-1 text-xs text-muted-foreground">
           <summary className="w-fit cursor-pointer select-none hover:text-foreground">
-            {t('Details')}
+            {t('details')}
           </summary>
           <pre className="mt-2 max-w-full overflow-x-auto whitespace-pre-wrap rounded-md bg-muted p-3 font-mono text-[11px]">
             {JSON.stringify(entry.fields, null, 2)}

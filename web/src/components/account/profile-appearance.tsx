@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import { Check, Globe, Palette } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -86,7 +87,7 @@ export function ProfileAppearance() {
     <section className="space-y-4 border-t border-border pt-4">
       <div className="flex items-center gap-2">
         <Palette className="h-4 w-4" />
-        <h3 className="text-sm font-medium">{t('Appearance')}</h3>
+        <h3 className="text-sm font-medium">{t('appearance')}</h3>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {THEME_IDS.map((item) => {
@@ -115,7 +116,7 @@ export function ProfileAppearance() {
                 ))}
               </span>
               <span className="text-xs font-medium">
-                {t(THEME_LABELS[item])}
+                {t(translationKey(THEME_LABELS[item]))}
               </span>
               {selected && (
                 <Check className="absolute right-2 top-2 h-3.5 w-3.5 text-primary" />
@@ -127,7 +128,7 @@ export function ProfileAppearance() {
       <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
         <div className="flex items-center gap-2 text-sm">
           <Globe className="h-4 w-4" />
-          {t('Language')}
+          {t('language')}
         </div>
         <div className="flex flex-wrap justify-end gap-1">
           {localeDefinitions.map((locale) => (
@@ -144,7 +145,7 @@ export function ProfileAppearance() {
       </div>
       {save.isError && (
         <p className="text-xs text-destructive" role="alert">
-          {t('Unable to save profile preferences')}
+          {t('unableToSaveProfilePreferences')}
         </p>
       )}
     </section>

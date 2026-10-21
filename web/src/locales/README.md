@@ -6,19 +6,19 @@ from this manifest rather than hard-coded in a component.
 
 - `en` is the source and fallback locale.
 - `fr` contains the French translations.
-- `legacy` temporarily contains the existing English natural-language keys.
+- `common` contains the shared interface copy and uses stable semantic keys.
 
-The legacy namespace preserves the current interface while features are moved
-incrementally to semantic keys. Authentication is the first migrated domain and
-uses the matching `en/authentication.json` and `fr/authentication.json`
-catalogs. New domains follow the same structure and register their namespace in
-`index.ts`.
+Authentication uses the dedicated `authentication` namespace. New domains can
+use `common` or add a focused namespace, then register it in `manifest.json`.
+Source code always passes semantic keys to i18next; English sentences are
+values, never identifiers.
 
 Every locale must expose the same keys and interpolation variables. The catalog
 tests and `pnpm check:i18n` enforce this requirement before another language is
 enabled. The CI also rejects missing or additional namespaces, missing or
 additional keys relative to the English source, incompatible interpolation
-variables, and non-semantic keys in migrated namespaces.
+variables, non-semantic catalog keys, and natural-language literals passed to
+the translation function.
 
 ## Add a language
 

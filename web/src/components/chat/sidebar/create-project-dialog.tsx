@@ -44,10 +44,10 @@ export function CreateProjectDialog({
       {open && (
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{t('Create a project')}</DialogTitle>
+            <DialogTitle>{t('createAProject')}</DialogTitle>
             <DialogDescription>
               {t(
-                'A permanent primary workspace is created automatically at /workspaces/<project-id>. You can attach secondary workspaces afterwards.',
+                'aPermanentPrimaryWorkspaceIsCreatedAutomaticallyAtWorkspacesProjectIdYouCanAtta8d03ff7d',
               )}
             </DialogDescription>
           </DialogHeader>
@@ -55,7 +55,7 @@ export function CreateProjectDialog({
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="new-project-name" className="text-sm font-medium">
-                {t('Project name')}
+                {t('projectName')}
               </label>
               <Input
                 id="new-project-name"
@@ -69,13 +69,13 @@ export function CreateProjectDialog({
 
           <DialogFooter>
             <Button variant="outline" disabled={pending} onClick={onClose}>
-              {t('Cancel')}
+              {t('cancel')}
             </Button>
             <Button disabled={!canSave || pending} onClick={onSave}>
               {pending && (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               )}
-              {t('Create')}
+              {t('create')}
             </Button>
           </DialogFooter>
         </DialogContent>

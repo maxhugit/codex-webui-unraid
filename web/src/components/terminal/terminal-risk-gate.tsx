@@ -38,15 +38,17 @@ export function TerminalRiskGate({ children, onCancel }: Props) {
       <AlertDialog open>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Open terminal?')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('openTerminal')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('Commands execute directly on the server/container. Proceed?')}
+              {t('commandsExecuteDirectlyOnTheServerContainerProceed')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={onCancel}>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel onClick={onCancel}>
+              {t('cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction onClick={handleContinue}>
-              {t('Proceed')}
+              {t('proceed')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

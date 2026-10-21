@@ -100,7 +100,7 @@ export function FileChangeSet({ changes, settled, alwaysLabelPaths }: Props) {
             // A change with no diff is still a change. Saying so beats an empty
             // row that reads as though the file were untouched.
             <p className="px-3 py-1.5 text-xs text-muted-foreground">
-              {t('No diff provided for this file.')}
+              {t('noDiffProvidedForThisFile')}
             </p>
           )}
         </div>

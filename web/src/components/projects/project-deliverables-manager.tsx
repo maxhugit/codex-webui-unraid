@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { usePlatformSession } from '@/lib/platform-session';
@@ -41,7 +42,7 @@ export function ProjectDeliverablesManager({
   const [selected, setSelected] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const canLeave = () =>
-    !dirty || window.confirm(t('Discard unsaved deliverable changes?'));
+    !dirty || window.confirm(t('discardUnsavedDeliverableChanges'));
   const create = useMutation({
     mutationFn: () =>
       projectsApi<Deliverable>(base, {
@@ -58,7 +59,7 @@ export function ProjectDeliverablesManager({
   if (!board)
     return (
       <main className="p-6" role={query.error ? 'alert' : 'status'}>
-        {query.error ? t('Unable to load deliverables') : t('Loading…')}
+        {query.error ? t('unableToLoadDeliverables') : t('loading')}
       </main>
     );
   return (
@@ -67,7 +68,7 @@ export function ProjectDeliverablesManager({
         <h1 className="text-xl font-semibold">{board.resource.name}</h1>
         <p className="text-sm text-muted-foreground">
           {t(
-            'Track expected outputs, working files and validated versions. Removing this manager preserves its files.',
+            'trackExpectedOutputsWorkingFilesAndValidatedVersionsRemovingThisManagerPreservesItsFiles',
           )}
         </p>
         <form
@@ -78,23 +79,23 @@ export function ProjectDeliverablesManager({
           }}
         >
           <Input
-            aria-label={t('New deliverable title')}
+            aria-label={t('newDeliverableTitle')}
             value={title}
             maxLength={160}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={t('New deliverable title')}
+            placeholder={t('newDeliverableTitle')}
           />
           <Button disabled={!title.trim() || create.isPending}>
-            {t('Add deliverable')}
+            {t('addDeliverable')}
           </Button>
         </form>
         {create.error && (
           <p role="alert" className="text-sm text-destructive">
-            {t('Unable to save deliverable')}
+            {t('unableToSaveDeliverable')}
           </p>
         )}
         {!board.deliverables.length && (
-          <p className="text-muted-foreground">{t('No deliverables yet')}</p>
+          <p className="text-muted-foreground">{t('noDeliverablesYet')}</p>
         )}
         <div className="grid gap-4 lg:grid-cols-[minmax(200px,1fr)_minmax(0,3fr)]">
           <div className="space-y-2">
@@ -108,13 +109,13 @@ export function ProjectDeliverablesManager({
               >
                 <strong className="block break-words">{item.title}</strong>
                 <span className="block text-xs text-muted-foreground">
-                  {t(statuses[item.status])} ·{' '}
+                  {t(translationKey(statuses[item.status]))} ·{' '}
                   {board.assignees.find((p) => p.id === item.assigneeId)
-                    ?.name ?? t('Unassigned')}
+                    ?.name ?? t('unassigned')}
                 </span>
                 {item.dueAt !== null && (
                   <span className="block text-xs">
-                    {t('Due date')}:{' '}
+                    {t('dueDate')}:{' '}
                     {new Date(item.dueAt).toLocaleDateString(undefined, {
                       timeZone: 'UTC',
                     })}
@@ -183,9 +184,7 @@ function DeliverableEditor({
   }, [revisionDirty, paths, note, onDirty]);
   const fail = () =>
     setError(
-      t(
-        'The deliverable could not be updated. Reload to check for concurrent changes.',
-      ),
+      t('theDeliverableCouldNotBeUpdatedReloadToCheckForConcurrentChanges'),
     );
   const action = useMutation({
     mutationFn: ({
@@ -281,11 +280,11 @@ function DeliverableEditor({
           disabled={busy || revisionDirty || !!paths.trim() || !!note.trim()}
           onClick={() => agent.mutate()}
         >
-          {t('Work on this deliverable')}
+          {t('workOnThisDeliverable')}
         </Button>
       )}
       <div className="space-y-2">
-        <label htmlFor="deliverable-title">{t('Title')}</label>
+        <label htmlFor="deliverable-title">{t('title')}</label>
         <Input
           id="deliverable-title"
           disabled={busy}
@@ -294,7 +293,7 @@ function DeliverableEditor({
           maxLength={160}
         />
         <label className="block" htmlFor="deliverable-description">
-          {t('Description')}
+          {t('description')}
         </label>
         <Textarea
           id="deliverable-description"
@@ -303,7 +302,7 @@ function DeliverableEditor({
           onChange={(e) => set('description', e.target.value)}
         />
         <label className="block" htmlFor="deliverable-criteria">
-          {t('Validation criteria')}
+          {t('validationCriteria')}
         </label>
         <Textarea
           id="deliverable-criteria"
@@ -313,14 +312,14 @@ function DeliverableEditor({
         />
         <div className="grid gap-3 sm:grid-cols-3">
           <label>
-            {t('Responsible person')}
+            {t('responsiblePerson')}
             <select
               className="mt-1 w-full rounded border bg-background p-2 text-sm"
               disabled={busy}
               value={draft.assigneeId}
               onChange={(e) => set('assigneeId', e.target.value)}
             >
-              <option value="">{t('Unassigned')}</option>
+              <option value="">{t('unassigned')}</option>
               {board.assignees.map((person) => (
                 <option key={person.id} value={person.id}>
                   {person.name}
@@ -329,7 +328,7 @@ function DeliverableEditor({
             </select>
           </label>
           <label>
-            {t('Due date')}
+            {t('dueDate')}
             <Input
               type="date"
               disabled={busy}
@@ -338,7 +337,7 @@ function DeliverableEditor({
             />
           </label>
           <label>
-            {t('Status')}
+            {t('status')}
             <select
               className="mt-1 w-full rounded border bg-background p-2 text-sm"
               disabled={busy}
@@ -354,7 +353,7 @@ function DeliverableEditor({
                 )
                 .map(([value, label]) => (
                   <option key={value} value={value}>
-                    {t(label)}
+                    {t(translationKey(label))}
                   </option>
                 ))}
             </select>
@@ -366,7 +365,7 @@ function DeliverableEditor({
       </p>
       <details>
         <summary className="cursor-pointer text-sm font-medium">
-          {t('Linked tasks and conversations')}
+          {t('linkedTasksAndConversations')}
         </summary>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <div>
@@ -457,7 +456,7 @@ function DeliverableEditor({
             })
           }
         >
-          {t('Save')}
+          {t('save')}
         </Button>
         <Button
           variant="outline"
@@ -466,7 +465,7 @@ function DeliverableEditor({
             if (
               window.confirm(
                 t(
-                  'Remove this deliverable record and its version history? All files will be preserved.',
+                  'removeThisDeliverableRecordAndItsVersionHistoryAllFilesWillBePreserved',
                 ),
               )
             )
@@ -476,18 +475,18 @@ function DeliverableEditor({
               });
           }}
         >
-          {t('Remove record')}
+          {t('removeRecord')}
         </Button>
       </div>
       <div className="space-y-2 border-t pt-4">
-        <h2 className="font-semibold">{t('Propose a version')}</h2>
+        <h2 className="font-semibold">{t('proposeAVersion')}</h2>
         <p className="text-sm text-muted-foreground">
           {t(
-            'Save the record first. Submit existing project files or upload working files. A submitted version keeps a separate copy; validated copies are preserved.',
+            'saveTheRecordFirstSubmitExistingProjectFilesOrUploadWorkingFilesASubmittedVersi1a153ed7',
           )}
         </p>
         <label className="block text-sm">
-          {t('Upload or replace working files')}
+          {t('uploadOrReplaceWorkingFiles')}
           <Input
             type="file"
             multiple
@@ -499,7 +498,7 @@ function DeliverableEditor({
           />
         </label>
         <label className="block text-sm" htmlFor="deliverable-paths">
-          {t('Project file paths, one per line')}
+          {t('projectFilePathsOnePerLine')}
         </label>
         <Textarea
           id="deliverable-paths"
@@ -509,7 +508,7 @@ function DeliverableEditor({
           onChange={(e) => setPaths(e.target.value)}
         />
         <label className="block text-sm" htmlFor="version-note">
-          {t('Version note')}
+          {t('versionNote')}
         </label>
         <Input
           id="version-note"
@@ -533,14 +532,14 @@ function DeliverableEditor({
             })
           }
         >
-          {t('Submit version')}
+          {t('submitVersion')}
         </Button>
       </div>
       <div className="space-y-3 border-t pt-4">
-        <h2 className="font-semibold">{t('Version history')}</h2>
+        <h2 className="font-semibold">{t('versionHistory')}</h2>
         {!item.versions.length && (
           <p className="text-sm text-muted-foreground">
-            {t('No submitted versions')}
+            {t('noSubmittedVersions')}
           </p>
         )}
         {item.versions.map((version) => (
@@ -549,13 +548,13 @@ function DeliverableEditor({
               V{version.number} ·{' '}
               {t(
                 version.status === 'validated'
-                  ? 'Validated'
+                  ? 'validated'
                   : version.status === 'rejected'
-                    ? 'Rejected'
-                    : 'Awaiting validation',
+                    ? 'rejected'
+                    : 'awaitingValidation',
               )}
               {item.validatedVersionId === version.id
-                ? ` · ${t('Current validated version')}`
+                ? ` · ${t('currentValidatedVersion')}`
                 : ''}
             </strong>
             <p className="text-xs text-muted-foreground">
@@ -587,7 +586,7 @@ function DeliverableEditor({
                   })
                 }
               >
-                {t('Validate this version')}
+                {t('validateThisVersion')}
               </Button>
               {version.status === 'proposed' && (
                 <Button
@@ -600,7 +599,7 @@ function DeliverableEditor({
                     })
                   }
                 >
-                  {t('Reject')}
+                  {t('reject')}
                 </Button>
               )}
             </div>

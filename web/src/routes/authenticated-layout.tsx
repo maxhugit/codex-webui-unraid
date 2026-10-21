@@ -281,7 +281,7 @@ function AuthenticatedWorkspace({
               className="mobile-sidebar-sheet !w-[280px] p-0 sm:!max-w-[320px]"
               showCloseButton={false}
             >
-              <SheetTitle className="sr-only">{t('Navigation')}</SheetTitle>
+              <SheetTitle className="sr-only">{t('navigation')}</SheetTitle>
               {administrationView && isAdministrator ? (
                 <SettingsSidebar />
               ) : (
@@ -303,7 +303,7 @@ function AuthenticatedWorkspace({
           <DetachedDocumentRecovery />
           {adminOnlyView && !isAdministrator ? (
             <div role="alert" className="p-6">
-              {t('Administrator access required')}
+              {t('administratorAccessRequired')}
             </div>
           ) : (
             <Outlet />

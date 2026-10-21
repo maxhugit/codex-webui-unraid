@@ -9,7 +9,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Editor from '@monaco-editor/react';
-import { AlertTriangle, ChevronDown, ChevronRight, FileJson } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  FileJson,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useThemeStore } from '@/stores/theme-store';
 
@@ -43,7 +48,7 @@ export function CatalogRawEditor({
           <ChevronRight className="h-4 w-4" />
         )}
         <FileJson className="h-4 w-4" />
-        {t('Edit catalog JSON')}
+        {t('editCatalogJson')}
       </button>
 
       {expanded && (
@@ -51,7 +56,7 @@ export function CatalogRawEditor({
           <p className="flex items-start gap-1.5 text-xs text-amber-500">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             {t(
-              'A catalog Codex cannot parse stops it from starting. Validate before applying.',
+              'aCatalogCodexCannotParseStopsItFromStartingValidateBeforeApplying',
             )}
           </p>
           <div className="overflow-hidden rounded-md border border-border">
@@ -77,7 +82,7 @@ export function CatalogRawEditor({
             disabled={content === null || validating}
             onClick={onValidate}
           >
-            {t('Validate with Codex')}
+            {t('validateWithCodex')}
           </Button>
         </div>
       )}

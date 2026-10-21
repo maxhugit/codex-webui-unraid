@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** Reusable controls for nullable Codex config overrides. */
 import { useState } from 'react';
 import { RotateCcw, ShieldAlert } from 'lucide-react';
@@ -55,7 +56,7 @@ export function ConfigSourceBadge({ source }: { source: string | null }) {
       variant={source === 'user' ? 'secondary' : 'outline'}
       className="text-[10px]"
     >
-      {t(source)}
+      {t(translationKey(source))}
     </Badge>
   );
 }
@@ -85,7 +86,7 @@ export function ConfigBooleanOverrideControl({
       <div className="flex flex-wrap items-center gap-2">
         <Switch checked={draft} disabled={saving} onCheckedChange={setDraft} />
         <span className="w-16 text-xs text-muted-foreground">
-          {draft ? t('Enabled') : t('Disabled')}
+          {draft ? t('enabled') : t('disabled')}
         </span>
         <CommitButton
           overridden={overridden}
@@ -207,7 +208,7 @@ export function ApprovalReviewerControl({
       )}
       <p className="text-xs text-amber-600 dark:text-amber-400">
         {t(
-          'Approval reviewer controls who can authorize permission requests, including sandbox escapes, blocked network access, MCP approvals, and app escalations.',
+          'approvalReviewerControlsWhoCanAuthorizePermissionRequestsIncludingSandboxEscape64bc192f',
         )}
       </p>
 
@@ -236,14 +237,14 @@ export function ApprovalReviewerControl({
             overridden={overridden}
             saving={saving}
             dirty={dirty}
-            label={overridden ? t('Save reviewer') : t('Override reviewer')}
+            label={overridden ? t('saveReviewer') : t('overrideReviewer')}
             onClick={() => setPendingValue(draft)}
           />
         )}
         {overridden && (
           <ClearOverrideButton
             saving={saving}
-            label={t('Return to inheritance')}
+            label={t('returnToInheritance')}
             onClick={() => setPendingValue(null)}
           />
         )}
@@ -259,23 +260,23 @@ export function ApprovalReviewerControl({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmingClear
-                ? t('Return approval reviewer to inheritance')
-                : t('Confirm approval reviewer change')}
+                ? t('returnApprovalReviewerToInheritance')
+                : t('confirmApprovalReviewerChange')}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmingClear
                 ? t(
-                    'This clears only this reviewer override. Future approval routing will inherit from the next configured layer, or the built-in user default.',
+                    'thisClearsOnlyThisReviewerOverrideFutureApprovalRoutingWillInheritFromTheNextCo4dc19380',
                   )
                 : t(
-                    'This changes who reviews permission requests. Automatic review or a guardian subagent can approve or deny operations without the prompt first routing to you when policy allows.',
+                    'thisChangesWhoReviewsPermissionRequestsAutomaticReviewOrAGuardianSubagentCanApp4f7053df',
                   )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={commitPending}>
-              {confirmingClear ? t('Clear override') : t('Confirm')}
+              {confirmingClear ? t('clearOverride') : t('confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -326,7 +327,7 @@ function InheritanceStateBadge({ overridden }: { overridden: boolean }) {
       variant={overridden ? 'secondary' : 'outline'}
       className="text-[10px]"
     >
-      {overridden ? t('override') : t('inherited')}
+      {overridden ? t('override1a95769f') : t('inherited')}
     </Badge>
   );
 }
@@ -352,7 +353,7 @@ function CommitButton({
       disabled={saving || (overridden && !dirty)}
       onClick={onClick}
     >
-      {label ?? (overridden ? t('Save') : t('Override'))}
+      {label ?? (overridden ? t('save') : t('override'))}
     </Button>
   );
 }
@@ -376,7 +377,7 @@ function ClearOverrideButton({
       onClick={onClick}
     >
       <RotateCcw className="h-3.5 w-3.5" />
-      {label ?? t('Return to inheritance')}
+      {label ?? t('returnToInheritance')}
     </Button>
   );
 }

@@ -191,7 +191,9 @@ export function BranchGraphDialog({ threadId, onClose }: Props) {
         );
         if (asOriginal) return asOriginal;
       }
-      return labelByThreadId.get(member.threadId) || member.threadId.slice(0, 8);
+      return (
+        labelByThreadId.get(member.threadId) || member.threadId.slice(0, 8)
+      );
     };
 
     const labelByMember = new Map(
@@ -223,7 +225,11 @@ export function BranchGraphDialog({ threadId, onClose }: Props) {
       // group. Looking the label up by prefix alone would hand it the message of
       // whichever real group happens to share that prefix — an edit that did not
       // create this edge.
-      if (!groupMemberKeys.has(groupKey(member.threadId, member.commonPrefixTurnId))) {
+      if (
+        !groupMemberKeys.has(
+          groupKey(member.threadId, member.commonPrefixTurnId),
+        )
+      ) {
         return null;
       }
       const edited = editedMessageByPrefix.get(member.commonPrefixTurnId ?? '');
@@ -240,12 +246,16 @@ export function BranchGraphDialog({ threadId, onClose }: Props) {
       parentThreadId: member.parentThreadId ?? null,
       edgeLabel: edgeLabelFor(member),
       data: {
-        label: labelByMember.get(member.threadId) ?? member.threadId.slice(0, 8),
+        label:
+          labelByMember.get(member.threadId) ?? member.threadId.slice(0, 8),
         // No delete anchor in a browse graph; see BranchGraphNodeData.isTarget.
         isTarget: false,
         isCurrent: member.threadId === currentThreadId,
         isDoomed: false,
-        running: Boolean(threadsById[member.threadId]?.turnStartPending || threadsById[member.threadId]?.activeTurnId),
+        running: Boolean(
+          threadsById[member.threadId]?.turnStartPending ||
+          threadsById[member.threadId]?.activeTurnId,
+        ),
         pendingApprovalCount: Object.values(
           threadsById[member.threadId]?.approvals ?? {},
         ).filter((approval) => approval.status === 'pending').length,
@@ -274,16 +284,19 @@ export function BranchGraphDialog({ threadId, onClose }: Props) {
   ]);
 
   return (
-    <Dialog open={Boolean(threadId)} onOpenChange={(next) => !next && onClose()}>
+    <Dialog
+      open={Boolean(threadId)}
+      onOpenChange={(next) => !next && onClose()}
+    >
       {/* Wide on desktop: a branch tree spreads horizontally as versions
           accumulate, and a narrow box forces panning for structure that would
           otherwise fit on screen. */}
       <DialogContent className="w-[min(94vw,1400px)] max-w-none sm:max-w-none">
         <DialogHeader>
-          <DialogTitle>{t('Branch graph')}</DialogTitle>
+          <DialogTitle>{t('branchGraph')}</DialogTitle>
           <DialogDescription>
             {t(
-              'Each node is one branch of this conversation; an edge is labelled with the message that was edited to create the branch below it. Click a node to open it, or use its bin icon to delete it and everything below it.',
+              'eachNodeIsOneBranchOfThisConversationAnEdgeIsLabelledWithTheMessageThatWasEdite5fc19917',
             )}
           </DialogDescription>
         </DialogHeader>

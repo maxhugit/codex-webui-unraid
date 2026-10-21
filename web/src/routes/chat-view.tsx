@@ -17,7 +17,7 @@ export function ChatView() {
 
   return (
     <div className="flex flex-1 items-center justify-center text-muted-foreground">
-      <p className="text-sm">{t('Select or create a thread to start chatting.')}</p>
+      <p className="text-sm">{t('selectOrCreateAThreadToStartChatting')}</p>
     </div>
   );
 }

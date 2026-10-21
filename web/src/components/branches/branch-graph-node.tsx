@@ -10,7 +10,10 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { BRANCH_NODE_HEIGHT, BRANCH_NODE_WIDTH } from '@/lib/branch-graph-layout';
+import {
+  BRANCH_NODE_HEIGHT,
+  BRANCH_NODE_WIDTH,
+} from '@/lib/branch-graph-layout';
 
 /**
  * Everything the node body renders; assembled by whichever surface owns it.
@@ -106,7 +109,9 @@ export function BranchGraphNode({ data }: NodeProps) {
         node.isDoomed
           ? 'border-destructive/60 bg-destructive/10'
           : 'border-border bg-card',
-        node.isCurrent && !node.isDoomed && 'border-primary ring-1 ring-primary/40',
+        node.isCurrent &&
+          !node.isDoomed &&
+          'border-primary ring-1 ring-primary/40',
         node.clickable && 'cursor-pointer hover:border-primary/60',
       )}
     >
@@ -129,10 +134,10 @@ export function BranchGraphNode({ data }: NodeProps) {
         {node.onDelete && (
           <button
             type="button"
-            aria-label={t('Delete this branch and everything below it')}
+            aria-label={t('deleteThisBranchAndEverythingBelowIt')}
             title={
               node.deleteBlockedReason ??
-              t('Delete this branch and everything below it')
+              t('deleteThisBranchAndEverythingBelowIt')
             }
             disabled={Boolean(node.deleteBlockedReason)}
             // Stops React Flow's node click from also opening the conversation:
@@ -157,7 +162,7 @@ export function BranchGraphNode({ data }: NodeProps) {
         {node.turnCount !== null && (
           <span
             className="flex items-center gap-0.5 tabular-nums"
-            title={t('Turns in this branch')}
+            title={t('turnsInThisBranch')}
           >
             <MessagesSquare className="h-3 w-3" />
             {node.turnCount}
@@ -165,18 +170,18 @@ export function BranchGraphNode({ data }: NodeProps) {
         )}
         {node.isTarget && (
           <span className="rounded bg-destructive/20 px-1 py-px text-destructive">
-            {t('Selected for deletion')}
+            {t('selectedForDeletion')}
           </span>
         )}
         {node.isCurrent && (
           <span className="rounded bg-primary/15 px-1 py-px text-primary">
-            {t('Open')}
+            {t('open')}
           </span>
         )}
         {node.running && (
           <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400">
             <Loader2 className="h-3 w-3 animate-spin" />
-            {t('Running')}
+            {t('running')}
           </span>
         )}
         {node.pendingApprovalCount > 0 && (
@@ -188,7 +193,7 @@ export function BranchGraphNode({ data }: NodeProps) {
         {node.archived && (
           <span className="flex items-center gap-0.5">
             <Archive className="h-3 w-3" />
-            {t('Archived')}
+            {t('archived')}
           </span>
         )}
         {/* One marker, not two: a branch with an unrecorded fork point is
@@ -199,14 +204,14 @@ export function BranchGraphNode({ data }: NodeProps) {
             className="flex items-center gap-0.5"
             title={
               node.boundaryUnknown
-                ? t('Fork point unknown: this branch was not created here.')
+                ? t('forkPointUnknownThisBranchWasNotCreatedHere')
                 : t(
-                    'Created outside this client; its fork point was reconstructed from disk.',
+                    'createdOutsideThisClientItsForkPointWasReconstructedFromDisk',
                   )
             }
           >
             <CircleHelp className="h-3 w-3" />
-            {node.boundaryUnknown ? t('Fork point unknown') : t('External')}
+            {node.boundaryUnknown ? t('forkPointUnknown') : t('external')}
           </span>
         )}
       </div>

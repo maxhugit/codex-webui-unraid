@@ -12,7 +12,7 @@ export function FilesSettings() {
     <section className="space-y-4">
       {ctx.isLoading && (
         <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm text-muted-foreground">
-          {t('Loading...')}
+          {t('loadingb04ba49f')}
         </div>
       )}
 
