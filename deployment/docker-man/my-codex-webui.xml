@@ -3,7 +3,7 @@
   <Name>codex-webui</Name>
   <Repository>ghcr.io/maxhugit/codex-webui-unraid:latest</Repository>
   <Registry>https://github.com/maxhugit/codex-webui-unraid/pkgs/container/codex-webui-unraid</Registry>
-  <Network>codex_admin</Network>
+  <Network>codex_isolated</Network>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
   <Support>https://github.com/maxhugit/codex-webui-unraid/issues</Support>
@@ -13,13 +13,13 @@
   <WebUI>https://codex.example.com</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/deployment/docker-man/my-codex-webui.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/web/public/pwa-icon-192.png</Icon>
-  <ExtraParams>--network codex_isolated --init --user 11002:11002 --group-add 11001 --workdir /app --entrypoint /bin/sh --read-only --tmpfs /tmp:rw,nosuid,nodev,size=512m,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true --security-opt seccomp=/mnt/pool/appdata/codex-web/config/seccomp-bwrap.json --security-opt systempaths=unconfined --pids-limit 1024 --memory 8g --cpus 3.5 --stop-timeout 1800 --health-cmd "/bin/sh /opt/codex/start-webui.sh healthcheck &gt;/dev/null" --health-interval 20s --health-timeout 5s --health-retries 8 --health-start-period 90s --log-opt max-size=20m --log-opt max-file=5</ExtraParams>
+  <ExtraParams>--init --user 11002:11002 --group-add 11001 --workdir /app --entrypoint /bin/sh --read-only --tmpfs /tmp:rw,nosuid,nodev,size=512m,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true --security-opt seccomp=/mnt/pool/appdata/codex-web/config/seccomp-bwrap.json --security-opt systempaths=unconfined --pids-limit 1024 --memory 8g --cpus 3.5 --stop-timeout 1800 --health-cmd "/bin/sh /opt/codex/start-webui.sh healthcheck &gt;/dev/null" --health-interval 20s --health-timeout 5s --health-retries 8 --health-start-period 90s --log-opt max-size=20m --log-opt max-file=5</ExtraParams>
   <PostArgs>/opt/codex/start-webui.sh</PostArgs>
   <CPUset/>
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Requires>Les réseaux codex_admin et codex_isolated ainsi que codex-web-squid doivent être présents.</Requires>
+  <Requires>Le réconciliateur réseau doit être installé. Les réseaux codex_admin et codex_isolated ainsi que codex-web-squid doivent être présents.</Requires>
   <Config Name="État Codex" Target="/home/codex" Default="/mnt/pool/appdata/codex-web/state/home" Mode="rw" Description="Conversations, configuration, OAuth, MCP et base SQLite." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/codex-web/state/home</Config>
   <Config Name="Espaces de travail" Target="/workspaces" Default="/mnt/pool/appdata/codex-web/state/workspace" Mode="rw" Description="Fichiers des projets Codex." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/codex-web/state/workspace</Config>
   <Config Name="Appdata Unraid" Target="/appdata" Default="/mnt/user/appdata" Mode="rw" Description="Accès aux données des applications Unraid." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata</Config>

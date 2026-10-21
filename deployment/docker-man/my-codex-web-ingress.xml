@@ -13,13 +13,13 @@
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/deployment/docker-man/my-codex-web-ingress.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/web/public/pwa-icon-192.png</Icon>
-  <ExtraParams>--network net_standard --read-only --cap-drop ALL --cap-add CHOWN --cap-add SETGID --cap-add SETUID --security-opt no-new-privileges:true --tmpfs /var/cache/nginx:rw,nosuid,nodev,size=32m --tmpfs /var/run:rw,nosuid,nodev,size=4m --tmpfs /tmp:rw,nosuid,nodev,size=16m --pids-limit 128 --memory 128m --cpus 0.5 --health-cmd "nginx -t -c /tmp/nginx.conf" --health-interval 20s --health-timeout 5s --health-retries 5 --log-opt max-size=10m --log-opt max-file=3</ExtraParams>
+  <ExtraParams>--read-only --cap-drop ALL --cap-add CHOWN --cap-add SETGID --cap-add SETUID --security-opt no-new-privileges:true --tmpfs /var/cache/nginx:rw,nosuid,nodev,size=32m --tmpfs /var/run:rw,nosuid,nodev,size=4m --tmpfs /tmp:rw,nosuid,nodev,size=16m --pids-limit 128 --memory 128m --cpus 0.5 --health-cmd "curl --fail --silent --show-error --max-time 3 http://127.0.0.1:8080/_health &gt;/dev/null" --health-interval 20s --health-timeout 5s --health-retries 5 --health-start-period 20s --log-opt max-size=10m --log-opt max-file=3</ExtraParams>
   <PostArgs>/bin/sh /opt/codex/start-ingress.sh</PostArgs>
   <CPUset/>
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Requires>Les réseaux codex_isolated et net_standard ainsi que codex-webui doivent être présents.</Requires>
+  <Requires>Le réconciliateur réseau doit être installé. Les réseaux codex_isolated et net_standard ainsi que codex-webui doivent être présents.</Requires>
   <Config Name="Configuration Nginx" Target="/etc/nginx/templates-secure/nginx.conf.template" Default="/mnt/pool/appdata/codex-web/config/nginx.conf.template" Mode="ro" Description="Routage, Authentik, WebSocket et OnlyOffice." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/codex-web/config/nginx.conf.template</Config>
   <Config Name="Jeton backend Nginx" Target="/run/secrets/backend_token" Default="/mnt/pool/appdata/codex-web/state/backend-token-nginx.txt" Mode="ro" Description="Copie du secret partagé avec le backend." Type="Path" Display="always" Required="true" Mask="true">/mnt/pool/appdata/codex-web/state/backend-token-nginx.txt</Config>
   <Config Name="Script de démarrage" Target="/opt/codex/start-ingress.sh" Default="/mnt/pool/appdata/codex-web/config/start-ingress.sh" Mode="ro" Description="Génère la configuration Nginx avec le jeton interne." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/pool/appdata/codex-web/config/start-ingress.sh</Config>
