@@ -108,7 +108,21 @@ it('shows Codex setting groups as tabs instead of one long page', async () => {
   expect(
     await screen.findByRole('tab', { name: 'Model', selected: true }),
   ).toBeVisible();
+  const tablist = screen.getByRole('tablist', {
+    name: 'Codex configuration sections',
+  });
+  expect(tablist.parentElement).toHaveClass('h-10', 'shrink-0', 'border-b');
+  expect(tablist.closest('section')).toHaveClass(
+    'flex',
+    'min-h-0',
+    'flex-1',
+    'flex-col',
+  );
   expect(await screen.findByText('Default model name')).toBeVisible();
+  expect(screen.getByRole('tabpanel').parentElement).toHaveClass(
+    'flex-1',
+    'overflow-y-auto',
+  );
   expect(
     screen.queryByText(
       'Reserved for future use by Codex. Leave empty; use AGENTS.md for project guidance.',

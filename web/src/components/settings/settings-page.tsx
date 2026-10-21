@@ -86,18 +86,19 @@ export function SettingsPage() {
   });
   const [integrationSection, setIntegrationSection] =
     useState<IntegrationSection>('plugins');
+  const usesFullHeightLayout = section === 'database' || section === 'codex';
 
   return (
     <div
       className={cn(
         'flex min-h-0 flex-1 flex-col',
-        section === 'database' ? 'overflow-hidden' : 'overflow-auto',
+        usesFullHeightLayout ? 'overflow-hidden' : 'overflow-auto',
       )}
     >
       <div
         className={cn(
           'mx-auto w-full',
-          section === 'database'
+          usesFullHeightLayout
             ? 'flex min-h-0 flex-1 flex-col'
             : 'max-w-4xl space-y-6 px-4 py-4 sm:px-6',
         )}
