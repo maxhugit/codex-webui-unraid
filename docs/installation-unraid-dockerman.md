@@ -23,7 +23,10 @@ cp /tmp/codex-webui-install/deployment/docker-man/my-*.xml \
   /boot/config/plugins/dockerMan/templates-user/
 cp /tmp/codex-webui-install/deployment/docker-man/prepare-networks.sh \
   /mnt/pool/appdata/codex-web/prepare-networks.sh
-chmod 700 /mnt/pool/appdata/codex-web/prepare-networks.sh
+cp /tmp/codex-webui-install/deployment/docker-man/reconcile-networks.sh \
+  /mnt/pool/appdata/codex-web/reconcile-networks.sh
+chmod 700 /mnt/pool/appdata/codex-web/prepare-networks.sh \
+  /mnt/pool/appdata/codex-web/reconcile-networks.sh
 ```
 
 Les valeurs proposées par les formulaires utilisent `/mnt/pool`. Si le pool
@@ -73,6 +76,31 @@ Il crée ou vérifie :
 Le script s'arrête sans modifier un réseau existant si sa configuration ne
 correspond pas à celle attendue.
 
+Lancer ensuite le réconciliateur depuis l'Appdata :
+
+```bash
+nohup /mnt/pool/appdata/codex-web/reconcile-networks.sh watch \
+  >> /var/log/codex-webui-network-reconciler.log 2>&1 &
+```
+
+Il contrôle périodiquement la topologie Docker. Après chaque création ou mise à
+jour DockerMan, il rattache automatiquement les réseaux secondaires suivants :
+
+- `codex-webui` à `codex_admin` ;
+- `codex-web-ingress` à `net_standard` ;
+- `codex-web-squid` à `codex_external`.
+
+Les trois conteneurs démarrent volontairement sur `codex_isolated`. Cette
+méthode est nécessaire car Docker n'accepte qu'un réseau de démarrage dans la
+commande créée par DockerMan. Une connexion ajoutée manuellement avec
+`docker network connect` disparaîtrait à la prochaine recréation du conteneur.
+
+Cette procédure ne modifie jamais la clé USB `/boot`. Le processus reste actif
+jusqu'au prochain redémarrage complet d'Unraid ; après un redémarrage, relancer
+la commande ci-dessus avant la prochaine mise à jour DockerMan. Pour une gestion
+des réseaux entièrement automatique au redémarrage sans script hôte, utiliser
+la variante Compose Manager décrite dans `UNRAID.md`.
+
 ## 4. Migrer depuis Compose Manager
 
 Ne pas exécuter simultanément les versions Compose et DockerMan : elles portent
@@ -98,8 +126,9 @@ les modèles dans **Template** :
 3. `codex-web-ingress`.
 
 Activer **Advanced View**, vérifier les chemins proposés, puis cliquer sur
-**Apply** pour chacun. Aucun port ne doit être ajouté manuellement. Les seconds
-réseaux sont définis dans **Extra Parameters** ; ne pas les retirer.
+**Apply** pour chacun. Aucun port et aucune option `--network` ne doivent être
+ajoutés manuellement dans **Extra Parameters**. Le réconciliateur ajoute les
+réseaux secondaires dès que DockerMan recrée un conteneur Codex.
 
 Dans les options d'autostart d'Unraid, conserver le même ordre. Un délai court
 entre les conteneurs est acceptable, mais les contrôles de santé restent la
@@ -115,6 +144,7 @@ docker inspect codex-web-squid --format '{{.State.Health.Status}}'
 docker inspect codex-webui --format '{{.State.Health.Status}}'
 docker inspect codex-web-ingress --format '{{.State.Health.Status}}'
 docker network inspect codex_isolated
+/mnt/pool/appdata/codex-web/reconcile-networks.sh once
 curl -I https://codex.example.com
 ```
 
@@ -143,3 +173,8 @@ Les formulaires Ingress et Squid utilisent respectivement `nginx:stable` et
 **Check for Updates**. Une mise à jour reste manuelle : vérifier les mises à
 jour proposées, lancer **Update**, puis contrôler que les trois conteneurs sont
 de nouveau `healthy` et que l'interface publique répond correctement.
+
+Le réconciliateur est installé dans
+`/mnt/pool/appdata/codex-web/reconcile-networks.sh`. Son journal est disponible
+dans `/var/log/codex-webui-network-reconciler.log`. Aucun fichier de la clé USB
+Unraid n'est créé ou modifié par cette procédure.

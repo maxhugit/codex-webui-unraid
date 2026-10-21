@@ -36,6 +36,12 @@ sans toucher aux données persistantes de `state`.
 Les trois conteneurs restent nécessaires : Nginx porte l'authentification et le
 routage entrant, tandis que Squid contrôle les accès Internet sortants.
 
+DockerMan recrée un conteneur avec un seul réseau de démarrage. Le
+réconciliateur lancé depuis l'Appdata rétablit automatiquement les réseaux
+secondaires après une mise à jour, sans modifier la clé USB. Il doit être
+relancé après un redémarrage complet d'Unraid. Compose Manager gère nativement
+ces réseaux et ne nécessite pas ce processus complémentaire.
+
 ## Variante Compose Manager
 
 ### Commandes d'exploitation
