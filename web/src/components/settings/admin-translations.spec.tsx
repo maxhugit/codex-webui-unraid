@@ -3,7 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
-import fr from '@/locales/fr.json';
+import fr from '@/locales/fr/legacy.json';
+import { localeResources } from '@/locales';
 import { FIELD_DEFS, GROUP_ORDER } from './codex-settings-defs';
 import { ConfigFieldEditor } from './codex-settings-fields';
 import { settingLabel } from './setting-helpers';
@@ -76,7 +77,9 @@ describe('administration translations', () => {
       await i18n.init({
         lng: language,
         fallbackLng: 'en',
-        resources: { fr: { translation: fr } },
+        ns: ['legacy'],
+        defaultNS: 'legacy',
+        resources: localeResources,
       });
       const def = FIELD_DEFS.find(
         (field) => field.key === 'developer_instructions',
