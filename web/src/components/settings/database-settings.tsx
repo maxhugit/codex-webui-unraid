@@ -7,6 +7,7 @@ import {
   HardDrive,
   LayoutDashboard,
   Rows3,
+  Search,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getAuthorizationHeader } from '@/auth-token';
@@ -34,6 +35,8 @@ interface DatabaseStatus {
   foreignKeys: boolean;
   pageCount: number;
   pageSizeBytes: number;
+  schemaVersion: string;
+  appliedMigrationCount: number;
 }
 
 interface DatabaseSchema {
@@ -49,6 +52,7 @@ interface DatabaseRows {
   total: number;
   totalPages: number;
   sensitiveValuesMasked: boolean;
+  search: string;
 }
 
 async function readDatabase<T>(path: string): Promise<T> {
@@ -75,6 +79,8 @@ export function DatabaseSettings() {
   const [tab, setTab] = useState<'overview' | 'schema' | 'data'>('overview');
   const [table, setTable] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [search, setSearch] = useState('');
   const status = useQuery({
     queryKey: ['database-status'],
     queryFn: () => readDatabase<DatabaseStatus>('status'),
@@ -89,10 +95,10 @@ export function DatabaseSettings() {
   );
   const selectedTable = table || tables[0]?.name || '';
   const rows = useQuery({
-    queryKey: ['database-rows', selectedTable, page],
+    queryKey: ['database-rows', selectedTable, page, pageSize, search],
     queryFn: () =>
       readDatabase<DatabaseRows>(
-        `rows?table=${encodeURIComponent(selectedTable)}&page=${page}&pageSize=25`,
+        `rows?table=${encodeURIComponent(selectedTable)}&page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`,
       ),
     enabled: tab === 'data' && Boolean(selectedTable),
     placeholderData: (previous) => previous,
@@ -105,13 +111,20 @@ export function DatabaseSettings() {
     { id: 'schema' as const, label: 'Schema', icon: Braces },
     { id: 'data' as const, label: 'Data', icon: Rows3 },
   ];
+  const openTable = (name: string) => {
+    setTable(name);
+    setPage(1);
+    setSearch('');
+    setTab('data');
+  };
+
   return (
-    <section className="space-y-5">
-      <div className="-mx-4 border-b sm:-mx-6">
+    <section className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-10 min-w-0 shrink-0 items-center border-b bg-background">
         <div
           role="tablist"
           aria-label={t('Database sections')}
-          className="flex h-10 items-center overflow-x-auto px-1 sm:px-3"
+          className="flex min-w-0 flex-1 items-center overflow-x-auto"
         >
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
@@ -121,10 +134,10 @@ export function DatabaseSettings() {
               aria-selected={tab === id}
               onClick={() => setTab(id)}
               className={cn(
-                'flex h-10 shrink-0 items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50',
+                'flex h-10 shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]',
                 tab === id
                   ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground',
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
               <Icon className="h-4 w-4" />
@@ -135,7 +148,7 @@ export function DatabaseSettings() {
       </div>
 
       {tab === 'overview' && (
-        <>
+        <div className="min-h-0 flex-1 space-y-5 overflow-auto px-4 py-4 sm:px-6">
           {status.isPending && (
             <p className="text-sm text-muted-foreground">{t('Loading…')}</p>
           )}
@@ -146,7 +159,7 @@ export function DatabaseSettings() {
           )}
           {database && (
             <>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <InfoCard
                   icon={Database}
                   label={t('Engine')}
@@ -163,6 +176,11 @@ export function DatabaseSettings() {
                   value={
                     database.connected ? t('Connected') : t('Disconnected')
                   }
+                />
+                <InfoCard
+                  icon={Braces}
+                  label={t('Database version')}
+                  value={database.schemaVersion}
                 />
               </div>
               <div className="rounded-xl border p-4">
@@ -210,11 +228,11 @@ export function DatabaseSettings() {
               </div>
             </>
           )}
-        </>
+        </div>
       )}
 
       {tab === 'schema' && (
-        <div className="space-y-3">
+        <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6">
           {schema.isPending && <p>{t('Loading…')}</p>}
           {schema.isError && (
             <p role="alert" className="text-sm text-destructive">
@@ -223,15 +241,18 @@ export function DatabaseSettings() {
           )}
           {schema.data && (
             <Suspense fallback={<p>{t('Loading…')}</p>}>
-              <DatabaseSchemaGraph objects={schema.data.objects} />
+              <DatabaseSchemaGraph
+                objects={schema.data.objects}
+                onOpenTable={openTable}
+              />
             </Suspense>
           )}
         </div>
       )}
 
       {tab === 'data' && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
+        <div className="flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6">
+          <div className="mb-3 flex shrink-0 flex-wrap items-end gap-3">
             <label className="space-y-1 text-sm">
               <span className="block text-xs text-muted-foreground">
                 {t('Table')}
@@ -241,6 +262,7 @@ export function DatabaseSettings() {
                 onChange={(event) => {
                   setTable(event.target.value);
                   setPage(1);
+                  setSearch('');
                 }}
                 className="h-9 min-w-64 rounded-md border bg-background px-3"
               >
@@ -251,12 +273,49 @@ export function DatabaseSettings() {
                 ))}
               </select>
             </label>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                'Read-only view. Sensitive values are masked and rows are paginated.',
-              )}
-            </p>
+            <label className="min-w-56 flex-1 space-y-1 text-sm">
+              <span className="block text-xs text-muted-foreground">
+                {t('Search in table')}
+              </span>
+              <span className="relative block">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder={t('Search across visible columns…')}
+                  className="h-9 w-full rounded-md border bg-background pl-9 pr-3"
+                />
+              </span>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="block text-xs text-muted-foreground">
+                {t('Rows per page')}
+              </span>
+              <select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  setPage(1);
+                }}
+                className="h-9 rounded-md border bg-background px-3"
+              >
+                {[10, 25, 50, 100].map((sizeOption) => (
+                  <option key={sizeOption} value={sizeOption}>
+                    {sizeOption}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
+          <p className="mb-3 shrink-0 text-xs text-muted-foreground">
+            {t(
+              'Read-only view. Sensitive values are masked and rows are paginated.',
+            )}
+          </p>
           {(schema.isPending || rows.isPending) && <p>{t('Loading…')}</p>}
           {(schema.isError || rows.isError) && (
             <p role="alert" className="text-sm text-destructive">
@@ -265,9 +324,9 @@ export function DatabaseSettings() {
           )}
           {rows.data && (
             <>
-              <div className="overflow-x-auto rounded-xl border">
+              <div className="min-h-0 flex-1 overflow-auto rounded-xl border">
                 <table className="w-full min-w-max text-left text-xs">
-                  <thead className="bg-muted/60 text-muted-foreground">
+                  <thead className="sticky top-0 z-10 bg-muted text-muted-foreground shadow-[0_1px_0_var(--border)]">
                     <tr>
                       {rows.data.columns.map((column) => (
                         <th key={column} className="px-3 py-2 font-medium">
@@ -297,7 +356,7 @@ export function DatabaseSettings() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex shrink-0 items-center justify-between gap-3 pt-3 text-sm">
                 <span className="text-muted-foreground">
                   {t('{{count}} row', { count: rows.data.total })} ·{' '}
                   {t('Page {{page}} of {{total}}', {
