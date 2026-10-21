@@ -37,9 +37,10 @@ export class DatabaseController {
     @Query('table') table?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
   ) {
     try {
-      return this.database.readTable(table, page, pageSize);
+      return this.database.readTable(table, page, pageSize, search);
     } catch (error) {
       throw new BadRequestException(
         error instanceof Error ? error.message : 'Invalid database request',

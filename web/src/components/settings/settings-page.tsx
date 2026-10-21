@@ -23,6 +23,7 @@ import { AppsTab } from '@/components/integrations/apps-tab';
 import { McpsTab } from '@/components/integrations/mcps-tab';
 import { PeopleManager } from '@/components/projects/people-manager';
 import { DatabaseSettings } from './database-settings';
+import { cn } from '@/lib/utils';
 
 const INTEGRATION_SECTIONS = ['plugins', 'apps', 'mcps'] as const;
 type IntegrationSection = (typeof INTEGRATION_SECTIONS)[number];
@@ -46,8 +47,20 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-auto">
-      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-4 sm:px-6">
+    <div
+      className={cn(
+        'flex min-h-0 flex-1 flex-col',
+        section === 'database' ? 'overflow-hidden' : 'overflow-auto',
+      )}
+    >
+      <div
+        className={cn(
+          'mx-auto w-full',
+          section === 'database'
+            ? 'flex min-h-0 flex-1 flex-col'
+            : 'max-w-4xl space-y-6 px-4 py-4 sm:px-6',
+        )}
+      >
         {section === 'general' && (
           <GeneralSettings
             dark={dark}

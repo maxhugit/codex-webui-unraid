@@ -51,6 +51,14 @@ it('exposes schema and bounded read-only rows while masking secrets', () => {
     rows: [{ id: 1, name: 'visible', api_token: '••••••' }],
     sensitiveValuesMasked: true,
   });
+  expect(database.readTable('browser_test', 1, 25, 'VISIBLE')).toMatchObject({
+    total: 1,
+    search: 'VISIBLE',
+  });
+  expect(database.readTable('browser_test', 1, 25, 'missing')).toMatchObject({
+    total: 0,
+    rows: [],
+  });
   expect(() => database?.readTable('sqlite_master', 1, 25)).toThrow(
     'Unknown database table',
   );
@@ -64,7 +72,8 @@ it('reports the active SQLite path, storage size and safety settings', () => {
   const path = join(directory, 'application.sqlite');
   database = new DatabaseService(new ConfigService({ WEBUI_DB_PATH: path }));
 
-  expect(database.getStatus()).toMatchObject({
+  const status = database.getStatus();
+  expect(status).toMatchObject({
     engine: 'SQLite',
     path,
     connected: true,
@@ -72,8 +81,10 @@ it('reports the active SQLite path, storage size and safety settings', () => {
     journalMode: 'WAL',
     foreignKeys: true,
   });
-  expect(database.getStatus().databaseSizeBytes).toBeGreaterThan(0);
-  expect(database.getStatus().totalSizeBytes).toBeGreaterThanOrEqual(
-    database.getStatus().databaseSizeBytes,
+  expect(status.schemaVersion).toMatch(/^\d{4}_/);
+  expect(status.appliedMigrationCount).toBeGreaterThan(0);
+  expect(status.databaseSizeBytes).toBeGreaterThan(0);
+  expect(status.totalSizeBytes).toBeGreaterThanOrEqual(
+    status.databaseSizeBytes,
   );
 });

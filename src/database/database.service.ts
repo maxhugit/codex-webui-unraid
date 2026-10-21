@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { mkdirSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import * as schema from './schema';
@@ -39,6 +39,10 @@ interface ForeignKeyRow {
   on_update: string;
   on_delete: string;
   match: string;
+}
+
+interface MigrationJournal {
+  entries: { idx: number; when: number; tag: string }[];
 }
 
 @Injectable()
@@ -79,6 +83,7 @@ export class DatabaseService implements OnModuleDestroy {
     const databaseSizeBytes = size(this.databasePath);
     const walSizeBytes = size(`${this.databasePath}-wal`);
     const sharedMemorySizeBytes = size(`${this.databasePath}-shm`);
+    const migration = this.getMigrationStatus();
     return {
       engine: 'SQLite',
       path: this.databasePath,
@@ -96,6 +101,8 @@ export class DatabaseService implements OnModuleDestroy {
       ),
       pageCount: Number(this.sqlite.pragma('page_count', { simple: true })),
       pageSizeBytes: Number(this.sqlite.pragma('page_size', { simple: true })),
+      schemaVersion: migration.version,
+      appliedMigrationCount: migration.count,
     };
   }
 
@@ -152,7 +159,12 @@ export class DatabaseService implements OnModuleDestroy {
   }
 
   /** Paginated browsing only: no caller-provided SQL and no mutation surface. */
-  readTable(table: unknown, pageValue: unknown, pageSizeValue: unknown) {
+  readTable(
+    table: unknown,
+    pageValue: unknown,
+    pageSizeValue: unknown,
+    searchValue?: unknown,
+  ) {
     if (typeof table !== 'string' || table.length === 0 || table.length > 128)
       throw new Error('Invalid database table');
     const known = this.sqlite
@@ -170,23 +182,49 @@ export class DatabaseService implements OnModuleDestroy {
       25,
     );
     const identifier = `"${known.name.replaceAll('"', '""')}"`;
-    const total = Number(
-      (
-        this.sqlite
-          .prepare(`SELECT COUNT(*) AS total FROM ${identifier}`)
-          .get() as {
-          total: number | bigint;
-        }
-      ).total,
-    );
-    const rows = this.sqlite
-      .prepare(`SELECT * FROM ${identifier} LIMIT ? OFFSET ?`)
-      .all(pageSize, (page - 1) * pageSize) as Record<string, unknown>[];
     const columns = (
       this.sqlite
         .prepare('SELECT name FROM pragma_table_info(?) ORDER BY cid')
         .all(known.name) as { name: string }[]
     ).map((column) => column.name);
+    if (
+      searchValue !== undefined &&
+      (typeof searchValue !== 'string' || searchValue.length > 200)
+    )
+      throw new Error('Invalid database search');
+    const search = typeof searchValue === 'string' ? searchValue.trim() : '';
+    const searchableColumns = columns.filter(
+      (column) => !SENSITIVE_NAME.test(column),
+    );
+    const where =
+      search && searchableColumns.length
+        ? ` WHERE ${searchableColumns
+            .map(
+              (column) =>
+                `CAST("${column.replaceAll('"', '""')}" AS TEXT) LIKE ? ESCAPE '\\'`,
+            )
+            .join(' OR ')}`
+        : '';
+    const escapedSearch = `%${search
+      .replaceAll('\\', '\\\\')
+      .replaceAll('%', '\\%')
+      .replaceAll('_', '\\_')}%`;
+    const parameters = search ? searchableColumns.map(() => escapedSearch) : [];
+    const total = Number(
+      (
+        this.sqlite
+          .prepare(`SELECT COUNT(*) AS total FROM ${identifier}${where}`)
+          .get(...parameters) as {
+          total: number | bigint;
+        }
+      ).total,
+    );
+    const rows = this.sqlite
+      .prepare(`SELECT * FROM ${identifier}${where} LIMIT ? OFFSET ?`)
+      .all(...parameters, pageSize, (page - 1) * pageSize) as Record<
+      string,
+      unknown
+    >[];
     return {
       table: known.name,
       columns,
@@ -196,6 +234,7 @@ export class DatabaseService implements OnModuleDestroy {
       total,
       totalPages: Math.max(1, Math.ceil(total / pageSize)),
       sensitiveValuesMasked: true,
+      search,
     };
   }
 
@@ -243,6 +282,29 @@ export class DatabaseService implements OnModuleDestroy {
     const codexHome = this.config.get<string>('CODEX_HOME')?.trim();
     const baseDir = codexHome || join(homedir(), '.codex');
     return join(baseDir, DEFAULT_DB_FILENAME);
+  }
+
+  private getMigrationStatus(): { version: string; count: number } {
+    try {
+      const applied = this.sqlite
+        .prepare(
+          'SELECT COUNT(*) AS count, MAX(created_at) AS latest FROM __drizzle_migrations',
+        )
+        .get() as { count: number | bigint; latest: number | null };
+      const count = Number(applied.count);
+      const journal = JSON.parse(
+        readFileSync(join(process.cwd(), 'drizzle/meta/_journal.json'), 'utf8'),
+      ) as MigrationJournal;
+      const entry = journal.entries.find(
+        (candidate) => candidate.when === Number(applied.latest),
+      );
+      return {
+        version: entry?.tag ?? (count > 0 ? `migration-${count}` : 'initial'),
+        count,
+      };
+    } catch {
+      return { version: 'unknown', count: 0 };
+    }
   }
 
   /** Applies pending drizzle-kit migrations at application startup. */
