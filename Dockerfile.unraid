@@ -155,7 +155,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 RUN --mount=type=cache,id=pnpm-root,target=/pnpm/store,sharing=locked \
     --mount=type=cache,id=node-gyp,target=/home/codex/.cache/node-gyp,sharing=locked \
-    pnpm install --frozen-lockfile --prod --store-dir=/pnpm/store
+    corepack pnpm install --frozen-lockfile --prod --store-dir=/pnpm/store
 # Installation scripts above build native addons when no compatible prebuild is
 # available. Loading them here turns a missing or incompatible binary into a
 # build failure instead of publishing a broken image.
