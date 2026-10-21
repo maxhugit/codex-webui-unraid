@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: codex-webui-quality-${{ github.ref }}
@@ -69,6 +70,9 @@ jobs:
 
       - name: Build frontend
         run: pnpm --dir web build
+
+      - name: Check frontend bundle budgets
+        run: pnpm --dir web check:bundle
 
   image:
     runs-on: ubuntu-latest
