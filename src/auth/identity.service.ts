@@ -77,13 +77,34 @@ export class IdentityService {
         role: null,
         active: false,
       };
+    return this.resolveTrustedSubject(subject, email, true);
+  }
+
+  /** Resolve verified OIDC claims without trusting browser-provided headers. */
+  resolveOidc(
+    subject: string,
+    email: string,
+    emailVerified: boolean,
+  ): PlatformIdentity {
+    return this.resolveTrustedSubject(
+      subject,
+      email.trim().toLowerCase(),
+      emailVerified,
+    );
+  }
+
+  private resolveTrustedSubject(
+    subject: string,
+    email: string,
+    emailVerified: boolean,
+  ): PlatformIdentity {
     return this.db.transaction(() => {
       let person = this.db
         .select()
         .from(people)
         .where(eq(people.identitySubject, subject))
         .get();
-      if (!person && email) {
+      if (!person && email && emailVerified) {
         // No account creation or administrator promotion on first login. Only a
         // pre-provisioned active record can bind, once, by the verified email.
         const candidate = this.db

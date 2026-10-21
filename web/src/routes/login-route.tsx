@@ -12,28 +12,48 @@ import { useTranslation } from 'react-i18next';
 interface AuthMethods {
   localEnabled: boolean;
   oidcEnabled: boolean;
+  oidcAutoRedirect: boolean;
   apiKeyEnabled: boolean;
 }
 
 export function LoginRoute() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { redirect } = useSearch({ from: '/login' });
+  const { redirect, manual } = useSearch({ from: '/login' });
   const [methods, setMethods] = useState<AuthMethods | null>(null);
 
   useEffect(() => {
     fetch(withBasePath('/api/auth/methods'), { credentials: 'same-origin' })
       .then(async (response) => {
-        if (response.ok) setMethods((await response.json()) as AuthMethods);
+        if (response.ok) {
+          const next = (await response.json()) as AuthMethods;
+          setMethods(next);
+          if (next.oidcEnabled && next.oidcAutoRedirect && !manual)
+            window.location.assign(
+              withBasePath(
+                `/api/auth/oidc/start?returnTo=${encodeURIComponent(redirect)}`,
+              ),
+            );
+        }
       })
       .catch(() =>
         setMethods({
           localEnabled: false,
           oidcEnabled: false,
+          oidcAutoRedirect: false,
           apiKeyEnabled: true,
         }),
       );
-  }, []);
+  }, [manual, redirect]);
+
+  const handleOidcLogin = useCallback(() => {
+    clearApiToken();
+    window.location.assign(
+      withBasePath(
+        `/api/auth/oidc/start?returnTo=${encodeURIComponent(redirect)}`,
+      ),
+    );
+  }, [redirect]);
 
   const completeLogin = useCallback(async (): Promise<boolean> => {
     try {
@@ -89,6 +109,8 @@ export function LoginRoute() {
       {methods ? (
         <LoginPage
           localEnabled={methods.localEnabled}
+          oidcEnabled={methods.oidcEnabled}
+          onOidcLogin={handleOidcLogin}
           onLocalLogin={handleLocalLogin}
           onApiKeyLogin={handleApiKeyLogin}
         />

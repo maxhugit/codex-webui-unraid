@@ -133,9 +133,43 @@ sauvegarde OnlyOffice conserve sa validation JWT et son état signé.
 
 ## Authentik
 
-Créer une application et un fournisseur proxy pour l’URL publique de Codex, par
-exemple `https://codex.example.com`. Associer le fournisseur à l’outpost utilisé par
-Traefik. Le middleware Traefik doit protéger toutes les routes publiques.
+Le WebUI prend en charge un fournisseur OpenID Connect avec le flux Authorization
+Code, PKCE, `state` et `nonce`. Créer dans Authentik un fournisseur
+**OAuth2/OpenID**, puis enregistrer exactement l’URI de redirection :
+
+```text
+https://codex.example.com/api/auth/oidc/callback
+```
+
+Dans **Administration > Réglages généraux du serveur > Authentification**, saisir
+l’URL d’émetteur publiée par Authentik, l’identifiant client, le secret client,
+l’URI ci-dessus et les portées `openid profile email`. Le serveur vérifie le
+document de découverte et ses points de terminaison avant d’accepter
+l’activation. Le secret est conservé uniquement dans
+`$CODEX_HOME/webui-auth.json`, avec des droits `0600`, et n’est jamais renvoyé au
+navigateur.
+
+Une personne standard active préprovisionnée peut être liée lors de sa première
+connexion uniquement si Authentik affirme un e-mail vérifié correspondant. Un
+administrateur nécessite toujours une liaison explicite de son identifiant
+stable ; l’égalité de l’e-mail ne suffit pas à obtenir ce rôle. Le WebUI ne
+conserve ni jeton d’accès ni jeton de renouvellement OIDC : il crée sa propre
+session opaque, révocable et limitée dans le temps.
+
+### Transition depuis le proxy Authentik
+
+Cette version conserve volontairement le fournisseur proxy existant devant
+l’application. Configurer et tester d’abord le nouveau bouton SSO tout en étant
+protégé par ce proxy. Ne retirer le middleware Traefik et la vérification Nginx
+que dans une bascule ultérieure, après avoir validé au minimum :
+
+1. un compte administrateur explicitement lié ;
+2. une connexion SSO complète dans une fenêtre privée ;
+3. une connexion locale de récupération et la clé API technique ;
+4. une sauvegarde de la base et de `webui-auth.json`.
+
+Le fournisseur proxy actuel continue donc à protéger toutes les routes publiques
+pendant cette étape.
 
 Nginx réalise aussi une vérification interne auprès de :
 

@@ -499,6 +499,20 @@ export const authSessions = sqliteTable(
   ],
 );
 
+/** Short-lived, single-use state for an OIDC Authorization Code + PKCE flow. */
+export const oidcAuthFlows = sqliteTable(
+  'oidc_auth_flows',
+  {
+    stateHash: text('state_hash').primaryKey(),
+    codeVerifier: text('code_verifier').notNull(),
+    nonce: text('nonce').notNull(),
+    returnTo: text('return_to').notNull(),
+    createdAt: integer('created_at').notNull(),
+    expiresAt: integer('expires_at').notNull(),
+  },
+  (table) => [index('idx_oidc_auth_flows_expires').on(table.expiresAt)],
+);
+
 export const projectParticipants = sqliteTable(
   'project_participants',
   {

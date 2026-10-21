@@ -36,6 +36,7 @@ export class LocalAuthService {
     return {
       localEnabled: config.local.enabled,
       oidcEnabled: config.oidc.enabled,
+      oidcAutoRedirect: config.oidc.enabled && config.oidc.autoRedirect,
       apiKeyEnabled: true,
     };
   }
@@ -58,6 +59,7 @@ export class LocalAuthService {
           role: person.role,
           username: credential?.username ?? null,
           passwordConfigured: Boolean(credential),
+          oidcLinked: Boolean(person.identitySubject),
           lockedUntil: credential?.lockedUntil ?? null,
           lastLoginAt: credential?.lastLoginAt ?? null,
         };
@@ -215,27 +217,12 @@ export class LocalAuthService {
       })
       .where(eq(localAuthCredentials.id, credential.id))
       .run();
-    this.deleteExpiredSessions(now);
-    const token = randomBytes(32).toString('base64url');
-    const expiresAt =
-      now + this.configuration.get().local.sessionTtlHours * 60 * 60 * 1000;
-    this.db
-      .insert(authSessions)
-      .values({
-        tokenHash: this.digest(token),
-        personId: person.id,
-        createdAt: now,
-        lastSeenAt: now,
-        expiresAt,
-        revokedAt: null,
-        userAgent: userAgent?.slice(0, 512) ?? null,
-      })
-      .run();
-    return { token, personId: person.id, expiresAt };
+    return this.createSession(person.id, userAgent);
   }
 
   authenticateCookie(cookieHeader: unknown): string | null {
-    if (!this.configuration.get().local.enabled) return null;
+    const config = this.configuration.get();
+    if (!config.local.enabled && !config.oidc.enabled) return null;
     const token = this.readCookie(cookieHeader, COOKIE_NAME);
     if (!token) return null;
     const now = Date.now();
@@ -258,6 +245,27 @@ export class LocalAuthService {
         .where(eq(authSessions.tokenHash, session.tokenHash))
         .run();
     return session.personId;
+  }
+
+  createSession(personId: string, userAgent?: string): LocalSession {
+    const now = Date.now();
+    this.deleteExpiredSessions(now);
+    const token = randomBytes(32).toString('base64url');
+    const expiresAt =
+      now + this.configuration.get().local.sessionTtlHours * 60 * 60 * 1000;
+    this.db
+      .insert(authSessions)
+      .values({
+        tokenHash: this.digest(token),
+        personId,
+        createdAt: now,
+        lastSeenAt: now,
+        expiresAt,
+        revokedAt: null,
+        userAgent: userAgent?.slice(0, 512) ?? null,
+      })
+      .run();
+    return { token, personId, expiresAt };
   }
 
   logout(cookieHeader: unknown): void {

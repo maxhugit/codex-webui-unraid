@@ -48,6 +48,7 @@
     "jsonwebtoken": "^9.0.2",
     "nestjs-pino": "^4.5.0",
     "node-pty": "^1.1.0",
+    "openid-client": "^6.8.8",
     "pino-http": "^10.5.0",
     "pino-roll": "^4.0.0",
     "reflect-metadata": "^0.2.2",

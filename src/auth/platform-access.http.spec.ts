@@ -27,6 +27,7 @@ import { ApiKeyGuard } from './api-key.guard';
 import { PlatformAccessGuard } from './platform-access.guard';
 import { IdentityService } from './identity.service';
 import { AuthConfigService } from './auth-config.service';
+import { OidcAuthService } from './oidc-auth.service';
 import { LocalAuthService } from './local-auth.service';
 import { ProjectsController } from '../projects/projects.controller';
 import { ProjectsService } from '../projects/projects.service';
@@ -119,6 +120,7 @@ beforeEach(async () => {
       AuthService,
       AuthConfigService,
       LocalAuthService,
+      OidcAuthService,
       IdentityService,
       ProjectKnowledgeService,
       KnowledgeProposalsService,

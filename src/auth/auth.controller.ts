@@ -1,10 +1,11 @@
-/** REST controller for JWT login/logout flows. */
+/** REST controller for API-key, local-session and OIDC authentication flows. */
 import {
   Body,
   Controller,
   HttpCode,
   HttpStatus,
   Get,
+  Query,
   Delete,
   Param,
   Put,
@@ -32,6 +33,7 @@ import { IdentityService } from './identity.service';
 import type { IdentityRequest } from './platform-access.guard';
 import { AuthConfigService } from './auth-config.service';
 import { LocalAuthService } from './local-auth.service';
+import { OidcAuthService } from './oidc-auth.service';
 
 function getRequestId(request: FastifyRequest): string | undefined {
   const id = (request as unknown as { id?: unknown }).id;
@@ -46,6 +48,7 @@ export class AuthController {
     private readonly identities: IdentityService,
     private readonly authConfig: AuthConfigService,
     private readonly localAuth: LocalAuthService,
+    private readonly oidcAuth: OidcAuthService,
   ) {}
 
   /** Public capability discovery used by the login page. */
@@ -62,13 +65,21 @@ export class AuthController {
   }
 
   @Patch('configuration')
-  updateConfiguration(@Body() body: unknown) {
+  async updateConfiguration(@Body() body: unknown) {
     const current = this.authConfig.get();
     const requested = body as { local?: { enabled?: unknown } } | null;
     if (!current.local.enabled && requested?.local?.enabled === true)
       this.localAuth.ensureLocalCanBeEnabled();
-    const updated = this.authConfig.update(body);
-    if (current.local.enabled && !updated.local.enabled)
+    const next = this.authConfig.prepareUpdate(body);
+    const oidcChanged =
+      JSON.stringify(current.oidc) !== JSON.stringify(next.oidc);
+    if (next.oidc.enabled && oidcChanged)
+      await this.oidcAuth.validateConfiguration(next.oidc);
+    const updated = this.authConfig.save(next);
+    if (
+      (current.local.enabled && !updated.local.enabled) ||
+      (current.oidc.enabled && (!updated.oidc.enabled || oidcChanged))
+    )
       this.localAuth.revokeAllSessions();
     return { ...updated, path: this.authConfig.path };
   }
@@ -166,6 +177,46 @@ export class AuthController {
       this.localAuth.cookie(session, this.secureCookie(request)),
     );
     return { expiresAt: session.expiresAt };
+  }
+
+  @Public()
+  @Get('oidc/start')
+  async oidcStart(
+    @Query('returnTo') returnTo: unknown,
+    @Req() request: FastifyRequest,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const start = await this.oidcAuth.start(
+      returnTo,
+      this.secureCookie(request),
+    );
+    reply.header('set-cookie', start.cookie);
+    await reply.redirect(start.authorizationUrl);
+  }
+
+  @Public()
+  @Get('oidc/callback')
+  async oidcCallback(
+    @Query() query: Record<string, unknown>,
+    @Req() request: FastifyRequest,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const secure = this.secureCookie(request);
+    try {
+      const result = await this.oidcAuth.callback(
+        query,
+        request.headers.cookie,
+        request.headers['user-agent'],
+      );
+      reply.header('set-cookie', [
+        this.localAuth.cookie(result.session, secure),
+        this.oidcAuth.clearFlowCookie(secure),
+      ]);
+      await reply.redirect(result.returnTo);
+    } catch (error) {
+      reply.header('set-cookie', this.oidcAuth.clearFlowCookie(secure));
+      throw error;
+    }
   }
 
   /** Revoke the local session, then clear the authentication cookie. */

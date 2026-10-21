@@ -194,6 +194,23 @@ it('never grants the first administrator login from an email match alone', () =>
   ).toBeNull();
 });
 
+it('links OIDC email only when verified and still recognizes an explicitly linked administrator', () => {
+  expect(
+    identities.resolveOidc('unverified-subject', 'standard@example.com', false)
+      .active,
+  ).toBe(false);
+  expect(
+    database.db.select().from(people).where(eq(people.id, 'standard')).get()
+      ?.identitySubject,
+  ).toBeNull();
+  expect(
+    identities.resolveOidc('verified-subject', 'STANDARD@EXAMPLE.COM', true),
+  ).toMatchObject({ personId: 'standard', active: true });
+  expect(
+    identities.resolveOidc('admin-subject', 'admin@example.com', false),
+  ).toMatchObject({ personId: 'admin', role: 'administrator', active: true });
+});
+
 it.each([
   '/settings',
   '/settings/general.onlyofficeJwtSecret',
