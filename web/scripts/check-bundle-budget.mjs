@@ -6,7 +6,7 @@ const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const assetsDirectory = path.resolve(webRoot, '..', 'public', 'assets');
 
 const budgets = {
-  maximumJavaScriptAssetBytes: 1_350_000,
+  maximumJavaScriptAssetBytes: 1_100_000,
   totalJavaScriptBytes: 25_000_000,
   translationKeyAssetBytes: 90_000,
 };

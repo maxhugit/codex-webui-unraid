@@ -3,8 +3,7 @@
  * Centralizes theme, Shiki highlighting, view-mode switching, and raw fallback.
  */
 import { Component, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { DiffModeEnum, DiffView } from '@git-diff-view/react';
-import { getDiffViewHighlighter } from '@git-diff-view/shiki';
+import type { getDiffViewHighlighter } from '@git-diff-view/shiki';
 import '@git-diff-view/react/styles/diff-view.css';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -12,8 +11,10 @@ import { stripGitPathPrefix, ensureDiffHeaders } from '@/lib/diff-utils';
 import { useThemeStore } from '@/stores/theme-store';
 
 type DiffViewHighlighter = Awaited<ReturnType<typeof getDiffViewHighlighter>>;
+type DiffViewModule = typeof import('@git-diff-view/react');
 
 let highlighterPromise: Promise<DiffViewHighlighter> | null = null;
+let diffViewModulePromise: Promise<DiffViewModule> | null = null;
 
 interface GitDiffPanelProps {
   /** Unified diff patch string. */
@@ -33,7 +34,8 @@ interface GitDiffPanelProps {
 /** Lazily creates and reuses the Shiki highlighter used by git-diff-view. */
 function loadHighlighter(): Promise<DiffViewHighlighter> {
   if (!highlighterPromise) {
-    highlighterPromise = getDiffViewHighlighter()
+    highlighterPromise = import('@git-diff-view/shiki')
+      .then(({ getDiffViewHighlighter }) => getDiffViewHighlighter())
       .then((highlighter) => {
         highlighter.setMaxLineToIgnoreSyntax(5000);
         return highlighter;
@@ -44,6 +46,11 @@ function loadHighlighter(): Promise<DiffViewHighlighter> {
       });
   }
   return highlighterPromise;
+}
+
+function loadDiffViewModule(): Promise<DiffViewModule> {
+  diffViewModulePromise ??= import('@git-diff-view/react');
+  return diffViewModulePromise;
 }
 
 // ── Diff parsing utilities ───────────────────────────────────────────
@@ -154,7 +161,10 @@ export function GitDiffPanel({
 }: GitDiffPanelProps) {
   const { t } = useTranslation();
   const dark = useThemeStore((s) => s.dark);
-  const [mode, setMode] = useState(DiffModeEnum.Unified);
+  const [split, setSplit] = useState(false);
+  const [diffViewModule, setDiffViewModule] = useState<DiffViewModule | null>(
+    null,
+  );
   const [highlighter, setHighlighter] = useState<DiffViewHighlighter | null>(
     null,
   );
@@ -182,9 +192,12 @@ export function GitDiffPanel({
   useEffect(() => {
     if (!canRender) return;
     let cancelled = false;
-    void loadHighlighter()
-      .then((h) => {
-        if (!cancelled) setHighlighter(h);
+    void Promise.all([loadDiffViewModule(), loadHighlighter()])
+      .then(([module, h]) => {
+        if (!cancelled) {
+          setDiffViewModule(module);
+          setHighlighter(h);
+        }
       })
       .catch(() => {
         if (!cancelled) setHighlighter(null);
@@ -197,6 +210,12 @@ export function GitDiffPanel({
   const fallback = (
     <RawDiffBlock diff={diff} maxHeightClassName={maxHeightClassName} />
   );
+  const mode = diffViewModule
+    ? split
+      ? diffViewModule.DiffModeEnum.Split
+      : diffViewModule.DiffModeEnum.Unified
+    : null;
+  const DiffView = diffViewModule?.DiffView;
 
   return (
     <div className={cn('border-t border-border', className)}>
@@ -208,10 +227,10 @@ export function GitDiffPanel({
           <div className="flex shrink-0 rounded-md border border-border bg-muted/40 p-0.5">
             <button
               type="button"
-              onClick={() => setMode(DiffModeEnum.Unified)}
+              onClick={() => setSplit(false)}
               className={cn(
                 'rounded px-2 py-0.5 text-[11px] transition-colors',
-                mode === DiffModeEnum.Unified
+                !split
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
               )}
@@ -220,10 +239,10 @@ export function GitDiffPanel({
             </button>
             <button
               type="button"
-              onClick={() => setMode(DiffModeEnum.Split)}
+              onClick={() => setSplit(true)}
               className={cn(
                 'rounded px-2 py-0.5 text-[11px] transition-colors',
-                mode === DiffModeEnum.Split
+                split
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
               )}
@@ -234,7 +253,7 @@ export function GitDiffPanel({
         </div>
       )}
 
-      {canRender ? (
+      {canRender && DiffView && mode !== null ? (
         <DiffRenderBoundary
           resetKey={`${mode}:${theme}:${fullDiff}`}
           fallback={fallback}
