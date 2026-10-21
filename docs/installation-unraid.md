@@ -183,9 +183,12 @@ http://authentik:9000/outpost.goauthentik.io/auth/nginx
 
 Le nom Docker `authentik` doit donc être résolvable depuis `net_standard`.
 
-Ne pas activer un second mot de passe applicatif : Authentik constitue la porte
-d’entrée. Conserver néanmoins un accès local de récupération documenté pour ne
-pas dépendre d’un Authentik en panne.
+Conserver ce fournisseur proxy pendant la première mise en service du SSO
+applicatif. Créer en parallèle un fournisseur OAuth2/OpenID avec l’URI de retour
+`https://codex.example.com/api/auth/oidc/callback`, puis renseigner ses paramètres
+dans l’administration du WebUI. Tester la connexion SSO et un compte local de
+récupération avant toute suppression du middleware proxy. La procédure détaillée
+et l’ordre de bascule figurent dans `docs/configuration-integrations.md`.
 
 ## 7. Restaurer les données
 

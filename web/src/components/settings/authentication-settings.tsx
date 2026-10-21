@@ -20,6 +20,7 @@ interface AuthenticationConfiguration {
     enabled: boolean;
     issuerUrl: string;
     clientId: string;
+    redirectUri: string;
     scopes: string;
     autoRedirect: boolean;
     clientSecretConfigured: boolean;
@@ -34,6 +35,7 @@ interface LocalAccount {
   role: 'standard' | 'administrator';
   username: string | null;
   passwordConfigured: boolean;
+  oidcLinked: boolean;
   lockedUntil: number | null;
   lastLoginAt: number | null;
 }
@@ -317,6 +319,11 @@ export function AuthenticationSettings() {
                     {t('Password configured')}
                   </span>
                 )}
+                {account.oidcLinked && (
+                  <span className="rounded-full border px-2 py-1 text-xs">
+                    {t('SSO identity linked')}
+                  </span>
+                )}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input
@@ -383,11 +390,20 @@ export function AuthenticationSettings() {
             <h3 className="font-medium">{t('Single sign-on (OIDC)')}</h3>
             <p className="text-xs text-muted-foreground">
               {t(
-                'OIDC configuration is prepared here. Activation will be available in the next implementation step.',
+                'The provider connection is verified before OIDC is enabled.',
               )}
             </p>
           </div>
-          <Switch checked={false} disabled />
+          <Switch
+            checked={configuration.oidc.enabled}
+            disabled={saving}
+            onCheckedChange={(enabled) =>
+              setConfiguration({
+                ...configuration,
+                oidc: { ...configuration.oidc, enabled },
+              })
+            }
+          />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
@@ -428,6 +444,19 @@ export function AuthenticationSettings() {
             onChange={(event) => setOidcClientSecret(event.target.value)}
           />
           <Input
+            value={configuration.oidc.redirectUri}
+            placeholder="https://codex.example/api/auth/oidc/callback"
+            onChange={(event) =>
+              setConfiguration({
+                ...configuration,
+                oidc: {
+                  ...configuration.oidc,
+                  redirectUri: event.target.value,
+                },
+              })
+            }
+          />
+          <Input
             value={configuration.oidc.scopes}
             placeholder={t('Scopes')}
             onChange={(event) =>
@@ -441,6 +470,11 @@ export function AuthenticationSettings() {
             }
           />
         </div>
+        <p className="text-xs text-muted-foreground">
+          {t(
+            'Register the redirect URI exactly in the Authentik OAuth2/OpenID provider.',
+          )}
+        </p>
         <label className="flex items-center justify-between gap-4 text-sm">
           <span>{t('Redirect automatically when OIDC is enabled')}</span>
           <Switch
@@ -459,7 +493,7 @@ export function AuthenticationSettings() {
           onClick={() => void saveConfiguration()}
           disabled={saving}
         >
-          {t('Save OIDC preparation')}
+          {t('Save and verify OIDC')}
         </Button>
       </div>
     </section>

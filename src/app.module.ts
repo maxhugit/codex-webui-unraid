@@ -46,9 +46,12 @@ const rollTarget = {
   },
 };
 
-/** Strips access_token query param from URL strings to prevent JWT leakage in logs. */
+/** Strips bearer and OIDC response parameters from URLs before logging. */
 function sanitizeUrl(url: string): string {
-  return url.replace(/([?&])access_token=[^&]*/g, '$1access_token=[Redacted]');
+  return url.replace(
+    /([?&])(access_token|code|state)=[^&]*/g,
+    '$1$2=[Redacted]',
+  );
 }
 
 const PINO_REDACT = {
@@ -64,6 +67,10 @@ const PINO_REDACT = {
     // File preview URLs may carry RFC 6750 query tokens
     'req.query.access_token',
     'req.query["access_token"]',
+    'req.query.code',
+    'req.query["code"]',
+    'req.query.state',
+    'req.query["state"]',
     'res.headers["set-cookie"]',
     'token',
     'accessToken',

@@ -3,22 +3,26 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { KeyRound, Loader2, UserRound } from 'lucide-react';
+import { KeyRound, Loader2, LogIn, UserRound } from 'lucide-react';
 
 interface Props {
   localEnabled: boolean;
+  oidcEnabled: boolean;
+  onOidcLogin: () => void;
   onLocalLogin: (username: string, password: string) => Promise<boolean>;
   onApiKeyLogin: (apiKey: string) => Promise<boolean>;
 }
 
 export function LoginPage({
   localEnabled,
+  oidcEnabled,
+  onOidcLogin,
   onLocalLogin,
   onApiKeyLogin,
 }: Props) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<'local' | 'apiKey'>(
-    localEnabled ? 'local' : 'apiKey',
+  const [mode, setMode] = useState<'oidc' | 'local' | 'apiKey'>(
+    oidcEnabled ? 'oidc' : localEnabled ? 'local' : 'apiKey',
   );
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -28,6 +32,10 @@ export function LoginPage({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (mode === 'oidc') {
+      onOidcLogin();
+      return;
+    }
     if (mode === 'local' && (!username.trim() || !password)) return;
     if (mode === 'apiKey' && !apiKey.trim()) return;
 
@@ -55,7 +63,11 @@ export function LoginPage({
 
   const disabled =
     loading ||
-    (mode === 'local' ? !username.trim() || !password : !apiKey.trim());
+    (mode === 'local'
+      ? !username.trim() || !password
+      : mode === 'apiKey'
+        ? !apiKey.trim()
+        : false);
 
   return (
     <div className="relative flex h-[var(--app-vh,100dvh)] items-center justify-center overflow-hidden bg-background p-4">
@@ -66,17 +78,35 @@ export function LoginPage({
         <div className="flex items-center gap-2.5 text-lg font-semibold">
           {mode === 'local' ? (
             <UserRound className="h-5 w-5 opacity-70" />
+          ) : mode === 'oidc' ? (
+            <LogIn className="h-5 w-5 opacity-70" />
           ) : (
             <KeyRound className="h-5 w-5 opacity-70" />
           )}
           Codex WebUI
         </div>
 
-        {localEnabled && (
-          <div className="grid grid-cols-2 rounded-xl border p-1">
+        {(localEnabled || oidcEnabled) && (
+          <div className="flex rounded-xl border p-1">
+            {oidcEnabled && (
+              <Button
+                type="button"
+                size="sm"
+                className="flex-1"
+                variant={mode === 'oidc' ? 'default' : 'ghost'}
+                onClick={() => {
+                  setMode('oidc');
+                  setError('');
+                }}
+              >
+                {t('SSO')}
+              </Button>
+            )}
+            {localEnabled && (
             <Button
               type="button"
               size="sm"
+              className="flex-1"
               variant={mode === 'local' ? 'default' : 'ghost'}
               onClick={() => {
                 setMode('local');
@@ -85,9 +115,11 @@ export function LoginPage({
             >
               {t('Local account')}
             </Button>
+            )}
             <Button
               type="button"
               size="sm"
+              className="flex-1"
               variant={mode === 'apiKey' ? 'default' : 'ghost'}
               onClick={() => {
                 setMode('apiKey');
@@ -99,7 +131,11 @@ export function LoginPage({
           </div>
         )}
 
-        {mode === 'local' ? (
+        {mode === 'oidc' ? (
+          <p className="text-sm text-muted-foreground">
+            {t('Continue with your organization account.')}
+          </p>
+        ) : mode === 'local' ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               {t('Sign in with your local account.')}
@@ -139,7 +175,7 @@ export function LoginPage({
 
         <Button type="submit" className="w-full rounded-xl" disabled={disabled}>
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {t('Login')}
+          {t(mode === 'oidc' ? 'Continue with SSO' : 'Login')}
         </Button>
       </form>
     </div>

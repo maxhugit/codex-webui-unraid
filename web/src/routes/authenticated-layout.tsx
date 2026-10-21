@@ -75,7 +75,7 @@ export function AuthenticatedLayout() {
           onClick={() =>
             void navigate({
               to: '/login',
-              search: { redirect: window.location.pathname },
+              search: { redirect: window.location.pathname, manual: true },
             })
           }
         >

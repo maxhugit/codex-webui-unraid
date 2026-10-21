@@ -41,9 +41,20 @@ describe('AuthConfigService', () => {
     expect(persisted.oidc.clientSecret).toBe('private-value');
   });
 
-  it('does not allow OIDC activation before the OIDC implementation exists', () => {
+  it('requires a complete HTTPS OIDC configuration before activation', () => {
     expect(() => service.update({ oidc: { enabled: true } })).toThrow(
-      'OIDC activation is available after the OIDC implementation step',
+      'OIDC issuer, client ID and client secret are required',
     );
+    const result = service.update({
+      oidc: {
+        enabled: true,
+        issuerUrl: 'https://sso.example.test/application/o/webui/',
+        clientId: 'webui',
+        clientSecret: 'private-value',
+        redirectUri: 'https://webui.example.test/api/auth/oidc/callback',
+      },
+    });
+    expect(result.oidc.enabled).toBe(true);
+    expect(result.oidc.clientSecretConfigured).toBe(true);
   });
 });

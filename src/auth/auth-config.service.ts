@@ -24,6 +24,7 @@ export interface AuthConfiguration {
     issuerUrl: string;
     clientId: string;
     clientSecret: string;
+    redirectUri: string;
     scopes: string;
     autoRedirect: boolean;
   };
@@ -48,6 +49,7 @@ const DEFAULT_CONFIGURATION: AuthConfiguration = {
     issuerUrl: '',
     clientId: '',
     clientSecret: '',
+    redirectUri: '',
     scopes: 'openid profile email',
     autoRedirect: false,
   },
@@ -82,7 +84,14 @@ export class AuthConfigService {
   }
 
   update(input: unknown): PublicAuthConfiguration {
-    const next = this.parse(input, this.value);
+    return this.save(this.prepareUpdate(input));
+  }
+
+  prepareUpdate(input: unknown): AuthConfiguration {
+    return this.parse(input, this.value);
+  }
+
+  save(next: AuthConfiguration): PublicAuthConfiguration {
     this.persist(next);
     this.value = next;
     return this.getPublic();
@@ -196,6 +205,11 @@ export class AuthConfigService {
           'OIDC client ID',
         ),
         clientSecret: secret,
+        redirectUri: string(
+          oidc.redirectUri,
+          current.oidc.redirectUri,
+          'OIDC redirect URI',
+        ),
         scopes: string(oidc.scopes, current.oidc.scopes, 'OIDC scopes'),
         autoRedirect: boolean(
           oidc.autoRedirect,
@@ -204,11 +218,37 @@ export class AuthConfigService {
         ),
       },
     };
-    if (next.oidc.enabled)
-      throw new BadRequestException(
-        'OIDC activation is available after the OIDC implementation step',
-      );
+    if (next.oidc.enabled) this.validateOidc(next.oidc);
     return next;
+  }
+
+  private validateOidc(oidc: AuthConfiguration['oidc']): void {
+    if (!oidc.issuerUrl || !oidc.clientId || !oidc.clientSecret)
+      throw new BadRequestException(
+        'OIDC issuer, client ID and client secret are required',
+      );
+    if (!oidc.redirectUri)
+      throw new BadRequestException('OIDC redirect URI is required');
+    for (const [label, value] of [
+      ['issuer', oidc.issuerUrl],
+      ['redirect URI', oidc.redirectUri],
+    ] as const) {
+      let url: URL;
+      try {
+        url = new URL(value);
+      } catch {
+        throw new BadRequestException(`Invalid OIDC ${label}`);
+      }
+      if (
+        url.protocol !== 'https:' &&
+        !(process.env.NODE_ENV !== 'production' && url.hostname === 'localhost')
+      )
+        throw new BadRequestException(`OIDC ${label} must use HTTPS`);
+      if (url.username || url.password || url.hash)
+        throw new BadRequestException(`Invalid OIDC ${label}`);
+    }
+    if (!oidc.scopes.split(/\s+/).includes('openid'))
+      throw new BadRequestException('OIDC scopes must include openid');
   }
 
   private object(value: unknown, label: string): Record<string, unknown> {

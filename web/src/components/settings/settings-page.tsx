@@ -95,7 +95,7 @@ export function SettingsPage() {
     await authLogout({ throwOnError: false }).catch(() => undefined);
     clearApiToken();
     resetSocket();
-    void navigate({ to: '/login', search: { redirect: '/' } });
+    void navigate({ to: '/login', search: { redirect: '/', manual: true } });
   };
 
   return (
