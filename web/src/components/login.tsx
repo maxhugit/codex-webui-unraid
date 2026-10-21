@@ -20,7 +20,7 @@ export function LoginPage({
   onLocalLogin,
   onApiKeyLogin,
 }: Props) {
-  const { t } = useTranslation();
+  const { t } = useTranslation('authentication');
   const [mode, setMode] = useState<'oidc' | 'local' | 'apiKey'>(
     oidcEnabled ? 'oidc' : localEnabled ? 'local' : 'apiKey',
   );
@@ -50,12 +50,12 @@ export function LoginPage({
         setError(
           t(
             mode === 'local'
-              ? 'Invalid username or password'
-              : 'Invalid API key',
+              ? 'login.invalidCredentials'
+              : 'login.invalidApiKey',
           ),
         );
     } catch {
-      setError(t('Failed to connect to server'));
+      setError(t('login.connectionError'));
     } finally {
       setLoading(false);
     }
@@ -99,22 +99,22 @@ export function LoginPage({
                   setError('');
                 }}
               >
-                {t('SSO')}
+                {t('login.sso')}
               </Button>
             )}
             {localEnabled && (
-            <Button
-              type="button"
-              size="sm"
-              className="flex-1"
-              variant={mode === 'local' ? 'default' : 'ghost'}
-              onClick={() => {
-                setMode('local');
-                setError('');
-              }}
-            >
-              {t('Local account')}
-            </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="flex-1"
+                variant={mode === 'local' ? 'default' : 'ghost'}
+                onClick={() => {
+                  setMode('local');
+                  setError('');
+                }}
+              >
+                {t('login.localAccount')}
+              </Button>
             )}
             <Button
               type="button"
@@ -126,23 +126,23 @@ export function LoginPage({
                 setError('');
               }}
             >
-              {t('API key')}
+              {t('login.apiKey')}
             </Button>
           </div>
         )}
 
         {mode === 'oidc' ? (
           <p className="text-sm text-muted-foreground">
-            {t('Continue with your organization account.')}
+            {t('login.organizationHelp')}
           </p>
         ) : mode === 'local' ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {t('Sign in with your local account.')}
+              {t('login.localHelp')}
             </p>
             <Input
               value={username}
-              placeholder={t('Username')}
+              placeholder={t('login.username')}
               autoComplete="username"
               autoFocus
               onChange={(event) => setUsername(event.target.value)}
@@ -150,7 +150,7 @@ export function LoginPage({
             <Input
               type="password"
               value={password}
-              placeholder={t('Password')}
+              placeholder={t('login.password')}
               autoComplete="current-password"
               onChange={(event) => setPassword(event.target.value)}
             />
@@ -158,11 +158,11 @@ export function LoginPage({
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {t('Enter your API key to continue.')}
+              {t('login.apiKeyHelp')}
             </p>
             <Input
               type="password"
-              placeholder={t('API Key')}
+              placeholder={t('login.apiKeyPlaceholder')}
               value={apiKey}
               autoComplete="off"
               autoFocus={!localEnabled}
@@ -175,7 +175,7 @@ export function LoginPage({
 
         <Button type="submit" className="w-full rounded-xl" disabled={disabled}>
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {t(mode === 'oidc' ? 'Continue with SSO' : 'Login')}
+          {t(mode === 'oidc' ? 'login.continueWithSso' : 'login.submit')}
         </Button>
       </form>
     </div>

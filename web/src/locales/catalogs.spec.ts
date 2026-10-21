@@ -8,6 +8,21 @@ const interpolationVariables = (value: string) =>
     .map((match) => match[1])
     .sort();
 
+const flatten = (
+  value: unknown,
+  prefix = '',
+  output: Record<string, string> = {},
+) => {
+  if (typeof value === 'string') {
+    output[prefix] = value;
+    return output;
+  }
+  for (const [key, child] of Object.entries(value as object)) {
+    flatten(child, prefix ? `${prefix}.${key}` : key, output);
+  }
+  return output;
+};
+
 const englishPluralValues: Record<string, string> = {
   '{{count}} relation_one': '{{count}} relation',
   '{{count}} relation_other': '{{count}} relations',
@@ -24,8 +39,20 @@ describe('translation catalogs', () => {
     }
   });
 
-  it('keeps the English and French legacy catalogs in sync', () => {
-    expect(Object.keys(fr).sort()).toEqual(Object.keys(en).sort());
+  it('keeps keys and interpolation variables aligned in every namespace', () => {
+    for (const namespace of namespaces) {
+      const source = flatten(localeResources.en[namespace]);
+      const target = flatten(localeResources.fr[namespace]);
+      expect(Object.keys(target).sort(), namespace).toEqual(
+        Object.keys(source).sort(),
+      );
+      for (const key of Object.keys(source)) {
+        expect(
+          interpolationVariables(target[key]),
+          `${namespace}:${key}`,
+        ).toEqual(interpolationVariables(source[key]));
+      }
+    }
   });
 
   it('uses explicit English source values during the legacy migration', () => {

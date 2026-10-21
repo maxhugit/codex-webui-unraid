@@ -9,6 +9,7 @@ import {
   readLocalAccounts,
   type LocalAccount,
 } from '@/lib/auth-api';
+import { authenticationErrorMessage } from '@/lib/auth-error-message';
 
 interface AuthenticationConfiguration {
   version: 1;
@@ -53,7 +54,7 @@ function NumberField({
 }
 
 export function AuthenticationSettings() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('authentication');
   const [configuration, setConfiguration] =
     useState<AuthenticationConfiguration | null>(null);
   const [accounts, setAccounts] = useState<LocalAccount[]>([]);
@@ -84,9 +85,7 @@ export function AuthenticationSettings() {
     const timer = window.setTimeout(() => {
       void load().catch((error: unknown) =>
         showSnackbar(
-          error instanceof Error
-            ? t(error.message)
-            : t('Unable to load authentication settings'),
+          authenticationErrorMessage(error, t, 'settings.loadError'),
           'error',
         ),
       );
@@ -113,12 +112,10 @@ export function AuthenticationSettings() {
       );
       setConfiguration(updated);
       setOidcClientSecret('');
-      showSnackbar(t('Authentication settings saved'), 'success');
+      showSnackbar(t('settings.saved'), 'success');
     } catch (error) {
       showSnackbar(
-        error instanceof Error
-          ? t(error.message)
-          : t('Unable to save authentication settings'),
+        authenticationErrorMessage(error, t, 'settings.saveError'),
         'error',
       );
     } finally {
@@ -142,12 +139,10 @@ export function AuthenticationSettings() {
         },
       );
       await load();
-      showSnackbar(t('Local account saved'), 'success');
+      showSnackbar(t('settings.accounts.saved'), 'success');
     } catch (error) {
       showSnackbar(
-        error instanceof Error
-          ? t(error.message)
-          : t('Unable to save local account'),
+        authenticationErrorMessage(error, t, 'settings.accounts.saveError'),
         'error',
       );
     } finally {
@@ -165,12 +160,10 @@ export function AuthenticationSettings() {
         },
       );
       await load();
-      showSnackbar(t('Local account removed'), 'success');
+      showSnackbar(t('settings.accounts.removed'), 'success');
     } catch (error) {
       showSnackbar(
-        error instanceof Error
-          ? t(error.message)
-          : t('Unable to remove local account'),
+        authenticationErrorMessage(error, t, 'settings.accounts.removeError'),
         'error',
       );
     } finally {
@@ -179,16 +172,18 @@ export function AuthenticationSettings() {
   };
 
   if (!configuration)
-    return <p className="text-sm text-muted-foreground">{t('Loading...')}</p>;
+    return (
+      <p className="text-sm text-muted-foreground">{t('settings.loading')}</p>
+    );
 
   return (
     <section className="space-y-5">
       <div className="space-y-1">
         <h2 className="text-sm font-medium text-muted-foreground">
-          {t('Authentication')}
+          {t('settings.title')}
         </h2>
         <p className="text-xs text-muted-foreground">
-          {t('Authentication settings are persisted in AppData.')}
+          {t('settings.description')}
         </p>
         <code className="block break-all text-xs text-muted-foreground">
           {configuration.path}
@@ -198,11 +193,9 @@ export function AuthenticationSettings() {
       <div className="space-y-4 rounded-xl border bg-card/50 p-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h3 className="font-medium">{t('Local account and password')}</h3>
+            <h3 className="font-medium">{t('settings.local.title')}</h3>
             <p className="text-xs text-muted-foreground">
-              {t(
-                'Enable local login after configuring at least one active account.',
-              )}
+              {t('settings.local.description')}
             </p>
           </div>
           <Switch
@@ -218,7 +211,7 @@ export function AuthenticationSettings() {
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           <NumberField
-            label={t('Session lifetime in hours')}
+            label={t('settings.local.sessionLifetimeHours')}
             value={configuration.local.sessionTtlHours}
             onChange={(sessionTtlHours) =>
               setConfiguration({
@@ -228,7 +221,7 @@ export function AuthenticationSettings() {
             }
           />
           <NumberField
-            label={t('Failed attempts before lockout')}
+            label={t('settings.local.failedAttempts')}
             value={configuration.local.maxFailedAttempts}
             onChange={(maxFailedAttempts) =>
               setConfiguration({
@@ -238,7 +231,7 @@ export function AuthenticationSettings() {
             }
           />
           <NumberField
-            label={t('Lockout duration in minutes')}
+            label={t('settings.local.lockoutMinutes')}
             value={configuration.local.lockoutMinutes}
             onChange={(lockoutMinutes) =>
               setConfiguration({
@@ -249,17 +242,15 @@ export function AuthenticationSettings() {
           />
         </div>
         <Button onClick={() => void saveConfiguration()} disabled={saving}>
-          {t('Save authentication settings')}
+          {t('settings.local.save')}
         </Button>
       </div>
 
       <div className="space-y-3 rounded-xl border bg-card/50 p-4">
         <div>
-          <h3 className="font-medium">{t('Local accounts')}</h3>
+          <h3 className="font-medium">{t('settings.accounts.title')}</h3>
           <p className="text-xs text-muted-foreground">
-            {t(
-              'Passwords are hashed with Argon2id and never stored in the configuration file.',
-            )}
+            {t('settings.accounts.description')}
           </p>
         </div>
         {accounts.map((account) => {
@@ -279,27 +270,29 @@ export function AuthenticationSettings() {
                     {account.email} ·{' '}
                     {t(
                       account.role === 'administrator'
-                        ? 'Administrator'
-                        : 'Standard user',
+                        ? 'settings.accounts.administrator'
+                        : 'settings.accounts.standardUser',
                     )}
-                    {!account.active ? ` · ${t('Inactive')}` : ''}
+                    {!account.active
+                      ? ` · ${t('settings.accounts.inactive')}`
+                      : ''}
                   </div>
                 </div>
                 {account.passwordConfigured && (
                   <span className="rounded-full border px-2 py-1 text-xs">
-                    {t('Password configured')}
+                    {t('settings.accounts.passwordConfigured')}
                   </span>
                 )}
                 {account.oidcLinked && (
                   <span className="rounded-full border px-2 py-1 text-xs">
-                    {t('SSO identity linked')}
+                    {t('settings.accounts.ssoLinked')}
                   </span>
                 )}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input
                   value={draft.username}
-                  placeholder={t('Username')}
+                  placeholder={t('settings.accounts.username')}
                   autoComplete="off"
                   disabled={account.oidcLinked}
                   onChange={(event) =>
@@ -317,8 +310,8 @@ export function AuthenticationSettings() {
                   value={draft.password}
                   placeholder={
                     account.passwordConfigured
-                      ? t('New password (leave empty to keep it)')
-                      : t('Password (12 characters minimum)')
+                      ? t('settings.accounts.newPassword')
+                      : t('settings.accounts.newPasswordRequired')
                   }
                   autoComplete="new-password"
                   disabled={account.oidcLinked}
@@ -339,7 +332,7 @@ export function AuthenticationSettings() {
                   disabled={saving || account.oidcLinked}
                   onClick={() => void saveAccount(account)}
                 >
-                  {t('Configure local account')}
+                  {t('settings.accounts.configure')}
                 </Button>
                 {account.passwordConfigured && (
                   <Button
@@ -348,7 +341,7 @@ export function AuthenticationSettings() {
                     disabled={saving}
                     onClick={() => void removeAccount(account)}
                   >
-                    {t('Remove local login')}
+                    {t('settings.accounts.remove')}
                   </Button>
                 )}
               </div>
@@ -360,9 +353,9 @@ export function AuthenticationSettings() {
       <div className="space-y-3 rounded-xl border bg-card/50 p-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h3 className="font-medium">{t('Single sign-on (OIDC)')}</h3>
+            <h3 className="font-medium">{t('settings.oidc.title')}</h3>
             <p className="text-xs text-muted-foreground">
-              {t('The provider connection is verified before OIDC is enabled.')}
+              {t('settings.oidc.description')}
             </p>
           </div>
           <Switch
@@ -379,7 +372,7 @@ export function AuthenticationSettings() {
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
             value={configuration.oidc.issuerUrl}
-            placeholder={t('Issuer URL')}
+            placeholder={t('settings.oidc.issuerUrl')}
             onChange={(event) =>
               setConfiguration({
                 ...configuration,
@@ -392,7 +385,7 @@ export function AuthenticationSettings() {
           />
           <Input
             value={configuration.oidc.clientId}
-            placeholder={t('Client ID')}
+            placeholder={t('settings.oidc.clientId')}
             onChange={(event) =>
               setConfiguration({
                 ...configuration,
@@ -408,8 +401,8 @@ export function AuthenticationSettings() {
             value={oidcClientSecret}
             placeholder={
               configuration.oidc.clientSecretConfigured
-                ? t('Client secret configured (leave empty to keep it)')
-                : t('Client secret')
+                ? t('settings.oidc.configuredClientSecret')
+                : t('settings.oidc.clientSecret')
             }
             autoComplete="new-password"
             onChange={(event) => setOidcClientSecret(event.target.value)}
@@ -429,7 +422,7 @@ export function AuthenticationSettings() {
           />
           <Input
             value={configuration.oidc.scopes}
-            placeholder={t('Scopes')}
+            placeholder={t('settings.oidc.scopes')}
             onChange={(event) =>
               setConfiguration({
                 ...configuration,
@@ -442,12 +435,10 @@ export function AuthenticationSettings() {
           />
         </div>
         <p className="text-xs text-muted-foreground">
-          {t(
-            'Register the redirect URI exactly in the Authentik OAuth2/OpenID provider.',
-          )}
+          {t('settings.oidc.redirectHelp')}
         </p>
         <label className="flex items-center justify-between gap-4 text-sm">
-          <span>{t('Redirect automatically when OIDC is enabled')}</span>
+          <span>{t('settings.oidc.autoRedirect')}</span>
           <Switch
             checked={configuration.oidc.autoRedirect}
             disabled={saving}
@@ -464,7 +455,7 @@ export function AuthenticationSettings() {
           onClick={() => void saveConfiguration()}
           disabled={saving}
         >
-          {t('Save and verify OIDC')}
+          {t('settings.oidc.save')}
         </Button>
       </div>
     </section>

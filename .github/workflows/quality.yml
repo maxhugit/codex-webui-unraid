@@ -45,6 +45,9 @@ jobs:
       - name: Validate repository content
         run: python3 scripts/check-no-chinese.py
 
+      - name: Validate translation catalogs
+        run: pnpm --dir web check:i18n
+
       - name: Lint
         run: |
           pnpm ensure:codex-schema

@@ -43,32 +43,32 @@ const IDLE_SUBSCRIPTION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
 export function AuthenticatedLayout() {
   const session = usePlatformSession();
-  const { t } = useTranslation();
+  const { t } = useTranslation('authentication');
   const navigate = useNavigate();
   if (session.isPending)
-    return <div className="p-6">{t('Verifying identity…')}</div>;
+    return <div className="p-6">{t('access.verifying')}</div>;
   if (session.isError || !session.data?.active)
     return (
       <main className="mx-auto max-w-xl space-y-4 p-6">
-        <h1 className="text-xl font-semibold">{t('Access unavailable')}</h1>
+        <h1 className="text-xl font-semibold">{t('access.unavailable')}</h1>
         <p>
           {t(
             session.isError
-              ? 'Unable to verify your identity'
-              : 'Your login is not linked to an active person. Contact an administrator.',
+              ? 'access.verificationError'
+              : 'access.inactivePerson',
           )}
         </p>
         {session.data?.email && <p>{session.data.email}</p>}
         {session.data?.subject && (
           <p className="break-all text-xs">
-            {t('Authentication reference')}: {session.data.subject}
+            {t('access.reference')}: {session.data.subject}
           </p>
         )}
         <button
           className="cursor-pointer rounded-md border px-4 py-2 hover:bg-accent"
           onClick={() => void session.refetch()}
         >
-          {t('Retry')}
+          {t('access.retry')}
         </button>
         <button
           className="cursor-pointer rounded-md border px-4 py-2 hover:bg-accent"
@@ -79,7 +79,7 @@ export function AuthenticatedLayout() {
             })
           }
         >
-          {t('Use another authentication method')}
+          {t('access.anotherMethod')}
         </button>
       </main>
     );
