@@ -72,6 +72,24 @@ describe('SimpleChatService execution backend', () => {
     );
   });
 
+  it('refuses to move an existing conversation to another project', () => {
+    database.db
+      .insert(projects)
+      .values({
+        id: 'project-2',
+        name: 'Other project',
+        workspacePath: '/workspaces/other',
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      .onConflictDoNothing()
+      .run();
+    const created = service.createThread({ projectId: 'project-1' });
+    expect(() =>
+      service.updateThread(created.thread.id, { projectId: 'project-2' }),
+    ).toThrow('Conversations cannot be moved between projects');
+  });
+
   it('captures simple-chat suggestions with the persistent conversation and message as their source', async () => {
     const capture = vi.fn();
     const simple = new SimpleChatService(

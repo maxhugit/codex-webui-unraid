@@ -333,6 +333,7 @@ export function ThreadSidebar() {
         cwd: project.workspacePath,
         workspaces: project.workspaces,
         resources: project.resources,
+        sidebarOrder: project.sidebarOrder,
         threads: [] as ThreadDto[],
         simpleChats: [] as SimpleChatThread[],
       }),
@@ -492,73 +493,45 @@ export function ThreadSidebar() {
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
 
-  const moveThread = useMutation({
-    mutationFn: async ({
-      threadId,
-      cwd,
+  const reorderSidebar = useMutation({
+    mutationFn: ({
       projectId,
+      order,
     }: {
-      threadId: string;
-      cwd: string;
       projectId: string;
-    }) => {
-      const payload = await projectsApi<{ threadIds: string[] }>(
-        `/${projectId}/agents/${threadId}`,
-        { method: 'PUT', body: JSON.stringify({ workspacePath: cwd }) },
+      order: string[];
+    }) =>
+      projectsApi(`/${projectId}/sidebar-order`, {
+        method: 'PATCH',
+        body: JSON.stringify({ order }),
+      }),
+    onMutate: async ({ projectId, order }) => {
+      await queryClient.cancelQueries({ queryKey: projectsQueryKey });
+      const previous = queryClient.getQueryData<{ projects: ProjectSummary[] }>(
+        projectsQueryKey,
       );
-      return payload.threadIds?.length ? payload.threadIds : [threadId];
+      queryClient.setQueryData<{ projects: ProjectSummary[] }>(
+        projectsQueryKey,
+        (current) =>
+          current
+            ? {
+                projects: current.projects.map((project) =>
+                  project.id === projectId
+                    ? { ...project, sidebarOrder: order }
+                    : project,
+                ),
+              }
+            : current,
+      );
+      return { previous };
     },
-    onSuccess: (threadIds, variables) => {
-      const timeline = useTimelineStore.getState();
-      for (const threadId of threadIds)
-        timeline.setThreadCwdForThread(threadId, variables.cwd);
-      invalidateThreads();
-    },
-    onError: (err) => {
+    onError: (err, _variables, context) => {
+      if (context?.previous)
+        queryClient.setQueryData(projectsQueryKey, context.previous);
       addSystemError(getApiErrorMessage(err));
     },
-  });
-  const moveSimpleChat = useMutation({
-    mutationFn: ({
-      threadId,
-      projectId,
-    }: {
-      threadId: string;
-      projectId: string;
-    }) =>
-      simpleChatApi(`/threads/${threadId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ projectId }),
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: simpleChatThreadsQueryKey,
-      });
-    },
-    onError: (err) => addSystemError(getApiErrorMessage(err)),
-  });
-  const moveProjectResource = useMutation({
-    mutationFn: ({
-      resource,
-      projectId,
-    }: {
-      resource: ProjectResourceSummary;
-      projectId: string;
-    }) =>
-      projectsApi<{ resource: ProjectResourceSummary }>(
-        `/${resource.projectId}/resources/${resource.id}`,
-        { method: 'PATCH', body: JSON.stringify({ projectId }) },
-      ),
-    onSuccess: ({ resource }) => {
-      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-      if (activeResourceId === resource.id)
-        void navigate({
-          to: '/projects/$projectId/resources/$resourceId',
-          params: { projectId: resource.projectId, resourceId: resource.id },
-          search: { task: undefined },
-        });
-    },
-    onError: (err) => addSystemError(getApiErrorMessage(err)),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
   });
 
   const handleThreadDragEnd = useCallback(
@@ -569,66 +542,49 @@ export function ThreadSidebar() {
         target: { id?: string | number; data?: Record<string, unknown> } | null;
       };
     }) => {
-      if (
-        event.canceled ||
-        moveThread.isPending ||
-        moveSimpleChat.isPending ||
-        moveProjectResource.isPending
-      )
-        return;
+      if (event.canceled || reorderSidebar.isPending) return;
       const source = event.operation.source?.data;
       const target = event.operation.target?.data;
-      const sourceId = String(event.operation.source?.id ?? '');
-      const targetId = String(event.operation.target?.id ?? '');
-      if (target?.kind !== 'workspace' && !targetId.startsWith('workspace-'))
+      if (target?.kind !== 'workspace' && target?.kind !== 'sidebar-item')
         return;
-      const sourceCwd = source?.cwd as string | undefined;
-      const targetCwd =
-        (target?.cwd as string | undefined) ||
-        (targetId.startsWith('workspace-') ? targetId.slice(10) : undefined);
-      if (!targetCwd || sourceCwd === targetCwd) return;
+      const sourceProjectId = source?.projectId as string | undefined;
       const targetProjectId = target?.projectId as string | undefined;
-      if (!targetProjectId) return;
-      if (
-        source?.kind === 'project-resource' ||
-        sourceId.startsWith('project-resource-')
-      ) {
-        if (source?.projectId === targetProjectId) return;
-        const resourceId =
-          (source?.resourceId as string | undefined) || sourceId.slice(17);
-        const resource = (projectsQuery.data?.projects ?? [])
-          .flatMap((project) => project.resources)
-          .find((item) => item.id === resourceId);
-        if (resource)
-          moveProjectResource.mutate({ resource, projectId: targetProjectId });
-        return;
-      }
-      if (
-        source?.kind === 'simple-chat' ||
-        sourceId.startsWith('simple-chat-')
-      ) {
-        if (source?.projectId === targetProjectId) return;
-        const threadId =
-          (source?.threadId as string | undefined) || sourceId.slice(12);
-        if (threadId)
-          moveSimpleChat.mutate({
-            threadId,
-            projectId: targetProjectId,
-          });
-        return;
-      }
-      if (source?.kind === 'thread' || sourceId.startsWith('thread-')) {
-        const threadId =
-          (source?.threadId as string | undefined) || sourceId.slice(7);
-        if (threadId)
-          moveThread.mutate({
-            threadId,
-            cwd: targetCwd,
-            projectId: targetProjectId,
-          });
-      }
+      if (!sourceProjectId || sourceProjectId !== targetProjectId) return;
+      const sourceItemId = source?.sidebarItemId as string | undefined;
+      const targetItemId = target?.sidebarItemId as string | undefined;
+      if (!sourceItemId || sourceItemId === targetItemId) return;
+      const project = projectsQuery.data?.projects.find(
+        (candidate) => candidate.id === sourceProjectId,
+      );
+      if (!project) return;
+      const validItems = [
+        ...project.resources.map((resource) => `resource:${resource.id}`),
+        ...(project.agentThreads ?? [])
+          .filter((thread) => !thread.archived)
+          .map((thread) => `agent:${thread.threadId}`),
+        ...(simpleChatThreadsQuery.data?.threads ?? [])
+          .filter((thread) => thread.projectId === project.id)
+          .map((thread) => `simple:${thread.id}`),
+      ];
+      if (!validItems.includes(sourceItemId)) return;
+      const valid = new Set(validItems);
+      const order = [
+        ...(project.sidebarOrder ?? []).filter((item) => valid.has(item)),
+        ...validItems.filter(
+          (item) => !(project.sidebarOrder ?? []).includes(item),
+        ),
+      ];
+      const sourceIndex = order.indexOf(sourceItemId);
+      order.splice(sourceIndex, 1);
+      const targetIndex = targetItemId ? order.indexOf(targetItemId) : -1;
+      order.splice(
+        targetIndex >= 0 ? targetIndex : order.length,
+        0,
+        sourceItemId,
+      );
+      reorderSidebar.mutate({ projectId: project.id, order });
     },
-    [moveProjectResource, moveSimpleChat, moveThread, projectsQuery.data],
+    [projectsQuery.data, reorderSidebar, simpleChatThreadsQuery.data?.threads],
   );
 
   const archiveThread = useMutation({
@@ -916,7 +872,11 @@ export function ThreadSidebar() {
   };
 
   // ── Shared thread-row renderer (passed to overview/detail) ──────────
-  const renderThreadRow = (thread: ThreadDto, archived: boolean) => {
+  const renderThreadRow = (
+    thread: ThreadDto,
+    archived: boolean,
+    rowProjectId?: string,
+  ) => {
     const row = rowByThreadId.get(thread.id);
     const linkedTask = linkedTaskByThreadId.get(thread.id);
     const readRuntime = (id: string) =>
@@ -1023,7 +983,8 @@ export function ThreadSidebar() {
                 })
             : undefined
         }
-        draggable={!archived}
+        draggable={!archived && !!rowProjectId}
+        projectId={rowProjectId}
       />
     );
   };
@@ -1035,7 +996,7 @@ export function ThreadSidebar() {
       isActive={
         activeView === 'simpleChat' && activeSimpleThreadId === thread.id
       }
-      disabled={moveSimpleChat.isPending}
+      disabled={reorderSidebar.isPending}
       running={activeSimpleChatIds.has(thread.id)}
       onOpen={() =>
         void navigate({ to: '/simple-chat', search: { thread: thread.id } })
@@ -1193,7 +1154,7 @@ export function ThreadSidebar() {
               activeProjectId={activeProjectId}
               resourceActionPending={
                 renameProjectResource.isPending ||
-                moveProjectResource.isPending ||
+                reorderSidebar.isPending ||
                 deleteProjectResource.isPending
               }
               onRenameResource={(resource) => {
@@ -1217,11 +1178,7 @@ export function ThreadSidebar() {
               }}
               renderThreadRow={renderThreadRow}
               renderSimpleChatRow={renderSimpleChatRow}
-              movingThread={
-                moveThread.isPending ||
-                moveSimpleChat.isPending ||
-                moveProjectResource.isPending
-              }
+              movingThread={reorderSidebar.isPending}
             />
           ) : (
             <WorkspaceDetail

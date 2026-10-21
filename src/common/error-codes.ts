@@ -237,6 +237,7 @@ export const ErrorCode = {
     threadNotFound: 'simple_chat.thread_not_found',
     titleInvalid: 'simple_chat.title_invalid',
     modelInvalid: 'simple_chat.model_invalid',
+    projectInvalid: 'simple_chat.project_invalid',
     apiKeyInvalid: 'simple_chat.api_key_invalid',
     audioRequired: 'simple_chat.audio_required',
     audioInvalid: 'simple_chat.audio_invalid',

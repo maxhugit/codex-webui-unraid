@@ -13,7 +13,12 @@ import {
   type TestDatabase,
 } from '../database/database.testing';
 import { DRIZZLE_DB } from '../database/database.constants';
-import { people, projectParticipants, projects } from '../database/schema';
+import {
+  people,
+  projectParticipants,
+  projectResources,
+  projects,
+} from '../database/schema';
 import { SettingsController } from '../settings/settings.controller';
 import { SettingsService } from '../settings/settings.service';
 import { AuthController } from './auth.controller';
@@ -219,6 +224,61 @@ it('persists appearance preferences on the connected person profile', async () =
     payload: { theme: 'unknown' },
   });
   expect(invalid.statusCode).toBe(400);
+});
+
+it('persists sidebar order only for items belonging to the same project', async () => {
+  database.db
+    .insert(projectResources)
+    .values([
+      {
+        id: 'member-resource',
+        projectId: 'member-project',
+        type: 'task_board',
+        name: 'Member board',
+        config: {},
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      {
+        id: 'outside-resource',
+        projectId: 'outside-project',
+        type: 'task_board',
+        name: 'Outside board',
+        config: {},
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ])
+    .run();
+  const server = app.getHttpAdapter().getInstance();
+  const headers = proxyHeaders('administrator@example.com');
+  const accepted = await server.inject({
+    method: 'PATCH',
+    url: '/api/projects/member-project/sidebar-order',
+    headers,
+    payload: { order: ['resource:member-resource'] },
+  });
+  expect(accepted.statusCode).toBe(200);
+  expect(
+    accepted.json<{ project: { sidebarOrder: string[] } }>().project
+      .sidebarOrder,
+  ).toEqual(['resource:member-resource']);
+
+  const rejected = await server.inject({
+    method: 'PATCH',
+    url: '/api/projects/member-project/sidebar-order',
+    headers,
+    payload: { order: ['resource:outside-resource'] },
+  });
+  expect(rejected.statusCode).toBe(400);
+
+  const forgedMove = await server.inject({
+    method: 'PATCH',
+    url: '/api/projects/member-project/resources/member-resource',
+    headers,
+    payload: { projectId: 'outside-project' },
+  });
+  expect(forgedMove.statusCode).toBe(409);
 });
 
 it('lets members read knowledge but reserves editing to administrators', async () => {

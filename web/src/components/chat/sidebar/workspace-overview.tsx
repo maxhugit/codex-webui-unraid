@@ -70,7 +70,11 @@ interface Props {
   onRenameResource: (resource: ProjectResourceSummary) => void;
   onDeleteResource: (resource: ProjectResourceSummary) => void;
   onDeleteProject?: (group: WorkspaceGroup) => void;
-  renderThreadRow: (thread: ThreadDto, archived: boolean) => React.ReactNode;
+  renderThreadRow: (
+    thread: ThreadDto,
+    archived: boolean,
+    projectId?: string,
+  ) => React.ReactNode;
   renderSimpleChatRow: (
     thread: WorkspaceGroup['simpleChats'][number],
   ) => React.ReactNode;
@@ -187,6 +191,7 @@ export function WorkspaceOverview({
       {/* Workspace groups */}
       {workspaceGroups.map((group) => {
         const collapsed = collapsedGroups.has(group.cwd);
+        const orderedItems = orderSidebarItems(group);
         return (
           <WorkspaceDropTarget
             key={group.cwd}
@@ -356,26 +361,32 @@ export function WorkspaceOverview({
                   className="overflow-hidden"
                 >
                   <div className="space-y-0.5">
-                    {group.resources?.map((resource) => (
-                      <ProjectResourceRow
-                        key={resource.id}
-                        resource={resource}
-                        active={resource.id === activeResourceId}
-                        pending={resourceActionPending}
-                        onOpen={() =>
-                          group.projectId &&
-                          onOpenResource(group.projectId, resource.id)
-                        }
-                        onRename={() => onRenameResource(resource)}
-                        onDelete={() => onDeleteResource(resource)}
-                      />
+                    {orderedItems.map((item) => (
+                      <SidebarItemDropTarget
+                        key={item.key}
+                        itemId={item.key}
+                        projectId={group.projectId}
+                        disabled={movingThread}
+                      >
+                        {item.kind === 'resource' ? (
+                          <ProjectResourceRow
+                            resource={item.resource}
+                            active={item.resource.id === activeResourceId}
+                            pending={resourceActionPending}
+                            onOpen={() =>
+                              group.projectId &&
+                              onOpenResource(group.projectId, item.resource.id)
+                            }
+                            onRename={() => onRenameResource(item.resource)}
+                            onDelete={() => onDeleteResource(item.resource)}
+                          />
+                        ) : item.kind === 'agent' ? (
+                          renderThreadRow(item.thread, false, group.projectId)
+                        ) : (
+                          renderSimpleChatRow(item.thread)
+                        )}
+                      </SidebarItemDropTarget>
                     ))}
-                    {group.threads
-                      .slice(0, 5)
-                      .map((thread) => renderThreadRow(thread, false))}
-                    {group.simpleChats
-                      .slice(0, Math.max(0, 5 - group.threads.length))
-                      .map((thread) => renderSimpleChatRow(thread))}
                   </div>
                 </motion.div>
               )}
@@ -389,6 +400,84 @@ export function WorkspaceOverview({
           {t('No threads yet')}
         </p>
       )}
+    </div>
+  );
+}
+
+type SidebarItem =
+  | { kind: 'resource'; key: string; resource: ProjectResourceSummary }
+  | { kind: 'agent'; key: string; thread: ThreadDto }
+  | {
+      kind: 'simple';
+      key: string;
+      thread: WorkspaceGroup['simpleChats'][number];
+    };
+
+function orderSidebarItems(group: WorkspaceGroup): SidebarItem[] {
+  const items: SidebarItem[] = [
+    ...(group.resources ?? []).map(
+      (resource): SidebarItem => ({
+        kind: 'resource',
+        key: `resource:${resource.id}`,
+        resource,
+      }),
+    ),
+    ...group.threads.map(
+      (thread): SidebarItem => ({
+        kind: 'agent',
+        key: `agent:${thread.id}`,
+        thread,
+      }),
+    ),
+    ...group.simpleChats.map(
+      (thread): SidebarItem => ({
+        kind: 'simple',
+        key: `simple:${thread.id}`,
+        thread,
+      }),
+    ),
+  ];
+  const rank = new Map(
+    (group.sidebarOrder ?? []).map((key, index) => [key, index]),
+  );
+  items.sort(
+    (a, b) =>
+      (rank.get(a.key) ?? Number.MAX_SAFE_INTEGER) -
+      (rank.get(b.key) ?? Number.MAX_SAFE_INTEGER),
+  );
+  let visibleConversations = 0;
+  return items.filter((item) => {
+    if (item.kind === 'resource') return true;
+    visibleConversations += 1;
+    return visibleConversations <= 5;
+  });
+}
+
+function SidebarItemDropTarget({
+  itemId,
+  projectId,
+  disabled,
+  children,
+}: {
+  itemId: string;
+  projectId?: string;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  const { ref, isDropTarget } = useDroppable({
+    id: `sidebar-item-${projectId}-${itemId}`,
+    disabled: disabled || !projectId,
+    data: { kind: 'sidebar-item', projectId, sidebarItemId: itemId },
+  });
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        'rounded-md transition-colors',
+        isDropTarget && 'bg-primary/10 ring-1 ring-primary/30',
+      )}
+    >
+      {children}
     </div>
   );
 }

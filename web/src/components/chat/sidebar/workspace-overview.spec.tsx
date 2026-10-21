@@ -186,4 +186,80 @@ describe('WorkspaceOverview creation menu', () => {
     await user.click(screen.getByRole('button', { name: 'Collapse project' }));
     expect(toggleCollapse).toHaveBeenCalledWith('/workspaces/Tests');
   });
+
+  it('renders project items in the persisted sidebar order', () => {
+    render(
+      <DragDropProvider>
+        <WorkspaceOverview
+          projectsHeader={<h2>Projects</h2>}
+          archivedThreads={[]}
+          workspaceGroups={[
+            {
+              cwd: '/workspaces/Tests',
+              projectId: 'project-1',
+              name: 'Tests',
+              threads: [],
+              sidebarOrder: ['simple:second', 'resource:board', 'simple:first'],
+              simpleChats: [
+                {
+                  id: 'first',
+                  title: 'First chat',
+                  model: 'codex',
+                  projectId: 'project-1',
+                  cwd: '/workspaces/Tests',
+                  createdAt: 1,
+                  updatedAt: 1,
+                },
+                {
+                  id: 'second',
+                  title: 'Second chat',
+                  model: 'codex',
+                  projectId: 'project-1',
+                  cwd: '/workspaces/Tests',
+                  createdAt: 1,
+                  updatedAt: 1,
+                },
+              ],
+              resources: [
+                {
+                  id: 'board',
+                  projectId: 'project-1',
+                  name: 'Board',
+                  type: 'task_board',
+                  config: {},
+                  createdAt: 1,
+                  updatedAt: 1,
+                },
+              ],
+            },
+          ]}
+          collapsedGroups={new Set()}
+          isLoading={false}
+          onToggleCollapse={vi.fn()}
+          onOpenProject={vi.fn()}
+          onOpenArchivedDetail={vi.fn()}
+          onOpenWorkspaceDetail={vi.fn()}
+          onCreateAgentInWorkspace={vi.fn()}
+          onCreateSimpleChatInWorkspace={vi.fn()}
+          onCreateTaskBoard={vi.fn()}
+          onOpenResource={vi.fn()}
+          resourceActionPending={false}
+          onRenameResource={vi.fn()}
+          onDeleteResource={vi.fn()}
+          renderThreadRow={() => null}
+          renderSimpleChatRow={(thread) => <span>{thread.title}</span>}
+          movingThread={false}
+        />
+      </DragDropProvider>,
+    );
+    const second = screen.getByText('Second chat');
+    const board = screen.getByText('Board');
+    const first = screen.getByText('First chat');
+    expect(
+      second.compareDocumentPosition(board) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      board.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });

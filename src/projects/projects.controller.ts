@@ -206,6 +206,14 @@ export class ProjectsController {
     };
   }
 
+  @Patch(':id/sidebar-order')
+  updateSidebarOrder(
+    @Param('id') id: string,
+    @Body() body: { order?: unknown },
+  ) {
+    return { project: this.projects.updateSidebarOrder(id, body.order) };
+  }
+
   @Post(':id/workspaces')
   async createWorkspace(
     @Param('id') id: string,
@@ -448,7 +456,6 @@ export class ProjectsController {
     @Body()
     body: {
       name?: string;
-      projectId?: string;
       config?: Record<string, unknown>;
       labelRenames?: Array<{ from: string; to: string }>;
       removedLabels?: string[];
@@ -457,36 +464,15 @@ export class ProjectsController {
   ) {
     const before = this.projects.getResource(id, resourceId);
     const resource = this.projects.updateResource(id, resourceId, body);
-    if (resource.projectId !== id) {
-      this.projects.recordActivity(
-        id,
-        'resource_moved_out',
-        'resource',
-        resourceId,
-        before.name,
-        { targetProjectId: resource.projectId },
-        activityActor(request),
-      );
-      this.projects.recordActivity(
-        resource.projectId,
-        'resource_moved_in',
-        'resource',
-        resourceId,
-        resource.name,
-        { sourceProjectId: id },
-        activityActor(request),
-      );
-    } else {
-      this.projects.recordActivity(
-        id,
-        'resource_updated',
-        'resource',
-        resourceId,
-        resource.name,
-        { beforeName: before.name, afterName: resource.name },
-        activityActor(request),
-      );
-    }
+    this.projects.recordActivity(
+      id,
+      'resource_updated',
+      'resource',
+      resourceId,
+      resource.name,
+      { beforeName: before.name, afterName: resource.name },
+      activityActor(request),
+    );
     return {
       resource,
     };

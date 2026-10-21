@@ -246,6 +246,13 @@
       "when": 1792581000000,
       "tag": "0034_workable_ultimatum",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1792579496646,
+      "tag": "0035_powerful_northstar",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,7 @@ export interface ProjectSummary {
   appIds?: string[];
   agentModel?: string | null;
   agentReasoningEffort?: string | null;
+  sidebarOrder?: string[];
   workspaces: ProjectWorkspaceSummary[];
   resources: ProjectResourceSummary[];
   agentThreads?: Array<{
