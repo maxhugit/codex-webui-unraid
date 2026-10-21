@@ -125,7 +125,8 @@ RUN python3 -m venv /opt/office-venv \
       "reportlab==5.0.1" \
       "typing_extensions==4.16.0" \
  && /opt/office-venv/bin/python -c \
-      "from PIL import Image; import docx, openpyxl, pypdf, pptx, reportlab; assert Image.__version__ == '${PILLOW_VERSION}'"
+      "from PIL import Image; import docx, openpyxl, pypdf, pptx, reportlab; assert Image.__version__ == '${PILLOW_VERSION}'" \
+ && rm -rf /home/codex/.cache /home/codex/.config
 
 ENV PATH="/opt/office-venv/bin:${PATH}"
 
