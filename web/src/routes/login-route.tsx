@@ -18,7 +18,7 @@ interface AuthMethods {
 
 export function LoginRoute() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t } = useTranslation('authentication');
   const { redirect, manual } = useSearch({ from: '/login' });
   const [methods, setMethods] = useState<AuthMethods | null>(null);
 
@@ -116,7 +116,7 @@ export function LoginRoute() {
         />
       ) : (
         <div className="flex h-[var(--app-vh,100dvh)] items-center justify-center bg-background text-sm text-muted-foreground">
-          {t('Loading…')}
+          {t('login.loading')}
         </div>
       )}
       <SnackbarContainer />

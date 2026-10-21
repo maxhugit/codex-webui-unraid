@@ -10,6 +10,7 @@
     "test:watch": "vitest --project unit",
     "test:browser": "rm -rf .vitest-screenshots && vitest run --project browser",
     "test:browser:install": "playwright install chromium webkit",
+    "check:i18n": "node scripts/check-i18n-catalogs.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:api": "openapi-ts"
