@@ -3,9 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { getAuthorizationHeader } from '@/auth-token';
-import { withBasePath } from '@/base-path';
 import { showSnackbar } from '@/stores/snackbar-store';
+import {
+  authRequest,
+  readLocalAccounts,
+  type LocalAccount,
+} from '@/lib/auth-api';
 
 interface AuthenticationConfiguration {
   version: 1;
@@ -25,38 +28,6 @@ interface AuthenticationConfiguration {
     autoRedirect: boolean;
     clientSecretConfigured: boolean;
   };
-}
-
-interface LocalAccount {
-  personId: string;
-  name: string;
-  email: string | null;
-  active: boolean;
-  role: 'standard' | 'administrator';
-  username: string | null;
-  passwordConfigured: boolean;
-  oidcLinked: boolean;
-  lockedUntil: number | null;
-  lastLoginAt: number | null;
-}
-
-async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const authorization = getAuthorizationHeader();
-  const headers = new Headers(init?.headers);
-  if (init?.body) headers.set('Content-Type', 'application/json');
-  if (authorization) headers.set('Authorization', authorization);
-  const response = await fetch(withBasePath(`/api/auth/${path}`), {
-    credentials: 'same-origin',
-    ...init,
-    headers,
-  });
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as {
-      message?: string;
-    } | null;
-    throw new Error(payload?.message || 'Authentication request failed');
-  }
-  return response.status === 204 ? (undefined as T) : response.json();
 }
 
 function NumberField({
@@ -95,7 +66,7 @@ export function AuthenticationSettings() {
   const load = useCallback(async () => {
     const [nextConfiguration, accountResponse] = await Promise.all([
       authRequest<AuthenticationConfiguration>('configuration'),
-      authRequest<{ accounts: LocalAccount[] }>('local-accounts'),
+      readLocalAccounts(),
     ]);
     setConfiguration(nextConfiguration);
     setAccounts(accountResponse.accounts);
@@ -330,6 +301,7 @@ export function AuthenticationSettings() {
                   value={draft.username}
                   placeholder={t('Username')}
                   autoComplete="off"
+                  disabled={account.oidcLinked}
                   onChange={(event) =>
                     setDrafts({
                       ...drafts,
@@ -349,6 +321,7 @@ export function AuthenticationSettings() {
                       : t('Password (12 characters minimum)')
                   }
                   autoComplete="new-password"
+                  disabled={account.oidcLinked}
                   onChange={(event) =>
                     setDrafts({
                       ...drafts,
@@ -363,7 +336,7 @@ export function AuthenticationSettings() {
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  disabled={saving}
+                  disabled={saving || account.oidcLinked}
                   onClick={() => void saveAccount(account)}
                 >
                   {t('Configure local account')}
@@ -389,9 +362,7 @@ export function AuthenticationSettings() {
           <div>
             <h3 className="font-medium">{t('Single sign-on (OIDC)')}</h3>
             <p className="text-xs text-muted-foreground">
-              {t(
-                'The provider connection is verified before OIDC is enabled.',
-              )}
+              {t('The provider connection is verified before OIDC is enabled.')}
             </p>
           </div>
           <Switch

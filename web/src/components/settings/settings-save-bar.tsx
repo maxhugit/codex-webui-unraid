@@ -1,6 +1,8 @@
 /** Shared, mobile-safe action bar for one administration tab. */
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { useLayoutStore } from '@/stores/layout-store';
 
 export function SettingsSaveBar({
   dirty,
@@ -16,13 +18,19 @@ export function SettingsSaveBar({
   label?: string;
 }) {
   const { t } = useTranslation();
+  const desktopSidebarCollapsed = useLayoutStore(
+    (state) => state.desktopSidebarCollapsed,
+  );
   return (
     <>
       <div className="h-24" aria-hidden="true" />
       <div
         role="region"
         aria-label={t('Save settings')}
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg backdrop-blur"
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg backdrop-blur transition-[left] duration-200 ease-in-out',
+          !desktopSidebarCollapsed && 'lg:left-64',
+        )}
       >
         <div className="mx-auto flex max-w-4xl items-center justify-end gap-3">
           <span role="status" className="mr-auto text-xs text-muted-foreground">

@@ -53,6 +53,7 @@ interface TableNodeData extends Record<string, unknown> {
   referencedColumns: string[];
   selected?: boolean;
   child?: boolean;
+  parent?: boolean;
   dimmed?: boolean;
 }
 
@@ -243,7 +244,7 @@ function buildEdges(objects: DatabaseSchemaObject[]): Edge[] {
 
 function DatabaseTableNode({ data }: NodeProps<Node<TableNodeData>>) {
   const { t } = useTranslation();
-  const { object, referencedColumns, selected, child, dimmed } = data;
+  const { object, referencedColumns, selected, child, parent, dimmed } = data;
   const foreignColumns = new Set(
     object.foreignKeys.map((foreignKey) => foreignKey.fromColumn),
   );
@@ -254,12 +255,16 @@ function DatabaseTableNode({ data }: NodeProps<Node<TableNodeData>>) {
       data-testid={`database-table-${object.name}`}
       data-selected={selected ? 'true' : 'false'}
       data-child={child ? 'true' : 'false'}
+      data-parent={parent ? 'true' : 'false'}
       style={{ width: NODE_WIDTH }}
       className={cn(
         'overflow-hidden rounded-lg border bg-card shadow-sm transition-[border-color,box-shadow,opacity] duration-150',
         selected && 'border-primary ring-2 ring-primary shadow-lg',
         child && !selected && 'border-sky-500 ring-2 ring-sky-500/50 shadow-md',
-        !selected && !child && 'border-border',
+        parent &&
+          !selected &&
+          'border-amber-500 ring-2 ring-amber-500/50 shadow-md',
+        !selected && !child && !parent && 'border-border',
         dimmed && 'opacity-35',
       )}
     >
@@ -365,6 +370,17 @@ export function DatabaseSchemaGraph({
       ),
     [baseEdges, selectedTable],
   );
+  const parentTables = useMemo(
+    () =>
+      new Set(
+        selectedTable
+          ? baseEdges
+              .filter((edge) => edge.source === selectedTable)
+              .map((edge) => edge.target)
+          : [],
+      ),
+    [baseEdges, selectedTable],
+  );
   const displayedNodes = useMemo(
     () =>
       nodes.map((node) => ({
@@ -373,30 +389,36 @@ export function DatabaseSchemaGraph({
           ...node.data,
           selected: node.id === selectedTable,
           child: childTables.has(node.id),
+          parent: parentTables.has(node.id),
           dimmed:
             Boolean(selectedTable) &&
             node.id !== selectedTable &&
-            !childTables.has(node.id),
+            !childTables.has(node.id) &&
+            !parentTables.has(node.id),
         },
       })),
-    [childTables, nodes, selectedTable],
+    [childTables, nodes, parentTables, selectedTable],
   );
   const edges = useMemo(
     () =>
       baseEdges.map((edge) => {
-        const highlighted =
+        const childRelationship =
           Boolean(selectedTable) && edge.target === selectedTable;
+        const parentRelationship =
+          Boolean(selectedTable) && edge.source === selectedTable;
+        const highlighted = childRelationship || parentRelationship;
+        const highlightColor = childRelationship
+          ? 'var(--color-sky-500)'
+          : 'var(--color-amber-500)';
         return {
           ...edge,
           animated: highlighted,
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: highlighted
-              ? 'var(--primary)'
-              : 'var(--muted-foreground)',
+            color: highlighted ? highlightColor : 'var(--muted-foreground)',
           },
           style: {
-            stroke: highlighted ? 'var(--primary)' : 'var(--muted-foreground)',
+            stroke: highlighted ? highlightColor : 'var(--muted-foreground)',
             strokeWidth: highlighted ? 2.5 : 1.25,
             opacity: selectedTable && !highlighted ? 0.15 : 1,
           },
@@ -416,7 +438,24 @@ export function DatabaseSchemaGraph({
             'Interactive map of tables, columns and declared foreign-key relationships.',
           )}
         </p>
-        <span>{t('{{count}} relation', { count: edges.length })}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          {selectedTable && (
+            <span
+              className="flex items-center gap-3"
+              aria-label={t('Relationship legend')}
+            >
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                {t('Parent tables')}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-sky-500" />
+                {t('Child tables')}
+              </span>
+            </span>
+          )}
+          <span>{t('{{count}} relation', { count: edges.length })}</span>
+        </div>
       </div>
       <div
         role="img"

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Pencil, Plus, UserRound, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -14,6 +15,11 @@ import {
 } from '@/components/ui/dialog';
 import { projectsApi } from '@/lib/projects-api';
 import { platformSessionKey } from '@/lib/platform-session';
+import {
+  authRequest,
+  localAccountsKey,
+  readLocalAccounts,
+} from '@/lib/auth-api';
 import {
   usePeople,
   useParticipants,
@@ -54,6 +60,11 @@ export function PeopleManager({
   const client = useQueryClient();
   const people = usePeople();
   const participants = useParticipants(projectId ?? '');
+  const localAccounts = useQuery({
+    queryKey: localAccountsKey,
+    queryFn: readLocalAccounts,
+    enabled: !projectId,
+  });
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<{
     reference: string;
@@ -63,6 +74,10 @@ export function PeopleManager({
     role: 'standard' | 'administrator';
     email: string;
     active: boolean;
+  } | null>(null);
+  const [localAccountDraft, setLocalAccountDraft] = useState<{
+    username: string;
+    password: string;
   } | null>(null);
   const [removing, setRemoving] = useState<{
     person: Person;
@@ -74,22 +89,47 @@ export function PeopleManager({
       path,
       method,
       body,
+      localAccount,
     }: {
       path: string;
       method: string;
       body?: unknown;
+      localAccount?: {
+        personId?: string;
+        username: string;
+        password: string;
+      };
     }) =>
       projectsApi(path, {
         method,
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      }).then(async (result) => {
+        if (localAccount) {
+          const personId =
+            localAccount.personId ??
+            (result as { person?: { id?: string } } | undefined)?.person?.id;
+          if (!personId) throw new Error('Unknown person');
+          await authRequest(`local-accounts/${encodeURIComponent(personId)}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              username: localAccount.username,
+              ...(localAccount.password
+                ? { password: localAccount.password }
+                : {}),
+            }),
+          });
+        }
+        return result;
       }),
     onSuccess: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: peopleKey }),
         client.invalidateQueries({ queryKey: platformSessionKey }),
         client.invalidateQueries({ queryKey: ['project-participants'] }),
+        client.invalidateQueries({ queryKey: localAccountsKey }),
       ]);
       setForm(null);
+      setLocalAccountDraft(null);
       setRemoving(null);
     },
   });
@@ -105,12 +145,27 @@ export function PeopleManager({
   );
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (form)
+    if (form) {
+      const account = localAccounts.data?.accounts.find(
+        (item) => item.personId === editing,
+      );
+      const shouldSaveLocalAccount =
+        Boolean(localAccountDraft && !account?.oidcLinked) &&
+        Boolean(account?.passwordConfigured || localAccountDraft?.password);
       mutation.mutate({
         path: editing ? `/people/${editing}` : '/people',
         method: editing ? 'PATCH' : 'POST',
         body: form,
+        ...(shouldSaveLocalAccount && localAccountDraft
+          ? {
+              localAccount: {
+                ...(editing ? { personId: editing } : {}),
+                ...localAccountDraft,
+              },
+            }
+          : {}),
       });
+    }
   };
   return (
     <section className="space-y-4">
@@ -146,6 +201,7 @@ export function PeopleManager({
                 role: 'standard',
                 active: true,
               });
+              setLocalAccountDraft({ username: '', password: '' });
             }}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -267,6 +323,13 @@ export function PeopleManager({
                       email: person.email ?? '',
                       active: person.active,
                     });
+                    const account = localAccounts.data?.accounts.find(
+                      (item) => item.personId === person.id,
+                    );
+                    setLocalAccountDraft({
+                      username: account?.username ?? '',
+                      password: '',
+                    });
                   }}
                 >
                   <Pencil className="mr-1 h-3 w-3" />
@@ -280,10 +343,13 @@ export function PeopleManager({
       <Dialog
         open={form !== null}
         onOpenChange={(open) => {
-          if (!open && !mutation.isPending) setForm(null);
+          if (!open && !mutation.isPending) {
+            setForm(null);
+            setLocalAccountDraft(null);
+          }
         }}
       >
-        <DialogContent className="max-h-[90dvh] overflow-y-auto">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>
               {t(editing ? 'Edit person' : 'New person')}
@@ -295,7 +361,7 @@ export function PeopleManager({
             </DialogDescription>
           </DialogHeader>
           {form && (
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
               <label className="grid gap-1 text-sm">
                 {t('Manual reference')} *
                 <Input
@@ -376,7 +442,7 @@ export function PeopleManager({
                   <option value="administrator">{t('Administrator')}</option>
                 </select>
               </label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground sm:col-span-2">
                 {t(
                   'Standard users can use simple chat and manual tasks. Server settings, agents, automations and terminals require an administrator.',
                 )}
@@ -384,13 +450,13 @@ export function PeopleManager({
               {form.role === 'administrator' &&
                 !people.data?.people.find((person) => person.id === editing)
                   ?.identityLinked && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground sm:col-span-2">
                     {t(
                       'Administrator logins must be explicitly linked using the server provisioning tool. Email matching alone never grants administrator access.',
                     )}
                   </p>
                 )}
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 text-sm sm:col-span-2">
                 <input
                   type="checkbox"
                   checked={form.active}
@@ -400,17 +466,97 @@ export function PeopleManager({
                 />
                 {t('Active person')}
               </label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground sm:col-span-2">
                 {t(
                   'Inactive people keep their previous assignments but cannot receive new ones.',
                 )}
               </p>
+              {localAccountDraft &&
+                (() => {
+                  const account = editing
+                    ? localAccounts.data?.accounts.find(
+                        (item) => item.personId === editing,
+                      )
+                    : {
+                        passwordConfigured: false,
+                        oidcLinked: false,
+                      };
+                  if (!account && localAccounts.isPending) return null;
+                  if (!account) return null;
+                  return (
+                    <div className="space-y-3 rounded-lg border p-4 sm:col-span-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h3 className="font-medium">
+                            {t('Local account and password')}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {t(
+                              account.oidcLinked
+                                ? 'This person is linked to SSO. A local password cannot be configured.'
+                                : 'Passwords are hashed with Argon2id and never stored in the configuration file.',
+                            )}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={account.oidcLinked ? 'default' : 'outline'}
+                        >
+                          {t(
+                            account.oidcLinked
+                              ? 'SSO identity linked'
+                              : 'SSO identity not linked',
+                          )}
+                        </Badge>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="grid gap-1 text-sm">
+                          {t('Username')}
+                          <Input
+                            value={localAccountDraft.username}
+                            autoComplete="off"
+                            disabled={account.oidcLinked}
+                            required={Boolean(localAccountDraft.password)}
+                            onChange={(event) =>
+                              setLocalAccountDraft({
+                                ...localAccountDraft,
+                                username: event.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                          {t('Password')}
+                          <Input
+                            type="password"
+                            value={localAccountDraft.password}
+                            autoComplete="new-password"
+                            disabled={account.oidcLinked}
+                            placeholder={
+                              account.passwordConfigured
+                                ? t('New password (leave empty to keep it)')
+                                : t('Password (12 characters minimum)')
+                            }
+                            onChange={(event) =>
+                              setLocalAccountDraft({
+                                ...localAccountDraft,
+                                password: event.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })()}
               {mutation.isError && (
-                <p role="alert" className="text-sm text-destructive">
+                <p
+                  role="alert"
+                  className="text-sm text-destructive sm:col-span-2"
+                >
                   {t(mutation.error.message)}
                 </p>
               )}
-              <DialogFooter>
+              <DialogFooter className="sm:col-span-2">
                 <Button
                   type="button"
                   variant="outline"

@@ -8,6 +8,7 @@ import {
   Network,
   PanelLeftClose,
   PanelLeftOpen,
+  LogOut,
   UserRound,
   X,
 } from 'lucide-react';
@@ -53,6 +54,9 @@ import {
 } from '@/components/settings/setting-helpers';
 import type { SettingsSection } from '@/components/settings/settings-sections';
 import { ProfileAppearance } from '@/components/account/profile-appearance';
+import { clearApiToken } from '@/auth-token';
+import { authLogout } from '@/generated/api';
+import { resetSocket } from '@/socket';
 import {
   Dialog,
   DialogContent,
@@ -188,6 +192,14 @@ export function ChatHeader() {
   const sidebarToggleLabel = desktopSidebarCollapsed
     ? t('Expand sidebar')
     : t('Collapse sidebar');
+
+  const handleLogout = async () => {
+    await authLogout({ throwOnError: false }).catch(() => undefined);
+    clearApiToken();
+    resetSocket();
+    setAccountOpen(false);
+    void navigate({ to: '/login', search: { redirect: '/', manual: true } });
+  };
 
   return (
     <>
@@ -445,7 +457,11 @@ export function ChatHeader() {
             </div>
           </dl>
           <ProfileAppearance />
-          <DialogFooter>
+          <DialogFooter className="sm:justify-between">
+            <Button variant="destructive" onClick={() => void handleLogout()}>
+              <LogOut className="h-4 w-4" />
+              {t('Logout')}
+            </Button>
             <Button variant="secondary" onClick={() => setAccountOpen(false)}>
               {t('Close')}
             </Button>
