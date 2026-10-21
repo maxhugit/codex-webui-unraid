@@ -143,14 +143,20 @@ export class IdentityService {
       'high-contrast',
     ]);
     const languages = new Set(['en', 'fr']);
-    if (input.theme !== undefined && !themes.has(String(input.theme)))
+    if (
+      input.theme !== undefined &&
+      (typeof input.theme !== 'string' || !themes.has(input.theme))
+    )
       throw new BadRequestException('Unsupported theme');
-    if (input.language !== undefined && !languages.has(String(input.language)))
+    if (
+      input.language !== undefined &&
+      (typeof input.language !== 'string' || !languages.has(input.language))
+    )
       throw new BadRequestException('Unsupported language');
     const updates = {
-      ...(input.theme !== undefined ? { theme: String(input.theme) } : {}),
-      ...(input.language !== undefined
-        ? { language: String(input.language) }
+      ...(typeof input.theme === 'string' ? { theme: input.theme } : {}),
+      ...(typeof input.language === 'string'
+        ? { language: input.language }
         : {}),
       updatedAt: Date.now(),
     };
