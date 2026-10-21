@@ -259,9 +259,10 @@ it('persists sidebar order only for items belonging to the same project', async 
     payload: { order: ['resource:member-resource'] },
   });
   expect(accepted.statusCode).toBe(200);
-  expect(accepted.json().project.sidebarOrder).toEqual([
-    'resource:member-resource',
-  ]);
+  expect(
+    accepted.json<{ project: { sidebarOrder: string[] } }>().project
+      .sidebarOrder,
+  ).toEqual(['resource:member-resource']);
 
   const rejected = await server.inject({
     method: 'PATCH',
