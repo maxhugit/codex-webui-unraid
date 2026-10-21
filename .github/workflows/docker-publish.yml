@@ -15,7 +15,11 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  quality:
+    uses: ./.github/workflows/quality.yml
+
   build:
+    needs: quality
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,7 +42,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata
+      - name: Candidate Docker metadata
+        id: candidate
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: type=sha,prefix=sha-
+
+      - name: Release Docker metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -48,14 +59,15 @@ jobs:
             type=sha,prefix=sha-
             type=ref,event=tag
 
-      - name: Build and push
+      - name: Build and push immutable candidate
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ./Dockerfile.unraid
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.candidate.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # A registry cache avoids the very slow GitHub cache export observed
           # on large toolchain layers while retaining intermediate build stages.
@@ -65,3 +77,25 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max,compression=zstd,compression-level=3,oci-mediatypes=true,image-manifest=true
           provenance: mode=max
           sbom: true
+
+      - name: Scan candidate for critical vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.candidate.outputs.tags }}
+          format: table
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Start candidate and wait for its health check
+        env:
+          IMAGE_REF: ${{ steps.candidate.outputs.tags }}
+        run: scripts/smoke-test-image.sh "$IMAGE_REF"
+
+      - name: Promote the verified digest to release tags
+        env:
+          SOURCE_IMAGE: ${{ steps.candidate.outputs.tags }}
+          SOURCE_DIGEST: ${{ steps.build.outputs.digest }}
+          TARGET_TAGS: ${{ steps.meta.outputs.tags }}
+        run: scripts/promote-image.sh
