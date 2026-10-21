@@ -24,6 +24,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      security-events: write
 
     steps:
       - name: Checkout
@@ -78,15 +79,84 @@ jobs:
           provenance: mode=max
           sbom: true
 
-      - name: Scan candidate for critical vulnerabilities
+      - name: Scan candidate for HIGH and CRITICAL vulnerabilities (JSON)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.candidate.outputs.tags }}
-          format: table
+          format: json
+          output: trivy-results.json
           scanners: vuln
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '0'
+
+      - name: Scan candidate for HIGH and CRITICAL vulnerabilities (SARIF)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.candidate.outputs.tags }}
+          format: sarif
+          output: trivy-results.sarif
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '0'
+
+      - name: Publish Trivy results to GitHub code scanning
+        uses: github/codeql-action/upload-sarif@793b778da9c9275a0f276522b27cb5fc14bba279 # v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-container
+
+      - name: Upload Trivy JSON report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trivy-container-report-${{ github.sha }}
+          path: trivy-results.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Add Trivy summary
+        id: trivy-summary
+        shell: bash
+        run: |
+          critical="$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' trivy-results.json)"
+          high="$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-results.json)"
+          fixable_critical="$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL" and (.FixedVersion // "") != "")] | length' trivy-results.json)"
+
+          {
+            echo "## Analyse de sécurité Trivy"
+            echo
+            echo "| Sévérité | Total | Critiques corrigibles |"
+            echo "| --- | ---: | ---: |"
+            echo "| CRITICAL | ${critical} | ${fixable_critical} |"
+            echo "| HIGH | ${high} | — |"
+            echo
+            echo "Le rapport JSON complet est disponible dans l’artefact \`trivy-container-report-${GITHUB_SHA}\`."
+
+            if (( critical + high > 0 )); then
+              echo
+              echo "### Premières vulnérabilités détectées"
+              echo
+              echo "| Sévérité | Paquet | Version installée | Version corrigée | Vulnérabilité |"
+              echo "| --- | --- | --- | --- | --- |"
+              jq -r '
+                [.Results[]?.Vulnerabilities[]?]
+                | sort_by(if .Severity == "CRITICAL" then 0 else 1 end)
+                | .[:20][]
+                | "| \(.Severity) | `\(.PkgName)` | `\(.InstalledVersion)` | `\(.FixedVersion // "—")` | \(.VulnerabilityID) |"
+              ' trivy-results.json
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "fixable_critical=${fixable_critical}" >> "$GITHUB_OUTPUT"
+
+      - name: Block release on fixable critical vulnerabilities
+        if: steps.trivy-summary.outputs.fixable_critical != '0'
+        env:
+          FIXABLE_CRITICAL: ${{ steps.trivy-summary.outputs.fixable_critical }}
+        run: |
+          echo "::error title=Fixable critical vulnerabilities::Trivy found ${FIXABLE_CRITICAL} fixable CRITICAL vulnerabilities."
+          exit 1
 
       - name: Start candidate and wait for its health check
         env:
