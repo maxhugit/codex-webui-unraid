@@ -7,15 +7,36 @@ const webRoot = path.resolve(
   '..',
 );
 const localesRoot = path.join(webRoot, 'src', 'locales');
-const sourceLocale = 'en';
+const manifest = JSON.parse(
+  await readFile(path.join(localesRoot, 'manifest.json'), 'utf8'),
+);
+const sourceLocale = manifest.defaultLocale;
+const declaredLocales = manifest.locales.map(({ code }) => code).sort();
+const declaredNamespaces = [...manifest.namespaces].sort();
 
 const localeNames = (await readdir(localesRoot, { withFileTypes: true }))
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort();
 
-if (!localeNames.includes(sourceLocale)) {
-  throw new Error(`Missing source locale: ${sourceLocale}`);
+const failures = [];
+if (!localeNames.includes(sourceLocale))
+  failures.push(`Missing source locale: ${sourceLocale}`);
+if (JSON.stringify(localeNames) !== JSON.stringify(declaredLocales))
+  failures.push(
+    `Locale directories differ from manifest (expected ${declaredLocales.join(', ')}, found ${localeNames.join(', ')})`,
+  );
+if (!declaredNamespaces.includes(manifest.defaultNamespace))
+  failures.push(
+    `Default namespace ${manifest.defaultNamespace} is not declared`,
+  );
+if (new Set(declaredLocales).size !== declaredLocales.length)
+  failures.push('Manifest contains duplicate locale codes');
+for (const locale of manifest.locales) {
+  if (!/^[a-z]{2,3}$/.test(locale.code))
+    failures.push(`Invalid locale code in manifest: ${locale.code}`);
+  if (typeof locale.nativeLabel !== 'string' || !locale.nativeLabel.trim())
+    failures.push(`Locale ${locale.code} has no native label`);
 }
 
 const namespaceNames = async (locale) =>
@@ -60,7 +81,10 @@ const readCatalog = async (locale, namespace) => {
 };
 
 const sourceNamespaces = await namespaceNames(sourceLocale);
-const failures = [];
+if (JSON.stringify(sourceNamespaces) !== JSON.stringify(declaredNamespaces))
+  failures.push(
+    `Source namespaces differ from manifest (expected ${declaredNamespaces.join(', ')}, found ${sourceNamespaces.join(', ')})`,
+  );
 
 for (const locale of localeNames) {
   const actualNamespaces = await namespaceNames(locale);

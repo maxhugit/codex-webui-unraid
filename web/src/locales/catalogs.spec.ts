@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import en from './en/legacy.json';
 import fr from './fr/legacy.json';
-import { localeResources, namespaces } from './index';
+import {
+  loadLocaleNamespace,
+  loadLocaleResources,
+  namespaces,
+  supportedLocales,
+} from './index';
 
 const interpolationVariables = (value: string) =>
   [...value.matchAll(/{{\s*([^},\s]+)[^}]*}}/g)]
@@ -33,26 +38,35 @@ const englishPluralValues: Record<string, string> = {
 };
 
 describe('translation catalogs', () => {
-  it('registers the same namespaces for every supported locale', () => {
-    for (const resources of Object.values(localeResources)) {
+  it('loads the same namespaces for every supported locale', async () => {
+    for (const locale of supportedLocales) {
+      const resources = await loadLocaleResources(locale);
       expect(Object.keys(resources).sort()).toEqual([...namespaces].sort());
     }
   });
 
-  it('keeps keys and interpolation variables aligned in every namespace', () => {
+  it('keeps keys and interpolation variables aligned in every namespace', async () => {
     for (const namespace of namespaces) {
-      const source = flatten(localeResources.en[namespace]);
-      const target = flatten(localeResources.fr[namespace]);
-      expect(Object.keys(target).sort(), namespace).toEqual(
-        Object.keys(source).sort(),
-      );
-      for (const key of Object.keys(source)) {
-        expect(
-          interpolationVariables(target[key]),
-          `${namespace}:${key}`,
-        ).toEqual(interpolationVariables(source[key]));
+      const source = flatten(await loadLocaleNamespace('en', namespace));
+      for (const locale of supportedLocales.filter((item) => item !== 'en')) {
+        const target = flatten(await loadLocaleNamespace(locale, namespace));
+        expect(Object.keys(target).sort(), `${locale}/${namespace}`).toEqual(
+          Object.keys(source).sort(),
+        );
+        for (const key of Object.keys(source)) {
+          expect(
+            interpolationVariables(target[key]),
+            `${locale}/${namespace}:${key}`,
+          ).toEqual(interpolationVariables(source[key]));
+        }
       }
     }
+  });
+
+  it('rejects catalogs that are not declared in the manifest', async () => {
+    await expect(loadLocaleNamespace('es', 'legacy')).rejects.toThrow(
+      'Unsupported translation catalog',
+    );
   });
 
   it('uses explicit English source values during the legacy migration', () => {

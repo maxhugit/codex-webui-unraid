@@ -190,7 +190,6 @@ export class IdentityService {
       'dracula',
       'high-contrast',
     ]);
-    const languages = new Set(['en', 'fr']);
     if (
       input.theme !== undefined &&
       (typeof input.theme !== 'string' || !themes.has(input.theme))
@@ -198,7 +197,8 @@ export class IdentityService {
       throw new BadRequestException('Unsupported theme');
     if (
       input.language !== undefined &&
-      (typeof input.language !== 'string' || !languages.has(input.language))
+      (typeof input.language !== 'string' ||
+        !/^[a-z]{2,3}$/.test(input.language))
     )
       throw new BadRequestException('Unsupported language');
     const updates = {

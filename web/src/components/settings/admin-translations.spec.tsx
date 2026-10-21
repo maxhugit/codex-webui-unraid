@@ -4,7 +4,7 @@ import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
 import fr from '@/locales/fr/legacy.json';
-import { localeResources } from '@/locales';
+import { loadLocaleResources } from '@/locales';
 import { FIELD_DEFS, GROUP_ORDER } from './codex-settings-defs';
 import { ConfigFieldEditor } from './codex-settings-fields';
 import { settingLabel } from './setting-helpers';
@@ -74,12 +74,16 @@ describe('administration translations', () => {
     'renders the instructions panel in %s and preserves its technical key',
     async (language) => {
       const i18n = createInstance();
+      const resources = {
+        en: await loadLocaleResources('en'),
+        fr: await loadLocaleResources('fr'),
+      };
       await i18n.init({
         lng: language,
         fallbackLng: 'en',
         ns: ['legacy'],
         defaultNS: 'legacy',
-        resources: localeResources,
+        resources,
       });
       const def = FIELD_DEFS.find(
         (field) => field.key === 'developer_instructions',

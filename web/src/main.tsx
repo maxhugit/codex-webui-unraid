@@ -7,7 +7,7 @@ import { configureApiClient } from './api-client';
 import { router } from './routes/router';
 import { useThemeStore } from './stores/theme-store';
 import { installMobileViewportFixes } from './lib/mobile-viewport';
-import './i18n';
+import { i18nReady } from './i18n';
 import './index.css';
 
 configureApiClient();
@@ -18,20 +18,27 @@ installMobileViewportFixes();
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const serviceWorkerUrl = new URL('sw.js', document.baseURI);
-    void navigator.serviceWorker.register(serviceWorkerUrl.pathname).catch(() => {
-      // PWA support is progressive: a registration failure must not prevent
-      // the authenticated application from starting.
-    });
+    void navigator.serviceWorker
+      .register(serviceWorkerUrl.pathname)
+      .catch(() => {
+        // PWA support is progressive: a registration failure must not prevent
+        // the authenticated application from starting.
+      });
   });
 }
 
 // Apply persisted theme before first render to avoid flash
-document.documentElement.classList.toggle('dark', useThemeStore.getState().dark);
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  </StrictMode>,
+document.documentElement.classList.toggle(
+  'dark',
+  useThemeStore.getState().dark,
 );
+
+void i18nReady.then(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+});

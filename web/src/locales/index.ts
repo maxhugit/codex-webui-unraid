@@ -1,20 +1,45 @@
-import enAuthentication from './en/authentication.json';
-import enLegacy from './en/legacy.json';
-import frAuthentication from './fr/authentication.json';
-import frLegacy from './fr/legacy.json';
+import type { ResourceKey } from 'i18next';
+import manifest from './manifest.json';
 
-/**
- * `legacy` is the compatibility namespace for the existing natural-language
- * keys. New feature catalogs can be added beside it and migrated independently.
- */
-export const localeResources = {
-  en: { authentication: enAuthentication, legacy: enLegacy },
-  fr: { authentication: frAuthentication, legacy: frLegacy },
-} as const;
+type CatalogModule = { default: ResourceKey };
+type CatalogLoader = () => Promise<CatalogModule>;
 
-export const defaultLocale = 'en' as const;
-export const supportedLocales = ['en', 'fr'] as const;
-export const namespaces = ['authentication', 'legacy'] as const;
-export const defaultNamespace = 'legacy' as const;
+const catalogModules = import.meta.glob<CatalogModule>('./*/*.json');
 
-export type SupportedLocale = (typeof supportedLocales)[number];
+export const localeDefinitions = manifest.locales;
+export const supportedLocales = manifest.locales.map(({ code }) => code);
+export const namespaces = manifest.namespaces;
+export const defaultLocale = manifest.defaultLocale;
+export const defaultNamespace = manifest.defaultNamespace;
+
+export type SupportedLocale = string;
+
+export function isSupportedLocale(value: unknown): value is SupportedLocale {
+  return (
+    typeof value === 'string' && supportedLocales.includes(value.toLowerCase())
+  );
+}
+
+export async function loadLocaleNamespace(
+  locale: string,
+  namespace: string,
+): Promise<ResourceKey> {
+  if (!isSupportedLocale(locale) || !namespaces.includes(namespace))
+    throw new Error(`Unsupported translation catalog: ${locale}/${namespace}`);
+  const loader = catalogModules[
+    `./${locale.toLowerCase()}/${namespace}.json`
+  ] as CatalogLoader | undefined;
+  if (!loader)
+    throw new Error(`Missing translation catalog: ${locale}/${namespace}`);
+  return (await loader()).default;
+}
+
+export async function loadLocaleResources(locale: string) {
+  const entries = await Promise.all(
+    namespaces.map(async (namespace) => [
+      namespace,
+      await loadLocaleNamespace(locale, namespace),
+    ]),
+  );
+  return Object.fromEntries(entries);
+}
