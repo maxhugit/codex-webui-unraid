@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useGlobalFilesStore } from '@/stores/files-store';
 import { FileBrowserContext } from './file-browser-context';
-import { FilesPanel } from './files-panel';
+
+const FilesPanel = lazy(() =>
+  import('./files-panel').then((module) => ({ default: module.FilesPanel })),
+);
 
 /** Retains browser/editor DOM and scroll offsets until logout, not just paths. */
 export function GlobalFilesHost({ active }: { active: boolean }) {
@@ -17,7 +20,9 @@ export function GlobalFilesHost({ active }: { active: boolean }) {
       className={active ? 'flex min-h-0 flex-1' : 'hidden'}
     >
       <FileBrowserContext.Provider value={useGlobalFilesStore}>
-        <FilesPanel active={active} />
+        <Suspense fallback={null}>
+          <FilesPanel active={active} />
+        </Suspense>
       </FileBrowserContext.Provider>
     </div>
   );

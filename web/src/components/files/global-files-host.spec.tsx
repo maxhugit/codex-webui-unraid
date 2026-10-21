@@ -30,11 +30,11 @@ afterEach(() => {
   useGlobalFilesStore.setState({ rootDir: null, selectedFile: null });
 });
 
-it('mounts lazily and preserves the same editor, draft and scroll position across navigation', () => {
+it('mounts lazily and preserves the same editor, draft and scroll position across navigation', async () => {
   const view = render(<GlobalFilesHost active={false} />);
   expect(screen.queryByTestId('retained-panel')).toBeNull();
   view.rerender(<GlobalFilesHost active />);
-  const panel = screen.getByTestId('retained-panel');
+  const panel = await screen.findByTestId('retained-panel');
   panel.scrollTop = 123;
   fireEvent.change(screen.getByLabelText('draft'), {
     target: { value: 'unsaved text' },
@@ -52,7 +52,7 @@ it('mounts lazily and preserves the same editor, draft and scroll position acros
   );
 });
 
-it('keeps global folder and file independent from conversation explorers', () => {
+it('keeps global folder and file independent from conversation explorers', async () => {
   useGlobalFilesStore.setState({
     rootDir: '/global/documents',
     selectedFile: '/global/documents/a.txt',
@@ -62,7 +62,7 @@ it('keeps global folder and file independent from conversation explorers', () =>
   useFilesStore.getState().setRootDir('/conversation');
   useFilesStore.getState().selectFile('/conversation/b.txt');
   view.rerender(<GlobalFilesHost active />);
-  expect(screen.getByTestId('retained-panel').textContent).toContain(
+  expect((await screen.findByTestId('retained-panel')).textContent).toContain(
     '/global/documents:/global/documents/a.txt',
   );
   useGlobalFilesStore

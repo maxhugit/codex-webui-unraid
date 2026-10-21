@@ -6,28 +6,16 @@ import {
   createRouter,
   createRoute,
   createRootRoute,
+  lazyRouteComponent,
   redirect,
   Outlet,
 } from '@tanstack/react-router';
 import { getApiToken } from '@/auth-token';
-import { LoginRoute } from './login-route';
 import { AuthenticatedLayout } from './authenticated-layout';
-import { HomeRoute } from './home-route';
-import { HelpRoute } from './help-route';
-import { ThreadView } from './thread-view';
-import { FilesRoute } from './files-route';
-import { TerminalRoute } from './terminal-route';
-import { DiagnosticsRoute } from './diagnostics-route';
-import { LogsRoute } from './logs-route';
-import { SimpleChatRoute } from './simple-chat-route';
-import { ProjectResourceRoute } from './project-resource-route';
-import { ProjectRoute } from './project-route';
-import { SettingsPage } from '@/components/settings/settings-page';
 import {
   SETTINGS_SECTIONS,
   type SettingsSection,
 } from '@/components/settings/settings-sections';
-import { IntegrationsPage } from '@/components/integrations/integrations-page';
 import { BASE_PATH } from '@/base-path';
 
 export type LoginSearch = { redirect: string };
@@ -35,6 +23,53 @@ export type IntegrationsSearch = { tab: 'plugins' | 'apps' | 'mcps' };
 export type SimpleChatSearch = { thread?: string };
 
 const INTEGRATION_TABS = ['plugins', 'apps', 'mcps'] as const;
+
+// Route bodies are intentionally loaded on demand. Editors, document viewers,
+// diagrams and administration screens are sizeable and are not needed for the
+// application's initial shell.
+const LoginRoute = lazyRouteComponent(
+  () => import('./login-route'),
+  'LoginRoute',
+);
+const HomeRoute = lazyRouteComponent(() => import('./home-route'), 'HomeRoute');
+const HelpRoute = lazyRouteComponent(() => import('./help-route'), 'HelpRoute');
+const ThreadView = lazyRouteComponent(
+  () => import('./thread-view'),
+  'ThreadView',
+);
+const FilesRoute = lazyRouteComponent(
+  () => import('./files-route'),
+  'FilesRoute',
+);
+const TerminalRoute = lazyRouteComponent(
+  () => import('./terminal-route'),
+  'TerminalRoute',
+);
+const DiagnosticsRoute = lazyRouteComponent(
+  () => import('./diagnostics-route'),
+  'DiagnosticsRoute',
+);
+const LogsRoute = lazyRouteComponent(() => import('./logs-route'), 'LogsRoute');
+const SimpleChatRoute = lazyRouteComponent(
+  () => import('./simple-chat-route'),
+  'SimpleChatRoute',
+);
+const ProjectResourceRoute = lazyRouteComponent(
+  () => import('./project-resource-route'),
+  'ProjectResourceRoute',
+);
+const ProjectRoute = lazyRouteComponent(
+  () => import('./project-route'),
+  'ProjectRoute',
+);
+const SettingsPage = lazyRouteComponent(
+  () => import('@/components/settings/settings-page'),
+  'SettingsPage',
+);
+const IntegrationsPage = lazyRouteComponent(
+  () => import('@/components/integrations/integrations-page'),
+  'IntegrationsPage',
+);
 
 function sanitizeIntegrationsSearch(
   search: Record<string, unknown>,
