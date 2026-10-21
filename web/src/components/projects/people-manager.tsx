@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Plus, UserRound, UserPlus } from 'lucide-react';
+import { LogOut, Pencil, Plus, UserRound, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -56,7 +56,7 @@ export function PeopleManager({
   readOnly?: boolean;
   showHeading?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const client = useQueryClient();
   const people = usePeople();
   const participants = useParticipants(projectId ?? '');
@@ -64,6 +64,7 @@ export function PeopleManager({
     queryKey: localAccountsKey,
     queryFn: readLocalAccounts,
     enabled: !projectId,
+    refetchInterval: 30_000,
   });
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<{
@@ -131,6 +132,19 @@ export function PeopleManager({
       setForm(null);
       setLocalAccountDraft(null);
       setRemoving(null);
+    },
+  });
+  const revokeSessions = useMutation({
+    mutationFn: (personId: string) =>
+      authRequest<{ revoked: true }>(
+        `sessions/${encodeURIComponent(personId)}/revoke`,
+        { method: 'POST' },
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: localAccountsKey }),
+        client.invalidateQueries({ queryKey: platformSessionKey }),
+      ]);
     },
   });
   const participantIds = new Set(
@@ -225,6 +239,11 @@ export function PeopleManager({
           {t(mutation.error.message)}
         </p>
       )}
+      {revokeSessions.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {t('Unable to force sign out.')}
+        </p>
+      )}
       {people.isPending && <p>{t('Loading…')}</p>}
       {people.data && !rows.length && (
         <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
@@ -240,6 +259,15 @@ export function PeopleManager({
           const member = participants.data?.participants.find(
             (p) => p.personId === person.id,
           );
+          const account = localAccounts.data?.accounts.find(
+            (item) => item.personId === person.id,
+          );
+          const connectedSince = account?.connectedSince
+            ? new Intl.DateTimeFormat(
+                i18n.resolvedLanguage === 'fr' ? 'fr-FR' : 'en-US',
+                { dateStyle: 'short', timeStyle: 'short' },
+              ).format(account.connectedSince)
+            : null;
           return (
             <div
               key={person.id}
@@ -274,6 +302,23 @@ export function PeopleManager({
                     </>
                   )}
                 </p>
+                {!projectId && account && (
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span
+                      aria-hidden="true"
+                      className={`h-2 w-2 rounded-full ${
+                        account.connected
+                          ? 'bg-emerald-500'
+                          : 'bg-muted-foreground/40'
+                      }`}
+                    />
+                    {account.connected && connectedSince
+                      ? t('Connected since {{date}}', {
+                          date: connectedSince,
+                        })
+                      : t('Offline')}
+                  </p>
+                )}
                 {member && (
                   <p className="text-xs text-muted-foreground">
                     {t('{{count}} assignments, including {{open}} open', {
@@ -307,34 +352,55 @@ export function PeopleManager({
                   {t(member ? 'Remove participant' : 'Add participant')}
                 </Button>
               ) : !projectId ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="cursor-pointer"
-                  onClick={() => {
-                    mutation.reset();
-                    setEditing(person.id);
-                    setForm({
-                      reference: person.reference,
-                      firstName: person.firstName ?? '',
-                      lastName: person.lastName ?? '',
-                      phone: person.phone ?? '',
-                      role: person.role ?? 'standard',
-                      email: person.email ?? '',
-                      active: person.active,
-                    });
-                    const account = localAccounts.data?.accounts.find(
-                      (item) => item.personId === person.id,
-                    );
-                    setLocalAccountDraft({
-                      username: account?.username ?? '',
-                      password: '',
-                    });
-                  }}
-                >
-                  <Pencil className="mr-1 h-3 w-3" />
-                  {t('Edit')}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {account?.connected && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="cursor-pointer"
+                      disabled={revokeSessions.isPending}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            t(
+                              'Force sign out {{name}}? All active sessions for this person will be closed.',
+                              { name: person.name },
+                            ),
+                          )
+                        )
+                          revokeSessions.mutate(person.id);
+                      }}
+                    >
+                      <LogOut className="mr-1 h-3 w-3" />
+                      {t('Force sign out')}
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="cursor-pointer"
+                    onClick={() => {
+                      mutation.reset();
+                      setEditing(person.id);
+                      setForm({
+                        reference: person.reference,
+                        firstName: person.firstName ?? '',
+                        lastName: person.lastName ?? '',
+                        phone: person.phone ?? '',
+                        role: person.role ?? 'standard',
+                        email: person.email ?? '',
+                        active: person.active,
+                      });
+                      setLocalAccountDraft({
+                        username: account?.username ?? '',
+                        password: '',
+                      });
+                    }}
+                  >
+                    <Pencil className="mr-1 h-3 w-3" />
+                    {t('Edit')}
+                  </Button>
+                </div>
               ) : null}
             </div>
           );

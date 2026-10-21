@@ -141,4 +141,31 @@ describe('LocalAuthService', () => {
 
     expect(service.authenticateCookie(cookie)).toBeNull();
   });
+
+  it('reports recent presence and revokes every session for one person', () => {
+    const first = service.createSession('admin', 'first-browser');
+    const second = service.createSession('admin', 'second-browser');
+
+    const account = service
+      .listAccounts()
+      .find((item) => item.personId === 'admin');
+    expect(account).toMatchObject({
+      connected: true,
+      activeSessionCount: 2,
+    });
+    expect(account?.connectedSince).toBeLessThanOrEqual(account!.lastSeenAt!);
+
+    service.revokePersonSessions('admin');
+
+    expect(service.authenticateCookie(service.cookie(first, true))).toBeNull();
+    expect(service.authenticateCookie(service.cookie(second, true))).toBeNull();
+    expect(
+      service.listAccounts().find((item) => item.personId === 'admin'),
+    ).toMatchObject({
+      connected: false,
+      connectedSince: null,
+      lastSeenAt: null,
+      activeSessionCount: 0,
+    });
+  });
 });

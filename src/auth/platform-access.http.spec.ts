@@ -236,6 +236,24 @@ it('returns 403 on real settings routes for standard users and 200 for administr
       })
     ).statusCode,
   ).toBe(200);
+  expect(
+    (
+      await server.inject({
+        method: 'POST',
+        url: '/api/auth/sessions/administrator/revoke',
+        headers: proxyHeaders(),
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'POST',
+        url: '/api/auth/sessions/standard/revoke',
+        headers: proxyHeaders('administrator@example.com'),
+      })
+    ).statusCode,
+  ).toBe(200);
 });
 
 it('persists appearance preferences on the connected person profile', async () => {

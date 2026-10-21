@@ -12,6 +12,10 @@ export interface LocalAccount {
   oidcLinked: boolean;
   lockedUntil: number | null;
   lastLoginAt: number | null;
+  connected: boolean;
+  connectedSince: number | null;
+  lastSeenAt: number | null;
+  activeSessionCount: number;
 }
 
 export const localAccountsKey = ['authentication', 'local-accounts'] as const;
