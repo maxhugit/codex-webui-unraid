@@ -9,6 +9,12 @@ import {
   usePlatformSession,
   type PlatformSession,
 } from '@/lib/platform-session';
+import {
+  defaultLocale,
+  isSupportedLocale,
+  localeDefinitions,
+  type SupportedLocale,
+} from '@/locales';
 import { THEME_IDS, useThemeStore, type ThemeId } from '@/stores/theme-store';
 
 const THEME_SWATCHES: Record<ThemeId, [string, string, string]> = {
@@ -37,12 +43,18 @@ export function ProfileAppearance() {
   const queryClient = useQueryClient();
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
-  const language = (i18n.resolvedLanguage ?? i18n.language).startsWith('fr')
-    ? 'fr'
-    : 'en';
+  const resolvedLanguage = (i18n.resolvedLanguage ?? i18n.language).split(
+    '-',
+  )[0];
+  const language = isSupportedLocale(resolvedLanguage)
+    ? resolvedLanguage
+    : defaultLocale;
   const save = useMutation({
-    mutationFn: (preferences: { theme?: ThemeId; language?: 'en' | 'fr' }) =>
-      updateAuthResource<{ theme: ThemeId; language: 'en' | 'fr' }>(
+    mutationFn: (preferences: {
+      theme?: ThemeId;
+      language?: SupportedLocale;
+    }) =>
+      updateAuthResource<{ theme: ThemeId; language: SupportedLocale }>(
         'preferences',
         preferences,
       ),
@@ -56,7 +68,7 @@ export function ProfileAppearance() {
 
   const persist = (preferences: {
     theme?: ThemeId;
-    language?: 'en' | 'fr';
+    language?: SupportedLocale;
   }) => {
     if (session.data?.kind === 'person') save.mutate(preferences);
   };
@@ -65,7 +77,7 @@ export function ProfileAppearance() {
     setTheme(next);
     persist({ theme: next });
   };
-  const selectLanguage = (next: 'en' | 'fr') => {
+  const selectLanguage = (next: SupportedLocale) => {
     void i18n.changeLanguage(next);
     persist({ language: next });
   };
@@ -117,21 +129,17 @@ export function ProfileAppearance() {
           <Globe className="h-4 w-4" />
           {t('Language')}
         </div>
-        <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant={language === 'en' ? 'default' : 'outline'}
-            onClick={() => selectLanguage('en')}
-          >
-            English
-          </Button>
-          <Button
-            size="sm"
-            variant={language === 'fr' ? 'default' : 'outline'}
-            onClick={() => selectLanguage('fr')}
-          >
-            Français
-          </Button>
+        <div className="flex flex-wrap justify-end gap-1">
+          {localeDefinitions.map((locale) => (
+            <Button
+              key={locale.code}
+              size="sm"
+              variant={language === locale.code ? 'default' : 'outline'}
+              onClick={() => selectLanguage(locale.code)}
+            >
+              {locale.nativeLabel}
+            </Button>
+          ))}
         </div>
       </div>
       {save.isError && (

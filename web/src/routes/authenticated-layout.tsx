@@ -28,6 +28,7 @@ import { clearApiToken } from '@/auth-token';
 import { resetSocket } from '@/socket';
 import { filesGetRoots, filesAddRoot } from '@/generated/api';
 import { readAuthResource, usePlatformSession } from '@/lib/platform-session';
+import { isSupportedLocale } from '@/locales';
 import { MobileRefresh } from '@/components/mobile-refresh';
 
 /**
@@ -226,7 +227,7 @@ function AuthenticatedWorkspace({
 
   useEffect(() => {
     if (isThemeId(profileTheme)) setTheme(profileTheme);
-    if (profileLanguage === 'en' || profileLanguage === 'fr')
+    if (isSupportedLocale(profileLanguage))
       void i18n.changeLanguage(profileLanguage);
   }, [i18n, profileLanguage, profileTheme, setTheme]);
 

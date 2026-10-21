@@ -275,6 +275,15 @@ it('persists appearance preferences on the connected person profile', async () =
   expect(me.statusCode).toBe(200);
   expect(me.json()).toMatchObject({ theme: 'nord', language: 'en' });
 
+  const futureLocale = await server.inject({
+    method: 'PATCH',
+    url: '/api/auth/preferences',
+    headers: proxyHeaders(),
+    payload: { language: 'es' },
+  });
+  expect(futureLocale.statusCode).toBe(200);
+  expect(futureLocale.json()).toMatchObject({ language: 'es' });
+
   const invalid = await server.inject({
     method: 'PATCH',
     url: '/api/auth/preferences',
@@ -282,6 +291,13 @@ it('persists appearance preferences on the connected person profile', async () =
     payload: { theme: 'unknown' },
   });
   expect(invalid.statusCode).toBe(400);
+  const invalidLocale = await server.inject({
+    method: 'PATCH',
+    url: '/api/auth/preferences',
+    headers: proxyHeaders(),
+    payload: { language: '../fr' },
+  });
+  expect(invalidLocale.statusCode).toBe(400);
 });
 
 it('persists sidebar order only for items belonging to the same project', async () => {
