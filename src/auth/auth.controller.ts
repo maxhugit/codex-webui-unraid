@@ -103,6 +103,14 @@ export class AuthController {
     this.localAuth.removeAccount(personId);
   }
 
+  /** Administrator action that invalidates every browser session for one person. */
+  @Post('sessions/:personId/revoke')
+  @HttpCode(HttpStatus.OK)
+  revokePersonSessions(@Param('personId') personId: string) {
+    this.localAuth.revokePersonSessions(personId);
+    return { revoked: true };
+  }
+
   @Get('me')
   me(@Req() request: IdentityRequest) {
     return request.platformIdentity ?? this.identities.resolve(request.headers);

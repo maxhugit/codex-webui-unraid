@@ -124,7 +124,7 @@ export class PlatformAccessGuard implements CanActivate {
       (request.method !== 'GET' &&
         /^\/simple-chat\/(config|settings|models)(\/|$)/.test(url)) ||
       /^\/simple-chat\/(?:api-key|settings)(\/|$)/.test(url) ||
-      /^\/auth\/(?:configuration|local-accounts)(\/|$)/.test(url) ||
+      /^\/auth\/(?:configuration|local-accounts|sessions)(\/|$)/.test(url) ||
       (request.method !== 'GET' && /^\/projects\/people(\/|$)/.test(url)) ||
       (request.method !== 'GET' &&
         /^\/projects\/[^/]+\/participants(?:\/|$)/.test(url)) ||

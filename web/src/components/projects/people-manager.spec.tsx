@@ -10,18 +10,45 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PeopleManager } from './people-manager';
 
 const api = vi.hoisted(() => vi.fn().mockResolvedValue({ person: {} }));
+const peopleState = vi.hoisted(() => ({
+  people: [] as Record<string, unknown>[],
+}));
+const auth = vi.hoisted(() => ({
+  request: vi.fn().mockResolvedValue({ revoked: true }),
+  accounts: [] as Record<string, unknown>[],
+}));
 vi.mock('@/lib/projects-api', () => ({ projectsApi: api }));
 vi.mock('@/lib/people-api', () => ({
-  usePeople: () => ({ data: { people: [] }, isPending: false }),
+  usePeople: () => ({ data: { people: peopleState.people }, isPending: false }),
   useParticipants: () => ({ data: { participants: [] }, isPending: false }),
   peopleKey: ['people'],
   personLabel: (p: { name: string }) => p.name,
 }));
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+vi.mock('@/lib/auth-api', () => ({
+  authRequest: auth.request,
+  localAccountsKey: ['authentication', 'local-accounts'],
+  readLocalAccounts: () => Promise.resolve({ accounts: auth.accounts }),
 }));
-beforeEach(() => api.mockClear());
-afterEach(cleanup);
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, values?: Record<string, unknown>) =>
+      Object.entries(values ?? {}).reduce(
+        (text, [name, value]) => text.replace(`{{${name}}}`, String(value)),
+        key,
+      ),
+    i18n: { resolvedLanguage: 'en' },
+  }),
+}));
+beforeEach(() => {
+  api.mockClear();
+  auth.request.mockClear();
+  peopleState.people = [];
+  auth.accounts = [];
+});
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 it('requires first name, last name, email and phone, computes full name, and defaults to standard', async () => {
   render(
@@ -65,4 +92,48 @@ it('requires first name, last name, email and phone, computes full name, and def
     phone: '0600000000',
     role: 'standard',
   });
+});
+
+it('shows live presence and lets an administrator revoke all sessions', async () => {
+  peopleState.people = [
+    {
+      id: 'maxime',
+      reference: 'MZH',
+      name: 'Maxime HUGOT',
+      firstName: 'Maxime',
+      lastName: 'HUGOT',
+      phone: '06 47 08 36 82',
+      role: 'administrator',
+      identityLinked: true,
+      email: 'maxime@example.com',
+      active: true,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  ];
+  auth.accounts = [
+    {
+      personId: 'maxime',
+      connected: true,
+      connectedSince: Date.UTC(2026, 9, 21, 10, 30),
+      lastSeenAt: Date.UTC(2026, 9, 21, 10, 31),
+      activeSessionCount: 1,
+    },
+  ];
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <PeopleManager />
+    </QueryClientProvider>,
+  );
+
+  expect(await screen.findByText(/Connected since/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Force sign out' }));
+
+  await waitFor(() =>
+    expect(auth.request).toHaveBeenCalledWith('sessions/maxime/revoke', {
+      method: 'POST',
+    }),
+  );
 });

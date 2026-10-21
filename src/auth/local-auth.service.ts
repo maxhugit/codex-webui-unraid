@@ -15,6 +15,7 @@ import { AuthConfigService } from './auth-config.service';
 const COOKIE_NAME = 'codex_webui_session';
 const USERNAME_PATTERN = /^[a-z0-9][a-z0-9._-]{2,63}$/;
 const PASSWORD_MINIMUM_LENGTH = 12;
+const ONLINE_ACTIVITY_WINDOW_MS = 10 * 60_000;
 const DUMMY_PASSWORD_HASH =
   '$argon2id$v=19$m=19456,t=2,p=1$XE3EuZjaLTzh0UMAokZNEg$9gJVH813LaMQ8lMhW3xc8fPS9e3ZAh81PB5pnQX1/Uo';
 
@@ -42,8 +43,38 @@ export class LocalAuthService {
   }
 
   listAccounts() {
+    const now = Date.now();
+    this.deleteExpiredSessions(now);
     const credentials = this.db.select().from(localAuthCredentials).all();
     const byPerson = new Map(credentials.map((item) => [item.personId, item]));
+    const sessionsByPerson = new Map<
+      string,
+      { activeSessionCount: number; connectedSince: number; lastSeenAt: number }
+    >();
+    for (const session of this.db
+      .select()
+      .from(authSessions)
+      .where(
+        and(
+          isNull(authSessions.revokedAt),
+          gt(authSessions.expiresAt, now),
+          gt(authSessions.lastSeenAt, now - ONLINE_ACTIVITY_WINDOW_MS),
+        ),
+      )
+      .all()) {
+      const presence = sessionsByPerson.get(session.personId);
+      sessionsByPerson.set(session.personId, {
+        activeSessionCount: (presence?.activeSessionCount ?? 0) + 1,
+        connectedSince: Math.min(
+          presence?.connectedSince ?? session.createdAt,
+          session.createdAt,
+        ),
+        lastSeenAt: Math.max(
+          presence?.lastSeenAt ?? session.lastSeenAt,
+          session.lastSeenAt,
+        ),
+      });
+    }
     return this.db
       .select()
       .from(people)
@@ -51,6 +82,7 @@ export class LocalAuthService {
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((person) => {
         const credential = byPerson.get(person.id);
+        const presence = sessionsByPerson.get(person.id);
         return {
           personId: person.id,
           name: person.name,
@@ -62,6 +94,10 @@ export class LocalAuthService {
           oidcLinked: Boolean(person.identitySubject),
           lockedUntil: credential?.lockedUntil ?? null,
           lastLoginAt: credential?.lastLoginAt ?? null,
+          connected: Boolean(presence),
+          connectedSince: presence?.connectedSince ?? null,
+          lastSeenAt: presence?.lastSeenAt ?? null,
+          activeSessionCount: presence?.activeSessionCount ?? 0,
         };
       });
   }
@@ -330,7 +366,7 @@ export class LocalAuthService {
     return username;
   }
 
-  private revokePersonSessions(personId: string): void {
+  revokePersonSessions(personId: string): void {
     this.db
       .update(authSessions)
       .set({ revokedAt: Date.now() })
