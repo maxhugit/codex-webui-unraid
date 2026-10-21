@@ -194,9 +194,7 @@ it('returns an HTTP redirect when starting the OIDC flow', async () => {
     url: '/api/auth/oidc/start?returnTo=%2F',
   });
   expect(response.statusCode).toBe(302);
-  expect(response.headers.location).toBe(
-    'https://sso.example.test/authorize',
-  );
+  expect(response.headers.location).toBe('https://sso.example.test/authorize');
   expect(response.headers['set-cookie']).toContain(
     'codex_webui_oidc_state=test-state',
   );
