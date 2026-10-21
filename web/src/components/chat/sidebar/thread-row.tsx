@@ -69,6 +69,7 @@ interface Props {
   };
   onOpenLinkedTask?: () => void;
   draggable?: boolean;
+  projectId?: string;
 }
 
 export function ThreadRow({
@@ -94,6 +95,7 @@ export function ThreadRow({
   linkedTask,
   onOpenLinkedTask,
   draggable = false,
+  projectId,
 }: Props) {
   const { t } = useTranslation();
   const dragEnabled = draggable && !archived && !destructiveDisabled;
@@ -104,7 +106,13 @@ export function ThreadRow({
   } = useDraggable({
     id: `thread-${thread.id}`,
     disabled: !dragEnabled,
-    data: { kind: 'thread', threadId: thread.id, cwd: thread.cwd },
+    data: {
+      kind: 'thread',
+      threadId: thread.id,
+      cwd: thread.cwd,
+      projectId,
+      sidebarItemId: `agent:${thread.id}`,
+    },
     plugins: [Feedback.configure({ feedback: 'clone' })],
   });
 

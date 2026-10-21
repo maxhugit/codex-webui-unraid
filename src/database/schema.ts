@@ -326,6 +326,10 @@ export const projects = sqliteTable(
       .default([]),
     agentModel: text('agent_model'),
     agentReasoningEffort: text('agent_reasoning_effort'),
+    sidebarOrder: text('sidebar_order', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },

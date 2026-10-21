@@ -731,6 +731,15 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   ) {
     requireExecutionAccess();
     requireThreadAccess(threadId);
+    const existing = this.db
+      .select()
+      .from(projectAgentThreads)
+      .where(eq(projectAgentThreads.threadId, threadId))
+      .get();
+    if (existing && existing.projectId !== projectId)
+      throw new ConflictException(
+        'Conversations cannot be moved between projects',
+      );
     const workspace = this.requireWorkspace(projectId, workspacePath);
     const threadIds = alreadyAtWorkspace
       ? this.threads.rememberInitialThreadCwd(threadId, workspace.path)
@@ -944,6 +953,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       appIds: [],
       agentModel: null,
       agentReasoningEffort: null,
+      sidebarOrder: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -2736,37 +2746,14 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     resourceId: string,
     input: {
       name?: string;
-      projectId?: string;
       config?: Record<string, unknown>;
       labelRenames?: Array<{ from: string; to: string }>;
       removedLabels?: string[];
     },
   ): ProjectResource {
     const resource = this.getResource(projectId, resourceId);
-    const targetProjectId = input.projectId ?? projectId;
-    requireProjectAccess(targetProjectId);
-    if (targetProjectId !== projectId) this.get(targetProjectId);
-    if (targetProjectId !== projectId && resource.type === 'deliverable_board')
-      throw new ConflictException(
-        'Deliverables managers cannot be moved between projects',
-      );
-    if (
-      targetProjectId !== projectId &&
-      resource.type === 'automation_board' &&
-      this.db
-        .select()
-        .from(projectResources)
-        .where(
-          and(
-            eq(projectResources.projectId, targetProjectId),
-            eq(projectResources.type, resource.type),
-          ),
-        )
-        .get()
-    )
-      throw new ConflictException(
-        'This project already has an automation manager',
-      );
+    if ('projectId' in input)
+      throw new ConflictException('Resources cannot be moved between projects');
     const name = input.name === undefined ? resource.name : input.name.trim();
     if (!name) throw new BadRequestException('Resource name is required');
     if (name.length > 120)
@@ -2791,7 +2778,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     );
     this.db
       .update(projectResources)
-      .set({ projectId: targetProjectId, name, config, updatedAt })
+      .set({ name, config, updatedAt })
       .where(eq(projectResources.id, resourceId))
       .run();
     if (labelRenames.size || removedLabels.size) {
@@ -2819,11 +2806,55 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       this.recalculateAllParentEstimates(resourceId);
     return {
       ...resource,
-      projectId: targetProjectId,
       name,
       config,
       updatedAt,
     };
+  }
+
+  updateSidebarOrder(projectId: string, value: unknown) {
+    const project = this.get(projectId);
+    if (!Array.isArray(value) || value.some((item) => typeof item !== 'string'))
+      throw new BadRequestException('Sidebar order must be a string array');
+    const order = value as string[];
+    if (order.length > 2_000 || new Set(order).size !== order.length)
+      throw new BadRequestException('Sidebar order is invalid');
+
+    const valid = new Set<string>();
+    for (const resource of this.db
+      .select()
+      .from(projectResources)
+      .where(eq(projectResources.projectId, projectId))
+      .all())
+      valid.add(`resource:${resource.id}`);
+    for (const agent of this.db
+      .select()
+      .from(projectAgentThreads)
+      .where(eq(projectAgentThreads.projectId, projectId))
+      .all())
+      valid.add(`agent:${agent.threadId}`);
+    for (const thread of this.db
+      .select()
+      .from(simpleChatThreads)
+      .where(eq(simpleChatThreads.projectId, projectId))
+      .all())
+      valid.add(`simple:${thread.id}`);
+    if (order.some((key) => !valid.has(key)))
+      throw new BadRequestException(
+        'Sidebar order contains an item from another project',
+      );
+
+    const sidebarOrder = [
+      ...order,
+      ...[...valid].filter((key) => !order.includes(key)),
+    ];
+    const updatedAt = Date.now();
+    this.db
+      .update(projects)
+      .set({ sidebarOrder, updatedAt })
+      .where(eq(projects.id, projectId))
+      .run();
+    return { ...project, sidebarOrder, updatedAt };
   }
 
   private validateResourceConfig(value: unknown): Record<string, unknown> {

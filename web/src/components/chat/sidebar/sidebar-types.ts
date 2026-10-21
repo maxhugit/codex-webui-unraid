@@ -32,6 +32,7 @@ export interface WorkspaceGroup {
   name?: string;
   workspaces?: ProjectWorkspaceSummary[];
   resources?: ProjectResourceSummary[];
+  sidebarOrder?: string[];
   cwd: string;
   threads: ThreadDto[];
   simpleChats: SimpleChatThreadSummary[];

@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `sidebar_order` text DEFAULT '[]' NOT NULL;

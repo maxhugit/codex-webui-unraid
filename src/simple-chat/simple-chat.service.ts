@@ -686,7 +686,7 @@ export class SimpleChatService {
       projectId?: unknown;
     },
   ) {
-    this.requireThread(threadId);
+    const current = this.requireThread(threadId);
     const updates: {
       title?: string;
       model?: string;
@@ -718,6 +718,11 @@ export class SimpleChatService {
     }
     if (input.projectId !== undefined) {
       const project = this.resolveProject(input.projectId);
+      if (current.projectId && current.projectId !== project.id)
+        throw BusinessException.conflict(
+          ErrorCode.simpleChat.projectInvalid,
+          'Conversations cannot be moved between projects',
+        );
       updates.projectId = project.id;
       updates.cwd = project.workspacePath;
     }

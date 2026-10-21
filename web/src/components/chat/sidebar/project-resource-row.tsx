@@ -44,6 +44,7 @@ export function ProjectResourceRow({
       kind: 'project-resource',
       resourceId: resource.id,
       projectId: resource.projectId,
+      sidebarItemId: `resource:${resource.id}`,
     },
     plugins: [Feedback.configure({ feedback: 'clone' })],
   });
