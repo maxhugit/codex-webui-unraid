@@ -1,4 +1,9 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { eq, and, isNull, lte } from 'drizzle-orm';
 import { realpathSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
@@ -27,6 +32,8 @@ export interface PlatformIdentity {
   active: boolean;
   subject?: string;
   email?: string;
+  theme?: string;
+  language?: string;
 }
 export type IdentityHeaders = Record<string, string | string[] | undefined>;
 
@@ -113,8 +120,51 @@ export class IdentityService {
         active: person.active,
         subject,
         email,
+        theme: person.theme,
+        language: person.language,
       };
     });
+  }
+
+  updatePreferences(
+    identity: PlatformIdentity,
+    input: { theme?: unknown; language?: unknown },
+  ) {
+    this.requireActive(identity);
+    if (!identity.personId)
+      throw new ForbiddenException('A person profile is required');
+    const themes = new Set([
+      'light',
+      'dark',
+      'sepia',
+      'nord',
+      'solarized',
+      'dracula',
+      'high-contrast',
+    ]);
+    const languages = new Set(['en', 'fr']);
+    if (input.theme !== undefined && !themes.has(String(input.theme)))
+      throw new BadRequestException('Unsupported theme');
+    if (input.language !== undefined && !languages.has(String(input.language)))
+      throw new BadRequestException('Unsupported language');
+    const updates = {
+      ...(input.theme !== undefined ? { theme: String(input.theme) } : {}),
+      ...(input.language !== undefined
+        ? { language: String(input.language) }
+        : {}),
+      updatedAt: Date.now(),
+    };
+    this.db
+      .update(people)
+      .set(updates)
+      .where(eq(people.id, identity.personId))
+      .run();
+    const person = this.db
+      .select()
+      .from(people)
+      .where(eq(people.id, identity.personId))
+      .get();
+    return { theme: person!.theme, language: person!.language };
   }
 
   requireActive(identity: PlatformIdentity) {

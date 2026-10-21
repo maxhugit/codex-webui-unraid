@@ -6,7 +6,6 @@ import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useThemeStore } from '@/stores/theme-store';
 import { clearApiToken } from '@/auth-token';
 import { resetSocket } from '@/socket';
 import type { SettingsSection } from './settings-sections';
@@ -82,10 +81,8 @@ const DatabaseSettings = lazy(() =>
 );
 
 export function SettingsPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const dark = useThemeStore((s) => s.dark);
-  const toggleDark = useThemeStore((s) => s.toggleDark);
   const section = useRouterState({
     select: (s) =>
       (s.location.search as { section?: SettingsSection }).section ?? 'general',
@@ -121,15 +118,7 @@ export function SettingsPage() {
             </div>
           }
         >
-          {section === 'general' && (
-            <GeneralSettings
-              dark={dark}
-              toggleDark={toggleDark}
-              language={i18n.resolvedLanguage ?? i18n.language}
-              changeLanguage={(language) => void i18n.changeLanguage(language)}
-              onLogout={handleLogout}
-            />
-          )}
+          {section === 'general' && <GeneralSettings onLogout={handleLogout} />}
           {section === 'account' && <AccountSettings />}
           {section === 'people' && <PeopleManager showHeading={false} />}
           {section === 'codex' && <CodexSettings />}

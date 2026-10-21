@@ -22,7 +22,7 @@ import { GlobalFilesHost } from '@/components/files/global-files-host';
 import { installFileReconciler } from '@/lib/file-reconciler';
 import { SIDEBAR_REGION_ID, useLayoutStore } from '@/stores/layout-store';
 import { useTimelineStore } from '@/stores/timeline-store';
-import { useThemeStore } from '@/stores/theme-store';
+import { isThemeId, useThemeStore } from '@/stores/theme-store';
 import { cn } from '@/lib/utils';
 import { clearApiToken } from '@/auth-token';
 import { resetSocket } from '@/socket';
@@ -75,14 +75,20 @@ export function AuthenticatedLayout() {
     <AuthenticatedWorkspace
       key={session.data.personId ?? session.data.kind}
       isAdministrator={session.isAdministrator}
+      profileTheme={session.data.theme}
+      profileLanguage={session.data.language}
     />
   );
 }
 
 function AuthenticatedWorkspace({
   isAdministrator,
+  profileTheme,
+  profileLanguage,
 }: {
   isAdministrator: boolean;
+  profileTheme?: string;
+  profileLanguage?: string;
 }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -106,8 +112,7 @@ function AuthenticatedWorkspace({
     (s) => s.cleanupIdleThreadSubscriptions,
   );
   const setRootDir = useGlobalFilesStore((s) => s.setRootDir);
-  const dark = useThemeStore((s) => s.dark);
-  const toggleDark = useThemeStore((s) => s.toggleDark);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const generalSettingsQuery = useQuery({
     queryKey: ['platform-client-config'],
     queryFn: () =>
@@ -205,7 +210,13 @@ function AuthenticatedWorkspace({
     };
   }, [pathname, filesDefaultRoot, setRootDir]);
 
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  useEffect(() => {
+    if (isThemeId(profileTheme)) setTheme(profileTheme);
+    if (profileLanguage === 'en' || profileLanguage === 'fr')
+      void i18n.changeLanguage(profileLanguage);
+  }, [i18n, profileLanguage, profileTheme, setTheme]);
 
   // ── Responsive layout ────────────────────────────────────────────────
   const breakpoint = useBreakpoint();
@@ -274,9 +285,7 @@ function AuthenticatedWorkspace({
             composer is an opaque surface rather than a glass one; the
             transcript fades out under it instead. See chat-input.tsx. */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col isolate">
-          {!pathname.startsWith('/t/') && (
-            <ChatHeader dark={dark} onToggleDark={toggleDark} />
-          )}
+          {!pathname.startsWith('/t/') && <ChatHeader />}
           <CodexStatusBanner />
           <DetachedDocumentRecovery />
           {adminOnlyView && !isAdministrator ? (

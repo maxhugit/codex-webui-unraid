@@ -10,6 +10,25 @@ export interface PlatformSession {
   active: boolean;
   subject?: string;
   email?: string;
+  theme?: string;
+  language?: string;
+}
+export async function updateAuthResource<T>(
+  path: string,
+  body: Record<string, unknown>,
+): Promise<T> {
+  const authorization = getAuthorizationHeader();
+  const response = await fetch(withBasePath(`/api/auth/${path}`), {
+    method: 'PATCH',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error('Unable to save profile preferences');
+  return response.json() as Promise<T>;
 }
 export const platformSessionKey = ['platform-session'] as const;
 export async function readAuthResource<T>(path: string): Promise<T> {

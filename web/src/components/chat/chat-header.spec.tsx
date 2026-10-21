@@ -50,7 +50,7 @@ function renderHeader(simpleChatTitle?: string) {
   return render(
     <QueryClientProvider client={client}>
       <TooltipProvider>
-        <ChatHeader dark={false} onToggleDark={vi.fn()} />
+        <ChatHeader />
       </TooltipProvider>
     </QueryClientProvider>,
   );

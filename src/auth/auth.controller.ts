@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Get,
+  Patch,
   Post,
   Req,
 } from '@nestjs/common';
@@ -42,6 +43,16 @@ export class AuthController {
   @Get('me')
   me(@Req() request: IdentityRequest) {
     return request.platformIdentity ?? this.identities.resolve(request.headers);
+  }
+
+  @Patch('preferences')
+  preferences(
+    @Req() request: IdentityRequest,
+    @Body() body: { theme?: unknown; language?: unknown },
+  ) {
+    const identity =
+      request.platformIdentity ?? this.identities.resolve(request.headers);
+    return this.identities.updatePreferences(identity, body ?? {});
   }
 
   /** Deliberately exposes only a non-sensitive client setting, never the settings catalog. */

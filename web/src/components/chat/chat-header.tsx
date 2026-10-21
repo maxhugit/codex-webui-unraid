@@ -3,14 +3,11 @@ import {
   Check,
   Edit3,
   EllipsisVertical,
-  Languages,
   Menu,
   MonitorCog,
-  Moon,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
-  Sun,
   UserRound,
   X,
 } from 'lucide-react';
@@ -55,6 +52,7 @@ import {
   settingsPageLabel,
 } from '@/components/settings/setting-helpers';
 import type { SettingsSection } from '@/components/settings/settings-sections';
+import { ProfileAppearance } from '@/components/account/profile-appearance';
 import {
   Dialog,
   DialogContent,
@@ -66,20 +64,10 @@ import {
 
 /** Mobile overflow menu — closes after each action. */
 function MobileOverflowMenu({
-  administrator,
   onSettings,
-  onToggleDark,
-  onToggleLanguage,
-  languageLabel,
-  dark,
   t,
 }: {
-  administrator: boolean;
   onSettings: () => void;
-  onToggleDark: () => void;
-  onToggleLanguage: () => void;
-  languageLabel: string;
-  dark: boolean;
   t: (key: string) => string;
 }) {
   const [open, setOpen] = useState(false);
@@ -100,44 +88,22 @@ function MobileOverflowMenu({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" side="bottom" className="w-48 p-1">
-        {administrator && (
-          <button
-            type="button"
-            onClick={() => act(onSettings)}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
-          >
-            <MonitorCog className="h-4 w-4" /> {t('Platform settings')}
-          </button>
-        )}
         <button
           type="button"
-          onClick={() => act(onToggleDark)}
+          onClick={() => act(onSettings)}
           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
         >
-          {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          {dark ? t('Light mode') : t('Dark mode')}
-        </button>
-        <button
-          type="button"
-          onClick={() => act(onToggleLanguage)}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
-        >
-          <Languages className="h-4 w-4" /> {languageLabel}
+          <MonitorCog className="h-4 w-4" /> {t('Platform settings')}
         </button>
       </PopoverContent>
     </Popover>
   );
 }
 
-interface Props {
-  dark: boolean;
-  onToggleDark: () => void;
-}
-
-export function ChatHeader({ dark, onToggleDark }: Props) {
+export function ChatHeader() {
   const session = usePlatformSession();
   const { isAdministrator } = session;
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const resourceRoute = /^\/projects\/([^/]+)\/resources\/([^/]+)\/?$/.exec(
@@ -222,12 +188,6 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
   const sidebarToggleLabel = desktopSidebarCollapsed
     ? t('Expand sidebar')
     : t('Collapse sidebar');
-
-  const isFrench = (i18n.resolvedLanguage ?? i18n.language).startsWith('fr');
-  const languageLabel = isFrench ? 'English' : 'Français';
-  const toggleLanguage = () => {
-    void i18n.changeLanguage(isFrench ? 'en' : 'fr');
-  };
 
   return (
     <>
@@ -402,20 +362,6 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
         {/* Desktop: inline action buttons */}
         {isDesktop ? (
           <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={toggleLanguage}
-                  aria-label={`${t('Language')}: ${languageLabel}`}
-                >
-                  <Languages className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{languageLabel}</TooltipContent>
-            </Tooltip>
             {isAdministrator && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -432,38 +378,14 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
                 <TooltipContent>{t('Platform settings')}</TooltipContent>
               </Tooltip>
             )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={onToggleDark}
-                >
-                  {dark ? (
-                    <Sun className="h-4 w-4" />
-                  ) : (
-                    <Moon className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {dark ? t('Light mode') : t('Dark mode')}
-              </TooltipContent>
-            </Tooltip>
           </>
-        ) : (
+        ) : isAdministrator ? (
           /* Mobile/Tablet: overflow menu popover */
           <MobileOverflowMenu
-            administrator={isAdministrator}
             onSettings={() => void navigate({ to: '/settings' })}
-            onToggleDark={onToggleDark}
-            onToggleLanguage={toggleLanguage}
-            languageLabel={languageLabel}
-            dark={dark}
             t={t}
           />
-        )}
+        ) : null}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -485,7 +407,7 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
         onClose={() => setGraphOpen(false)}
       />
       <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('My account')}</DialogTitle>
             <DialogDescription>
@@ -522,6 +444,7 @@ export function ChatHeader({ dark, onToggleDark }: Props) {
               </dd>
             </div>
           </dl>
+          <ProfileAppearance />
           <DialogFooter>
             <Button variant="secondary" onClick={() => setAccountOpen(false)}>
               {t('Close')}
