@@ -31,6 +31,31 @@ export class ProjectWorkspaceLayout {
         'Primary workspace path is already attached to another project',
       );
     await fs.mkdir(this.root, { recursive: true });
+    const physicalTarget = path.join(await fs.realpath(this.root), id);
+    const roots = [
+      ...this.db
+        .select()
+        .from(projectWorkspaces)
+        .all()
+        .map((w) => ({ projectId: w.projectId, path: w.path })),
+      ...this.db
+        .select()
+        .from(projects)
+        .all()
+        .map((p) => ({ projectId: p.id, path: p.workspacePath })),
+    ];
+    for (const root of roots) {
+      if (root.projectId === id) continue;
+      const physicalRoot = await fs
+        .realpath(root.path)
+        .catch(() => path.resolve(root.path));
+      if (
+        physicalTarget === physicalRoot ||
+        physicalTarget.startsWith(physicalRoot + path.sep) ||
+        physicalRoot.startsWith(physicalTarget + path.sep)
+      )
+        throw new ConflictException('Project workspaces cannot overlap');
+    }
     let created = false;
     try {
       await fs.mkdir(target);

@@ -11,6 +11,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
+import { currentAccess } from '../auth/access-context';
 import { projects } from '../database/schema';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
@@ -226,6 +227,9 @@ export class FilesService implements OnModuleDestroy {
    * @throws BusinessException if path escapes workspace roots or does not exist
    */
   async resolveSafePath(inputPath: string): Promise<string> {
+    const access = currentAccess();
+    if (access && access.identity.role !== 'administrator')
+      access.identities.requireWorkspacePath(inputPath, false, access.identity);
     if (!inputPath) {
       throw BusinessException.badRequest(
         ErrorCode.files.pathRequired,

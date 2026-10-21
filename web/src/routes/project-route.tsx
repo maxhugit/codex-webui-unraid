@@ -57,7 +57,7 @@ export function ProjectRoute() {
   const visibleTab: ProjectTab =
     (activeTab === 'participants' && !canSeePeople) ||
     (!session.isAdministrator &&
-      ['settings', 'workspaces', 'mcps', 'knowledge'].includes(activeTab))
+      ['settings', 'workspaces', 'mcps'].includes(activeTab))
       ? 'general'
       : activeTab;
   const activity = useQuery({
@@ -138,14 +138,14 @@ export function ProjectRoute() {
                 label={t('Workspaces')}
                 onClick={() => setActiveTab('workspaces')}
               />
-              <ProjectTabButton
-                active={visibleTab === 'knowledge'}
-                icon={BookOpen}
-                label={t('Knowledge')}
-                onClick={() => setActiveTab('knowledge')}
-              />
             </>
           )}
+          <ProjectTabButton
+            active={visibleTab === 'knowledge'}
+            icon={BookOpen}
+            label={t('Knowledge')}
+            onClick={() => setActiveTab('knowledge')}
+          />
           {session.isAdministrator && (
             <ProjectTabButton
               active={visibleTab === 'mcps'}

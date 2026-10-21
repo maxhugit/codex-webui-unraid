@@ -8,7 +8,16 @@ import {
 } from '@nestjs/common';
 import { ProjectWorkspaceLayout } from './project-workspace-layout';
 import { randomUUID } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import { identityEvents } from '../auth/identity-events';
+import {
+  canReadProject,
+  canReadThread,
+  currentAccess,
+  requireProjectAccess,
+  requireThreadAccess,
+  requireExecutionAccess,
+} from '../auth/access-context';
 import * as path from 'node:path';
 import { and, desc, eq } from 'drizzle-orm';
 import { Inject } from '@nestjs/common';
@@ -26,6 +35,7 @@ import {
   people,
   projectParticipants,
   projectActivity,
+  documentAccessSessions,
   type Project,
   type ProjectWorkspace,
   type ProjectResource,
@@ -277,10 +287,28 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   }
 
   listPeople() {
+    const access = currentAccess();
+    const visibleIds =
+      access && access.identity.role !== 'administrator'
+        ? new Set(
+            this.db
+              .select()
+              .from(projectParticipants)
+              .all()
+              .filter((p) => canReadProject(p.projectId))
+              .map((p) => p.personId),
+          )
+        : null;
     return this.db
       .select()
       .from(people)
       .all()
+      .filter(
+        (person) =>
+          !visibleIds ||
+          visibleIds.has(person.id) ||
+          person.id === access?.identity.personId,
+      )
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -297,6 +325,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     },
     id?: string,
   ) {
+    requireExecutionAccess();
     const existing = id
       ? this.db.select().from(people).where(eq(people.id, id)).get()
       : undefined;
@@ -386,18 +415,19 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       createdAt: existing?.createdAt ?? Date.now(),
       updatedAt: Date.now(),
     } satisfies typeof people.$inferInsert;
-    if (existing)
-      this.db
-        .update(people)
-        .set(person)
-        .where(eq(people.id, existing.id))
-        .run();
-    else this.db.insert(people).values(person).run();
-    if (
-      existing &&
-      (existing.role !== person.role || existing.active !== person.active)
-    )
-      identityEvents.emit('changed', person.id);
+    const privilegesChanged =
+      !!existing &&
+      (existing.role !== person.role || existing.active !== person.active);
+    this.db.transaction((tx) => {
+      if (existing)
+        tx.update(people).set(person).where(eq(people.id, existing.id)).run();
+      else tx.insert(people).values(person).run();
+      if (privilegesChanged)
+        tx.delete(documentAccessSessions)
+          .where(eq(documentAccessSessions.personId, person.id))
+          .run();
+    });
+    if (privilegesChanged) identityEvents.emit('changed', person.id);
     return person;
   }
 
@@ -457,6 +487,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   }
 
   addParticipant(projectId: string, personId: string) {
+    requireExecutionAccess();
     this.get(projectId);
     if (typeof personId !== 'string' || !personId)
       throw new BadRequestException('Select an active person');
@@ -476,17 +507,28 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   }
 
   removeParticipant(projectId: string, personId: string) {
+    requireExecutionAccess();
     this.get(projectId);
-    this.db
-      .delete(projectParticipants)
-      .where(
-        and(
-          eq(projectParticipants.projectId, projectId),
-          eq(projectParticipants.personId, personId),
-        ),
-      )
-      .run();
-    // Existing assignments are historical information and remain attached.
+    this.db.transaction((tx) => {
+      tx.delete(projectParticipants)
+        .where(
+          and(
+            eq(projectParticipants.projectId, projectId),
+            eq(projectParticipants.personId, personId),
+          ),
+        )
+        .run();
+      // Existing assignments are historical information and remain attached.
+      tx.delete(documentAccessSessions)
+        .where(
+          and(
+            eq(documentAccessSessions.projectId, projectId),
+            eq(documentAccessSessions.personId, personId),
+          ),
+        )
+        .run();
+    });
+    identityEvents.emit('changed', personId);
     return { ok: true };
   }
 
@@ -531,9 +573,28 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       ]),
     );
     return summarizeProjects({
-      projects: this.db.select().from(projects).all(),
-      resources: this.db.select().from(projectResources).all(),
-      tasks: this.db.select().from(projectTasks).all(),
+      projects: this.db
+        .select()
+        .from(projects)
+        .all()
+        .filter((p) => canReadProject(p.id)),
+      resources: this.db
+        .select()
+        .from(projectResources)
+        .all()
+        .filter((r) => canReadProject(r.projectId)),
+      tasks: this.db
+        .select()
+        .from(projectTasks)
+        .all()
+        .filter((t) => {
+          const resource = this.db
+            .select()
+            .from(projectResources)
+            .where(eq(projectResources.id, t.resourceId))
+            .get();
+          return !!resource && canReadProject(resource.projectId);
+        }),
       statuses: this.db.select().from(projectTaskStatuses).all(),
       activity: [
         ...agents.map((a) => ({
@@ -566,7 +627,6 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     >
   > {
     await this.ensurePrimaryWorkspaces();
-    await this.migrateConversationAssociations();
     const workspaces = this.db.select().from(projectWorkspaces).all();
     const resources = this.db.select().from(projectResources).all();
     const tasks = this.db.select().from(projectTasks).all();
@@ -624,6 +684,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       .select()
       .from(projects)
       .all()
+      .filter((p) => canReadProject(p.id))
       .sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
       )
@@ -639,6 +700,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           .filter(
             (agent) =>
               agent.projectId === project.id &&
+              canReadThread(agent.threadId) &&
               threadMetadata.has(agent.threadId),
           )
           .map(({ threadId, workspacePath }) => {
@@ -661,63 +723,14 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       }));
   }
 
-  /** Associates historical conversations once; future grouping never relies on cwd. */
-  private async migrateConversationAssociations(): Promise<void> {
-    const workspaces = this.db.select().from(projectWorkspaces).all();
-    const ownerFor = (cwd: string) =>
-      workspaces
-        .filter(
-          (workspace) =>
-            cwd === workspace.path ||
-            cwd.startsWith(`${workspace.path}${path.sep}`),
-        )
-        .sort((a, b) => b.path.length - a.path.length)[0];
-    const now = Date.now();
-    for (const chat of this.db.select().from(simpleChatThreads).all()) {
-      if (chat.projectId) continue;
-      const owner = ownerFor(chat.cwd);
-      if (owner)
-        this.db
-          .update(simpleChatThreads)
-          .set({ projectId: owner.projectId, updatedAt: now })
-          .where(eq(simpleChatThreads.id, chat.id))
-          .run();
-    }
-    const known = new Set(
-      this.db
-        .select({ threadId: projectAgentThreads.threadId })
-        .from(projectAgentThreads)
-        .all()
-        .map((row) => row.threadId),
-    );
-    const snapshot = await this.metadata.read().catch(() => null);
-    if (!snapshot) return;
-    for (const thread of this.overrides.applyToThreads(
-      snapshot.entries.map((entry) => entry.thread),
-    )) {
-      if (known.has(thread.id) || !thread.cwd) continue;
-      const owner = ownerFor(thread.cwd);
-      if (!owner) continue;
-      this.db
-        .insert(projectAgentThreads)
-        .values({
-          threadId: thread.id,
-          projectId: owner.projectId,
-          workspacePath: thread.cwd,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .onConflictDoNothing()
-        .run();
-    }
-  }
-
   async associateAgent(
     projectId: string,
     threadId: string,
     workspacePath: string,
     alreadyAtWorkspace = false,
   ) {
+    requireExecutionAccess();
+    requireThreadAccess(threadId);
     const workspace = this.requireWorkspace(projectId, workspacePath);
     const threadIds = alreadyAtWorkspace
       ? this.threads.rememberInitialThreadCwd(threadId, workspace.path)
@@ -937,6 +950,11 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     try {
       this.db.transaction((tx) => {
         tx.insert(projects).values(project).run();
+        const personId = currentAccess()?.identity.personId;
+        if (personId)
+          tx.insert(projectParticipants)
+            .values({ projectId: id, personId, createdAt: now })
+            .run();
         tx.insert(projectWorkspaces)
           .values({
             id: randomUUID(),
@@ -981,6 +999,33 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       ? await this.files.resolveSafePath(requestedPath)
       : path.join('/workspaces', name);
     this.files.assertProjectPathMutable(workspacePath);
+    const canonical = path.resolve(workspacePath);
+    const existingPaths = [
+      ...this.db
+        .select()
+        .from(projectWorkspaces)
+        .all()
+        .map((w) => w.path),
+      ...this.db
+        .select()
+        .from(projects)
+        .all()
+        .map((p) => p.workspacePath),
+    ];
+    for (const root of existingPaths) {
+      let existingRoot = path.resolve(root);
+      try {
+        existingRoot = realpathSync(existingRoot);
+      } catch {
+        /* Missing paths retain their reserved location. */
+      }
+      if (
+        canonical === existingRoot ||
+        canonical.startsWith(existingRoot + path.sep) ||
+        existingRoot.startsWith(canonical + path.sep)
+      )
+        throw new ConflictException('Project workspaces cannot overlap');
+    }
     const existing = this.db
       .select()
       .from(projectWorkspaces)
@@ -1606,6 +1651,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         ? task.linkedThreadId
         : null;
     if (validatedAgentThreadId) {
+      requireExecutionAccess();
       const preview = await this.deletion.previewDelete(validatedAgentThreadId);
       if (!preview.canDelete)
         throw new ConflictException(
@@ -1721,6 +1767,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       ),
     ];
     for (const threadId of linkedAgentIds) {
+      requireExecutionAccess();
       const preview = await this.deletion.previewDelete(threadId);
       if (!preview.canDelete)
         throw new ConflictException(
@@ -1947,6 +1994,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     projectId: string,
     prompt: string,
   ) {
+    requireExecutionAccess();
     const project = this.get(projectId);
     const text = await this.threads.runProjectStructuredPrompt({
       cwd: project.workspacePath,
@@ -2696,6 +2744,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   ): ProjectResource {
     const resource = this.getResource(projectId, resourceId);
     const targetProjectId = input.projectId ?? projectId;
+    requireProjectAccess(targetProjectId);
     if (targetProjectId !== projectId) this.get(targetProjectId);
     if (targetProjectId !== projectId && resource.type === 'deliverable_board')
       throw new ConflictException(
@@ -2924,6 +2973,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   }
 
   get(id: string): Project {
+    requireProjectAccess(id);
     const project = this.db
       .select()
       .from(projects)

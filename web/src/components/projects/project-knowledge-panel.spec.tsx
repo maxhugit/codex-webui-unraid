@@ -80,6 +80,24 @@ it('saves multiple edited documents with one button and their original revision'
   await screen.findByText('No pending changes');
 });
 
+it('shows shared knowledge to a participant without editing or proposal controls', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <ProjectKnowledgePanel projectId="p" readOnly />
+    </QueryClientProvider>,
+  );
+  const instructions = await screen.findByLabelText(/Shared instructions/);
+  expect(instructions).toHaveValue('Rules');
+  expect(instructions).toHaveAttribute('readonly');
+  expect(
+    screen.queryByRole('button', { name: 'Save' }),
+  ).not.toBeInTheDocument();
+  expect(api.mock.calls.every(([path]) => path === '/p/knowledge')).toBe(true);
+});
+
 it('keeps the draft and original revision when revisiting the project tab', async () => {
   const first = setup();
   fireEvent.change(await screen.findByLabelText(/Shared instructions/), {

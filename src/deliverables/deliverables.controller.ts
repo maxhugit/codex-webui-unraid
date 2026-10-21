@@ -107,7 +107,11 @@ export class DeliverablesController {
       const source = this.service.versionFiles(p, r, id, versionId)[
         Number(index)
       ];
-      this.identities.requireWorkspacePath(source?.sourcePath);
+      this.identities.requireWorkspacePath(
+        source?.sourcePath,
+        false,
+        request.platformIdentity,
+      );
     }
     const file = await this.service.file(p, r, id, versionId, Number(index));
     return reply

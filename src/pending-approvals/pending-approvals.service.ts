@@ -12,6 +12,7 @@ import type {
 } from '../codex/server-request-owner';
 import type { ServerNotification } from '../codex/codex-schema';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
+import { canReadThread, currentAccess } from '../auth/access-context';
 import {
   pendingServerRequests,
   type PendingServerRequestRow,
@@ -162,7 +163,18 @@ export class PendingApprovalsService implements OnModuleInit {
 
   /** Reads unresolved submissions too, so reconnect never re-enables their buttons. */
   readPending(threadIds?: string[]): PendingServerRequestsResponseDto {
-    const scope = threadIds?.map((id) => id.trim()).filter(Boolean);
+    const access = currentAccess();
+    const scope =
+      threadIds?.map((id) => id.trim()).filter(Boolean) ??
+      (access && access.identity.role !== 'administrator'
+        ? access.identities.readableAgentIds(access.identity)
+        : undefined);
+    if (scope && !scope.length)
+      return {
+        generation: this.codexManager.getGeneration(),
+        requests: [],
+        failures: [],
+      };
     this.deletionRegistry.assertPendingReadable(scope);
     const generation = this.codexManager.getGeneration();
     return {
@@ -170,7 +182,9 @@ export class PendingApprovalsService implements OnModuleInit {
       requests: this.selectRequests(scope, ['pending', 'submitted']).map(
         (row) => projectPendingRequest(row, this.context),
       ),
-      failures: readRecentRequestFailures(this.db, scope, generation),
+      failures: readRecentRequestFailures(this.db, scope, generation).filter(
+        (failure) => !!failure.threadId && canReadThread(failure.threadId),
+      ),
     };
   }
 
@@ -425,6 +439,7 @@ export class PendingApprovalsService implements OnModuleInit {
     statuses: string[],
   ): PendingServerRequestRow[] {
     const scope = threadIds?.map((id) => id.trim()).filter(Boolean);
+    if (scope && !scope.length) return [];
     return this.db
       .select()
       .from(pendingServerRequests)
@@ -436,7 +451,8 @@ export class PendingApprovalsService implements OnModuleInit {
             : undefined,
         ),
       )
-      .all();
+      .all()
+      .filter((row) => canReadThread(row.threadId));
   }
 
   /** Commits lifecycle retirement before releasing in-memory response authority. */

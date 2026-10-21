@@ -1,4 +1,8 @@
 import {
+  requireProjectAccess,
+  requireExecutionAccess,
+} from '../auth/access-context';
+import {
   BadRequestException,
   ConflictException,
   Inject,
@@ -37,6 +41,7 @@ export class ProjectKnowledgeService {
   constructor(@Inject(DRIZZLE_DB) private readonly db: AppDatabase) {}
 
   private async directory(projectId: string): Promise<string> {
+    requireProjectAccess(projectId);
     const project = this.db
       .select()
       .from(projects)
@@ -98,6 +103,7 @@ export class ProjectKnowledgeService {
     projectId: string,
     input: { files: KnowledgeFiles; revision: string },
   ): Promise<KnowledgeSnapshot> {
+    requireExecutionAccess();
     if (
       !input ||
       typeof input.revision !== 'string' ||

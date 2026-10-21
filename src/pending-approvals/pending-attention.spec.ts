@@ -18,7 +18,7 @@ import {
 import { createRequestManager } from './request-owner.testing';
 import type { PendingServerRequestEvent } from './dto/pending-approvals.dto';
 
-describe('global human attention', () => {
+describe('administrator human attention', () => {
   let database: ReturnType<typeof createTestDatabase>;
   let transport: ReturnType<typeof createRequestManager>;
   let service: PendingApprovalsService;
@@ -26,7 +26,7 @@ describe('global human attention', () => {
   let guard: ThreadDeletionRegistryService;
   let gateway: ThreadsGateway;
   let events: Array<{ room: string | null; event: string; payload: unknown }>;
-  beforeEach(() => {
+  beforeEach(async () => {
     database = createTestDatabase();
     transport = createRequestManager();
     guard = new ThreadDeletionRegistryService();
@@ -51,8 +51,9 @@ describe('global human attention', () => {
       changes as unknown as ConversationBranchesService,
       changes as unknown as ConversationBranchMutationsService,
       {
-        resolve: () => ({ active: true }),
+        resolve: () => ({ active: true, role: 'administrator' }),
         requireActive: () => undefined,
+        canReadThread: () => true,
       } as never,
     );
     gateway.server = {
@@ -64,6 +65,13 @@ describe('global human attention', () => {
         events.push({ room: null, event, payload }),
     } as unknown as ThreadsGateway['server'];
     gateway.afterInit();
+    await gateway.handleConnection({
+      id: 'admin-browser',
+      handshake: { headers: {}, auth: { token: 'test' } },
+      join: () => undefined,
+      emit: () => undefined,
+      disconnect: () => undefined,
+    } as never);
   });
   afterEach(() => {
     transport.close();
@@ -89,7 +97,7 @@ describe('global human attention', () => {
     const fixture = publishFile();
     const row = controller.listPending().requests[0];
     expect(requests()[0]).toMatchObject({
-      room: 'webui:authenticated',
+      room: 'admin-browser',
       payload: {
         id: '31',
         instanceId: row.instanceId,
@@ -105,11 +113,9 @@ describe('global human attention', () => {
         }),
       ],
     ]);
-    expect(events).toContainEqual({
-      room: 'thread:t1',
-      event: 'codex.notification',
-      payload: fixture.started,
-    });
+    expect(
+      events.filter((entry) => entry.event === 'codex.notification'),
+    ).toEqual([]);
   });
 
   it('retains immutable file context after item completion and outgoing object mutation', () => {
@@ -199,7 +205,7 @@ describe('global human attention', () => {
     guard.end(['t1']);
     expect(requests()).toEqual([]);
     expect(events).toContainEqual({
-      room: 'webui:authenticated',
+      room: 'admin-browser',
       event: 'conversation.pending.resolved',
       payload: expect.objectContaining({
         status: 'cancelled',
@@ -263,7 +269,7 @@ describe('global human attention', () => {
         'must-not-persist',
       );
       expect(events).toContainEqual({
-        room: 'webui:authenticated',
+        room: 'admin-browser',
         event: 'codex.serverRequestFailed',
         payload: expect.objectContaining({
           instanceId: expect.any(String) as unknown,

@@ -1,5 +1,6 @@
 /** Executes destructive thread deletion after a confirmed preview id set. */
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { requireExecutionAccess } from '../auth/access-context';
 import { eq } from 'drizzle-orm';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
@@ -59,6 +60,7 @@ export class ThreadsDeletionService {
     threadId: string,
     body: ThreadDeleteRequestDto,
   ): Promise<ThreadDeleteResultDto> {
+    requireExecutionAccess();
     const expectedThreadIds = this.readExpectedThreadIds(body);
     const expectedRunningThreadIds = this.readOptionalThreadIds(
       body.expectedRunningThreadIds,

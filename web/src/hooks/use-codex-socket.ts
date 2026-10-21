@@ -122,6 +122,13 @@ export function useCodexSocket(enabled = true) {
 
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
+    const handleAccessRevoked = () => {
+      void queryClient.cancelQueries();
+      queryClient.clear();
+      // Recreate every in-memory view, including editors and document previews.
+      window.location.replace('/');
+    };
+    socket.on('access.revoked', handleAccessRevoked);
 
     const ctx: NotificationContext = {
       threadId: null,
@@ -514,6 +521,7 @@ export function useCodexSocket(enabled = true) {
       document.removeEventListener('visibilitychange', handleVisibility);
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
+      socket.off('access.revoked', handleAccessRevoked);
       socket.off('codex.notification', handleCodexNotification);
       socket.off('fs.changed', handleFilesystemChanged);
       socket.off('codex.lifecycle', handleCodexLifecycle);

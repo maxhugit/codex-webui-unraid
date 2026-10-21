@@ -14,6 +14,9 @@ dans cet ordre :
 
 ## Guide d’utilisation
 
+- [Droits d'accès aux projets](droits-acces-projets.md) : participants,
+  isolation des données, sessions documentaires et migration.
+
 - [Gestion des livrables](gestion-des-livrables.md) : fiches facultatives,
   fichiers, versions proposées et validation.
 

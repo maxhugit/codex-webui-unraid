@@ -2,6 +2,8 @@
  * Central authentication service for WebUI API key fallback and JWT sessions.
  */
 import { Injectable, Logger } from '@nestjs/common';
+import { IdentityService } from './identity.service';
+import { currentAccess } from './access-context';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -31,8 +33,30 @@ export class AuthService {
   private readonly apiKey: string;
   private readonly jwtSecret: string;
 
-  signFileAccess(path: string): string {
-    return sign({ purpose: 'file-download', path }, this.jwtSecret, {
+  createDocumentSession(path: string, writable = false): string {
+    const access = currentAccess();
+    return this.identities.createDocumentSession(
+      access?.identity ?? {
+        kind: 'service',
+        personId: null,
+        name: 'Deployment service',
+        role: 'administrator',
+        active: true,
+      },
+      path,
+      writable,
+    );
+  }
+
+  verifyDocumentSession(id: unknown, path: string, writable = false): boolean {
+    return this.identities.verifyDocumentSession(id, path, writable);
+  }
+
+  signFileAccess(
+    path: string,
+    sessionId = this.createDocumentSession(path),
+  ): string {
+    return sign({ purpose: 'file-download', path, sessionId }, this.jwtSecret, {
       algorithm: 'HS256',
       expiresIn: '1h',
     });
@@ -45,7 +69,8 @@ export class AuthService {
       return (
         typeof payload !== 'string' &&
         payload.purpose === 'file-download' &&
-        payload.path === path
+        payload.path === path &&
+        this.verifyDocumentSession(payload.sessionId, path)
       );
     } catch {
       return false;
@@ -55,6 +80,7 @@ export class AuthService {
   constructor(
     configService: ConfigService,
     private readonly jwtService: JwtService,
+    private readonly identities: IdentityService,
   ) {
     this.apiKey = configService.getOrThrow<string>('WEBUI_API_KEY');
     this.jwtSecret = this.deriveJwtSecret(this.apiKey);
