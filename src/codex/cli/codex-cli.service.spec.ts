@@ -21,8 +21,13 @@ import { cliSelection, isNewerVersion } from './managed-cli';
 class TestCliService extends CodexCliService {
   calls: { binary: string; args: string[] }[] = [];
   failCheck = false;
+  installed = true;
+  legacy = true;
   protected override canManageCli(): boolean {
     return true;
+  }
+  protected override hasLegacyCli(): boolean {
+    return this.legacy;
   }
   protected override async command(
     binary: string,
@@ -68,6 +73,8 @@ class TestCliService extends CodexCliService {
       writeFileSync(native, 'mock native binary');
       return '';
     }
+    if (!binary.includes('/releases/') && !this.installed)
+      throw new Error('Codex CLI is not installed');
     return `codex-cli ${binary.includes('/releases/') ? '1.1.0' : '1.0.0'}`;
   }
 }
@@ -85,7 +92,6 @@ beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'codex-cli-test-'));
   const config = new ConfigService({
     CODEX_HOME: directory,
-    CODEX_CLI_VERSION: '1.0.0',
   });
   paths = new CatalogPathsService(config);
   admission = new CatalogAdmissionService();
@@ -120,6 +126,17 @@ it('reports unavailable registry evidence without claiming the CLI is current', 
     latestVersion: null,
     checkError: 'Unable to check npm for updates',
     updateAvailable: false,
+  });
+});
+it('reports a fresh persistent home as ready for first installation', async () => {
+  service.installed = false;
+  service.legacy = false;
+  await expect(service.status()).resolves.toMatchObject({
+    installationState: 'missing',
+    installedVersion: null,
+    installedError: null,
+    latestVersion: '1.1.0',
+    canManage: true,
   });
 });
 it('lists every stable release in range and extracts only inert highlights', async () => {
@@ -162,7 +179,7 @@ it('rejects stale installed or target versions', async () => {
   );
   expect(service.calls.some((call) => call.args[0] === 'install')).toBe(false);
 });
-it('installs in persistent storage, uses matching helpers and can roll back to the image', async () => {
+it('installs in persistent storage, uses matching helpers and can roll back to the legacy CLI', async () => {
   await service.change('1.0.0', false, '1.1.0');
   expect(cliSelection(directory)).toEqual({ version: '1.1.0', previous: null });
   expect(existsSync(paths.binary)).toBe(true);
@@ -176,6 +193,27 @@ it('installs in persistent storage, uses matching helpers and can roll back to t
   await service.change('1.1.0', true);
   expect(cliSelection(directory).version).toBeNull();
   expect(manager.restartControlled).toHaveBeenCalledTimes(2);
+});
+it('performs the first installation while the app-server is stopped', async () => {
+  service.installed = false;
+  service.legacy = false;
+  manager.isStopped.mockReturnValue(true);
+  await service.installFirst('1.1.0');
+  expect(cliSelection(directory)).toEqual({
+    version: '1.1.0',
+    previous: null,
+  });
+  expect(existsSync(paths.binary)).toBe(true);
+  expect(manager.restartControlled).toHaveBeenCalledOnce();
+});
+it('rejects a stale first-install target before downloading', async () => {
+  service.installed = false;
+  service.legacy = false;
+  manager.isStopped.mockReturnValue(true);
+  await expect(service.installFirst('1.0.1')).rejects.toThrow(
+    'Latest CLI version changed',
+  );
+  expect(service.calls.some((call) => call.args[0] === 'install')).toBe(false);
 });
 it('restores the previous selection and restarts it after activation failure', async () => {
   manager.restartControlled.mockRejectedValueOnce(

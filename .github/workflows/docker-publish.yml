@@ -13,7 +13,6 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  CODEX_CLI_VERSION: '0.162.1'
 
 jobs:
   build:
@@ -55,8 +54,6 @@ jobs:
           context: .
           file: ./Dockerfile.unraid
           platforms: linux/amd64
-          build-args: |
-            CODEX_CLI_VERSION=${{ env.CODEX_CLI_VERSION }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

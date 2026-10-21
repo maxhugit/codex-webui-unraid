@@ -4,8 +4,8 @@ import { withBasePath } from '@/base-path';
 export interface CliStatus {
   selectedVersion: string | null;
   installedVersion: string | null;
-  imageVersion: string | null;
   latestVersion: string | null;
+  installationState: 'missing' | 'legacy' | 'managed' | 'external';
   updateAvailable: boolean;
   installedError: string | null;
   checkError: string | null;

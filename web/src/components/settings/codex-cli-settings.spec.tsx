@@ -10,7 +10,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 const available = {
   installedVersion: '1.0.0',
   selectedVersion: null,
-  imageVersion: '1.0.0',
+  installationState: 'legacy' as const,
   latestVersion: '1.1.0',
   updateAvailable: true,
   installedError: null,
@@ -51,6 +51,37 @@ beforeEach(() => {
     ),
   );
   vi.stubGlobal('fetch', fetchMock);
+});
+
+it('offers a first install and sends only the verified target version', async () => {
+  fetchMock.mockImplementation((_url: string, options?: RequestInit) =>
+    Promise.resolve(
+      json(
+        options?.method === 'POST'
+          ? { success: true }
+          : {
+              ...available,
+              installedVersion: null,
+              installationState: 'missing',
+              updateAvailable: false,
+            },
+      ),
+    ),
+  );
+  const user = userEvent.setup();
+  fixture.render(<CodexCliSettings />);
+  expect(await screen.findByText('Not installed')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Install Codex CLI' }));
+  await user.click(screen.getByRole('button', { name: 'Confirm' }));
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/codex/cli/install',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ targetVersion: '1.1.0' }),
+      }),
+    ),
+  );
 });
 afterEach(() => {
   fixture.dispose();
@@ -160,6 +191,7 @@ it('offers rollback for a selected installation even if its binary cannot run', 
         ...available,
         installedVersion: null,
         selectedVersion: '1.1.0',
+        installationState: 'managed',
         canRollback: true,
       }),
     ),

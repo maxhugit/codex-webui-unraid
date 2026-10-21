@@ -74,12 +74,13 @@ du brouillon et son application avec redémarrage.
 
 ## Version et mise à jour du CLI
 
-Dans **Paramètres > Codex > Version du CLI**, un administrateur peut :
+Dans **Paramètres > Codex CLI**, un administrateur peut :
 
-- lire la version de l'exécutable utilisé par le serveur géré et celle de l'image ;
+- installer le CLI lors de la première utilisation ;
+- lire la version de l'exécutable utilisé par le serveur géré ;
 - vérifier la dernière version stable de `@openai/codex` sur le registre npm officiel ;
 - installer cette version après confirmation ;
-- revenir à la sélection précédente, y compris à l'exécutable de l'image.
+- revenir à la sélection précédente lorsqu'elle existe.
 
 La dernière version publiée est mise en cache pendant 15 minutes. Le bouton de
 vérification relance la consultation. Un échec réseau affiche un état inconnu,
@@ -87,6 +88,11 @@ jamais une fausse indication « à jour ». Le proxy HTTP/HTTPS configuré est t
 aux commandes npm ; `.npmjs.org` doit rester autorisé dans Squid.
 
 ### Installation et protections
+
+L'image d'exécution ne contient aucun CLI Codex. Elle reste néanmoins saine et
+permet d'accéder à l'administration lorsqu'aucun CLI n'est encore installé. Dans
+ce cas, le serveur géré reste arrêté sans boucle de redémarrage et l'entrée
+**Codex CLI** affiche un indicateur demandant la première installation.
 
 L'installation ne modifie ni l'image en lecture seule, ni le préfixe npm global.
 Les téléchargements sont effectués sous `CODEX_HOME/webui/cli/releases`, avec
@@ -97,9 +103,13 @@ fournie par le navigateur.
 
 La sélection persistante est enregistrée atomiquement dans
 `CODEX_HOME/webui/cli/selection.json`. Les outils auxiliaires de sandbox sont ceux
-de la même version. Le gestionnaire relance ensuite son app-server. Les commandes
-`codex` lancées manuellement dans un terminal global ne sont pas remplacées : la
-sélection concerne le serveur géré par le WebUI et les commandes qu'il lance.
+de la même version. Un répartiteur stable dans `~/.local/bin` applique cette même
+sélection au serveur géré, à `codex` dans les terminaux et aux outils auxiliaires.
+Une mise à jour de l'image ne change donc pas la version active du CLI.
+
+Sur une installation Unraid existante, l'ancien CLI global reste utilisable comme
+solution de repli. La première mise à jour effectuée depuis l'interface active le
+stockage persistant géré, sans interrompre la disponibilité pendant la migration.
 
 Une exclusion mutuelle empêche les mutations concurrentes pendant l'opération.
 Les vérifications d'activité du catalogue sont réutilisées avant le téléchargement
@@ -107,9 +117,11 @@ et avant la bascule. L'opération est refusée si l'inactivité du serveur gér�
 pas établie. Cette vérification ne constitue pas une barrière globale pour des
 clients Codex externes ou des activités autonomes non observables.
 
-Si l'activation échoue, la sélection précédente est restaurée et un redémarrage
-est tenté. Si cette récupération échoue aussi, l'erreur l'indique explicitement.
-Un retour manuel est possible lorsque le serveur est complètement arrêté.
+Si l'activation d'une mise à jour échoue, la sélection précédente est restaurée
+et un redémarrage est tenté. Si cette récupération échoue aussi, l'erreur
+l'indique explicitement. Un retour manuel est possible lorsque le serveur est
+complètement arrêté. Pendant une toute première installation, un échec conserve
+simplement l'état « non installé » et l'administration reste accessible.
 
 **Sauvegarder le répertoire Codex avant une mise à jour.** Une nouvelle version
 peut migrer ses données : le retour à l'ancien exécutable ne restaure pas ces

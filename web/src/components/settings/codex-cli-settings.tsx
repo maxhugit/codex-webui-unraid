@@ -42,7 +42,7 @@ export function CodexCliSettings() {
   const { t, i18n } = useTranslation();
   const client = useQueryClient();
   const [confirmation, setConfirmation] = useState<
-    'update' | 'rollback' | null
+    'install' | 'update' | 'rollback' | null
   >(null);
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
@@ -66,12 +66,14 @@ export function CodexCliSettings() {
       installedVersion,
       latestVersion,
     }: {
-      action: 'update' | 'rollback';
-      installedVersion: string;
+      action: 'install' | 'update' | 'rollback';
+      installedVersion: string | null;
       latestVersion: string | null;
     }) =>
       requestCli(`/${action}`, {
-        expectedVersion: installedVersion,
+        ...(action === 'install'
+          ? { targetVersion: latestVersion }
+          : { expectedVersion: installedVersion }),
         ...(action === 'update' ? { targetVersion: latestVersion } : {}),
       }),
     onSettled: async () => {
@@ -108,9 +110,11 @@ export function CodexCliSettings() {
         </h3>
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <dt>{t('Installed version')}</dt>
-          <dd>{data?.installedVersion ?? t('Unknown')}</dd>
-          <dt>{t('Image version')}</dt>
-          <dd>{data?.imageVersion ?? t('Unknown')}</dd>
+          <dd>
+            {data?.installationState === 'missing'
+              ? t('Not installed')
+              : (data?.installedVersion ?? t('Unknown'))}
+          </dd>
           <dt>{t('Latest stable version')}</dt>
           <dd>{data?.latestVersion ?? t('Unknown')}</dd>
         </dl>
@@ -126,6 +130,20 @@ export function CodexCliSettings() {
             {data.updateAvailable
               ? t('A CLI update is available')
               : t('No newer stable CLI version is available')}
+          </p>
+        )}
+        {data?.installationState === 'missing' && (
+          <p role="status">
+            {t(
+              'Codex CLI is not installed. Install it to enable conversations and agents.',
+            )}
+          </p>
+        )}
+        {data?.installationState === 'legacy' && (
+          <p className="text-xs text-muted-foreground">
+            {t(
+              'This legacy installation remains usable. The next update will migrate CLI selection to persistent managed storage.',
+            )}
           </p>
         )}
         {[
@@ -163,12 +181,20 @@ export function CodexCliSettings() {
             disabled={
               busy ||
               !data?.canManage ||
-              !data.installedVersion ||
-              !data.updateAvailable
+              !data.latestVersion ||
+              (data.installationState !== 'missing' && !data.updateAvailable)
             }
-            onClick={() => setConfirmation('update')}
+            onClick={() =>
+              setConfirmation(
+                data?.installationState === 'missing' ? 'install' : 'update',
+              )
+            }
           >
-            {t('Update Codex CLI')}
+            {t(
+              data?.installationState === 'missing'
+                ? 'Install Codex CLI'
+                : 'Update Codex CLI',
+            )}
           </Button>
           {data?.canRollback && (
             <Button
@@ -285,14 +311,18 @@ export function CodexCliSettings() {
               {t(
                 confirmation === 'rollback'
                   ? 'Restore previous CLI'
-                  : 'Update Codex CLI',
+                  : confirmation === 'install'
+                    ? 'Install Codex CLI'
+                    : 'Update Codex CLI',
               )}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                'This restarts the managed Codex app-server. The operation is refused while work is active. Conversations and configuration are preserved.',
+                confirmation === 'install'
+                  ? 'This installs the latest stable Codex CLI in persistent storage and starts the managed app-server. The container image is not modified.'
+                  : 'This restarts the managed Codex app-server. The operation is refused while work is active. Conversations and configuration are preserved.',
               )}{' '}
-              {confirmation === 'update' && data?.latestVersion}
+              {confirmation !== 'rollback' && data?.latestVersion}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -303,10 +333,15 @@ export function CodexCliSettings() {
                   confirmation === 'rollback'
                     ? (data?.selectedVersion ?? data?.installedVersion)
                     : data?.installedVersion;
-                if (confirmation && expected)
+                if (
+                  confirmation &&
+                  (confirmation === 'install'
+                    ? Boolean(data?.latestVersion)
+                    : Boolean(expected))
+                )
                   mutation.mutate({
                     action: confirmation,
-                    installedVersion: expected,
+                    installedVersion: expected ?? null,
                     latestVersion: data?.latestVersion ?? null,
                   });
                 setConfirmation(null);
