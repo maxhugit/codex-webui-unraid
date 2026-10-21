@@ -99,7 +99,8 @@
       "unrs-resolver"
     ],
     "overrides": {
-      "fastify": "5.8.5"
+      "fastify": "5.8.5",
+      "proxy-addr": "2.0.8"
     }
   },
   "packageManager": "pnpm@10.18.3"
