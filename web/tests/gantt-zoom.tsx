@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- Standalone manual browser regression entry point. */
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Willow, type IApi } from '@svar-ui/react-gantt';

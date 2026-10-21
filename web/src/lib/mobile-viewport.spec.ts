@@ -84,11 +84,15 @@ describe('installMobileViewportFixes', () => {
     );
 
     // The iOS keyboard shrinks the visual viewport without resizing the layout.
+    const textarea = document.createElement('textarea');
+    document.body.append(textarea);
+    textarea.focus();
     viewport.height = 500;
     viewport.emit('resize');
     expect(document.documentElement.style.getPropertyValue('--app-vh')).toBe(
       '500px',
     );
+    textarea.remove();
   });
 
   it('anchors the shell to the visual viewport when iOS pans for the keyboard', () => {

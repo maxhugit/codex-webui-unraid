@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs -- SVAR exposes an imperative API whose view state must survive React renders. */
 import { Gantt, type IApi } from '@svar-ui/react-gantt';
 import {
   type ComponentProps,

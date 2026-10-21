@@ -28,6 +28,9 @@ export function DirectoryPickerDialog({
   const { t } = useTranslation();
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   useEffect(() => {
+    // Resetting a dialog-scoped draft when a new open cycle starts is an
+    // intentional synchronization with the controlled `open` prop.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (open) setSelectedPath(null);
   }, [open]);
   return (

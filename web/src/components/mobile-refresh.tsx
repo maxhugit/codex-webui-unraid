@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useDocumentStore } from '@/stores/document-store';
 
 /** Every scrollable ancestor must be at its start, not just the page. */
+// Exported for focused gesture tests; it has no Fast Refresh state.
+// eslint-disable-next-line react-refresh/only-export-components
 export function isAtScrollStart(target: Element): boolean {
   for (let node: Element | null = target; node; node = node.parentElement) {
     if (node.scrollTop > 1) return false;
