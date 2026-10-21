@@ -185,13 +185,16 @@ export class AuthController {
     @Query('returnTo') returnTo: unknown,
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
-  ): Promise<FastifyReply> {
+  ): Promise<void> {
     const start = await this.oidcAuth.start(
       returnTo,
       this.secureCookie(request),
     );
     reply.header('set-cookie', start.cookie);
-    return reply.redirect(start.authorizationUrl);
+    reply
+      .code(HttpStatus.FOUND)
+      .header('location', start.authorizationUrl)
+      .send();
   }
 
   @Public()
@@ -200,7 +203,7 @@ export class AuthController {
     @Query() query: Record<string, unknown>,
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
-  ): Promise<FastifyReply> {
+  ): Promise<void> {
     const secure = this.secureCookie(request);
     try {
       const result = await this.oidcAuth.callback(
@@ -212,7 +215,7 @@ export class AuthController {
         this.localAuth.cookie(result.session, secure),
         this.oidcAuth.clearFlowCookie(secure),
       ]);
-      return reply.redirect(result.returnTo);
+      reply.code(HttpStatus.FOUND).header('location', result.returnTo).send();
     } catch (error) {
       reply.header('set-cookie', this.oidcAuth.clearFlowCookie(secure));
       throw error;
