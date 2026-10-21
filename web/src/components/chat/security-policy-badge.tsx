@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * Security policy selector for the composer, scoped to THIS conversation.
  *
@@ -204,7 +205,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
           variant="ghost"
           size="sm"
           className="h-7 gap-1 rounded-lg px-2 text-xs"
-          title={t('Security policy for this conversation')}
+          title={t('securityPolicyForThisConversation')}
         >
           {policy.isSettling ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -212,9 +213,9 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
             <Icon className="h-3.5 w-3.5" />
           )}
           <span className="hidden sm:inline">
-            {t(sandboxLabel)}
+            {t(translationKey(sandboxLabel))}
             <span className="mx-1 text-muted-foreground">·</span>
-            {t(observedApproval)}
+            {t(translationKey(observedApproval))}
           </span>
         </Button>
       </PopoverTrigger>
@@ -227,12 +228,12 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
             processes keep the authority they were launched with. Saying so is
             the difference between an honest control and the previous one. */}
         <p className="text-xs text-muted-foreground">
-          {t('Applies to this conversation, from the next message.')}
+          {t('appliesToThisConversationFromTheNextMessage')}
         </p>
 
         {policy.unknown && (
           <p className="rounded bg-muted/50 px-2 py-1.5 text-xs text-muted-foreground">
-            {t('Current policy unavailable until the server reports it.')}
+            {t('currentPolicyUnavailableUntilTheServerReportsIt')}
           </p>
         )}
 
@@ -243,9 +244,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
             be read. */}
         {policy.stale && (
           <p className="rounded bg-muted/50 px-2 py-1.5 text-xs text-muted-foreground">
-            {t(
-              'Showing the last known policy — it could not be re-read just now.',
-            )}
+            {t('showingTheLastKnownPolicyItCouldNotBeReReadJustNow')}
           </p>
         )}
 
@@ -259,10 +258,10 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
             <p>
               {policy.outcome === 'unknown'
                 ? t(
-                    'Could not confirm the policy change. Check the current value before sending.',
+                    'couldNotConfirmThePolicyChangeCheckTheCurrentValueBeforeSending',
                   )
                 : t(
-                    'The policy change did not take effect. This conversation is still on the settings shown above.',
+                    'thePolicyChangeDidNotTakeEffectThisConversationIsStillOnTheSettingsShownAbove',
                   )}
             </p>
             <div className="flex gap-2">
@@ -272,7 +271,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
                   className="underline underline-offset-2"
                   onClick={() => policy.pending && policy.apply(policy.pending)}
                 >
-                  {t('Try again')}
+                  {t('tryAgain')}
                 </button>
               )}
               <button
@@ -280,7 +279,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
                 className="underline underline-offset-2"
                 onClick={policy.dismiss}
               >
-                {t('Dismiss')}
+                {t('dismiss')}
               </button>
             </div>
           </div>
@@ -288,7 +287,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
 
         <div className="space-y-1">
           <div className="text-xs font-medium text-muted-foreground">
-            {t('Approval')}
+            {t('approval')}
           </div>
           {APPROVAL_OPTIONS.map((option) => (
             <OptionRow
@@ -305,7 +304,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
 
         <div className="space-y-1 border-t border-border pt-2">
           <div className="text-xs font-medium text-muted-foreground">
-            {t('Sandbox')}
+            {t('sandbox')}
           </div>
           {sandboxOptions(
             threadCwd,
@@ -330,7 +329,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
         </div>
 
         <p className="border-t border-border pt-2 text-xs text-muted-foreground">
-          {t('The default for new conversations lives in Settings.')}
+          {t('theDefaultForNewConversationsLivesInSettings')}
         </p>
       </PopoverContent>
     </Popover>
@@ -383,7 +382,7 @@ function OptionRow({
         disabled && !active && 'opacity-50',
       )}
     >
-      {t(label)}
+      {t(translationKey(label))}
       {active && (
         <Badge
           variant={risky ? 'destructive' : 'secondary'}
@@ -396,7 +395,7 @@ function OptionRow({
           as current is exactly how the old control managed to be wrong. */}
       {!active && requested && (
         <Badge variant="outline" className="text-[10px]">
-          {t('applying…')}
+          {t('applying')}
         </Badge>
       )}
     </button>

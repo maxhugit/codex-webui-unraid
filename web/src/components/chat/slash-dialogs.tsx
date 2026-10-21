@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * Confirmation dialogs for slash commands that need input before they act.
  *
@@ -97,10 +98,10 @@ function GoalDialog({ open, threadId, onClose, onError }: DialogProps) {
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('Set a goal')}</DialogTitle>
+          <DialogTitle>{t('setAGoal')}</DialogTitle>
           <DialogDescription>
             {t(
-              'Codex keeps working toward this objective across turns until it finishes, pauses, or needs input.',
+              'codexKeepsWorkingTowardThisObjectiveAcrossTurnsUntilItFinishesPausesOrNeedsInput',
             )}
           </DialogDescription>
         </DialogHeader>
@@ -109,7 +110,7 @@ function GoalDialog({ open, threadId, onClose, onError }: DialogProps) {
           rows={4}
           value={objective}
           onChange={(e) => setObjective(e.target.value)}
-          placeholder={t('e.g. Keep refactoring until the suite passes')}
+          placeholder={t('eGKeepRefactoringUntilTheSuitePasses')}
         />
         <p
           className={cn(
@@ -121,7 +122,7 @@ function GoalDialog({ open, threadId, onClose, onError }: DialogProps) {
         </p>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            {t('Cancel')}
+            {t('cancel')}
           </Button>
           <Button
             disabled={!trimmed || tooLong || !threadId || setGoal.isPending}
@@ -136,7 +137,7 @@ function GoalDialog({ open, threadId, onClose, onError }: DialogProps) {
             {setGoal.isPending && (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             )}
-            {t('Set goal')}
+            {t('setGoal')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -151,7 +152,11 @@ const REVIEW_KINDS: { kind: ReviewKind; label: string; hint?: string }[] = [
   { kind: 'uncommittedChanges', label: 'Uncommitted changes' },
   { kind: 'baseBranch', label: 'Against a base branch', hint: 'Branch name' },
   { kind: 'commit', label: 'A specific commit', hint: 'Commit SHA' },
-  { kind: 'custom', label: 'Custom instructions', hint: 'What should Codex look for?' },
+  {
+    kind: 'custom',
+    label: 'Custom instructions',
+    hint: 'What should Codex look for?',
+  },
 ];
 
 function ReviewDialog({ open, threadId, onClose, onError }: DialogProps) {
@@ -171,8 +176,7 @@ function ReviewDialog({ open, threadId, onClose, onError }: DialogProps) {
   const selected = REVIEW_KINDS.find((entry) => entry.kind === kind);
   const needsArgument = kind !== 'uncommittedChanges';
   const trimmed = argument.trim();
-  const canSubmit =
-    Boolean(threadId) && (!needsArgument || trimmed.length > 0);
+  const canSubmit = Boolean(threadId) && (!needsArgument || trimmed.length > 0);
 
   const buildTarget = () => {
     switch (kind) {
@@ -191,9 +195,11 @@ function ReviewDialog({ open, threadId, onClose, onError }: DialogProps) {
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('Start a code review')}</DialogTitle>
+          <DialogTitle>{t('startACodeReview')}</DialogTitle>
           <DialogDescription>
-            {t('Codex reviews the checked-out project and reports findings in this thread.')}
+            {t(
+              'codexReviewsTheCheckedOutProjectAndReportsFindingsInThisThread',
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -202,13 +208,16 @@ function ReviewDialog({ open, threadId, onClose, onError }: DialogProps) {
             <button
               key={entry.kind}
               type="button"
-              onClick={() => { setKind(entry.kind); setArgument(''); }}
+              onClick={() => {
+                setKind(entry.kind);
+                setArgument('');
+              }}
               className={cn(
                 'rounded-lg px-3 py-2 text-left text-sm',
                 kind === entry.kind ? 'bg-accent' : 'hover:bg-accent/60',
               )}
             >
-              {t(entry.label)}
+              {t(translationKey(entry.label))}
             </button>
           ))}
         </div>
@@ -218,13 +227,13 @@ function ReviewDialog({ open, threadId, onClose, onError }: DialogProps) {
             autoFocus
             value={argument}
             onChange={(e) => setArgument(e.target.value)}
-            placeholder={t(selected.hint)}
+            placeholder={t(translationKey(selected.hint))}
           />
         )}
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            {t('Cancel')}
+            {t('cancel')}
           </Button>
           <Button
             disabled={!canSubmit || startReview.isPending}
@@ -239,7 +248,7 @@ function ReviewDialog({ open, threadId, onClose, onError }: DialogProps) {
             {startReview.isPending && (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             )}
-            {t('Start review')}
+            {t('startReview')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -268,9 +277,9 @@ function FeedbackDialog({ open, threadId, onClose, onError }: DialogProps) {
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('Send feedback')}</DialogTitle>
+          <DialogTitle>{t('sendFeedback')}</DialogTitle>
           <DialogDescription>
-            {t('Your report goes to the Codex maintainers.')}
+            {t('yourReportGoesToTheCodexMaintainers')}
           </DialogDescription>
         </DialogHeader>
         <Textarea
@@ -278,7 +287,7 @@ function FeedbackDialog({ open, threadId, onClose, onError }: DialogProps) {
           rows={4}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder={t('What happened?')}
+          placeholder={t('whatHappened')}
         />
         {/* Logs can contain file paths and command output, so this stays off
             until the user opts in explicitly. */}
@@ -289,11 +298,11 @@ function FeedbackDialog({ open, threadId, onClose, onError }: DialogProps) {
             onChange={(e) => setIncludeLogs(e.target.checked)}
             className="h-3.5 w-3.5"
           />
-          {t('Attach Codex logs (may include file paths and command output)')}
+          {t('attachCodexLogsMayIncludeFilePathsAndCommandOutput')}
         </label>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            {t('Cancel')}
+            {t('cancel')}
           </Button>
           <Button
             disabled={!trimmed || upload.isPending}
@@ -311,7 +320,7 @@ function FeedbackDialog({ open, threadId, onClose, onError }: DialogProps) {
             {upload.isPending && (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             )}
-            {t('Send')}
+            {t('send')}
           </Button>
         </DialogFooter>
       </DialogContent>

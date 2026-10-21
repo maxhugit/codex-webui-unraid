@@ -18,7 +18,9 @@ import i18n from '@/i18n';
  * surfaces. Only app-server retirement confirms resolution; HTTP success can
  * establish merely that the local decision was submitted.
  */
-export function useRequestResponse(request?: ApprovalRequest | UserInputRequest) {
+export function useRequestResponse(
+  request?: ApprovalRequest | UserInputRequest,
+) {
   const busy = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   /**
@@ -31,28 +33,55 @@ export function useRequestResponse(request?: ApprovalRequest | UserInputRequest)
   ) => {
     if (!request || busy.current || request.status !== 'pending') return;
     if (!request.instanceId) {
-      showSnackbar(i18n.t('Refresh this client before answering this request.'), 'warning');
+      showSnackbar(
+        i18n.t('refreshThisClientBeforeAnsweringThisRequest'),
+        'warning',
+      );
       return;
     }
     const { threadId, requestId, instanceId, generation } = request;
     const runtime = useTimelineStore.getState().getThreadRuntime(threadId);
-    const held = runtime?.approvals[String(requestId)] ?? runtime?.userInputRequests[String(requestId)];
-    if (held && (!samePendingRequest(held, request) || held.status !== 'pending')) return;
+    const held =
+      runtime?.approvals[String(requestId)] ??
+      runtime?.userInputRequests[String(requestId)];
+    if (
+      held &&
+      (!samePendingRequest(held, request) || held.status !== 'pending')
+    )
+      return;
     busy.current = true;
     setSubmitting(true);
     void pendingApprovalsRespond({
-      path: { requestId: String(requestId) }, body: { instanceId, result },
-      throwOnError: true, meta: { silent: true },
-    }).then(({ data }) => {
-      useTimelineStore.getState().resolveApprovalByRequestIdForThread(
-        threadId, requestId, generation ?? undefined, instanceId,
-        data.status === 'submitted' ? 'submitted' : data.status === 'failed' ? 'failed' : 'resolved',
-        settled);
-    }).catch((error: unknown) => {
-      showSnackbar(getApiErrorMessage(error), 'error');
-      // Repair an ambiguous write or a race won by another browser; never retry the decision.
-      void syncPendingApprovals([threadId]);
-    }).finally(() => { busy.current = false; setSubmitting(false); });
+      path: { requestId: String(requestId) },
+      body: { instanceId, result },
+      throwOnError: true,
+      meta: { silent: true },
+    })
+      .then(({ data }) => {
+        useTimelineStore
+          .getState()
+          .resolveApprovalByRequestIdForThread(
+            threadId,
+            requestId,
+            generation ?? undefined,
+            instanceId,
+            data.status === 'submitted'
+              ? 'submitted'
+              : data.status === 'failed'
+                ? 'failed'
+                : 'resolved',
+            settled,
+          );
+      })
+      .catch((error: unknown) => {
+        showSnackbar(getApiErrorMessage(error), 'error');
+        // Repair an ambiguous write or a race won by another browser; never retry the decision.
+        void syncPendingApprovals([threadId]);
+      })
+      .finally(() => {
+        busy.current = false;
+        setSubmitting(false);
+      });
   };
   return { send, submitting };
 }

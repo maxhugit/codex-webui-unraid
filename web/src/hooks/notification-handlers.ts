@@ -175,7 +175,8 @@ const handleError: Handler = (params, ctx) => {
       // declare a running turn finished. An outstanding submission has no turn
       // yet by definition, so a fatal error on this thread is all the evidence
       // it can ever get — leaving it pending disables the composer for good.
-      if (!alreadyTerminal || ctx.getActiveTurnId() === turnId) ctx.setTurnStartPending(false);
+      if (!alreadyTerminal || ctx.getActiveTurnId() === turnId)
+        ctx.setTurnStartPending(false);
       if (turnId && ctx.getActiveTurnId() === turnId) ctx.clearActiveTurn();
     }
   }
@@ -240,10 +241,7 @@ const handleThreadStatusChanged: Handler = (params, ctx) => {
   if (ctx.threadId === threadId) {
     ctx.setThreadStatus(status);
     if (status.type === 'systemError') {
-      ctx.addSystemMessage(
-        i18n.t('Thread encountered a system error'),
-        'error',
-      );
+      ctx.addSystemMessage(i18n.t('threadEncounteredASystemError'), 'error');
     }
   }
 };
@@ -259,14 +257,14 @@ const handleThreadNameUpdated: Handler = (params, ctx) => {
 const handleThreadClosed: Handler = (params, ctx) => {
   const threadId = params.threadId as string | undefined;
   if (ctx.threadId === threadId) {
-    ctx.addSystemMessage(i18n.t('Thread closed'), 'info');
+    ctx.addSystemMessage(i18n.t('threadClosed'), 'info');
   }
 };
 
 const handleThreadArchived: Handler = (params, ctx) => {
   const threadId = params.threadId as string | undefined;
   if (ctx.threadId === threadId) {
-    ctx.addSystemMessage(i18n.t('Thread archived'), 'warning');
+    ctx.addSystemMessage(i18n.t('threadArchived'), 'warning');
   }
 };
 
@@ -300,7 +298,7 @@ const handleThreadDeleted: Handler = (params, ctx) => {
     // same step rather than left accepting messages that can only fail.
     ctx.markThreadDeletedRemotely(
       threadId,
-      i18n.t('This conversation was deleted'),
+      i18n.t('thisConversationWasDeleted'),
     );
   } else {
     ctx.forgetThreads([threadId]);
@@ -333,7 +331,7 @@ const handleTurnStarted: Handler = (params, ctx) => {
 const handleThreadCompacted: Handler = (params, ctx) => {
   const threadId = params.threadId as string | undefined;
   if (ctx.threadId === threadId) {
-    ctx.addSystemMessage(i18n.t('Context compacted'), 'info');
+    ctx.addSystemMessage(i18n.t('contextCompacted'), 'info');
   }
 };
 
@@ -341,7 +339,7 @@ const handleModelRerouted: Handler = (params, ctx) => {
   const threadId = params.threadId as string | undefined;
   const fromModel = params.fromModel as string;
   const toModel = params.toModel as string;
-  const message = i18n.t('Model rerouted: {{from}} → {{to}}', {
+  const message = i18n.t('modelReroutedFromTo', {
     from: fromModel,
     to: toModel,
   });
@@ -367,7 +365,7 @@ const handleAccountLoginCompleted: Handler = (params, ctx) => {
   useAccountStore.getState().setLoginCompleted(payload);
   invalidateAccountQueries(ctx.queryClient);
   if (payload.success) {
-    showSnackbar(i18n.t('ChatGPT login completed'), 'success');
+    showSnackbar(i18n.t('chatGptLoginCompleted'), 'success');
   } else if (payload.error) {
     showSnackbar(payload.error, 'error', 5000);
   }
@@ -401,13 +399,10 @@ const handleMcpOauthLoginCompleted: Handler = (params, ctx) => {
   const name = typeof params.name === 'string' ? params.name : 'MCP server';
   const success = params.success === true;
   if (success) {
-    showSnackbar(i18n.t('{{name}} login completed', { name }), 'success');
+    showSnackbar(i18n.t('nameLoginCompleted', { name }), 'success');
   } else {
     const error = typeof params.error === 'string' ? params.error : '';
-    showSnackbar(
-      i18n.t('{{name}} login failed: {{error}}', { name, error }),
-      'error',
-    );
+    showSnackbar(i18n.t('nameLoginFailedError', { name, error }), 'error');
   }
 };
 

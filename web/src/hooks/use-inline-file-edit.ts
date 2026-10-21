@@ -52,7 +52,7 @@ export function useInlineFileEdit(onCreated?: (path: string) => void) {
       setEdit(current.current);
     };
     if (!name || name === '.' || name === '..' || /[/\\\0]/.test(name)) {
-      settle({ error: i18n.t('Enter a name without path separators.') });
+      settle({ error: i18n.t('enterANameWithoutPathSeparators') });
       return;
     }
     settle({ pending: true, error: null });

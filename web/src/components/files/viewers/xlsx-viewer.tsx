@@ -18,7 +18,11 @@ export function XlsxViewer({ source }: Props) {
   const { t } = useTranslation();
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
 
-  const { data: workbook, error, isLoading } = useQuery({
+  const {
+    data: workbook,
+    error,
+    isLoading,
+  } = useQuery({
     queryKey: ['preview-xlsx', source],
     queryFn: async () => {
       const { buffer } = await fetchPreviewBytes(source);
@@ -45,30 +49,45 @@ export function XlsxViewer({ source }: Props) {
     return data.slice(0, MAX_ROWS).map((row) => row.slice(0, MAX_COLS));
   }, [workbook, sheetName]);
 
-  if (error) return <XlsxMessage message={t('Failed to load spreadsheet')} />;
+  if (error) return <XlsxMessage message={t('failedToLoadSpreadsheet')} />;
   if (isLoading || !workbook || !sheetName) {
-    return <XlsxMessage icon={<Loader2 className="h-4 w-4 animate-spin" />} message={t('Loading...')} />;
+    return (
+      <XlsxMessage
+        icon={<Loader2 className="h-4 w-4 animate-spin" />}
+        message={t('loadingb04ba49f')}
+      />
+    );
   }
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-2 py-1">
         {workbook.SheetNames.map((name) => (
-          <Button key={name} size="sm" variant={name === sheetName ? 'default' : 'ghost'} className="h-7" onClick={() => setActiveSheet(name)}>
+          <Button
+            key={name}
+            size="sm"
+            variant={name === sheetName ? 'default' : 'ghost'}
+            className="h-7"
+            onClick={() => setActiveSheet(name)}
+          >
             {name}
           </Button>
         ))}
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {rows.length === 0 ? (
-          <div className="text-sm text-muted-foreground">{t('Empty sheet')}</div>
+          <div className="text-sm text-muted-foreground">{t('emptySheet')}</div>
         ) : (
           <table className="border-collapse text-xs">
             <tbody>
               {rows.map((row, rowIndex) => (
                 <tr key={rowIndex}>
                   {row.map((cell, columnIndex) => (
-                    <td key={columnIndex} className="max-w-80 truncate border border-border px-2 py-1" title={String(cell)}>
+                    <td
+                      key={columnIndex}
+                      className="max-w-80 truncate border border-border px-2 py-1"
+                      title={String(cell)}
+                    >
                       {String(cell)}
                     </td>
                   ))}
@@ -78,14 +97,23 @@ export function XlsxViewer({ source }: Props) {
           </table>
         )}
         <div className="mt-2 text-xs text-muted-foreground">
-          {t('Preview limited to {{rows}} rows and {{cols}} columns', { rows: MAX_ROWS, cols: MAX_COLS })}
+          {t('previewLimitedToRowsRowsAndColsColumns', {
+            rows: MAX_ROWS,
+            cols: MAX_COLS,
+          })}
         </div>
       </div>
     </div>
   );
 }
 
-function XlsxMessage({ icon, message }: { icon?: React.ReactNode; message: string }) {
+function XlsxMessage({
+  icon,
+  message,
+}: {
+  icon?: React.ReactNode;
+  message: string;
+}) {
   return (
     <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
       {icon ?? <FileSpreadsheet className="h-5 w-5 opacity-50" />}

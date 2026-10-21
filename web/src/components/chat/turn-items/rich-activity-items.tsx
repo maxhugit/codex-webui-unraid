@@ -49,10 +49,10 @@ export function SubAgentActivityItem({
 }) {
   const { t } = useTranslation();
   const labels = {
-    started: t('Sub-agent started'),
-    interacted: t('Sub-agent interacted'),
-    interrupted: t('Sub-agent interrupted'),
-    completed: t('Sub-agent completed'),
+    started: t('subAgentStarted'),
+    interacted: t('subAgentInteracted'),
+    interrupted: t('subAgentInterrupted'),
+    completed: t('subAgentCompleted'),
   } as const;
   const identity = item.agentPath || item.agentThreadId;
   return (
@@ -91,25 +91,35 @@ export function WebSearchItem({
     <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
       <div className="flex items-center gap-1.5">
         <Search className="h-3.5 w-3.5" />
-        <span className="font-medium">{t('Web search')}</span>
+        <span className="font-medium">{t('webSearch381ceddd')}</span>
         {!item.completed && <Loader2 className="h-3 w-3 animate-spin" />}
         {item.resultCount !== null && (
           <span className="ml-auto">
-            {t('{{count}} results', { count: item.resultCount })}
+            {t('countResults', { count: item.resultCount })}
           </span>
         )}
       </div>
       <p className="mt-1 whitespace-pre-wrap text-foreground/80 wrap-break-word">
         {item.query}
       </p>
-      {action && <p className="mt-1 font-mono text-[10px] wrap-break-word">{action}</p>}
+      {action && (
+        <p className="mt-1 font-mono text-[10px] wrap-break-word">{action}</p>
+      )}
       {item.resultPreviews.length > 0 && (
         <div className="mt-2 space-y-1.5 border-t border-border/30 pt-2">
           {item.resultPreviews.map((result, index) => (
             <div key={`${result.url ?? result.title ?? 'result'}:${index}`}>
-              {result.title && <p className="font-medium text-foreground/80">{result.title}</p>}
-              {result.url && <p className="font-mono text-[10px] wrap-break-word">{result.url}</p>}
-              {result.snippet && <p className="mt-0.5 line-clamp-3">{result.snippet}</p>}
+              {result.title && (
+                <p className="font-medium text-foreground/80">{result.title}</p>
+              )}
+              {result.url && (
+                <p className="font-mono text-[10px] wrap-break-word">
+                  {result.url}
+                </p>
+              )}
+              {result.snippet && (
+                <p className="mt-0.5 line-clamp-3">{result.snippet}</p>
+              )}
             </div>
           ))}
         </div>
@@ -127,7 +137,7 @@ export function ImageViewItem({
   const { t } = useTranslation();
   return (
     <ActivityMarker icon={Eye} completed={item.completed}>
-      {t('Viewed image')}
+      {t('viewedImage')}
       {item.path && ` · ${item.path}`}
     </ActivityMarker>
   );
@@ -140,12 +150,13 @@ export function SleepItem({
   item: Extract<TurnItem, { type: 'sleep' }>;
 }) {
   const { t } = useTranslation();
-  const duration = item.durationMs >= 1000
-    ? `${(item.durationMs / 1000).toFixed(1)} s`
-    : `${item.durationMs} ms`;
+  const duration =
+    item.durationMs >= 1000
+      ? `${(item.durationMs / 1000).toFixed(1)} s`
+      : `${item.durationMs} ms`;
   return (
     <ActivityMarker icon={Clock3} completed={item.completed}>
-      {item.completed ? t('Waited') : t('Waiting')}
+      {item.completed ? t('waited') : t('waiting')}
       {` · ${duration}`}
     </ActivityMarker>
   );
@@ -162,7 +173,7 @@ export function ImageGenerationItem({
     <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/30 text-xs text-muted-foreground">
       <div className="flex items-center gap-1.5 px-3 py-2">
         <Sparkles className="h-3.5 w-3.5" />
-        <span className="font-medium">{t('Image generation')}</span>
+        <span className="font-medium">{t('imageGeneration')}</span>
         <span className="ml-auto">{item.status}</span>
         {!item.completed && <Loader2 className="h-3 w-3 animate-spin" />}
       </div>
@@ -175,24 +186,26 @@ export function ImageGenerationItem({
         {item.previewUrl && (
           <img
             src={item.previewUrl}
-            alt={item.revisedPrompt ?? t('Generated image')}
+            alt={item.revisedPrompt ?? t('generatedImage')}
             className="max-h-96 rounded-md object-contain"
           />
         )}
         {item.hasUnpreviewableResult && (
           <p className="flex items-center gap-1.5">
             <ImageIcon className="h-3.5 w-3.5" />
-            {t('Generated image cannot be previewed safely.')}
+            {t('generatedImageCannotBePreviewedSafely')}
           </p>
         )}
         {item.savedPath && (
-          <p className="font-mono text-[10px] wrap-break-word">{item.savedPath}</p>
+          <p className="font-mono text-[10px] wrap-break-word">
+            {item.savedPath}
+          </p>
         )}
         {item.transparentBackground !== null && (
           <p>
             {item.transparentBackground
-              ? t('Transparent background')
-              : t('Opaque background')}
+              ? t('transparentBackground')
+              : t('opaqueBackground')}
           </p>
         )}
         {item.failure && (
@@ -215,7 +228,7 @@ export function UnknownActivityItem({
   const { t } = useTranslation();
   return (
     <ActivityMarker icon={ImageIcon} completed={item.completed}>
-      {t('Unsupported activity')}: {item.protocolType}
+      {t('unsupportedActivity')}: {item.protocolType}
     </ActivityMarker>
   );
 }

@@ -40,7 +40,9 @@ const COLLAPSE_THRESHOLD = 200;
 
 export function CommandItem({ item, approvals = [] }: Props) {
   const { t } = useTranslation();
-  const fullCommand = item.command ? stripShellWrapper(item.command) : undefined;
+  const fullCommand = item.command
+    ? stripShellWrapper(item.command)
+    : undefined;
   const isLong = (fullCommand?.length ?? 0) > COLLAPSE_THRESHOLD;
   const [expanded, setExpanded] = useState(!isLong);
 
@@ -63,13 +65,17 @@ export function CommandItem({ item, approvals = [] }: Props) {
     >
       <div className="flex items-center gap-1.5 border-b border-border/50 px-3 py-1.5 text-xs text-muted-foreground">
         <Terminal className="h-3 w-3" />
-        <span>{t('Terminal')}</span>
+        <span>{t('terminal')}</span>
         <span className="ml-auto flex items-center gap-2">
           {approvals.length > 0 && (
             <ApprovalStatusBadge approval={pending[0] ?? approvals[0]} />
           )}
           {item.exitCode !== undefined && item.completed && (
-            <span className={item.exitCode === 0 ? 'text-green-400' : 'text-red-400'}>
+            <span
+              className={
+                item.exitCode === 0 ? 'text-green-400' : 'text-red-400'
+              }
+            >
               {t('exit')} {item.exitCode}
             </span>
           )}
@@ -93,7 +99,9 @@ export function CommandItem({ item, approvals = [] }: Props) {
               <span className="min-w-0 flex-1">
                 <span className="mr-1.5 text-green-400">$</span>
                 {expanded ? (
-                  <span className="whitespace-pre-wrap break-all">{fullCommand}</span>
+                  <span className="whitespace-pre-wrap break-all">
+                    {fullCommand}
+                  </span>
                 ) : (
                   <span className="break-all">
                     {previewLine}
@@ -105,7 +113,11 @@ export function CommandItem({ item, approvals = [] }: Props) {
           ) : (
             <>
               <span className="mr-1.5 text-green-400">$</span>
-              <span className={forceExpanded ? 'whitespace-pre-wrap break-all' : 'break-all'}>
+              <span
+                className={
+                  forceExpanded ? 'whitespace-pre-wrap break-all' : 'break-all'
+                }
+              >
                 {fullCommand}
               </span>
             </>
@@ -120,7 +132,11 @@ export function CommandItem({ item, approvals = [] }: Props) {
       )}
 
       {approvals.map((approval) => (
-        <AttachedApproval key={pendingRequestKey(approval)} approval={approval} hostCommand={item.command} />
+        <AttachedApproval
+          key={pendingRequestKey(approval)}
+          approval={approval}
+          hostCommand={item.command}
+        />
       ))}
     </div>
   );
@@ -160,8 +176,8 @@ function AttachedApproval({
         <div className="space-y-1">
           <div className="text-xs text-muted-foreground">
             {approval.kind === 'writeStdin'
-              ? t('Input to send to this terminal:')
-              : t('Awaiting approval for:')}
+              ? t('inputToSendToThisTerminal')
+              : t('awaitingApprovalFor')}
           </div>
           <pre className="m-0 overflow-x-auto rounded bg-muted/60 px-2 py-1.5 font-mono text-xs whitespace-pre-wrap break-all">
             {approval.command}
@@ -169,9 +185,7 @@ function AttachedApproval({
         </div>
       )}
 
-      {approval.networkContext && (
-        <NetworkSubject approval={approval} />
-      )}
+      {approval.networkContext && <NetworkSubject approval={approval} />}
 
       <ApprovalDetails approval={approval} />
       <ApprovalControls approval={approval} />
@@ -186,7 +200,7 @@ export function NetworkSubject({ approval }: { approval: ApprovalRequest }) {
   return (
     <div className="space-y-1">
       <div className="text-xs text-muted-foreground">
-        {t('Requesting network access to:')}
+        {t('requestingNetworkAccessTo')}
       </div>
       <code className="block rounded bg-muted/60 px-2 py-1.5 font-mono text-xs break-all">
         {approval.networkContext.protocol}://{approval.networkContext.host}

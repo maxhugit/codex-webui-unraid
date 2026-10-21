@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** Reusable editor for a single runtime setting with Save/Reset actions. */
 import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -38,17 +39,17 @@ export function SettingEditor({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-medium">
-              {t(settingLabel(setting.key))}
+              {t(translationKey(settingLabel(setting.key)))}
             </h3>
             <Badge variant={sourceVariant(setting.source)}>
-              {t(sourceLabel(setting.source))}
+              {t(translationKey(sourceLabel(setting.source)))}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            {t(setting.description)}
+            {t(translationKey(setting.description))}
           </p>
           <p className="text-xs text-muted-foreground">
-            {t('Default')}: {formatSettingValue(setting.defaultValue)}
+            {t('default')}: {formatSettingValue(setting.defaultValue)}
           </p>
         </div>
       </div>
@@ -81,7 +82,7 @@ export function SettingEditor({
             disabled={disabled}
             onClick={() => onSave(setting)}
           >
-            {t('Save')}
+            {t('save')}
           </Button>
         )}
         <Button
@@ -92,7 +93,7 @@ export function SettingEditor({
           onClick={() => onReset(setting.key)}
         >
           <RotateCcw className="h-3.5 w-3.5" />
-          {t('Reset')}
+          {t('reset')}
         </Button>
       </div>
     </div>

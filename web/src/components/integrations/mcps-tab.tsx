@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * MCPs tab: full MCP server list with status, auth, reload, and OAuth login.
  */
@@ -16,9 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  mcpServersListServersQueryKey,
-} from '@/generated/api/@tanstack/react-query.gen';
+import { mcpServersListServersQueryKey } from '@/generated/api/@tanstack/react-query.gen';
 import {
   mcpServersListServers,
   mcpServersReloadAll,
@@ -51,8 +50,10 @@ export function McpsTab() {
   const reloadMutation = useMutation({
     mutationFn: () => mcpServersReloadAll({ throwOnError: true }),
     onSuccess: () => {
-      showSnackbar(t('MCP servers reloading'), 'success');
-      void queryClient.invalidateQueries({ queryKey: mcpServersListServersQueryKey() });
+      showSnackbar(t('mcpServersReloading'), 'success');
+      void queryClient.invalidateQueries({
+        queryKey: mcpServersListServersQueryKey(),
+      });
     },
     onError: (err) => showSnackbar(getApiErrorMessage(err), 'error'),
   });
@@ -76,7 +77,7 @@ export function McpsTab() {
   if (serversQuery.isError) {
     return (
       <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-        {t('Failed to load MCP servers')}
+        {t('failedToLoadMcpServers')}
       </div>
     );
   }
@@ -86,7 +87,7 @@ export function McpsTab() {
       {/* Header with reload */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {t('{{ready}}/{{total}} ready', {
+          {t('readyTotalReady', {
             ready: rows.filter((r) => r.status === 'ready').length,
             total: rows.length,
           })}
@@ -103,14 +104,14 @@ export function McpsTab() {
           ) : (
             <RefreshCw className="h-3.5 w-3.5" />
           )}
-          {t('Reload All')}
+          {t('reloadAll')}
         </Button>
       </div>
 
       {/* Server list */}
       {rows.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          {t('No MCP servers reported')}
+          {t('noMcpServersReported')}
         </p>
       ) : (
         <div className="space-y-2">
@@ -142,9 +143,11 @@ function McpServerRow({ row }: { row: McpRow }) {
   const [blockedAuthUrl, setBlockedAuthUrl] = useState<string | null>(null);
 
   const StatusIcon =
-    row.status === 'failed' ? AlertCircle :
-    row.status === 'starting' ? Loader2 :
-    CheckCircle2;
+    row.status === 'failed'
+      ? AlertCircle
+      : row.status === 'starting'
+        ? Loader2
+        : CheckCircle2;
 
   const needsLogin = row.authStatus === 'notLoggedIn';
 
@@ -186,7 +189,7 @@ function McpServerRow({ row }: { row: McpRow }) {
         // outright, leaving Login as the only recourse and failing the same
         // way again. A link the user activates needs no clipboard at all.
         setBlockedAuthUrl(data.authorizationUrl);
-        showSnackbar(t('Popup blocked. Use the authorization link below.'), 'warning');
+        showSnackbar(t('popupBlockedUseTheAuthorizationLinkBelow'), 'warning');
       }
     } catch (err) {
       loginTab?.close();
@@ -201,9 +204,9 @@ function McpServerRow({ row }: { row: McpRow }) {
     if (!blockedAuthUrl) return;
     try {
       await copyTextToClipboard(blockedAuthUrl);
-      showSnackbar(t('Copied!'), 'success');
+      showSnackbar(t('copied'), 'success');
     } catch {
-      showSnackbar(t('Copy failed'), 'error');
+      showSnackbar(t('copyFailed'), 'error');
     }
   };
 
@@ -218,16 +221,29 @@ function McpServerRow({ row }: { row: McpRow }) {
             row.status === 'starting' && 'animate-spin text-blue-500',
           )}
         />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.name}</span>
-        <Badge variant={row.status === 'failed' ? 'destructive' : 'secondary'} className="text-[10px]">
-          {t(row.status)}
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+          {row.name}
+        </span>
+        <Badge
+          variant={row.status === 'failed' ? 'destructive' : 'secondary'}
+          className="text-[10px]"
+        >
+          {t(translationKey(row.status))}
         </Badge>
       </div>
 
       {/* Details row */}
       <div className="mt-1.5 flex items-center gap-3 pl-6 text-xs text-muted-foreground">
-        {row.authStatus && <span>{t('auth')}: {t(row.authStatus)}</span>}
-        {row.toolCount !== undefined && <span>{t('tools')}: {row.toolCount}</span>}
+        {row.authStatus && (
+          <span>
+            {t('auth')}: {t(translationKey(row.authStatus))}
+          </span>
+        )}
+        {row.toolCount !== undefined && (
+          <span>
+            {t('tools0284c6ac')}: {row.toolCount}
+          </span>
+        )}
       </div>
 
       {/* Error */}
@@ -245,21 +261,34 @@ function McpServerRow({ row }: { row: McpRow }) {
             disabled={loggingIn}
             onClick={handleOauthLogin}
           >
-            {loggingIn ? <Loader2 className="h-3 w-3 animate-spin" /> : <LogIn className="h-3 w-3" />}
-            {t('Login')}
+            {loggingIn ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <LogIn className="h-3 w-3" />
+            )}
+            {t('login')}
           </Button>
 
           {blockedAuthUrl && (
             <div className="mt-2 space-y-1.5 rounded-md border border-border/50 bg-muted/40 p-2">
               <p className="text-xs text-muted-foreground">
-                {t('Your browser blocked the login tab. Open the authorization page yourself:')}
+                {t(
+                  'yourBrowserBlockedTheLoginTabOpenTheAuthorizationPageYourself',
+                )}
               </p>
-              <p className="break-all font-mono text-[11px] text-foreground">{blockedAuthUrl}</p>
+              <p className="break-all font-mono text-[11px] text-foreground">
+                {blockedAuthUrl}
+              </p>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 gap-1 text-xs"
+                  asChild
+                >
                   <a href={blockedAuthUrl} target="_blank" rel="noreferrer">
                     <ExternalLink className="h-3 w-3" />
-                    {t('Open authorization page')}
+                    {t('openAuthorizationPage')}
                   </a>
                 </Button>
                 <Button
@@ -269,7 +298,7 @@ function McpServerRow({ row }: { row: McpRow }) {
                   onClick={() => void handleCopyAuthUrl()}
                 >
                   <Copy className="h-3 w-3" />
-                  {t('Copy link')}
+                  {t('copyLink')}
                 </Button>
               </div>
             </div>

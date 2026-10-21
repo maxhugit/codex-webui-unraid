@@ -37,17 +37,17 @@ function buildAnswers(
   return Object.fromEntries(
     questions.map((q) => {
       const d = draft[q.id] ?? { selected: [], text: '' };
-      const values = [
-        ...d.selected,
-        ...(d.text.trim() ? [d.text.trim()] : []),
-      ];
+      const values = [...d.selected, ...(d.text.trim() ? [d.text.trim()] : [])];
       return [q.id, { answers: values }];
     }),
   );
 }
 
 /** Every question must have at least one answer. */
-function isComplete(questions: UserInputQuestion[], draft: DraftState): boolean {
+function isComplete(
+  questions: UserInputQuestion[],
+  draft: DraftState,
+): boolean {
   return questions.every((q) => {
     const d = draft[q.id];
     if (!d) return false;
@@ -58,19 +58,25 @@ function isComplete(questions: UserInputQuestion[], draft: DraftState): boolean 
 export function UserInputCard({ request }: Props) {
   const { t } = useTranslation();
   const { send, submitting } = useRequestResponse(request);
-  const [draft, setDraft] = useState<DraftState>(() => createDraft(request.questions));
+  const [draft, setDraft] = useState<DraftState>(() =>
+    createDraft(request.questions),
+  );
 
   const isPending = request.status === 'pending';
   const answers = useMemo(
     () => buildAnswers(request.questions, draft),
     [draft, request.questions],
   );
-  const canSubmit = isPending && isComplete(request.questions, draft) && !submitting;
+  const canSubmit =
+    isPending && isComplete(request.questions, draft) && !submitting;
 
   const setSingle = (qId: string, value: string) => {
     setDraft((prev) => ({
       ...prev,
-      [qId]: { ...(prev[qId] ?? { selected: [], text: '' }), selected: [value] },
+      [qId]: {
+        ...(prev[qId] ?? { selected: [], text: '' }),
+        selected: [value],
+      },
     }));
   };
 
@@ -112,10 +118,17 @@ export function UserInputCard({ request }: Props) {
             isPending ? 'text-blue-500' : 'text-muted-foreground',
           )}
         />
-        <span className="font-medium">{t('Input Requested')}</span>
+        <span className="font-medium">{t('inputRequested')}</span>
         {!isPending && (
           <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
-            <CheckCircle className="h-3 w-3" /> {t(request.status === 'submitted' ? 'Decision submitted' : request.status === 'failed' ? 'Delivery unconfirmed' : 'Resolved')}
+            <CheckCircle className="h-3 w-3" />{' '}
+            {t(
+              request.status === 'submitted'
+                ? 'decisionSubmitted'
+                : request.status === 'failed'
+                  ? 'deliveryUnconfirmed'
+                  : 'resolved',
+            )}
           </span>
         )}
       </div>
@@ -132,7 +145,9 @@ export function UserInputCard({ request }: Props) {
             <div key={question.id} className="space-y-2">
               <div>
                 <div className="text-xs font-medium">{question.header}</div>
-                <div className="text-xs text-muted-foreground">{question.question}</div>
+                <div className="text-xs text-muted-foreground">
+                  {question.question}
+                </div>
               </div>
 
               {options.length > 0 && (
@@ -172,7 +187,9 @@ export function UserInputCard({ request }: Props) {
                   type={question.isSecret ? 'password' : 'text'}
                   value={d.text}
                   disabled={!isPending || submitting}
-                  placeholder={question.isOther ? t('Other answer') : t('Answer')}
+                  placeholder={
+                    question.isOther ? t('otherAnswer') : t('answer')
+                  }
                   onChange={(e) => setText(question.id, e.target.value)}
                 />
               )}
@@ -184,7 +201,7 @@ export function UserInputCard({ request }: Props) {
           <div className="flex justify-end pt-1">
             <Button size="sm" disabled={!canSubmit} onClick={handleSubmit}>
               {submitting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-              {t('Submit')}
+              {t('submit')}
             </Button>
           </div>
         )}

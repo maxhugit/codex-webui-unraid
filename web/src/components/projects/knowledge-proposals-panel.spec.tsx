@@ -12,7 +12,10 @@ import { KnowledgeProposalsPanel } from './knowledge-proposals-panel';
 const api = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/projects-api', () => ({ projectsApi: api }));
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({
+    t: globalThis.__testTranslate,
+    i18n: { language: 'en' },
+  }),
 }));
 const onApplied = vi.fn();
 let proposal: {

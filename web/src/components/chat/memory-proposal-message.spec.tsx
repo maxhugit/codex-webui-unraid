@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { MemoryProposalMessage } from './memory-proposal-message';
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: globalThis.__testTranslate }),
 }));
 afterEach(cleanup);
 it('renders a human-readable suggestion instead of the transport JSON', () => {

@@ -102,7 +102,7 @@ export function AppDetailSheet({ app, onClose }: AppDetailSheetProps) {
       void queryClient.invalidateQueries({
         predicate: (query) => queryHasId(query, 'appsReadApps'),
       });
-      showSnackbar(t('Config saved'), 'success');
+      showSnackbar(t('configSaved'), 'success');
     },
     onError: (error) => showSnackbar(getApiErrorMessage(error), 'error'),
   });
@@ -127,7 +127,9 @@ export function AppDetailSheet({ app, onClose }: AppDetailSheetProps) {
     <Sheet open={app !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full sm:max-w-2xl">
         <SheetHeader>
-          <SheetTitle>{metadata?.name ?? app?.name ?? t('App Detail')}</SheetTitle>
+          <SheetTitle>
+            {metadata?.name ?? app?.name ?? t('appDetail')}
+          </SheetTitle>
           <SheetDescription>
             {metadata?.description ?? app?.description ?? app?.id ?? ''}
           </SheetDescription>
@@ -146,19 +148,19 @@ export function AppDetailSheet({ app, onClose }: AppDetailSheetProps) {
 
               {missing && (
                 <WarningBanner
-                  message={t('App metadata is unavailable for this account.')}
+                  message={t('appMetadataIsUnavailableForThisAccount')}
                 />
               )}
               {detailQuery.isError && (
-                <WarningBanner message={t('Failed to load app metadata.')} />
+                <WarningBanner message={t('failedToLoadAppMetadata')} />
               )}
               {configQuery.isError && (
-                <WarningBanner message={t('Failed to load Codex config.')} />
+                <WarningBanner message={t('failedToLoadCodexConfigb48ffe49')} />
               )}
               {!idEditable && (
                 <WarningBanner
                   message={t(
-                    'This app id cannot be edited through the curated config path.',
+                    'thisAppIdCannotBeEditedThroughTheCuratedConfigPath',
                   )}
                 />
               )}
@@ -223,24 +225,33 @@ function AppPolicyControls({
 }: AppPolicyControlsProps) {
   const { t } = useTranslation();
   const appBase = `apps.${app.id}`;
-  const enabled = resolveBoolean(config, origins, [
-    `${appBase}.enabled`,
-    'apps._default.enabled',
-  ], app.isEnabled);
+  const enabled = resolveBoolean(
+    config,
+    origins,
+    [`${appBase}.enabled`, 'apps._default.enabled'],
+    app.isEnabled,
+  );
   // Built-in defaults are `true` for both: the app-server fills them in that way
   // when `[apps._default]` omits them. Falling back to `false` would show these
   // tools as blocked while the server actually permits them.
-  const destructive = resolveBoolean(config, origins, [
-    `${appBase}.destructive_enabled`,
-    'apps._default.destructive_enabled',
-  ], true);
-  const openWorld = resolveBoolean(config, origins, [
-    `${appBase}.open_world_enabled`,
-    'apps._default.open_world_enabled',
-  ], true);
-  const defaultToolsEnabled = resolveBoolean(config, origins, [
-    `${appBase}.default_tools_enabled`,
-  ], true);
+  const destructive = resolveBoolean(
+    config,
+    origins,
+    [`${appBase}.destructive_enabled`, 'apps._default.destructive_enabled'],
+    true,
+  );
+  const openWorld = resolveBoolean(
+    config,
+    origins,
+    [`${appBase}.open_world_enabled`, 'apps._default.open_world_enabled'],
+    true,
+  );
+  const defaultToolsEnabled = resolveBoolean(
+    config,
+    origins,
+    [`${appBase}.default_tools_enabled`],
+    true,
+  );
   const defaultToolApproval = resolveApprovalMode(config, origins, [
     `${appBase}.default_tools_approval_mode`,
     'apps._default.default_tools_approval_mode',
@@ -252,10 +263,10 @@ function AppPolicyControls({
   ]);
 
   return (
-    <PolicySection title={t('App Settings')}>
+    <PolicySection title={t('appSettings')}>
       <ConfigBooleanOverrideControl
-        label={t('App enabled')}
-        description={t('Controls whether this app is available to Codex.')}
+        label={t('appEnabled')}
+        description={t('controlsWhetherThisAppIsAvailableToCodex')}
         effectiveValue={enabled.value}
         source={enabled.source}
         overridden={isUserConfigOrigin(origins, `${appBase}.enabled`)}
@@ -263,38 +274,50 @@ function AppPolicyControls({
         onCommit={(value) => onWrite(`${appBase}.enabled`, value)}
       />
       <ConfigBooleanOverrideControl
-        label={t('Destructive tools')}
-        description={t('Allows app tools that can make destructive changes.')}
+        label={t('destructiveTools')}
+        description={t('allowsAppToolsThatCanMakeDestructiveChanges')}
         effectiveValue={destructive.value}
         source={destructive.source}
-        overridden={isUserConfigOrigin(origins, `${appBase}.destructive_enabled`)}
+        overridden={isUserConfigOrigin(
+          origins,
+          `${appBase}.destructive_enabled`,
+        )}
         saving={saving}
         onCommit={(value) => onWrite(`${appBase}.destructive_enabled`, value)}
       />
       <ConfigBooleanOverrideControl
-        label={t('Open-world tools')}
-        description={t('Allows app tools that can act outside bounded data.')}
+        label={t('openWorldTools')}
+        description={t('allowsAppToolsThatCanActOutsideBoundedData')}
         effectiveValue={openWorld.value}
         source={openWorld.source}
-        overridden={isUserConfigOrigin(origins, `${appBase}.open_world_enabled`)}
+        overridden={isUserConfigOrigin(
+          origins,
+          `${appBase}.open_world_enabled`,
+        )}
         saving={saving}
         onCommit={(value) => onWrite(`${appBase}.open_world_enabled`, value)}
       />
       <ConfigBooleanOverrideControl
-        label={t('Default tool enablement')}
-        description={t('Default enablement for tools without a tool override.')}
+        label={t('defaultToolEnablement')}
+        description={t('defaultEnablementForToolsWithoutAToolOverride')}
         effectiveValue={defaultToolsEnabled.value}
         source={defaultToolsEnabled.source}
-        overridden={isUserConfigOrigin(origins, `${appBase}.default_tools_enabled`)}
+        overridden={isUserConfigOrigin(
+          origins,
+          `${appBase}.default_tools_enabled`,
+        )}
         saving={saving}
         onCommit={(value) => onWrite(`${appBase}.default_tools_enabled`, value)}
       />
       <ConfigSelectOverrideControl
-        label={t('Default tool approval')}
-        description={t('Approval mode for tools without a tool override.')}
+        label={t('defaultToolApproval')}
+        description={t('approvalModeForToolsWithoutAToolOverride')}
         effectiveValue={defaultToolApproval.value}
         source={defaultToolApproval.source}
-        overridden={isUserConfigOrigin(origins, `${appBase}.default_tools_approval_mode`)}
+        overridden={isUserConfigOrigin(
+          origins,
+          `${appBase}.default_tools_approval_mode`,
+        )}
         saving={saving}
         options={approvalModeOptions}
         onCommit={(value) =>
@@ -302,11 +325,14 @@ function AppPolicyControls({
         }
       />
       <ApprovalReviewerControl
-        label={t('App approval reviewer')}
-        description={t('Reviewer used for this app after inheritance is applied.')}
+        label={t('appApprovalReviewer')}
+        description={t('reviewerUsedForThisAppAfterInheritanceIsApplied')}
         effectiveValue={reviewer.value}
         source={reviewer.source}
-        overridden={isUserConfigOrigin(origins, `${appBase}.approvals_reviewer`)}
+        overridden={isUserConfigOrigin(
+          origins,
+          `${appBase}.approvals_reviewer`,
+        )}
         saving={saving}
         options={reviewerOptions}
         onCommit={(value) => onWrite(`${appBase}.approvals_reviewer`, value)}
@@ -344,8 +370,11 @@ function AppIdentity({
         <div className="flex flex-wrap items-center gap-2">
           <code className="text-xs text-muted-foreground">{app.id}</code>
           {!app.isAccessible && (
-            <Badge variant="outline" className="text-[10px] text-muted-foreground">
-              {t('not available')}
+            <Badge
+              variant="outline"
+              className="text-[10px] text-muted-foreground"
+            >
+              {t('notAvailable')}
             </Badge>
           )}
         </div>
@@ -355,10 +384,15 @@ function AppIdentity({
           </p>
         )}
         {installUrl && (
-          <Button asChild size="sm" variant="outline" className="mt-1 h-7 gap-1 text-xs">
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="mt-1 h-7 gap-1 text-xs"
+          >
             <a href={installUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-3 w-3" />
-              {t('Install')}
+              {t('install')}
             </a>
           </Button>
         )}

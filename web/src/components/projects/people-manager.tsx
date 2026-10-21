@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -37,11 +38,11 @@ export function ResponsiblePerson({ id }: { id: string | null | undefined }) {
   return (
     <span
       className="inline-flex max-w-40 items-center gap-1 truncate text-[10px] text-muted-foreground"
-      title={`${t('Responsible person')}: ${person ? personLabel(person) : t('Unknown person')}`}
+      title={`${t('responsiblePerson')}: ${person ? personLabel(person) : t('unknownPerson')}`}
     >
       <UserRound className="h-3 w-3 shrink-0" />
       <span className="truncate">
-        {person ? personLabel(person) : t('Unknown person')}
+        {person ? personLabel(person) : t('unknownPerson')}
       </span>
     </span>
   );
@@ -187,15 +188,15 @@ export function PeopleManager({
         {showHeading && (
           <div>
             <h2 className="font-semibold">
-              {t(projectId ? 'Project participants' : 'People')}
+              {t(projectId ? 'projectParticipants' : 'people')}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {t(
                 projectId
                   ? readOnly
-                    ? 'Active project participants are listed here. Only administrators can change this list.'
-                    : 'Only active participants can receive new assignments. Existing assignments are preserved when someone leaves.'
-                  : 'Create people before they connect. The manual reference uniquely identifies each person.',
+                    ? 'activeProjectParticipantsAreListedHereOnlyAdministratorsCanChangeThisList'
+                    : 'onlyActiveParticipantsCanReceiveNewAssignmentsExistingAssignmentsArePreservedWh08699e16'
+                  : 'createPeopleBeforeTheyConnectTheManualReferenceUniquelyIdentifiesEachPerson',
               )}
             </p>
           </div>
@@ -219,38 +220,38 @@ export function PeopleManager({
             }}
           >
             <Plus className="mr-2 h-4 w-4" />
-            {t('New person')}
+            {t('newPerson')}
           </Button>
         )}
       </div>
       <Input
-        aria-label={t('Search people')}
-        placeholder={t('Search people')}
+        aria-label={t('searchPeople')}
+        placeholder={t('searchPeople')}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
       {(people.isError || participants.isError) && (
         <p role="alert" className="text-sm text-destructive">
-          {t('Unable to load people.')}
+          {t('unableToLoadPeople')}
         </p>
       )}
       {mutation.isError && (
         <p role="alert" className="text-sm text-destructive">
-          {t(mutation.error.message)}
+          {t(translationKey(mutation.error.message))}
         </p>
       )}
       {revokeSessions.isError && (
         <p role="alert" className="text-sm text-destructive">
-          {t('Unable to force sign out.')}
+          {t('unableToForceSignOut')}
         </p>
       )}
-      {people.isPending && <p>{t('Loading…')}</p>}
+      {people.isPending && <p>{t('loading')}</p>}
       {people.data && !rows.length && (
         <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
           {t(
             projectId
-              ? 'No people found. Create people in Settings → People.'
-              : 'No people found.',
+              ? 'noPeopleFoundCreatePeopleInSettingsPeople'
+              : 'noPeopleFound',
           )}
         </p>
       )}
@@ -282,22 +283,22 @@ export function PeopleManager({
                   </span>
                 </div>
                 <p className="break-all text-xs text-muted-foreground">
-                  {!projectId && <>{person.email || t('No email')} · </>}
-                  {t(person.active ? 'Active' : 'Inactive')}
+                  {!projectId && <>{person.email || t('noEmail')} · </>}
+                  {t(person.active ? 'active' : 'inactive')}
                   {!projectId && (
                     <>
                       {' '}
                       ·{' '}
                       {t(
                         person.role === 'administrator'
-                          ? 'Administrator'
-                          : 'Standard user',
+                          ? 'administrator'
+                          : 'standardUser',
                       )}{' '}
                       · {person.phone} ·{' '}
                       {t(
                         person.identityLinked
-                          ? 'Login linked'
-                          : 'Login not linked',
+                          ? 'loginLinked'
+                          : 'loginNotLinked',
                       )}
                     </>
                   )}
@@ -313,15 +314,15 @@ export function PeopleManager({
                       }`}
                     />
                     {account.connected && connectedSince
-                      ? t('Connected since {{date}}', {
+                      ? t('connectedSinceDate', {
                           date: connectedSince,
                         })
-                      : t('Offline')}
+                      : t('offline')}
                   </p>
                 )}
                 {member && (
                   <p className="text-xs text-muted-foreground">
-                    {t('{{count}} assignments, including {{open}} open', {
+                    {t('countAssignmentsIncludingOpenOpen', {
                       count: member.assignmentCount,
                       open: member.openAssignmentCount,
                     })}
@@ -349,7 +350,7 @@ export function PeopleManager({
                   }
                 >
                   {!member && <UserPlus className="mr-1 h-3 w-3" />}
-                  {t(member ? 'Remove participant' : 'Add participant')}
+                  {t(member ? 'removeParticipant' : 'addParticipant')}
                 </Button>
               ) : !projectId ? (
                 <div className="flex flex-wrap items-center gap-2">
@@ -363,7 +364,7 @@ export function PeopleManager({
                         if (
                           window.confirm(
                             t(
-                              'Force sign out {{name}}? All active sessions for this person will be closed.',
+                              'forceSignOutNameAllActiveSessionsForThisPersonWillBeClosed',
                               { name: person.name },
                             ),
                           )
@@ -372,7 +373,7 @@ export function PeopleManager({
                       }}
                     >
                       <LogOut className="mr-1 h-3 w-3" />
-                      {t('Force sign out')}
+                      {t('forceSignOut')}
                     </Button>
                   )}
                   <Button
@@ -398,7 +399,7 @@ export function PeopleManager({
                     }}
                   >
                     <Pencil className="mr-1 h-3 w-3" />
-                    {t('Edit')}
+                    {t('edit')}
                   </Button>
                 </div>
               ) : null}
@@ -417,19 +418,17 @@ export function PeopleManager({
       >
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>
-              {t(editing ? 'Edit person' : 'New person')}
-            </DialogTitle>
+            <DialogTitle>{t(editing ? 'editPerson' : 'newPerson')}</DialogTitle>
             <DialogDescription>
               {t(
-                'The Authentik login uses a stable identifier. Standard users can be linked by email on first connection. Roles are enforced on the server.',
+                'theAuthentikLoginUsesAStableIdentifierStandardUsersCanBeLinkedByEmailOnFirstCon7f7dfee1',
               )}
             </DialogDescription>
           </DialogHeader>
           {form && (
             <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
               <label className="grid gap-1 text-sm">
-                {t('Manual reference')} *
+                {t('manualReference')} *
                 <Input
                   required
                   maxLength={80}
@@ -440,7 +439,7 @@ export function PeopleManager({
                 />
               </label>
               <label className="grid gap-1 text-sm">
-                {t('First name')} *
+                {t('firstName')} *
                 <Input
                   required
                   maxLength={80}
@@ -452,7 +451,7 @@ export function PeopleManager({
                 />
               </label>
               <label className="grid gap-1 text-sm">
-                {t('Last name')} *
+                {t('lastName')} *
                 <Input
                   required
                   maxLength={80}
@@ -464,14 +463,14 @@ export function PeopleManager({
                 />
               </label>
               <label className="grid gap-1 text-sm">
-                {t('Full name')}
+                {t('fullName')}
                 <Input
                   readOnly
                   value={`${form.firstName.trim()} ${form.lastName.trim()}`.trim()}
                 />
               </label>
               <label className="grid gap-1 text-sm">
-                {t('Email')} *
+                {t('email')} *
                 <Input
                   required
                   type="email"
@@ -482,7 +481,7 @@ export function PeopleManager({
                 />
               </label>
               <label className="grid gap-1 text-sm">
-                {t('Phone number')} *
+                {t('phoneNumber')} *
                 <Input
                   required
                   type="tel"
@@ -493,7 +492,7 @@ export function PeopleManager({
                 />
               </label>
               <label className="grid gap-1 text-sm">
-                {t('Platform role')} *
+                {t('platformRole')} *
                 <select
                   className="h-10 rounded-md border bg-background px-3"
                   value={form.role}
@@ -504,13 +503,13 @@ export function PeopleManager({
                     })
                   }
                 >
-                  <option value="standard">{t('Standard user')}</option>
-                  <option value="administrator">{t('Administrator')}</option>
+                  <option value="standard">{t('standardUser')}</option>
+                  <option value="administrator">{t('administrator')}</option>
                 </select>
               </label>
               <p className="text-xs text-muted-foreground sm:col-span-2">
                 {t(
-                  'Standard users can use simple chat and manual tasks. Server settings, agents, automations and terminals require an administrator.',
+                  'standardUsersCanUseSimpleChatAndManualTasksServerSettingsAgentsAutomationsAndTe4c76bab1',
                 )}
               </p>
               {form.role === 'administrator' &&
@@ -518,7 +517,7 @@ export function PeopleManager({
                   ?.identityLinked && (
                   <p className="text-xs text-muted-foreground sm:col-span-2">
                     {t(
-                      'Administrator logins must be explicitly linked using the server provisioning tool. Email matching alone never grants administrator access.',
+                      'administratorLoginsMustBeExplicitlyLinkedUsingTheServerProvisioningToolEmailMatc52914d2',
                     )}
                   </p>
                 )}
@@ -530,11 +529,11 @@ export function PeopleManager({
                     setForm({ ...form, active: e.target.checked })
                   }
                 />
-                {t('Active person')}
+                {t('activePerson')}
               </label>
               <p className="text-xs text-muted-foreground sm:col-span-2">
                 {t(
-                  'Inactive people keep their previous assignments but cannot receive new ones.',
+                  'inactivePeopleKeepTheirPreviousAssignmentsButCannotReceiveNewOnes',
                 )}
               </p>
               {localAccountDraft &&
@@ -554,13 +553,13 @@ export function PeopleManager({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <h3 className="font-medium">
-                            {t('Local account and password')}
+                            {t('localAccountAndPassword')}
                           </h3>
                           <p className="text-xs text-muted-foreground">
                             {t(
                               account.oidcLinked
-                                ? 'This person is linked to SSO. A local password cannot be configured.'
-                                : 'Passwords are hashed with Argon2id and never stored in the configuration file.',
+                                ? 'thisPersonIsLinkedToSsoALocalPasswordCannotBeConfigured'
+                                : 'passwordsAreHashedWithArgon2idAndNeverStoredInTheConfigurationFile',
                             )}
                           </p>
                         </div>
@@ -569,14 +568,14 @@ export function PeopleManager({
                         >
                           {t(
                             account.oidcLinked
-                              ? 'SSO identity linked'
-                              : 'SSO identity not linked',
+                              ? 'ssoIdentityLinked'
+                              : 'ssoIdentityNotLinked',
                           )}
                         </Badge>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="grid gap-1 text-sm">
-                          {t('Username')}
+                          {t('username')}
                           <Input
                             value={localAccountDraft.username}
                             autoComplete="off"
@@ -591,7 +590,7 @@ export function PeopleManager({
                           />
                         </label>
                         <label className="grid gap-1 text-sm">
-                          {t('Password')}
+                          {t('password')}
                           <Input
                             type="password"
                             value={localAccountDraft.password}
@@ -599,8 +598,8 @@ export function PeopleManager({
                             disabled={account.oidcLinked}
                             placeholder={
                               account.passwordConfigured
-                                ? t('New password (leave empty to keep it)')
-                                : t('Password (12 characters minimum)')
+                                ? t('newPasswordLeaveEmptyToKeepIt')
+                                : t('password12CharactersMinimum')
                             }
                             onChange={(event) =>
                               setLocalAccountDraft({
@@ -619,7 +618,7 @@ export function PeopleManager({
                   role="alert"
                   className="text-sm text-destructive sm:col-span-2"
                 >
-                  {t(mutation.error.message)}
+                  {t(translationKey(mutation.error.message))}
                 </p>
               )}
               <DialogFooter className="sm:col-span-2">
@@ -629,10 +628,10 @@ export function PeopleManager({
                   disabled={mutation.isPending}
                   onClick={() => setForm(null)}
                 >
-                  {t('Cancel')}
+                  {t('cancel')}
                 </Button>
                 <Button type="submit" disabled={mutation.isPending}>
-                  {t('Save')}
+                  {t('save')}
                 </Button>
               </DialogFooter>
             </form>
@@ -647,19 +646,19 @@ export function PeopleManager({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('Remove participant')}</DialogTitle>
+            <DialogTitle>{t('removeParticipant')}</DialogTitle>
             <DialogDescription>
               {removing && personLabel(removing.person)}
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">
             {t(
-              'Existing assignments will be kept. This person will no longer be selectable for new work in this project.',
+              'existingAssignmentsWillBeKeptThisPersonWillNoLongerBeSelectableForNewWorkInThisProject',
             )}
           </p>
           {removing && (
             <p className="text-sm font-medium">
-              {t('{{count}} assignments, including {{open}} open', {
+              {t('countAssignmentsIncludingOpenOpen', {
                 count: removing.member.assignmentCount,
                 open: removing.member.openAssignmentCount,
               })}
@@ -667,7 +666,7 @@ export function PeopleManager({
           )}
           {mutation.isError && (
             <p role="alert" className="text-destructive">
-              {t(mutation.error.message)}
+              {t(translationKey(mutation.error.message))}
             </p>
           )}
           <DialogFooter>
@@ -676,7 +675,7 @@ export function PeopleManager({
               onClick={() => setRemoving(null)}
               disabled={mutation.isPending}
             >
-              {t('Cancel')}
+              {t('cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -689,7 +688,7 @@ export function PeopleManager({
                 })
               }
             >
-              {t('Remove participant')}
+              {t('removeParticipant')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -710,14 +709,14 @@ export function ProjectParticipantsDialog({
     <Dialog open={!!projectId} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex max-h-[90dvh] flex-col sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{t('Manage participants')}</DialogTitle>
+          <DialogTitle>{t('manageParticipants')}</DialogTitle>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto">
           {projectId && <PeopleManager projectId={projectId} />}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            {t('Close')}
+            {t('close')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -38,9 +38,7 @@ export function DirectoryPickerDialog({
       {open && (
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {title ?? t('Select workspace directory')}
-            </DialogTitle>
+            <DialogTitle>{title ?? t('selectWorkspaceDirectory')}</DialogTitle>
           </DialogHeader>
           <DirectorySelectionTree
             selectedPath={selectedPath}
@@ -49,7 +47,7 @@ export function DirectoryPickerDialog({
           />
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={onClose}>
-              {t('Cancel')}
+              {t('cancel')}
             </Button>
             <Button
               size="sm"
@@ -61,7 +59,7 @@ export function DirectoryPickerDialog({
                 }
               }}
             >
-              {t('Confirm')}
+              {t('confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>

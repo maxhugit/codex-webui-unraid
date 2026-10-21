@@ -1,9 +1,9 @@
 {
   "defaultLocale": "en",
-  "defaultNamespace": "legacy",
+  "defaultNamespace": "common",
   "locales": [
     { "code": "en", "nativeLabel": "English" },
     { "code": "fr", "nativeLabel": "Français" }
   ],
-  "namespaces": ["authentication", "legacy"]
+  "namespaces": ["authentication", "common"]
 }

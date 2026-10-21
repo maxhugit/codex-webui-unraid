@@ -30,17 +30,25 @@ interface Props {
  * Callers must key this on the pending thread id so each fork starts from an
  * unchecked box; remounting is what resets the opt-in between prompts.
  */
-export function ForkGoalDialog({ prompt, pending, onConfirm, onCancel }: Props) {
+export function ForkGoalDialog({
+  prompt,
+  pending,
+  onConfirm,
+  onCancel,
+}: Props) {
   const { t } = useTranslation();
   const [carryGoal, setCarryGoal] = useState(false);
 
   return (
-    <AlertDialog open={prompt !== null} onOpenChange={(next) => !next && onCancel()}>
+    <AlertDialog
+      open={prompt !== null}
+      onOpenChange={(next) => !next && onCancel()}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('Fork this thread?')}</AlertDialogTitle>
+          <AlertDialogTitle>{t('forkThisThread')}</AlertDialogTitle>
           <AlertDialogDescription>
-            {t('This thread has an active goal:')}
+            {t('thisThreadHasAnActiveGoal')}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -57,18 +65,20 @@ export function ForkGoalDialog({ prompt, pending, onConfirm, onCancel }: Props) 
           />
           <span className="text-muted-foreground">
             {t(
-              'Carry the goal into the fork. Codex defers continuing it until you send the first message there, after which the fork may keep spending tokens on this objective.',
+              'carryTheGoalIntoTheForkCodexDefersContinuingItUntilYouSendTheFirstMessageThereAe6a0fdf7',
             )}
           </span>
         </label>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>{t('Cancel')}</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>
+            {t('cancel')}
+          </AlertDialogCancel>
           <AlertDialogAction
             disabled={pending}
             onClick={() => onConfirm(carryGoal)}
           >
-            {t('Fork')}
+            {t('fork')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import en from './en/legacy.json';
-import fr from './fr/legacy.json';
+import en from './en/common.json';
+import fr from './fr/common.json';
 import {
   loadLocaleNamespace,
   loadLocaleResources,
@@ -26,15 +26,6 @@ const flatten = (
     flatten(child, prefix ? `${prefix}.${key}` : key, output);
   }
   return output;
-};
-
-const englishPluralValues: Record<string, string> = {
-  '{{count}} relation_one': '{{count}} relation',
-  '{{count}} relation_other': '{{count}} relations',
-  '{{count}} column_one': '{{count}} column',
-  '{{count}} column_other': '{{count}} columns',
-  '{{count}} row_one': '{{count}} row',
-  '{{count}} row_other': '{{count}} rows',
 };
 
 describe('translation catalogs', () => {
@@ -64,14 +55,16 @@ describe('translation catalogs', () => {
   });
 
   it('rejects catalogs that are not declared in the manifest', async () => {
-    await expect(loadLocaleNamespace('es', 'legacy')).rejects.toThrow(
+    await expect(loadLocaleNamespace('es', 'common')).rejects.toThrow(
       'Unsupported translation catalog',
     );
   });
 
-  it('uses explicit English source values during the legacy migration', () => {
-    for (const [key, value] of Object.entries(en)) {
-      expect(value, key).toBe(englishPluralValues[key] ?? key);
+  it('uses semantic common keys instead of English source copy', () => {
+    for (const key of Object.keys(en)) {
+      expect(key, key).toMatch(
+        /^[a-z][A-Za-z0-9]*(?:_(?:zero|one|two|few|many|other))?$/,
+      );
     }
   });
 

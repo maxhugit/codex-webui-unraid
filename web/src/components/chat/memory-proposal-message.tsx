@@ -22,7 +22,7 @@ export function MemoryProposalMessage({
   }
   return (
     <aside className="my-3 space-y-2 rounded-lg border bg-muted/30 p-3">
-      <p className="font-medium">{t('Memory suggestion')}</p>
+      <p className="font-medium">{t('memorySuggestion')}</p>
       {proposal &&
       typeof proposal.title === 'string' &&
       typeof proposal.text === 'string' ? (
@@ -36,7 +36,7 @@ export function MemoryProposalMessage({
           <p className="whitespace-pre-wrap text-sm">{proposal.text}</p>
           <p className="text-xs text-muted-foreground">
             {t(
-              'Review this suggestion in the project Knowledge tab. Shared memory is only updated after acceptance.',
+              'reviewThisSuggestionInTheProjectKnowledgeTabSharedMemoryIsOnlyUpdatedAfterAcceptance',
             )}
           </p>
         </>
@@ -44,9 +44,9 @@ export function MemoryProposalMessage({
         <p className="text-sm text-muted-foreground">
           {completed
             ? t(
-                'This memory suggestion could not be read. Ask the conversation to propose it again.',
+                'thisMemorySuggestionCouldNotBeReadAskTheConversationToProposeItAgain',
               )
-            : t('Preparing memory suggestion…')}
+            : t('preparingMemorySuggestion')}
         </p>
       )}
     </aside>

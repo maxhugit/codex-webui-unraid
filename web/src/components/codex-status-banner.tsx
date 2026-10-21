@@ -26,17 +26,17 @@ export function CodexStatusBanner() {
   const Icon = isDegraded ? AlertTriangle : XCircle;
 
   const reasonLabels: Record<string, string> = {
-    appServerUnavailable: t('App server unavailable'),
-    appServerInitializing: t('App server initializing'),
-    accountReadFailed: t('Account check failed'),
-    accountLoginRequired: t('Account login required'),
-    configReadFailed: t('Config check failed'),
-    missingProviderConfig: t('Missing provider config'),
-    missingEnvKey: t('Missing API key env var'),
-    unknownProviderEnvKey: t('Unknown provider env key'),
-    modelListFailed: t('Model list failed'),
-    noModelsAvailable: t('No models available'),
-    statusAggregationFailed: t('Status check failed'),
+    appServerUnavailable: t('appServerUnavailable'),
+    appServerInitializing: t('appServerInitializing'),
+    accountReadFailed: t('accountCheckFailed'),
+    accountLoginRequired: t('accountLoginRequired'),
+    configReadFailed: t('configCheckFailed'),
+    missingProviderConfig: t('missingProviderConfig'),
+    missingEnvKey: t('missingApiKeyEnvVar'),
+    unknownProviderEnvKey: t('unknownProviderEnvKey'),
+    modelListFailed: t('modelListFailed'),
+    noModelsAvailable: t('noModelsAvailable'),
+    statusAggregationFailed: t('statusCheckFailed'),
   };
 
   const reasons = data.runtime.reasons
@@ -60,19 +60,17 @@ export function CodexStatusBanner() {
       <Icon className="h-4 w-4 shrink-0" />
       <span className="flex-1 truncate">
         <span className="font-medium">
-          {isDegraded ? t('Codex Degraded') : t('Codex Unavailable')}
+          {isDegraded ? t('codexDegraded') : t('codexUnavailable')}
         </span>
-        {reasons && (
-          <span className="ml-1.5 opacity-80">— {reasons}</span>
-        )}
+        {reasons && <span className="ml-1.5 opacity-80">— {reasons}</span>}
       </span>
       <Button
         size="icon"
         variant="ghost"
         className="h-6 w-6 shrink-0"
         onClick={handleRefresh}
-        title={t('Refresh')}
-        aria-label={t('Refresh status')}
+        title={t('refresh')}
+        aria-label={t('refreshStatus')}
       >
         <RefreshCw className="h-3.5 w-3.5" />
       </Button>

@@ -63,8 +63,8 @@ export function SimpleChatRow({
         type="button"
         disabled={disabled}
         className="touch-none cursor-grab rounded p-0.5 text-muted-foreground/50 hover:bg-accent/50 hover:text-foreground active:cursor-grabbing disabled:cursor-not-allowed"
-        aria-label={t('Move conversation')}
-        title={t('Move conversation')}
+        aria-label={t('moveConversation')}
+        title={t('moveConversation')}
       >
         <GripVertical className="h-3.5 w-3.5" />
       </button>
@@ -92,7 +92,7 @@ export function SimpleChatRow({
             size="icon"
             variant="ghost"
             className="hover-reveal h-6 w-6 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-            aria-label={`${t('Actions for')} ${thread.title}`}
+            aria-label={`${t('actionsFor')} ${thread.title}`}
           >
             <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
@@ -104,7 +104,7 @@ export function SimpleChatRow({
             onClick={onRename}
           >
             <Pencil className="h-3.5 w-3.5" />
-            {t('Rename')}
+            {t('rename')}
           </Button>
           <Button
             variant="ghost"
@@ -112,7 +112,7 @@ export function SimpleChatRow({
             onClick={onDelete}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            {t('Delete')}
+            {t('delete')}
           </Button>
         </PopoverContent>
       </Popover>

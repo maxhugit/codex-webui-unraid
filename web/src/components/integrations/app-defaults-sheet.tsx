@@ -68,7 +68,7 @@ export function AppDefaultsSheet({ open, onClose }: AppDefaultsSheetProps) {
       void queryClient.invalidateQueries({
         predicate: (query) => queryHasId(query, 'appsReadApps'),
       });
-      showSnackbar(t('Config saved'), 'success');
+      showSnackbar(t('configSaved'), 'success');
     },
     onError: (error) => showSnackbar(getApiErrorMessage(error), 'error'),
   });
@@ -83,7 +83,12 @@ export function AppDefaultsSheet({ open, onClose }: AppDefaultsSheetProps) {
   // but leaves a field unset. All three default to enabled; showing `false` here
   // would tell the user destructive and open-world tools are blocked while the
   // server actually permits them.
-  const enabled = resolveBoolean(config, origins, [`${defaultBase}.enabled`], true);
+  const enabled = resolveBoolean(
+    config,
+    origins,
+    [`${defaultBase}.enabled`],
+    true,
+  );
   const destructive = resolveBoolean(
     config,
     origins,
@@ -114,9 +119,9 @@ export function AppDefaultsSheet({ open, onClose }: AppDefaultsSheetProps) {
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
       <SheetContent className="w-full sm:max-w-lg">
         <SheetHeader>
-          <SheetTitle>{t('App Defaults')}</SheetTitle>
+          <SheetTitle>{t('appDefaults')}</SheetTitle>
           <SheetDescription>
-            {t('Defaults inherited by connected apps without local overrides.')}
+            {t('defaultsInheritedByConnectedAppsWithoutLocalOverrides')}
           </SheetDescription>
         </SheetHeader>
 
@@ -128,21 +133,26 @@ export function AppDefaultsSheet({ open, onClose }: AppDefaultsSheetProps) {
           </div>
         ) : configQuery.isError || !config ? (
           <div className="px-4 pt-2">
-            <WarningBanner message={t('Failed to load Codex config.')} />
+            <WarningBanner message={t('failedToLoadCodexConfigb48ffe49')} />
           </div>
         ) : (
           <ScrollArea className="h-[calc(var(--app-vh,100dvh)_-_8rem)] px-4 pr-2">
-            <PolicySection title={t('Default App Settings')}>
+            <PolicySection title={t('defaultAppSettings')}>
               <ConfigBooleanOverrideControl
-                label={t('Apps enabled')}
+                label={t('appsEnabled')}
                 effectiveValue={enabled.value}
                 source={enabled.source}
-                overridden={isUserConfigOrigin(origins, `${defaultBase}.enabled`)}
+                overridden={isUserConfigOrigin(
+                  origins,
+                  `${defaultBase}.enabled`,
+                )}
                 saving={updateMutation.isPending}
-                onCommit={(value) => writeConfig(`${defaultBase}.enabled`, value)}
+                onCommit={(value) =>
+                  writeConfig(`${defaultBase}.enabled`, value)
+                }
               />
               <ConfigBooleanOverrideControl
-                label={t('Destructive tools')}
+                label={t('destructiveTools')}
                 effectiveValue={destructive.value}
                 source={destructive.source}
                 overridden={isUserConfigOrigin(
@@ -155,7 +165,7 @@ export function AppDefaultsSheet({ open, onClose }: AppDefaultsSheetProps) {
                 }
               />
               <ConfigBooleanOverrideControl
-                label={t('Open-world tools')}
+                label={t('openWorldTools')}
                 effectiveValue={openWorld.value}
                 source={openWorld.source}
                 overridden={isUserConfigOrigin(
@@ -168,7 +178,7 @@ export function AppDefaultsSheet({ open, onClose }: AppDefaultsSheetProps) {
                 }
               />
               <ConfigSelectOverrideControl
-                label={t('Default tool approval')}
+                label={t('defaultToolApproval')}
                 effectiveValue={defaultToolApproval.value}
                 source={defaultToolApproval.source}
                 overridden={isUserConfigOrigin(
@@ -178,12 +188,15 @@ export function AppDefaultsSheet({ open, onClose }: AppDefaultsSheetProps) {
                 saving={updateMutation.isPending}
                 options={approvalModeOptions}
                 onCommit={(value) =>
-                  writeConfig(`${defaultBase}.default_tools_approval_mode`, value)
+                  writeConfig(
+                    `${defaultBase}.default_tools_approval_mode`,
+                    value,
+                  )
                 }
               />
               <ApprovalReviewerControl
-                label={t('App approval reviewer')}
-                description={t('Default reviewer used by apps without an app override.')}
+                label={t('appApprovalReviewer')}
+                description={t('defaultReviewerUsedByAppsWithoutAnAppOverride')}
                 effectiveValue={reviewer.value}
                 source={reviewer.source}
                 overridden={isUserConfigOrigin(

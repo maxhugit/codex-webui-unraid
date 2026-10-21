@@ -23,10 +23,10 @@ export function useReviewerOptions(): readonly OverrideSelectOption<ApprovalRevi
         value,
         label:
           value === 'user'
-            ? t('User')
+            ? t('user')
             : value === 'auto_review'
-              ? t('Automatic review')
-              : t('Guardian subagent'),
+              ? t('automaticReview')
+              : t('guardianSubagent'),
       })),
     [t],
   );
@@ -41,12 +41,12 @@ export function useApprovalModeOptions(): readonly OverrideSelectOption<AppToolA
         value,
         label:
           value === 'auto'
-            ? t('Auto')
+            ? t('auto')
             : value === 'prompt'
-              ? t('Prompt')
+              ? t('prompt')
               : value === 'writes'
-                ? t('Writes')
-                : t('Approve'),
+                ? t('writes')
+                : t('approve'),
       })),
     [t],
   );
@@ -59,7 +59,13 @@ export function resolveBoolean(
   keyPaths: readonly string[],
   fallback: boolean,
 ) {
-  return resolveConfigValue(config, origins, keyPaths, fallback, isBooleanValue);
+  return resolveConfigValue(
+    config,
+    origins,
+    keyPaths,
+    fallback,
+    isBooleanValue,
+  );
 }
 
 /** Resolves an app approval reviewer through app default and top-level config. */

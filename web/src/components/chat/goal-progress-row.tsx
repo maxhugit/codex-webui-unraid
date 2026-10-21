@@ -23,7 +23,11 @@ import { useTimelineStore } from '@/stores/timeline-store';
 import { cn } from '@/lib/utils';
 
 /** Statuses where the goal is no longer driving work forward. */
-const TERMINAL_STATUSES = new Set(['complete', 'usageLimited', 'budgetLimited']);
+const TERMINAL_STATUSES = new Set([
+  'complete',
+  'usageLimited',
+  'budgetLimited',
+]);
 
 interface Props {
   threadId: string | null;
@@ -94,8 +98,14 @@ export function GoalProgressRow({ threadId, readOnly }: Props) {
           onChange={(e) => setDraft(e.target.value)}
           onBlur={submitEdit}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); submitEdit(); }
-            if (e.key === 'Escape') { e.preventDefault(); setEditing(false); }
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              submitEdit();
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              setEditing(false);
+            }
           }}
           className="h-6 flex-1 border-none bg-transparent px-0 text-xs shadow-none focus-visible:ring-0"
         />
@@ -123,8 +133,8 @@ export function GoalProgressRow({ threadId, readOnly }: Props) {
               }
               title={
                 paused
-                  ? t('Resume working toward this goal')
-                  : t('Pause the goal. The current turn keeps running.')
+                  ? t('resumeWorkingTowardThisGoal')
+                  : t('pauseTheGoalTheCurrentTurnKeepsRunning')
               }
             >
               {busy ? (
@@ -141,8 +151,11 @@ export function GoalProgressRow({ threadId, readOnly }: Props) {
             variant="ghost"
             className="h-6 w-6"
             disabled={busy}
-            onClick={() => { setDraft(goal.objective); setEditing(true); }}
-            title={t('Edit goal')}
+            onClick={() => {
+              setDraft(goal.objective);
+              setEditing(true);
+            }}
+            title={t('editGoal')}
           >
             <Pencil className="h-3 w-3" />
           </Button>
@@ -152,7 +165,7 @@ export function GoalProgressRow({ threadId, readOnly }: Props) {
             className="h-6 w-6"
             disabled={busy}
             onClick={() => clearGoal.mutate({ path: { threadId } })}
-            title={t('Clear goal')}
+            title={t('clearGoal')}
           >
             <Ban className="h-3 w-3" />
           </Button>
@@ -168,11 +181,11 @@ function GoalStatusLabel({ status }: { status: string }) {
   if (status === 'active') return null;
 
   const labels: Record<string, string> = {
-    paused: t('Paused'),
-    blocked: t('Blocked'),
-    usageLimited: t('Usage limit reached'),
-    budgetLimited: t('Token budget reached'),
-    complete: t('Complete'),
+    paused: t('paused'),
+    blocked: t('blocked'),
+    usageLimited: t('usageLimitReached'),
+    budgetLimited: t('tokenBudgetReached'),
+    complete: t('complete'),
   };
 
   return (

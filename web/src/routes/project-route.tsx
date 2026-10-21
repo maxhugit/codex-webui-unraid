@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
@@ -77,12 +78,12 @@ export function ProjectRoute() {
 
   if (projects.isPending)
     return (
-      <main className="p-6 text-sm text-muted-foreground">{t('Loading…')}</main>
+      <main className="p-6 text-sm text-muted-foreground">{t('loading')}</main>
     );
   if (!project)
     return (
       <main className="p-6" role="alert">
-        {t('Project not found')}
+        {t('projectNotFound')}
       </main>
     );
 
@@ -101,27 +102,27 @@ export function ProjectRoute() {
       <div className="flex h-10 min-w-0 shrink-0 items-center border-b bg-background">
         <div
           role="tablist"
-          aria-label={t('Project sections')}
+          aria-label={t('projectSections')}
           className="flex min-w-0 flex-1 items-center overflow-x-auto"
         >
           <ProjectTabButton
             active={visibleTab === 'general'}
             icon={LayoutDashboard}
-            label={t('General information')}
+            label={t('generalInformation')}
             onClick={() => setActiveTab('general')}
           />
           {canSeePeople && (
             <ProjectTabButton
               active={visibleTab === 'participants'}
               icon={UsersRound}
-              label={t('People')}
+              label={t('people')}
               onClick={() => setActiveTab('participants')}
             />
           )}
           <ProjectTabButton
             active={visibleTab === 'journal'}
             icon={History}
-            label={t('Journal')}
+            label={t('journal')}
             onClick={() => setActiveTab('journal')}
           />
           {session.isAdministrator && (
@@ -129,13 +130,13 @@ export function ProjectRoute() {
               <ProjectTabButton
                 active={visibleTab === 'settings'}
                 icon={Settings}
-                label={t('General settings')}
+                label={t('generalSettings')}
                 onClick={() => setActiveTab('settings')}
               />
               <ProjectTabButton
                 active={visibleTab === 'workspaces'}
                 icon={FolderCog}
-                label={t('Workspaces')}
+                label={t('workspacesLabel')}
                 onClick={() => setActiveTab('workspaces')}
               />
             </>
@@ -143,14 +144,14 @@ export function ProjectRoute() {
           <ProjectTabButton
             active={visibleTab === 'knowledge'}
             icon={BookOpen}
-            label={t('Knowledge')}
+            label={t('knowledge')}
             onClick={() => setActiveTab('knowledge')}
           />
           {session.isAdministrator && (
             <ProjectTabButton
               active={visibleTab === 'mcps'}
               icon={Plug}
-              label={t('Project integrations')}
+              label={t('projectIntegrations')}
               onClick={() => setActiveTab('mcps')}
             />
           )}
@@ -171,7 +172,7 @@ export function ProjectRoute() {
                       {project.name}
                     </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {t('General project information and linked resources.')}
+                      {t('generalProjectInformationAndLinkedResources')}
                     </p>
                   </div>
                 </div>
@@ -180,29 +181,29 @@ export function ProjectRoute() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <SummaryCard
                   icon={FolderOpen}
-                  label={t('Workspaces')}
+                  label={t('workspacesLabel')}
                   value={project.workspaces.length}
                 />
                 <SummaryCard
                   icon={Bot}
-                  label={t('Work agents')}
+                  label={t('workAgents')}
                   value={agentCount}
                 />
                 <SummaryCard
                   icon={ListTodo}
-                  label={t('Task managers')}
+                  label={t('taskManagers')}
                   value={taskBoardCount}
                 />
                 <SummaryCard
                   icon={FolderKanban}
-                  label={t('Resources')}
+                  label={t('resources')}
                   value={project.resources.length}
                 />
               </div>
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <section className="rounded-xl border bg-card p-5">
-                  <h3 className="font-semibold">{t('Project workspaces')}</h3>
+                  <h3 className="font-semibold">{t('projectWorkspaces')}</h3>
                   <div className="mt-4 space-y-2">
                     {project.workspaces.map((workspace) => (
                       <div
@@ -223,7 +224,7 @@ export function ProjectRoute() {
                         </div>
                         {workspace.primary && (
                           <span className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
-                            {t('Primary workspace')}
+                            {t('primaryWorkspace')}
                           </span>
                         )}
                       </div>
@@ -232,17 +233,17 @@ export function ProjectRoute() {
                 </section>
 
                 <section className="rounded-xl border bg-card p-5">
-                  <h3 className="font-semibold">{t('Details')}</h3>
+                  <h3 className="font-semibold">{t('details')}</h3>
                   <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
                     <div>
-                      <dt className="text-muted-foreground">{t('Created')}</dt>
+                      <dt className="text-muted-foreground">{t('created')}</dt>
                       <dd className="mt-1 font-medium">
                         {date(project.createdAt)}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-muted-foreground">
-                        {t('Last modified')}
+                        {t('lastModified')}
                       </dt>
                       <dd className="mt-1 font-medium">
                         {date(project.updatedAt)}
@@ -250,7 +251,7 @@ export function ProjectRoute() {
                     </div>
                     <div className="sm:col-span-2">
                       <dt className="text-muted-foreground">
-                        {t('Primary workspace')}
+                        {t('primaryWorkspace')}
                       </dt>
                       <dd className="mt-1 break-all font-medium">
                         {project.workspacePath}
@@ -354,31 +355,31 @@ function ProjectJournal({
             activityActorKey(row.actorPersonId, row.actorName) === actorFilter,
         );
   if (pending)
-    return <p className="text-sm text-muted-foreground">{t('Loading…')}</p>;
+    return <p className="text-sm text-muted-foreground">{t('loading')}</p>;
   if (error)
     return (
       <p className="text-sm text-destructive">
-        {t('Unable to load project activity')}
+        {t('unableToLoadProjectActivity')}
       </p>
     );
   return (
     <section className="overflow-hidden rounded-xl border bg-card">
       <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-semibold">{t('Project journal')}</h2>
+          <h2 className="font-semibold">{t('projectJournal')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('Major operations performed on this project are recorded here.')}
+            {t('majorOperationsPerformedOnThisProjectAreRecordedHere')}
           </p>
         </div>
         {rows.length > 0 && (
           <label className="shrink-0">
-            <span className="sr-only">{t('Filter by person')}</span>
+            <span className="sr-only">{t('filterByPerson')}</span>
             <select
               value={actorFilter}
               onChange={(event) => setActorFilter(event.target.value)}
               className="h-9 min-w-48 cursor-pointer rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
-              <option value="all">{t('All people')}</option>
+              <option value="all">{t('allPeople')}</option>
               {actorOptions.map(([key, name]) => (
                 <option key={key} value={key}>
                   {name}
@@ -390,11 +391,11 @@ function ProjectJournal({
       </div>
       {rows.length === 0 ? (
         <p className="p-8 text-center text-sm text-muted-foreground">
-          {t('No project activity yet.')}
+          {t('noProjectActivityYet')}
         </p>
       ) : filteredRows.length === 0 ? (
         <p className="p-8 text-center text-sm text-muted-foreground">
-          {t('No activity for this person.')}
+          {t('noActivityForThisPerson')}
         </p>
       ) : (
         <div className="divide-y">
@@ -407,7 +408,7 @@ function ProjectJournal({
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
-                    {t(labels[row.action] ?? row.action)}
+                    {t(translationKey(labels[row.action] ?? row.action))}
                   </p>
                   <p
                     className="truncate text-xs text-muted-foreground"
@@ -422,7 +423,9 @@ function ProjectJournal({
                           key={change.label}
                           className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)]"
                         >
-                          <span className="font-medium">{t(change.label)}</span>
+                          <span className="font-medium">
+                            {t(translationKey(change.label))}
+                          </span>
                           <span className="break-words text-muted-foreground">
                             <span className="line-through opacity-70">
                               {formatActivityValue(change.before)}
@@ -444,7 +447,7 @@ function ProjectJournal({
                       timeStyle: 'short',
                     }).format(row.createdAt)}
                   </p>
-                  <p>{t('By {{name}}', { name: row.actorName })}</p>
+                  <p>{t('byName', { name: row.actorName })}</p>
                 </div>
               </div>
             );

@@ -1,7 +1,10 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TurnItem } from '@/types/timeline';
-import { resolveFileReferencePath, type FileReference } from '@/lib/file-references';
+import {
+  resolveFileReferencePath,
+  type FileReference,
+} from '@/lib/file-references';
 import { requestOpenFile } from '@/lib/open-file-request';
 import { showSnackbar } from '@/stores/snackbar-store';
 import { useTimelineStore } from '@/stores/timeline-store';
@@ -26,7 +29,10 @@ export function AgentMessageItem({ item }: Props) {
       if (!absolutePath) {
         // A relative path with no conversation directory has no honest
         // resolution; guessing one would open some unrelated file.
-        showSnackbar(t('Cannot resolve this path: the conversation has no directory'), 'error');
+        showSnackbar(
+          t('cannotResolveThisPathTheConversationHasNoDirectory'),
+          'error',
+        );
         return;
       }
       requestOpenFile({

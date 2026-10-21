@@ -15,7 +15,7 @@ vi.mock('@/lib/platform-session', () => ({
   usePlatformSession: () => ({ isAdministrator: true }),
 }));
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: globalThis.__testTranslate }),
 }));
 const item = {
   id: 'd',

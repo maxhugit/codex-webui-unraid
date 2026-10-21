@@ -14,9 +14,7 @@ export function assertFullHistoryPage(page: ThreadTurnsPageDto): void {
     // Surfaced verbatim in the conversation's loading gate, so it is localized
     // like any other message a reader sees rather than left at the wire level.
     throw new Error(
-      i18n.t(
-        'Full conversation history is unavailable. Retry loading the conversation.',
-      ),
+      i18n.t('fullConversationHistoryIsUnavailableRetryLoadingTheConversation'),
     );
   }
 }

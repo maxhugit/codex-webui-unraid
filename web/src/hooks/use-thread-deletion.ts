@@ -61,12 +61,12 @@ export function adoptionBlockReason(
   status: ReturnType<typeof useBranchAdoptionStatus>['data'],
   t: (key: string) => string,
 ): string | null {
-  if (!status) return t('Checking branch topology…');
+  if (!status) return t('checkingBranchTopology');
   if (status.status === 'ready') return null;
   if (status.status === 'failed') {
-    return t('Branch topology scan failed; deletion is disabled.');
+    return t('branchTopologyScanFailedDeletionIsDisabled');
   }
-  return t('Branch topology scan is still running.');
+  return t('branchTopologyScanIsStillRunning');
 }
 
 interface DeleteArgs {
@@ -233,19 +233,19 @@ export function useDeleteThread({
 
       if (result.status === 'completed') {
         showSnackbar(
-          t('Deleted {{count}} conversation(s).', { count: removed.size }),
+          t('deletedCountConversationS', { count: removed.size }),
           'success',
         );
       } else if (result.status === 'conflict') {
         showSnackbar(
-          `${t('Nothing was deleted; the plan changed. Review and try again.')} ${result.failure?.message ?? ''}`.trim(),
+          `${t('nothingWasDeletedThePlanChangedReviewAndTryAgain')} ${result.failure?.message ?? ''}`.trim(),
           'warning',
         );
       } else {
         // `partial` means destruction already began; the user must be told the
         // tree is now half-removed rather than left assuming a clean rollback.
         showSnackbar(
-          `${t('Deletion stopped partway. Some conversations were removed.')} ${result.failure?.message ?? ''}`.trim(),
+          `${t('deletionStoppedPartwaySomeConversationsWereRemoved')} ${result.failure?.message ?? ''}`.trim(),
           'error',
         );
       }
@@ -253,7 +253,7 @@ export function useDeleteThread({
     },
     onError: (err) => {
       showSnackbar(
-        `${t('Could not delete this conversation.')} ${getApiErrorMessage(err)}`,
+        `${t('couldNotDeleteThisConversation')} ${getApiErrorMessage(err)}`,
         'error',
       );
       onFinished?.();

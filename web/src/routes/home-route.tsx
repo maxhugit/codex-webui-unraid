@@ -93,10 +93,10 @@ export function HomeRoute() {
       year: 'numeric',
     }).format(value);
   const reason = {
-    overdue: t('Overdue'),
-    agent_error: t('Agent error'),
-    review: t('Awaiting validation'),
-    due_soon: t('Due within 7 days'),
+    overdue: t('overdue'),
+    agent_error: t('agentError'),
+    review: t('awaitingValidation'),
+    due_soon: t('dueWithin7Days'),
   };
   const data = query.data;
   const visibleProjects =
@@ -117,18 +117,16 @@ export function HomeRoute() {
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              {t('Project overview')}
+              {t('projectOverview')}
             </p>
             <h1
               id="home-title"
               className="text-3xl font-semibold tracking-tight"
             >
-              {t('Home')}
+              {t('home')}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {t(
-                'See what is moving forward and where your attention is needed.',
-              )}
+              {t('seeWhatIsMovingForwardAndWhereYourAttentionIsNeeded')}
             </p>
           </div>
           <Button
@@ -140,7 +138,7 @@ export function HomeRoute() {
             <RefreshCw
               className={`mr-2 h-4 w-4 ${query.isFetching ? 'animate-spin' : ''}`}
             />
-            {t('Refresh')}
+            {t('refresh')}
           </Button>
         </header>
         {query.isError && (
@@ -148,56 +146,53 @@ export function HomeRoute() {
             role="alert"
             className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
           >
-            {t('Unable to load the overview.')} {query.error.message}
+            {t('unableToLoadTheOverview')} {query.error.message}
           </div>
         )}
         {!data && query.isPending && (
           <p role="status" className="py-12 text-center text-muted-foreground">
-            {t('Loading…')}
+            {t('loading')}
           </p>
         )}
         {data && (
           <>
             <section
               className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-              aria-label={t('Key indicators')}
+              aria-label={t('keyIndicators')}
             >
               {[
                 {
                   icon: FolderKanban,
-                  label: t('Projects'),
+                  label: t('projects'),
                   value: data.totals.projects,
-                  detail: t(
-                    '{{active}} active · {{quiet}} without recent activity',
-                    {
-                      active: data.totals.activeProjects,
-                      quiet: data.totals.quietProjects,
-                    },
-                  ),
+                  detail: t('activeActiveQuietWithoutRecentActivity', {
+                    active: data.totals.activeProjects,
+                    quiet: data.totals.quietProjects,
+                  }),
                 },
                 {
                   icon: ListTodo,
-                  label: t('Open tasks'),
+                  label: t('openTasks'),
                   value: data.totals.openTasks,
-                  detail: t('{{count}} overdue items', {
+                  detail: t('countOverdueItems', {
                     count: data.totals.overdue,
                   }),
                 },
                 {
                   icon: Bot,
-                  label: t('AI work to validate'),
+                  label: t('aiWorkToValidate'),
                   value: data.totals.awaitingReview,
-                  detail: t('Subtasks awaiting your review'),
+                  detail: t('subtasksAwaitingYourReview'),
                 },
                 {
                   icon: Clock3,
-                  label: t('Estimated remaining workload'),
+                  label: t('estimatedRemainingWorkload'),
                   value: hours(data.totals.remainingMinutes),
                   detail: data.totals.unestimated
-                    ? t('{{count}} items without an estimate', {
+                    ? t('countItemsWithoutAnEstimate', {
                         count: data.totals.unestimated,
                       })
-                    : t('Based on estimates and progress'),
+                    : t('basedOnEstimatesAndProgress'),
                 },
               ].map((item) => (
                 <div
@@ -221,10 +216,10 @@ export function HomeRoute() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                 <h2 className="flex items-center gap-2 font-semibold">
                   <TriangleAlert className="h-4 w-4 text-amber-500" />
-                  {t('Needs attention')}
+                  {t('needsAttention')}
                 </h2>
                 <span className="text-xs text-muted-foreground">
-                  {t('{{count}} projects at risk', {
+                  {t('countProjectsAtRisk', {
                     count: data.totals.atRiskProjects,
                   })}
                 </span>
@@ -232,7 +227,7 @@ export function HomeRoute() {
               {!data.alerts.length ? (
                 <p className="flex items-center gap-2 p-5 text-sm text-muted-foreground">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  {t('No alerts in the current task data.')}
+                  {t('noAlertsInTheCurrentTaskData')}
                 </p>
               ) : (
                 <div className="divide-y">
@@ -258,7 +253,7 @@ export function HomeRoute() {
                           </p>
                           <p className="truncate text-xs text-muted-foreground">
                             {alert.projectName} ·{' '}
-                            {alert.isSubtask ? t('Subtask') : t('Task')}
+                            {alert.isSubtask ? t('subtask') : t('task')}
                             {alert.dueAt !== null
                               ? ` · ${date(alert.dueAt)}`
                               : ''}
@@ -277,8 +272,8 @@ export function HomeRoute() {
                       onClick={() => setAllAlerts((v) => !v)}
                     >
                       {allAlerts
-                        ? t('Show less')
-                        : t('Show all alerts ({{count}})', {
+                        ? t('showLess')
+                        : t('showAllAlertsCount', {
                             count: data.alerts.length,
                           })}
                     </button>
@@ -289,7 +284,7 @@ export function HomeRoute() {
             <section aria-labelledby="project-list-title" className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 id="project-list-title" className="text-lg font-semibold">
-                  {t('Your projects')}
+                  {t('yourProjects')}
                 </h2>
                 <div className="relative w-full sm:w-64">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -297,15 +292,15 @@ export function HomeRoute() {
                     className="pl-9"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t('Search projects')}
-                    aria-label={t('Search projects')}
+                    placeholder={t('searchProjects')}
+                    aria-label={t('searchProjects')}
                   />
                 </div>
               </div>
               <div
                 className="flex flex-wrap gap-2"
                 role="group"
-                aria-label={t('Filter projects')}
+                aria-label={t('filterProjects')}
               >
                 {['all', 'active', 'quiet', 'risk'].map((value, index) => (
                   <Button
@@ -318,10 +313,10 @@ export function HomeRoute() {
                   >
                     {
                       [
-                        t('All projects'),
-                        t('Recently active'),
-                        t('No recent activity'),
-                        t('At risk'),
+                        t('allProjects'),
+                        t('recentlyActive'),
+                        t('noRecentActivity'),
+                        t('atRisk'),
                       ][index]
                     }
                   </Button>
@@ -330,10 +325,8 @@ export function HomeRoute() {
               {!visibleProjects.length && (
                 <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
                   {!data.projects.length
-                    ? t(
-                        'Create your first project using the sidebar to get started.',
-                      )
-                    : t('No projects match these filters.')}
+                    ? t('createYourFirstProjectUsingTheSidebarToGetStarted')
+                    : t('noProjectsMatchTheseFilters')}
                 </div>
               )}
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -350,35 +343,35 @@ export function HomeRoute() {
                         className={`shrink-0 rounded-full px-2 py-1 text-xs ${project.health === 'risk' ? 'bg-red-500/10 text-red-700 dark:text-red-300' : project.health === 'attention' ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'}`}
                       >
                         {project.health === 'risk'
-                          ? t('At risk')
+                          ? t('atRisk')
                           : project.health === 'attention'
-                            ? t('To watch')
-                            : t('No alerts')}
+                            ? t('toWatch')
+                            : t('noAlerts')}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {!project.active
-                        ? t('No activity for 14 days')
-                        : t('Recently active')}
+                        ? t('noActivityFor14Days')
+                        : t('recentlyActive')}
                       {project.overdueCount
-                        ? ` · ${t('{{count}} overdue items', { count: project.overdueCount })}`
+                        ? ` · ${t('countOverdueItems', { count: project.overdueCount })}`
                         : ''}
                       {project.agentErrorCount
-                        ? ` · ${t('{{count}} agent errors', { count: project.agentErrorCount })}`
+                        ? ` · ${t('countAgentErrors', { count: project.agentErrorCount })}`
                         : ''}
                     </p>
                     <div>
                       <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-                        <span>{t('Overall progress')}</span>
+                        <span>{t('overallProgress')}</span>
                         <span className="tabular-nums">
                           {project.progress === null
-                            ? t('No tasks')
+                            ? t('noTasks')
                             : `${project.progress} %`}
                         </span>
                       </div>
                       <div
                         role="progressbar"
-                        aria-label={`${t('Overall progress')} · ${project.name}`}
+                        aria-label={`${t('overallProgress')} · ${project.name}`}
                         aria-valuenow={project.progress ?? 0}
                         aria-valuemin={0}
                         aria-valuemax={100}
@@ -393,13 +386,13 @@ export function HomeRoute() {
                     <dl className="grid grid-cols-2 gap-x-3 gap-y-4 text-sm">
                       <div>
                         <dt className="text-xs text-muted-foreground">
-                          {t('Open tasks')}
+                          {t('openTasks')}
                         </dt>
                         <dd className="mt-1 font-medium">
                           {project.openTaskCount}{' '}
                           <span className="text-xs font-normal text-muted-foreground">
                             ·{' '}
-                            {t('{{count}} subtasks', {
+                            {t('countSubtasks', {
                               count: project.openSubtaskCount,
                             })}
                           </span>
@@ -407,13 +400,13 @@ export function HomeRoute() {
                       </div>
                       <div>
                         <dt className="text-xs text-muted-foreground">
-                          {t('Remaining workload')}
+                          {t('remainingWorkload')}
                         </dt>
                         <dd className="mt-1 font-medium">
                           {hours(project.remainingMinutes)}
                           {project.unestimatedCount > 0 && (
                             <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                              {t('{{count}} items without an estimate', {
+                              {t('countItemsWithoutAnEstimate', {
                                 count: project.unestimatedCount,
                               })}
                             </span>
@@ -423,18 +416,18 @@ export function HomeRoute() {
                       <div>
                         <dt className="flex items-center gap-1 text-xs text-muted-foreground">
                           <CalendarDays className="h-3 w-3" />
-                          {t('Next deadline')}
+                          {t('nextDeadline')}
                         </dt>
                         <dd className="mt-1">
                           {project.nextDueAt === null
-                            ? t('Not scheduled')
+                            ? t('notScheduled')
                             : date(project.nextDueAt)}
                         </dd>
                       </div>
                       <div>
                         <dt className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Activity className="h-3 w-3" />
-                          {t('Last activity')}
+                          {t('lastActivity')}
                         </dt>
                         <dd className="mt-1">{date(project.lastActivityAt)}</dd>
                       </div>
@@ -457,7 +450,7 @@ export function HomeRoute() {
                       ))}
                       {!project.resources.length && (
                         <p className="text-xs text-muted-foreground">
-                          {t('Conversations are available in the sidebar.')}
+                          {t('conversationsAreAvailableInTheSidebar')}
                         </p>
                       )}
                     </div>
@@ -468,21 +461,21 @@ export function HomeRoute() {
             <footer className="space-y-1 border-t pt-4 text-xs leading-relaxed text-muted-foreground">
               <p>
                 {t(
-                  'Activity: changes within 14 days. Risk: overdue work or an agent error. To watch: a deadline within 7 days or AI work awaiting validation.',
+                  'activityChangesWithin14DaysRiskOverdueWorkOrAnAgentErrorToWatchADeadlineWithin7a44255b7',
                 )}
               </p>
               <p>
                 {t(
-                  'Workload is estimated from remaining progress. Subtasks replace their parent estimate. Missing estimates are not counted. Progress is the average of top-level tasks.',
+                  'workloadIsEstimatedFromRemainingProgressSubtasksReplaceTheirParentEstimateMissid4ed162a',
                 )}
               </p>
               <p>
-                {t('Updated at')}{' '}
+                {t('updatedAt')}{' '}
                 {new Intl.DateTimeFormat(locale, {
                   hour: '2-digit',
                   minute: '2-digit',
                 }).format(data.generatedAt)}{' '}
-                · {t('Automatic refresh every minute')}
+                · {t('automaticRefreshEveryMinute')}
               </p>
             </footer>
           </>

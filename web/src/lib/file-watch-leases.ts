@@ -23,7 +23,7 @@ export function acquireFileWatch(path: string): () => void {
         if (!active) return;
         if (!result.ok)
           showSnackbar(
-            result.error ?? i18n.t('Filesystem watch unavailable'),
+            result.error ?? i18n.t('filesystemWatchUnavailable'),
             'warning',
           );
         else

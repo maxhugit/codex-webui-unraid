@@ -3,7 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
-import fr from '@/locales/fr/legacy.json';
+import fr from '@/locales/fr/common.json';
+import sourceKeys from '@/locales/source-key-map.json';
 import { loadLocaleResources } from '@/locales';
 import { FIELD_DEFS, GROUP_ORDER } from './codex-settings-defs';
 import { ConfigFieldEditor } from './codex-settings-fields';
@@ -47,7 +48,8 @@ describe('administration translations', () => {
       ),
       ...DYNAMIC_CODEX_LABELS,
     ]) {
-      expect(fr, `Missing French translation: ${text}`).toHaveProperty(text!);
+      const key = sourceKeys[text as keyof typeof sourceKeys] ?? text;
+      expect(fr, `Missing French translation: ${text}`).toHaveProperty(key!);
     }
   });
 
@@ -66,7 +68,9 @@ describe('administration translations', () => {
       'files.excludedDirs',
       'security.workspaceRoots',
     ]) {
-      expect(Object.hasOwn(fr, settingLabel(key)), key).toBe(true);
+      const label = settingLabel(key);
+      const translation = sourceKeys[label as keyof typeof sourceKeys] ?? label;
+      expect(Object.hasOwn(fr, translation), key).toBe(true);
     }
   });
 
@@ -81,8 +85,8 @@ describe('administration translations', () => {
       await i18n.init({
         lng: language,
         fallbackLng: 'en',
-        ns: ['legacy'],
-        defaultNS: 'legacy',
+        ns: ['common'],
+        defaultNS: 'common',
         resources,
       });
       const def = FIELD_DEFS.find(

@@ -72,7 +72,7 @@ export function FileToolbar({
         type="button"
         onClick={() => navigateUp()}
         className="rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-        title={t('Go up')}
+        title={t('goUp')}
       >
         <ChevronUp className="h-3.5 w-3.5" />
       </button>
@@ -85,7 +85,7 @@ export function FileToolbar({
           type="button"
           onClick={onNewFile}
           className="rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-          title={t('New File')}
+          title={t('newFile')}
         >
           <FilePlus className="h-3 w-3" />
         </button>
@@ -93,7 +93,7 @@ export function FileToolbar({
           type="button"
           onClick={onNewFolder}
           className="rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-          title={t('New Folder')}
+          title={t('newFolder')}
         >
           <FolderPlus className="h-3 w-3" />
         </button>
@@ -101,7 +101,7 @@ export function FileToolbar({
           type="button"
           onClick={handleFileUpload}
           className="rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-          title={t('Upload files')}
+          title={t('uploadFiles')}
         >
           <Upload className="h-3 w-3" />
         </button>
@@ -109,7 +109,7 @@ export function FileToolbar({
           type="button"
           onClick={() => folderInputRef.current?.click()}
           className="rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-          title={t('Upload folder')}
+          title={t('uploadFolder')}
         >
           <FolderUp className="h-3 w-3" />
         </button>
@@ -117,7 +117,7 @@ export function FileToolbar({
           type="button"
           onClick={refreshAll}
           className="rounded p-0.5 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-          title={t('Refresh')}
+          title={t('refresh')}
         >
           <RefreshCw className="h-3 w-3" />
         </button>

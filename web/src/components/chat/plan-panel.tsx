@@ -60,7 +60,7 @@ export function PlanPanel({ plan, completed }: Props) {
           )}
         />
         <ListChecks className="h-3.5 w-3.5" />
-        <span className="font-medium text-foreground/80">{t('Plan')}</span>
+        <span className="font-medium text-foreground/80">{t('plan')}</span>
         {hasStructuredPlan && (
           <span className="ml-auto tabular-nums">
             {completedCount(plan.steps)} / {plan.steps.length}
@@ -80,12 +80,18 @@ export function PlanPanel({ plan, completed }: Props) {
           {hasStructuredPlan && (
             <ol className="space-y-1.5">
               {plan.steps.map((step, index) => (
-                <li key={`${step.step}-${index}`} className="flex items-start gap-2 text-sm">
-                  <span className="mt-0.5 shrink-0">{statusIcon(step.status)}</span>
+                <li
+                  key={`${step.step}-${index}`}
+                  className="flex items-start gap-2 text-sm"
+                >
+                  <span className="mt-0.5 shrink-0">
+                    {statusIcon(step.status)}
+                  </span>
                   <span
                     className={cn(
                       'min-w-0 flex-1 leading-relaxed',
-                      step.status === 'completed' && 'text-muted-foreground line-through decoration-muted-foreground/40',
+                      step.status === 'completed' &&
+                        'text-muted-foreground line-through decoration-muted-foreground/40',
                       step.status === 'pending' && 'text-muted-foreground',
                     )}
                   >
@@ -95,7 +101,6 @@ export function PlanPanel({ plan, completed }: Props) {
               ))}
             </ol>
           )}
-
         </div>
       )}
     </div>

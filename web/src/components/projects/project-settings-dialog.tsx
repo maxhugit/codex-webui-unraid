@@ -93,7 +93,7 @@ export function ProjectSettingsPanel({
   };
   const fail = (reason: unknown) =>
     setError(
-      reason instanceof Error ? reason.message : t('Unable to save project'),
+      reason instanceof Error ? reason.message : t('unableToSaveProject'),
     );
 
   const rename = useMutation({
@@ -175,9 +175,9 @@ export function ProjectSettingsPanel({
         {section === 'settings' && (
           <section className="space-y-6">
             <div>
-              <h3 className="font-semibold">{t('General settings')}</h3>
+              <h3 className="font-semibold">{t('generalSettings')}</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {t('Change the name displayed throughout the application.')}
+                {t('changeTheNameDisplayedThroughoutTheApplication')}
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -186,7 +186,7 @@ export function ProjectSettingsPanel({
                   htmlFor="project-settings-name"
                   className="mb-1 block text-sm font-medium"
                 >
-                  {t('Project name')}
+                  {t('projectName')}
                 </label>
                 <Input
                   id="project-settings-name"
@@ -202,21 +202,21 @@ export function ProjectSettingsPanel({
                 onClick={() => rename.mutate(name.trim())}
               >
                 <Save className="h-4 w-4" />
-                {t('Save')}
+                {t('save')}
               </Button>
             </div>
             <div className="space-y-4 border-t pt-6">
               <div>
-                <h3 className="font-semibold">{t('Agent configuration')}</h3>
+                <h3 className="font-semibold">{t('agentConfiguration')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t(
-                    'Choose the model and reasoning effort used by agents and task manager AI in this project.',
+                    'chooseTheModelAndReasoningEffortUsedByAgentsAndTaskManagerAiInThisProject',
                   )}
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-1 text-sm font-medium">
-                  {t('Model')}
+                  {t('model')}
                   <select
                     className="h-9 rounded-md border bg-background px-3 text-sm font-normal text-foreground"
                     value={agentModel}
@@ -232,7 +232,7 @@ export function ProjectSettingsPanel({
                       );
                     }}
                   >
-                    <option value="">{t('Server default')}</option>
+                    <option value="">{t('serverDefault')}</option>
                     {(models.data?.data ?? []).map((model: ModelDto) => (
                       <option key={model.id} value={model.model}>
                         {model.displayName || model.model}
@@ -242,7 +242,7 @@ export function ProjectSettingsPanel({
                   </select>
                 </label>
                 <label className="grid gap-1 text-sm font-medium">
-                  {t('Reasoning effort')}
+                  {t('reasoningEffortcd32c0f5')}
                   <select
                     className="h-9 rounded-md border bg-background px-3 text-sm font-normal text-foreground"
                     value={agentReasoningEffort}
@@ -250,7 +250,7 @@ export function ProjectSettingsPanel({
                       setAgentReasoningEffort(event.target.value)
                     }
                   >
-                    <option value="">{t('Model default')}</option>
+                    <option value="">{t('modelDefault')}</option>
                     {effortOptions.map((option) => (
                       <option
                         key={option.reasoningEffort}
@@ -277,7 +277,7 @@ export function ProjectSettingsPanel({
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {t('Save')}
+                  {t('save')}
                 </Button>
               </div>
             </div>
@@ -288,10 +288,10 @@ export function ProjectSettingsPanel({
           <section className="space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 className="font-semibold">{t('Manage workspaces')}</h3>
+                <h3 className="font-semibold">{t('manageWorkspaces')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t(
-                    'The primary workspace is permanent. Add or detach secondary workspaces without deleting their files. Choose the active workspace in each conversation. The .webui folder is reserved for the application.',
+                    'thePrimaryWorkspaceIsPermanentAddOrDetachSecondaryWorkspacesWithoutDeletingThei69867b01',
                   )}
                 </p>
               </div>
@@ -301,7 +301,7 @@ export function ProjectSettingsPanel({
                 onClick={() => setPickerOpen(true)}
               >
                 <FolderPlus className="h-4 w-4" />
-                {t('Add a workspace')}
+                {t('addAWorkspace')}
               </Button>
             </div>
             {project.workspaces.map((workspace) => {
@@ -321,8 +321,8 @@ export function ProjectSettingsPanel({
                         <Badge variant="secondary">
                           {t(
                             workspace.primary
-                              ? 'Primary workspace'
-                              : 'Secondary workspace',
+                              ? 'primaryWorkspace'
+                              : 'secondaryWorkspace',
                           )}
                         </Badge>
                       </div>
@@ -343,18 +343,18 @@ export function ProjectSettingsPanel({
                           onClick={() => detachWorkspace.mutate(workspace.id)}
                         >
                           <Unlink className="h-3.5 w-3.5" />
-                          {t('Detach')}
+                          {t('detach')}
                         </Button>
                       </div>
                     )}
                   </div>
                   <div className="ml-7 space-y-1.5 border-l pl-3">
                     <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      {t('Associated conversations')} ({agents.length})
+                      {t('associatedConversations')} ({agents.length})
                     </div>
                     {agents.length === 0 ? (
                       <p className="text-xs italic text-muted-foreground">
-                        {t('No associated conversation')}
+                        {t('noAssociatedConversation')}
                       </p>
                     ) : (
                       agents.map((thread) => (
@@ -384,25 +384,23 @@ export function ProjectSettingsPanel({
           <section className="space-y-6">
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold">{t('MCP connectors')}</h3>
+                <h3 className="font-semibold">{t('mcpConnectors')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {t(
-                    'Choose which MCP connectors can be used inside this project.',
-                  )}
+                  {t('chooseWhichMcpConnectorsCanBeUsedInsideThisProject')}
                 </p>
               </div>
               {mcpServers.isPending ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {t('Loading…')}
+                  {t('loading')}
                 </div>
               ) : mcpServers.isError ? (
                 <p className="text-sm text-destructive">
-                  {t('Failed to load MCP servers')}
+                  {t('failedToLoadMcpServers')}
                 </p>
               ) : mcpServerRows.length === 0 ? (
                 <p className="rounded-lg border p-4 text-sm text-muted-foreground">
-                  {t('No MCP connector is configured on the server.')}
+                  {t('noMcpConnectorIsConfiguredOnTheServer')}
                 </p>
               ) : (
                 <div className="divide-y rounded-lg border">
@@ -419,7 +417,7 @@ export function ProjectSettingsPanel({
                             {server.name}
                           </span>
                           <span className="block text-xs text-muted-foreground">
-                            {t('{{count}} available tools', {
+                            {t('countAvailableTools', {
                               count: Object.keys(server.tools ?? {}).length,
                             })}
                           </span>
@@ -452,32 +450,30 @@ export function ProjectSettingsPanel({
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {t('Save')}
+                  {t('save')}
                 </Button>
               </div>
             </div>
 
             <div className="space-y-4 border-t pt-6">
               <div>
-                <h3 className="font-semibold">{t('Applications')}</h3>
+                <h3 className="font-semibold">{t('applications')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {t(
-                    'Choose which Codex applications can be used inside this project.',
-                  )}
+                  {t('chooseWhichCodexApplicationsCanBeUsedInsideThisProject')}
                 </p>
               </div>
               {apps.isPending ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {t('Loading…')}
+                  {t('loading')}
                 </div>
               ) : apps.isError ? (
                 <p className="text-sm text-destructive">
-                  {t('Failed to load apps')}
+                  {t('failedToLoadApps')}
                 </p>
               ) : availableApps.length === 0 ? (
                 <p className="rounded-lg border p-4 text-sm text-muted-foreground">
-                  {t('No apps available')}
+                  {t('noAppsAvailable')}
                 </p>
               ) : (
                 <div className="divide-y rounded-lg border">
@@ -494,7 +490,7 @@ export function ProjectSettingsPanel({
                             {app.name}
                           </span>
                           <span className="block text-xs text-muted-foreground">
-                            {app.description || t('Available')}
+                            {app.description || t('availableLabel')}
                           </span>
                         </span>
                         <Switch
@@ -523,7 +519,7 @@ export function ProjectSettingsPanel({
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {t('Save')}
+                  {t('save')}
                 </Button>
               </div>
             </div>

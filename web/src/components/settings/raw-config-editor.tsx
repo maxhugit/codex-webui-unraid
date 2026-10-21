@@ -65,17 +65,17 @@ export function RawConfigEditor({ onSaved }: { onSaved?: () => void }) {
       // setting that is written but not in effect.
       showSnackbar(
         data.reloaded
-          ? t('Config file saved and reloaded')
+          ? t('configFileSavedAndReloaded')
           : data.restartRequired
-            ? t('Config file saved. Codex must restart for it to take effect.')
-            : t('Config file saved, but Codex did not reload it.'),
+            ? t('configFileSavedCodexMustRestartForItToTakeEffect')
+            : t('configFileSavedButCodexDidNotReloadIt'),
         data.reloaded ? 'success' : 'info',
       );
       onSaved?.();
     },
     onError: (err) => {
       showSnackbar(
-        t('Failed to save config file: {{msg}}', {
+        t('failedToSaveConfigFileMsg', {
           msg: getApiErrorMessage(err),
         }),
         'error',
@@ -98,7 +98,7 @@ export function RawConfigEditor({ onSaved }: { onSaved?: () => void }) {
           <ChevronRight className="h-4 w-4" />
         )}
         <FileText className="h-4 w-4" />
-        {t('Edit config.toml')}
+        {t('editConfigToml')}
         {rawQuery.data?.filePath && (
           <span className="ml-1 text-xs font-normal text-muted-foreground">
             ({rawQuery.data.filePath})
@@ -141,7 +141,7 @@ export function RawConfigEditor({ onSaved }: { onSaved?: () => void }) {
           {restartRequired && (
             <p className="text-xs text-amber-500">
               {t(
-                'This change only takes effect after Codex restarts. Use “Restart Codex” in the model catalog section below.',
+                'thisChangeOnlyTakesEffectAfterCodexRestartsUseRestartCodexInTheModelCatalogSectionBelow',
               )}
             </p>
           )}

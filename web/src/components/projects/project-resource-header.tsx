@@ -41,7 +41,7 @@ export function ProjectResourceHeader({
           {board.resource.name}
         </h1>
         <p className="truncate text-xs leading-tight text-muted-foreground">
-          {t(count === 1 ? '{{count}} open action' : '{{count}} open actions', {
+          {t(count === 1 ? 'countOpenAction' : 'countOpenActions', {
             count,
           })}
         </p>

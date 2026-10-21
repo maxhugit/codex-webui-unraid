@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** Translates standardized API error responses into user-facing messages. */
 import i18n from '../i18n';
 
@@ -13,14 +14,14 @@ interface ApiErrorBody {
  */
 export function getApiErrorMessage(
   error: unknown,
-  fallback = i18n.t('Request failed'),
+  fallback = i18n.t('requestFailed'),
 ): string {
   if (typeof error === 'string' && error.trim()) return error;
 
   const body = isRecord(error) ? (error as ApiErrorBody) : undefined;
   if (body?.errorCode) {
     const msg = normalizeMessage(body.message) ?? body.errorCode;
-    return i18n.t(`error.${body.errorCode}`, {
+    return i18n.t(translationKey(`error.${body.errorCode}`), {
       ...sanitizeParams(body.params),
       defaultValue: msg,
     });
@@ -46,7 +47,8 @@ export function getApiErrorCode(error: unknown): string | undefined {
 function normalizeMessage(message: unknown): string | undefined {
   if (Array.isArray(message)) {
     const values = message.filter(
-      (item): item is string => typeof item === 'string' && item.trim().length > 0,
+      (item): item is string =>
+        typeof item === 'string' && item.trim().length > 0,
     );
     return values.length > 0 ? values.join(', ') : undefined;
   }

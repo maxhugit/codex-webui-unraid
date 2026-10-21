@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** One ingestion/notification decision for live delivery and pending reads. */
 import type { QueryClient } from '@tanstack/react-query';
 import type { ThreadOverviewResponseDto } from '@/generated/api';
@@ -35,8 +36,14 @@ export function ingestAttention(
     runtime?.approvals[String(request.requestId)] ??
     runtime?.userInputRequests[String(request.requestId)];
   if (held && samePendingRequest(held, request)) {
-    if (request.status === 'submitted') store.resolveApprovalByRequestIdForThread(
-      request.threadId, request.requestId, request.generation ?? undefined, request.instanceId, 'submitted');
+    if (request.status === 'submitted')
+      store.resolveApprovalByRequestIdForThread(
+        request.threadId,
+        request.requestId,
+        request.generation ?? undefined,
+        request.instanceId,
+        'submitted',
+      );
     return;
   }
   if (held) dismissAttention(request.threadId, held);
@@ -68,9 +75,11 @@ export function ingestAttention(
   }
   showSnackbar(
     i18n.t(
-      request.kind === 'userInput'
-        ? 'Input needed in {{thread}}'
-        : 'Approval needed in {{thread}}',
+      translationKey(
+        request.kind === 'userInput'
+          ? 'Input needed in {{thread}}'
+          : 'Approval needed in {{thread}}',
+      ),
       {
         thread: title ?? store.getThreadTitle(request.threadId),
       },
@@ -82,7 +91,7 @@ export function ingestAttention(
         request.threadId,
         pendingRequestKey(request),
       ]),
-      label: i18n.t('Open thread'),
+      label: i18n.t('openThread'),
       onClick: () =>
         window.dispatchEvent(
           new CustomEvent('codex-webui:jump-thread', {

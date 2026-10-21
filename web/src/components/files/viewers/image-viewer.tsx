@@ -3,7 +3,11 @@ import { useState } from 'react';
 import { ImageIcon, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { buildPreviewUrl, filePreviewSource, type PreviewSource } from './preview-source';
+import {
+  buildPreviewUrl,
+  filePreviewSource,
+  type PreviewSource,
+} from './preview-source';
 
 interface Props {
   filePath: string;
@@ -30,7 +34,7 @@ export function ImageViewer({ filePath, source }: Props) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
         <ImageIcon className="h-8 w-8 opacity-40" />
-        <span className="text-sm">{t('Failed to load image')}</span>
+        <span className="text-sm">{t('failedToLoadImage')}</span>
       </div>
     );
   }
@@ -44,7 +48,7 @@ export function ImageViewer({ filePath, source }: Props) {
           variant="ghost"
           className="h-6 w-6"
           onClick={() => setZoom((z) => Math.max(0.1, z - 0.25))}
-          title={t('Zoom out')}
+          title={t('zoomOut')}
         >
           <ZoomOut className="h-3.5 w-3.5" />
         </Button>
@@ -56,7 +60,7 @@ export function ImageViewer({ filePath, source }: Props) {
           variant="ghost"
           className="h-6 w-6"
           onClick={() => setZoom((z) => Math.min(5, z + 0.25))}
-          title={t('Zoom in')}
+          title={t('zoomIn')}
         >
           <ZoomIn className="h-3.5 w-3.5" />
         </Button>
@@ -65,7 +69,7 @@ export function ImageViewer({ filePath, source }: Props) {
           variant="ghost"
           className="h-6 w-6"
           onClick={() => setRotation((r) => (r + 90) % 360)}
-          title={t('Rotate')}
+          title={t('rotate')}
         >
           <RotateCw className="h-3.5 w-3.5" />
         </Button>
@@ -78,7 +82,7 @@ export function ImageViewer({ filePath, source }: Props) {
             setRotation(0);
           }}
         >
-          {t('Reset')}
+          {t('reset')}
         </Button>
       </div>
 

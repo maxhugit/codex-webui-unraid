@@ -76,7 +76,7 @@ export function AccountSettings() {
       setAccount(null);
       setRateLimits(null);
       invalidateAccount();
-      showSnackbar(t('Codex account logged out'), 'success');
+      showSnackbar(t('codexAccountLoggedOut'), 'success');
     },
   });
 
@@ -95,13 +95,13 @@ export function AccountSettings() {
           ) : (
             <RefreshCw className="h-3.5 w-3.5" />
           )}
-          {t('Refresh')}
+          {t('refresh')}
         </Button>
       </div>
 
       {accountQuery.isLoading && !account && (
         <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm text-muted-foreground">
-          {t('Loading...')}
+          {t('loadingb04ba49f')}
         </div>
       )}
 
@@ -121,16 +121,14 @@ export function AccountSettings() {
 
       {!isChatGpt && (
         <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-xs text-muted-foreground">
-          {t(
-            'Rate limits are not shown for API key or custom provider proxy mode.',
-          )}
+          {t('rateLimitsAreNotShownForApiKeyOrCustomProviderProxyMode')}
         </div>
       )}
 
       <div className="flex flex-wrap gap-2">
         <Button size="sm" className="h-8" onClick={() => setLoginOpen(true)}>
           <KeyRound className="h-3.5 w-3.5" />
-          {isChatGpt ? t('Switch account') : t('Login with ChatGPT or API Key')}
+          {isChatGpt ? t('switchAccount') : t('loginWithChatGptOrApiKey')}
         </Button>
         {canLogout && (
           <Button
@@ -145,7 +143,7 @@ export function AccountSettings() {
             ) : (
               <LogOut className="h-3.5 w-3.5" />
             )}
-            {t('Logout Codex account')}
+            {t('logoutCodexAccount')}
           </Button>
         )}
       </div>
@@ -180,22 +178,22 @@ function AccountSummary({ account }: { account: AccountReadResponseDto }) {
         )}
         <span className="text-sm font-medium">
           {isChatGpt
-            ? t('ChatGPT mode')
+            ? t('chatGptMode')
             : isApiKeyMode
-              ? t('API Key mode')
-              : t('Not logged in')}
+              ? t('apiKeyMode')
+              : t('notLoggedIn')}
         </span>
         <Badge variant={isChatGpt ? 'default' : 'secondary'}>
-          {isChatGpt ? t('ChatGPT') : t('Provider')}
+          {isChatGpt ? t('chatGpt') : t('provider')}
         </Badge>
       </div>
 
       {account.account?.type === 'chatgpt' && (
         <div className="grid gap-2 text-sm sm:grid-cols-2">
-          <InfoRow label={t('Email')} value={account.account.email ?? ''} />
+          <InfoRow label={t('email')} value={account.account.email ?? ''} />
           <InfoRow
-            label={t('Plan')}
-            value={account.account.planType ?? t('unknown')}
+            label={t('plan')}
+            value={account.account.planType ?? t('unknown50d8b4a9')}
           />
         </div>
       )}
@@ -204,25 +202,25 @@ function AccountSummary({ account }: { account: AccountReadResponseDto }) {
 
       <div className="grid gap-2 text-sm sm:grid-cols-2">
         <InfoRow
-          label={t('Provider')}
-          value={provider.name ?? provider.id ?? t('unknown')}
+          label={t('provider')}
+          value={provider.name ?? provider.id ?? t('unknown50d8b4a9')}
         />
         <InfoRow
-          label={t('Base URL')}
-          value={provider.baseUrlMasked ?? t('not configured')}
+          label={t('baseUrl')}
+          value={provider.baseUrlMasked ?? t('notConfigured')}
         />
         <InfoRow
-          label={t('Env key')}
-          value={provider.envKey ?? t('not configured')}
+          label={t('envKey')}
+          value={provider.envKey ?? t('notConfigured')}
         />
         <InfoRow
-          label={t('Credential')}
+          label={t('credential')}
           value={
             provider.envPresent === true
               ? t('present')
               : provider.envPresent === false
                 ? t('missing')
-                : t('unknown')
+                : t('unknown50d8b4a9')
           }
         />
       </div>

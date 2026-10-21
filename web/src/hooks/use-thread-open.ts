@@ -130,12 +130,21 @@ export async function applyReadOnlySnapshot(
   });
   store.setThreadStatusForThread(threadId, response.thread.status);
   store.setOpenStateForThread(threadId, {
-    openState: 'opening', historyRequest: 'loading', historyError: null,
+    openState: 'opening',
+    historyRequest: 'loading',
+    historyError: null,
   });
   void hydrateAuxiliaryData(threadId);
   await restoreHistoryBookmark(threadId);
-  if (epoch !== currentThreadEpoch(threadId) || !store.getThreadRuntime(threadId)) return;
-  store.setOpenStateForThread(threadId, { openState: 'ready', historyRequest: 'idle' });
+  if (
+    epoch !== currentThreadEpoch(threadId) ||
+    !store.getThreadRuntime(threadId)
+  )
+    return;
+  store.setOpenStateForThread(threadId, {
+    openState: 'ready',
+    historyRequest: 'idle',
+  });
 }
 
 /**
@@ -258,9 +267,7 @@ export function applyOpenResponse(
       if (!complete && epoch === currentThreadEpoch(threadId))
         throw new Error(
           store.getThreadRuntime(threadId)?.historyError ??
-            i18n.t(
-              'Conversation recovery did not finish. Retry loading history.',
-            ),
+            i18n.t('conversationRecoveryDidNotFinishRetryLoadingHistory'),
         );
       if (epoch === currentThreadEpoch(threadId))
         await hydrateAuxiliaryData(threadId);
@@ -324,7 +331,7 @@ export function useOpenThread() {
       invalidateThreadDetails(queryClient, response.thread.id);
       if (response.mode === 'readOnly') {
         showSnackbar(
-          t('This conversation is open in another client; opened read-only.'),
+          t('thisConversationIsOpenInAnotherClientOpenedReadOnly'),
           'warning',
         );
       }

@@ -74,7 +74,7 @@ export function TimelineEntryRow({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label={t('Edit this message')}
+                  aria-label={t('editThisMessage')}
                   disabled={!canBranch}
                   className="flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
                   onClick={() => onEdit({ turnId, content: entry.content })}
@@ -83,7 +83,7 @@ export function TimelineEntryRow({
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {t('Edit this message')}
+                {t('editThisMessage')}
               </TooltipContent>
             </Tooltip>
           )}
@@ -101,7 +101,9 @@ export function TimelineEntryRow({
     } as const;
     return (
       <div className="text-center">
-        <span className={`inline-block rounded-lg px-3 py-1.5 text-sm ${colorMap[severity]}`}>
+        <span
+          className={`inline-block rounded-lg px-3 py-1.5 text-sm ${colorMap[severity]}`}
+        >
           {entry.content}
         </span>
       </div>
@@ -111,7 +113,13 @@ export function TimelineEntryRow({
   if (entry.kind === 'turnFailure') {
     return <TurnFailureCard failure={entry.failure} />;
   }
-  if (entry.kind === 'interaction') return <StoredInteractionCard requestId={entry.requestId} instanceId={entry.instanceId} />;
+  if (entry.kind === 'interaction')
+    return (
+      <StoredInteractionCard
+        requestId={entry.requestId}
+        instanceId={entry.instanceId}
+      />
+    );
 
   return <TurnBlock entry={entry} />;
 }

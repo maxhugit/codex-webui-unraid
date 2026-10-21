@@ -19,7 +19,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 type LogLevel = NonNullable<NonNullable<LogsListLogsData['query']>['level']>;
 
-const LEVELS: Array<'' | LogLevel> = ['', 'trace', 'debug', 'info', 'warn', 'error', 'fatal'];
+const LEVELS: Array<'' | LogLevel> = [
+  '',
+  'trace',
+  'debug',
+  'info',
+  'warn',
+  'error',
+  'fatal',
+];
 const PAGE_SIZE = 50;
 
 /** Renders filters, log entries, and copy/download diagnostics actions. */
@@ -29,7 +37,9 @@ export function DiagnosticsPanel() {
   const [source, setSource] = useState('');
   const [offset, setOffset] = useState(0);
   /** Bundle fetched for a copy the browser then refused; see handleCopyExport. */
-  const [readyBundle, setReadyBundle] = useState<LogsExportResponseDto | null>(null);
+  const [readyBundle, setReadyBundle] = useState<LogsExportResponseDto | null>(
+    null,
+  );
   const [copyPending, setCopyPending] = useState(false);
 
   const query = useQuery(
@@ -53,7 +63,9 @@ export function DiagnosticsPanel() {
   }, [offset, query.data, total]);
 
   const handleExport = async () => {
-    const { data: bundle } = await logsExportDiagnostics({ throwOnError: true });
+    const { data: bundle } = await logsExportDiagnostics({
+      throwOnError: true,
+    });
     downloadJson(bundle, `codex-webui-diagnostics-${bundle.exportedAt}.json`);
   };
 
@@ -91,10 +103,10 @@ export function DiagnosticsPanel() {
       try {
         await copyTextToClipboard(JSON.stringify(bundle, null, 2));
         setReadyBundle(null);
-        showSnackbar(t('Copied!'), 'success');
+        showSnackbar(t('copied'), 'success');
       } catch {
         setReadyBundle(bundle);
-        showSnackbar(t('Copy failed. Click again to copy.'), 'warning');
+        showSnackbar(t('copyFailedClickAgainToCopy'), 'warning');
       }
     } finally {
       setCopyPending(false);
@@ -105,14 +117,14 @@ export function DiagnosticsPanel() {
     <section className="flex min-h-0 flex-1 flex-col bg-background">
       <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
         <div className="mr-auto">
-          <h2 className="text-sm font-semibold">{t('Diagnostics')}</h2>
+          <h2 className="text-sm font-semibold">{t('diagnostics')}</h2>
           <p className="text-xs text-muted-foreground">
-            {t('Structured logs and sanitized issue bundle export.')}
+            {t('structuredLogsAndSanitizedIssueBundleExport')}
           </p>
         </div>
 
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          {t('Level')}
+          {t('level')}
           <select
             value={level}
             onChange={(event) => {
@@ -123,7 +135,7 @@ export function DiagnosticsPanel() {
           >
             {LEVELS.map((item) => (
               <option key={item || 'all'} value={item}>
-                {item || t('All')}
+                {item || t('all')}
               </option>
             ))}
           </select>
@@ -135,7 +147,7 @@ export function DiagnosticsPanel() {
             setOffset(0);
             setSource(event.target.value);
           }}
-          placeholder={t('Filter source')}
+          placeholder={t('filterSource')}
           className="h-8 w-40"
         />
 
@@ -153,7 +165,7 @@ export function DiagnosticsPanel() {
           disabled={query.isFetching || copyPending}
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          {t('Refresh')}
+          {t('refresh')}
         </Button>
         <Button
           variant="outline"
@@ -171,11 +183,11 @@ export function DiagnosticsPanel() {
           }}
         >
           <Copy className="h-3.5 w-3.5" />
-          {readyBundle ? t('Copy prepared export') : t('Copy export')}
+          {readyBundle ? t('copyPreparedExport') : t('copyExport')}
         </Button>
         <Button size="sm" onClick={() => void handleExport()}>
           <Download className="h-3.5 w-3.5" />
-          {t('Download export')}
+          {t('downloadExport')}
         </Button>
       </div>
 
@@ -187,13 +199,13 @@ export function DiagnosticsPanel() {
 
           {!query.isLoading && entries.length === 0 && (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              {t('No logs found')}
+              {t('noLogsFound')}
             </div>
           )}
 
           {query.isLoading && (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              {t('Loading...')}
+              {t('loadingb04ba49f')}
             </div>
           )}
         </div>
@@ -208,7 +220,7 @@ export function DiagnosticsPanel() {
             disabled={offset === 0}
             onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
           >
-            {t('Previous')}
+            {t('previous')}
           </Button>
           <Button
             variant="outline"
@@ -216,7 +228,7 @@ export function DiagnosticsPanel() {
             disabled={!query.data?.hasMore}
             onClick={() => setOffset(offset + PAGE_SIZE)}
           >
-            {t('Next')}
+            {t('next')}
           </Button>
         </div>
       </div>
@@ -236,7 +248,9 @@ function LogEntryDtoRow({ entry }: { entry: LogEntryDto }) {
           {entry.source}
         </span>
       </div>
-      <p className="break-words text-foreground">{entry.message || '(no message)'}</p>
+      <p className="break-words text-foreground">
+        {entry.message || '(no message)'}
+      </p>
       <pre className="max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs text-muted-foreground">
         {JSON.stringify(entry.fields, null, 2)}
       </pre>
@@ -244,7 +258,9 @@ function LogEntryDtoRow({ entry }: { entry: LogEntryDto }) {
   );
 }
 
-function levelVariant(level: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+function levelVariant(
+  level: string,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
   if (level === 'error' || level === 'fatal') return 'destructive';
   if (level === 'warn') return 'outline';
   if (level === 'info') return 'default';

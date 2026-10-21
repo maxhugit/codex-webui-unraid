@@ -15,7 +15,7 @@ export function RateLimitsCard({ snapshot, isLoading, isError }: Props) {
   if (isLoading && !snapshot) {
     return (
       <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm text-muted-foreground">
-        {t('Loading...')}
+        {t('loadingb04ba49f')}
       </div>
     );
   }
@@ -23,7 +23,7 @@ export function RateLimitsCard({ snapshot, isLoading, isError }: Props) {
   if (isError && !snapshot) {
     return (
       <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm text-muted-foreground">
-        {t('Rate limits unavailable')}
+        {t('rateLimitsUnavailable')}
       </div>
     );
   }
@@ -33,25 +33,25 @@ export function RateLimitsCard({ snapshot, isLoading, isError }: Props) {
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card/50 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">{t('Rate limits and credits')}</h3>
+        <h3 className="text-sm font-medium">{t('rateLimitsAndCredits')}</h3>
         {snapshot.limitName && (
           <Badge variant="outline">{snapshot.limitName}</Badge>
         )}
       </div>
       <div className="grid gap-2 text-sm sm:grid-cols-2">
         <InfoRow
-          label={t('Primary window')}
+          label={t('primaryWindow')}
           value={formatWindow(snapshot.primary, t)}
         />
         <InfoRow
-          label={t('Secondary window')}
+          label={t('secondaryWindow')}
           value={formatWindow(snapshot.secondary, t)}
         />
-        <InfoRow label={t('Plan')} value={snapshot.planType ?? t('unknown')} />
         <InfoRow
-          label={t('Credits')}
-          value={formatCredits(snapshot, t)}
+          label={t('plan')}
+          value={snapshot.planType ?? t('unknown50d8b4a9')}
         />
+        <InfoRow label={t('credits')} value={formatCredits(snapshot, t)} />
       </div>
     </div>
   );
@@ -72,9 +72,9 @@ function formatWindow(
   window: RateLimitSnapshotDto['primary'],
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
-  if (!window) return t('not available');
+  if (!window) return t('notAvailable');
   const reset = window.resetsAt
-    ? `, ${t('resets {{time}}', { time: formatReset(window.resetsAt) })}`
+    ? `, ${t('resetsTime', { time: formatReset(window.resetsAt) })}`
     : '';
   return `${Math.round(window.usedPercent)}%${reset}`;
 }
@@ -84,9 +84,9 @@ function formatCredits(
   t: (key: string) => string,
 ): string {
   const credits = snapshot.credits;
-  if (!credits) return t('not available');
+  if (!credits) return t('notAvailable');
   if (credits.unlimited) return t('unlimited');
-  if (!credits.hasCredits) return t('no credits');
+  if (!credits.hasCredits) return t('noCredits');
   return credits.balance ?? t('available');
 }
 

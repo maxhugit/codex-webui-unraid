@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** Row editor for structured Codex config settings. */
 import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -77,7 +78,7 @@ export function ConfigFieldEditor({
           htmlFor={`codex-field-${def.key}`}
           className="text-sm font-medium"
         >
-          {t(def.label)}
+          {t(translationKey(def.label))}
         </label>
         {isNonEnglish && (
           <code className="text-xs text-muted-foreground">{def.key}</code>
@@ -85,7 +86,9 @@ export function ConfigFieldEditor({
         <ConfigSourceBadge source={origin} />
       </div>
       {def.description && (
-        <p className="text-xs text-muted-foreground">{t(def.description)}</p>
+        <p className="text-xs text-muted-foreground">
+          {t(translationKey(def.description))}
+        </p>
       )}
 
       <div className="flex flex-wrap items-end gap-2">
@@ -101,11 +104,11 @@ export function ConfigFieldEditor({
             )}
           >
             <option value="" disabled>
-              {t('(not set)')}
+              {t('notSet')}
             </option>
             {visibleOptions.map((opt) => (
               <option key={opt} value={opt}>
-                {t(opt)}
+                {t(translationKey(opt))}
               </option>
             ))}
           </select>
@@ -130,25 +133,31 @@ export function ConfigFieldEditor({
               ))}
               <option value="__custom__">
                 {t(
-                  def.key === 'model_provider'
-                    ? 'Custom provider'
-                    : 'Custom model',
+                  translationKey(
+                    def.key === 'model_provider'
+                      ? 'customProvider'
+                      : 'customModel',
+                  ),
                 )}
               </option>
             </select>
             {!modelOptions.includes(draft) && (
               <Input
                 aria-label={t(
-                  def.key === 'model_provider'
-                    ? 'Custom provider'
-                    : 'Custom model',
+                  translationKey(
+                    def.key === 'model_provider'
+                      ? 'customProvider'
+                      : 'customModel',
+                  ),
                 )}
                 value={draft}
                 disabled={saving}
                 placeholder={t(
-                  def.key === 'model_provider'
-                    ? 'Provider identifier'
-                    : 'Model identifier',
+                  translationKey(
+                    def.key === 'model_provider'
+                      ? 'providerIdentifier'
+                      : 'modelIdentifier',
+                  ),
                 )}
                 onChange={(event) => onDraftChange(def.key, event.target.value)}
               />
@@ -190,7 +199,7 @@ export function ConfigFieldEditor({
             disabled={saving || !dirty}
             onClick={() => onSave(def.key)}
           >
-            {t('Save')}
+            {t('save')}
           </Button>
         )}
         {overridden && (
@@ -202,7 +211,7 @@ export function ConfigFieldEditor({
             onClick={() => onClear(def.key)}
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            {t('Return to inheritance')}
+            {t('returnToInheritance')}
           </Button>
         )}
       </div>

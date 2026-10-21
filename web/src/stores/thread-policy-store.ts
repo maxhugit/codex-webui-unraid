@@ -336,10 +336,10 @@ function notifyPolicyOutcome(outcome: Exclude<PolicyOutcome, 'pending'>): void {
   showSnackbar(
     outcome === 'unknown'
       ? i18n.t(
-          'Could not confirm the security policy change. Check the badge before sending.',
+          'couldNotConfirmTheSecurityPolicyChangeCheckTheBadgeBeforeSending',
         )
       : i18n.t(
-          'The security policy change did not take effect. This conversation kept its previous settings.',
+          'theSecurityPolicyChangeDidNotTakeEffectThisConversationKeptItsPreviousSettings',
         ),
     outcome === 'unknown' ? 'warning' : 'error',
   );

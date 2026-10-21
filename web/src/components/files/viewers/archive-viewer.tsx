@@ -1,7 +1,14 @@
 /** Archive browser: lists entries and dispatches selected entry to read-only viewers. */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Archive, ChevronRight, File, Folder, Loader2, Lock } from 'lucide-react';
+import {
+  Archive,
+  ChevronRight,
+  File,
+  Folder,
+  Loader2,
+  Lock,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { archiveListArchiveOptions } from '@/generated/api/@tanstack/react-query.gen';
 import type { ArchiveEntryDto } from '@/generated/api/types.gen';
@@ -24,24 +31,41 @@ export function ArchiveViewer({ filePath }: Props) {
     if (selected) setSelected(null);
   }
 
-  const query = useQuery(archiveListArchiveOptions({ query: { path: filePath } }));
+  const query = useQuery(
+    archiveListArchiveOptions({ query: { path: filePath } }),
+  );
 
-  const firstFile = useMemo(() => findFirstFile(query.data?.entries ?? []), [query.data]);
+  const firstFile = useMemo(
+    () => findFirstFile(query.data?.entries ?? []),
+    [query.data],
+  );
   const active = selected ?? firstFile;
 
   if (query.isLoading) {
-    return <ArchiveMessage icon={<Loader2 className="h-4 w-4 animate-spin" />} message={t('Loading...')} />;
+    return (
+      <ArchiveMessage
+        icon={<Loader2 className="h-4 w-4 animate-spin" />}
+        message={t('loadingb04ba49f')}
+      />
+    );
   }
-  if (query.error) return <ArchiveMessage message={t('Failed to load archive')} />;
+  if (query.error) return <ArchiveMessage message={t('failedToLoadArchive')} />;
 
   return (
     <div className="grid h-full grid-cols-[minmax(14rem,20rem)_1fr]">
       <div className="min-h-0 overflow-auto border-r border-border bg-card/30 p-2">
         {(query.data?.entries ?? []).length === 0 ? (
-          <div className="p-2 text-sm text-muted-foreground">{t('Empty archive')}</div>
+          <div className="p-2 text-sm text-muted-foreground">
+            {t('emptyArchive')}
+          </div>
         ) : (
           query.data?.entries.map((entry) => (
-            <ArchiveTreeNode key={entry.path} entry={entry} selectedPath={active?.path ?? null} onSelect={setSelected} />
+            <ArchiveTreeNode
+              key={entry.path}
+              entry={entry}
+              selectedPath={active?.path ?? null}
+              onSelect={setSelected}
+            />
           ))
         )}
       </div>
@@ -49,7 +73,10 @@ export function ArchiveViewer({ filePath }: Props) {
         {active ? (
           <ArchiveEntryPreview archivePath={filePath} entry={active} />
         ) : (
-          <ArchiveMessage icon={<Archive className="h-5 w-5 opacity-50" />} message={t('Select an archive entry to preview')} />
+          <ArchiveMessage
+            icon={<Archive className="h-5 w-5 opacity-50" />}
+            message={t('selectAnArchiveEntryToPreview')}
+          />
         )}
       </div>
     </div>
@@ -74,21 +101,36 @@ function ArchiveTreeNode({
       <button
         type="button"
         className={`flex w-full items-center gap-1 rounded px-1.5 py-1 text-left text-xs hover:bg-accent/50 ${isSelected ? 'bg-accent text-accent-foreground' : ''}`}
-        onClick={() => (isDirectory ? setExpanded((value) => !value) : onSelect(entry))}
+        onClick={() =>
+          isDirectory ? setExpanded((value) => !value) : onSelect(entry)
+        }
       >
         {isDirectory ? (
-          <ChevronRight className={`h-3 w-3 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+          <ChevronRight
+            className={`h-3 w-3 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          />
         ) : (
           <span className="h-3 w-3" />
         )}
-        {isDirectory ? <Folder className="h-3.5 w-3.5" /> : <File className="h-3.5 w-3.5" />}
+        {isDirectory ? (
+          <Folder className="h-3.5 w-3.5" />
+        ) : (
+          <File className="h-3.5 w-3.5" />
+        )}
         <span className="truncate">{entry.name}</span>
-        {entry.encrypted && <Lock className="ml-auto h-3 w-3 text-muted-foreground" />}
+        {entry.encrypted && (
+          <Lock className="ml-auto h-3 w-3 text-muted-foreground" />
+        )}
       </button>
       {isDirectory && expanded && (
         <div className="ml-4">
           {(entry.children ?? []).map((child) => (
-            <ArchiveTreeNode key={child.path} entry={child} selectedPath={selectedPath} onSelect={onSelect} />
+            <ArchiveTreeNode
+              key={child.path}
+              entry={child}
+              selectedPath={selectedPath}
+              onSelect={onSelect}
+            />
           ))}
         </div>
       )}
@@ -96,21 +138,34 @@ function ArchiveTreeNode({
   );
 }
 
-function ArchiveEntryPreview({ archivePath, entry }: { archivePath: string; entry: ArchiveEntryDto }) {
+function ArchiveEntryPreview({
+  archivePath,
+  entry,
+}: {
+  archivePath: string;
+  entry: ArchiveEntryDto;
+}) {
   const { t } = useTranslation();
-  const source = useMemo<PreviewSource>(() => ({
-    kind: 'archive',
-    archivePath,
-    entryPath: entry.path,
-    label: entry.path,
-    size: entry.size,
-  }), [archivePath, entry.path, entry.size]);
+  const source = useMemo<PreviewSource>(
+    () => ({
+      kind: 'archive',
+      archivePath,
+      entryPath: entry.path,
+      label: entry.path,
+      size: entry.size,
+    }),
+    [archivePath, entry.path, entry.size],
+  );
   const category = getFileCategory(entry.path);
 
-  if (entry.encrypted) return <ArchiveMessage message={t('Encrypted files are not supported')} />;
-  if (entry.unsupported) return <ArchiveMessage message={t('Archive entry type is not supported')} />;
+  if (entry.encrypted)
+    return <ArchiveMessage message={t('encryptedFilesAreNotSupported')} />;
+  if (entry.unsupported)
+    return <ArchiveMessage message={t('archiveEntryTypeIsNotSupported')} />;
   if (entry.size !== undefined && entry.size > 50 * 1024 * 1024) {
-    return <ArchiveMessage message={t('Archive entry exceeds the preview size limit')} />;
+    return (
+      <ArchiveMessage message={t('archiveEntryExceedsThePreviewSizeLimit')} />
+    );
   }
   return (
     <div className="flex h-full flex-col">
@@ -134,7 +189,13 @@ function findFirstFile(entries: ArchiveEntryDto[]): ArchiveEntryDto | null {
   return null;
 }
 
-function ArchiveMessage({ icon, message }: { icon?: React.ReactNode; message: string }) {
+function ArchiveMessage({
+  icon,
+  message,
+}: {
+  icon?: React.ReactNode;
+  message: string;
+}) {
   return (
     <div className="flex h-full items-center justify-center gap-2 px-4 text-center text-sm text-muted-foreground">
       {icon ?? <Archive className="h-5 w-5 opacity-50" />}

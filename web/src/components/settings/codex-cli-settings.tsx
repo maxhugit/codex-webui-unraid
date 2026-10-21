@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** Administrator-only controls for the managed app-server CLI, not a shell console. */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -105,44 +106,40 @@ export function CodexCliSettings() {
   return (
     <div className="space-y-4">
       <div className="space-y-3 rounded-xl border border-border bg-card/50 p-4">
-        <h3 className="text-sm font-semibold">
-          {t('Codex CLI on this server')}
-        </h3>
+        <h3 className="text-sm font-semibold">{t('codexCliOnThisServer')}</h3>
         <dl className="grid grid-cols-2 gap-3 text-sm">
-          <dt>{t('Installed version')}</dt>
+          <dt>{t('installedVersion')}</dt>
           <dd>
             {data?.installationState === 'missing'
-              ? t('Not installed')
-              : (data?.installedVersion ?? t('Unknown'))}
+              ? t('notInstalled')
+              : (data?.installedVersion ?? t('unknown'))}
           </dd>
-          <dt>{t('Latest stable version')}</dt>
-          <dd>{data?.latestVersion ?? t('Unknown')}</dd>
+          <dt>{t('latestStableVersion')}</dt>
+          <dd>{data?.latestVersion ?? t('unknown')}</dd>
         </dl>
         {data?.checkedAt && (
           <p className="text-xs text-muted-foreground">
-            {t('Last checked')}:{' '}
+            {t('lastChecked')}:{' '}
             {new Date(data.checkedAt).toLocaleString(i18n.language)}
           </p>
         )}
-        {status.isLoading && <p>{t('Loading...')}</p>}
+        {status.isLoading && <p>{t('loadingb04ba49f')}</p>}
         {data?.installedVersion && data.latestVersion && (
           <p role="status">
             {data.updateAvailable
-              ? t('A CLI update is available')
-              : t('No newer stable CLI version is available')}
+              ? t('aCliUpdateIsAvailable')
+              : t('noNewerStableCliVersionIsAvailable')}
           </p>
         )}
         {data?.installationState === 'missing' && (
           <p role="status">
-            {t(
-              'Codex CLI is not installed. Install it to enable conversations and agents.',
-            )}
+            {t('codexCliIsNotInstalledInstallItToEnableConversationsAndAgents')}
           </p>
         )}
         {data?.installationState === 'legacy' && (
           <p className="text-xs text-muted-foreground">
             {t(
-              'This legacy installation remains usable. The next update will migrate CLI selection to persistent managed storage.',
+              'thisLegacyInstallationRemainsUsableTheNextUpdateWillMigrateCliSelectionToPersisa6644a8d',
             )}
           </p>
         )}
@@ -162,12 +159,12 @@ export function CodexCliSettings() {
             >
               {error!
                 .split('\n')
-                .map((line) => t(line))
+                .map((line) => t(translationKey(line)))
                 .join('\n')}
             </p>
           ))}
         {mutation.isSuccess && (
-          <p role="status">{t('CLI operation completed')}</p>
+          <p role="status">{t('cliOperationCompleted')}</p>
         )}
         <div className="flex flex-wrap gap-2">
           <Button
@@ -175,7 +172,7 @@ export function CodexCliSettings() {
             disabled={busy}
             onClick={() => void check()}
           >
-            {t('Check for CLI updates')}
+            {t('checkForCliUpdates')}
           </Button>
           <Button
             disabled={
@@ -192,8 +189,8 @@ export function CodexCliSettings() {
           >
             {t(
               data?.installationState === 'missing'
-                ? 'Install Codex CLI'
-                : 'Update Codex CLI',
+                ? 'installCodexCli'
+                : 'updateCodexCli',
             )}
           </Button>
           {data?.canRollback && (
@@ -204,18 +201,16 @@ export function CodexCliSettings() {
               }
               onClick={() => setConfirmation('rollback')}
             >
-              {t('Restore previous CLI')}
+              {t('restorePreviousCli')}
             </Button>
           )}
         </div>
         {busy && (
-          <p role="status">
-            {t('CLI operation in progress. Do not start new work.')}
-          </p>
+          <p role="status">{t('cliOperationInProgressDoNotStartNewWork')}</p>
         )}
         {data && !data.canManage && (
           <p className="text-xs text-muted-foreground">
-            {t('This CLI installation is managed externally')}
+            {t('thisCliInstallationIsManagedExternally')}
           </p>
         )}
       </div>
@@ -223,27 +218,27 @@ export function CodexCliSettings() {
         <section className="space-y-3 rounded-xl border border-border bg-card/50 p-4">
           <div className="space-y-1">
             <h3 className="text-sm font-semibold">
-              {t('Changes between {{from}} and {{to}}', {
+              {t('changesBetweenFromAndTo', {
                 from: data.installedVersion,
                 to: data.latestVersion,
               })}
             </h3>
             <p className="text-xs text-muted-foreground">
               {t(
-                'Official OpenAI release notes are translated into the interface language when a translation is available.',
+                'officialOpenAiReleaseNotesAreTranslatedIntoTheInterfaceLanguageWhenATranslationf3ead718',
               )}
             </p>
           </div>
           {releases.isLoading && (
             <p className="text-sm text-muted-foreground">
-              {t('Loading release notes...')}
+              {t('loadingReleaseNotes')}
             </p>
           )}
           {(releases.data?.releaseError || releases.error) && (
             <p role="alert" className="text-sm text-amber-500">
               {t(
                 releases.data?.releaseError ??
-                  'Unable to load official CLI release notes',
+                  'unableToLoadOfficialCliReleaseNotes',
               )}
             </p>
           )}
@@ -268,7 +263,7 @@ export function CodexCliSettings() {
               {release.sections.map((section) => (
                 <div key={section.heading} className="space-y-1.5">
                   <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {t(section.heading)}
+                    {t(translationKey(section.heading))}
                   </h5>
                   <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
                     {section.items.map((item) => (
@@ -283,7 +278,7 @@ export function CodexCliSettings() {
                 rel="noreferrer"
                 className="inline-flex text-sm text-primary underline underline-offset-4"
               >
-                {t('Open the official release note')}
+                {t('openTheOfficialReleaseNote')}
               </a>
             </article>
           ))}
@@ -291,12 +286,12 @@ export function CodexCliSettings() {
       )}
       <p className="text-xs text-muted-foreground">
         {t(
-          'CLI updates are installed in persistent storage without changing the container image. Codex must be idle. A failed activation restores the previous selection. A newer CLI may require a WebUI update for full compatibility.',
+          'cliUpdatesAreInstalledInPersistentStorageWithoutChangingTheContainerImageCodexM8b37678d',
         )}
       </p>
       <p className="text-xs text-amber-500">
         {t(
-          'Back up the Codex home before updating. A newer CLI may migrate its data; restoring an older binary does not undo data migrations. Idle checks cover the managed app-server only.',
+          'backUpTheCodexHomeBeforeUpdatingANewerCliMayMigrateItsDataRestoringAnOlderBinarf5940f41',
         )}
       </p>
       <AlertDialog
@@ -310,23 +305,23 @@ export function CodexCliSettings() {
             <AlertDialogTitle>
               {t(
                 confirmation === 'rollback'
-                  ? 'Restore previous CLI'
+                  ? 'restorePreviousCli'
                   : confirmation === 'install'
-                    ? 'Install Codex CLI'
-                    : 'Update Codex CLI',
+                    ? 'installCodexCli'
+                    : 'updateCodexCli',
               )}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t(
                 confirmation === 'install'
-                  ? 'This installs the latest stable Codex CLI in persistent storage and starts the managed app-server. The container image is not modified.'
-                  : 'This restarts the managed Codex app-server. The operation is refused while work is active. Conversations and configuration are preserved.',
+                  ? 'thisInstallsTheLatestStableCodexCliInPersistentStorageAndStartsTheManagedAppSer62e3737f'
+                  : 'thisRestartsTheManagedCodexAppServerTheOperationIsRefusedWhileWorkIsActiveConve1489cd27',
               )}{' '}
               {confirmation !== 'rollback' && data?.latestVersion}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 const expected =
@@ -347,7 +342,7 @@ export function CodexCliSettings() {
                 setConfirmation(null);
               }}
             >
-              {t('Confirm')}
+              {t('confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

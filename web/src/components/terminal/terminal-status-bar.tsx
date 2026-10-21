@@ -11,7 +11,11 @@ interface Props {
   className?: string;
 }
 
-export function TerminalStatusBar({ contextKey, activeTerminalId, className }: Props) {
+export function TerminalStatusBar({
+  contextKey,
+  activeTerminalId,
+  className,
+}: Props) {
   const { t } = useTranslation();
   const terminals = useTerminalStore((s) => s.terminals);
   const renameTerminal = useTerminalStore((s) => s.renameTerminal);
@@ -21,7 +25,7 @@ export function TerminalStatusBar({ contextKey, activeTerminalId, className }: P
   if (!terminal) return null;
 
   const handleRename = async () => {
-    const title = window.prompt(t('Rename terminal'), terminal.title)?.trim();
+    const title = window.prompt(t('renameTerminal'), terminal.title)?.trim();
     if (title) await renameTerminal(contextKey, terminal.id, title);
   };
 
@@ -35,7 +39,10 @@ export function TerminalStatusBar({ contextKey, activeTerminalId, className }: P
       <span className="min-w-0 truncate" title={terminal.cwd}>
         {terminal.shell} · {terminal.cwd}
       </span>
-      <span className="inline-flex items-center gap-1" title={t('Attached clients')}>
+      <span
+        className="inline-flex items-center gap-1"
+        title={t('attachedClients')}
+      >
         <Users className="h-3 w-3" />
         {terminal.attachedCount}
       </span>
@@ -45,7 +52,7 @@ export function TerminalStatusBar({ contextKey, activeTerminalId, className }: P
           variant="ghost"
           size="icon-xs"
           onClick={() => void handleRename()}
-          title={t('Rename terminal')}
+          title={t('renameTerminal')}
         >
           <Edit3 />
         </Button>
@@ -54,7 +61,7 @@ export function TerminalStatusBar({ contextKey, activeTerminalId, className }: P
           variant="ghost"
           size="icon-xs"
           onClick={() => void downloadTerminal(contextKey, terminal.id)}
-          title={t('Download terminal output')}
+          title={t('downloadTerminalOutput')}
         >
           <Download />
         </Button>

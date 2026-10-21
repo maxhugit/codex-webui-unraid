@@ -31,11 +31,7 @@ vi.mock('@/lib/auth-api', () => ({
 }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, values?: Record<string, unknown>) =>
-      Object.entries(values ?? {}).reduce(
-        (text, [name, value]) => text.replace(`{{${name}}}`, String(value)),
-        key,
-      ),
+    t: globalThis.__testTranslate,
     i18n: { resolvedLanguage: 'en' },
   }),
 }));

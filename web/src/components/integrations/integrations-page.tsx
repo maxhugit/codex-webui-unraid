@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * Integrations page shell with tab routing: Plugins / Apps / MCPs.
  * Accessible from sidebar nav; tab state stored in URL search param.
@@ -30,7 +31,7 @@ export function IntegrationsPage() {
   const threadId = useTimelineStore((s) => s.threadId);
   const tab = useRouterState({
     select: (state) =>
-      ((state.location.search as { tab?: IntegrationTab }).tab ?? 'plugins'),
+      (state.location.search as { tab?: IntegrationTab }).tab ?? 'plugins',
   });
 
   const navigateBack = () => {
@@ -54,7 +55,7 @@ export function IntegrationsPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl font-semibold">{t('Integrations')}</h1>
+          <h1 className="text-xl font-semibold">{t('integrations')}</h1>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -63,9 +64,11 @@ export function IntegrationsPage() {
               key={s}
               variant={tab === s ? 'default' : 'outline'}
               size="sm"
-              onClick={() => void navigate({ to: '/integrations', search: { tab: s } })}
+              onClick={() =>
+                void navigate({ to: '/integrations', search: { tab: s } })
+              }
             >
-              {t(tabLabel(s))}
+              {t(translationKey(tabLabel(s)))}
             </Button>
           ))}
         </div>

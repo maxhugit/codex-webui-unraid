@@ -35,7 +35,9 @@ export function ServiceTierSelector() {
   // Lifecycle responses seed this local value. No passive read or complete
   // notification stream exists for service tiers, so unsupported values stay absent.
   const activeTierId = resolveServiceTier(
-    serviceTierOverride === null ? 'default' : serviceTierOverride ?? observedTier,
+    serviceTierOverride === null
+      ? 'default'
+      : (serviceTierOverride ?? observedTier),
     activeModel,
   );
   const activeTier = serviceTiers.find((tier) => tier.id === activeTierId);
@@ -51,11 +53,15 @@ export function ServiceTierSelector() {
           variant="ghost"
           size="sm"
           className="h-7 gap-1 rounded-lg px-2 text-xs"
-          title={t('Speed')}
+          title={t('speed')}
         >
           <Zap className="h-3.5 w-3.5" />
           <span className="hidden sm:inline max-w-[90px] truncate">
-            {activeTier ? catalogCopy(activeTier.name) : activeTierId === 'default' ? t('Standard') : t('Speed')}
+            {activeTier
+              ? catalogCopy(activeTier.name)
+              : activeTierId === 'default'
+                ? t('standard')
+                : t('speed')}
           </span>
           <ChevronDown className="h-3 w-3 opacity-50" />
         </Button>
@@ -67,15 +73,17 @@ export function ServiceTierSelector() {
         className="w-72 space-y-1 p-3 text-sm"
       >
         <div className="text-xs font-medium text-muted-foreground">
-          {t('Speed')}
+          {t('speed')}
         </div>
         <OptionRow
           active={activeTierId === 'default'}
           badge={
-            activeModel?.defaultServiceTier === null ? t('default') : undefined
+            activeModel?.defaultServiceTier === null
+              ? t('default7505d64a')
+              : undefined
           }
-          description={t('Standard speed included with your plan.')}
-          label={t('Standard')}
+          description={t('standardSpeedIncludedWithYourPlan')}
+          label={t('standard')}
           // Explicit null, not undefined: this is what clears a tier the
           // thread already carries.
           onSelect={() => setServiceTierOverride(null)}
@@ -86,7 +94,7 @@ export function ServiceTierSelector() {
             active={tier.id === activeTierId}
             badge={
               tier.id === activeModel?.defaultServiceTier
-                ? t('default')
+                ? t('default7505d64a')
                 : undefined
             }
             description={catalogCopy(tier.description)}

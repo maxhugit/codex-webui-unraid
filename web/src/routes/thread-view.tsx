@@ -210,17 +210,14 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
           await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
           invalidateThreadListSoon(queryClient);
           showSnackbar(
-            t('{{count}} missing workspace reference(s) cleaned up.', {
+            t('countMissingWorkspaceReferenceSCleanedUp', {
               count: result.removed.length,
             }),
             'info',
           );
         }
         if (result.unresolved.length)
-          showSnackbar(
-            t('A project has no remaining workspace on disk.'),
-            'warning',
-          );
+          showSnackbar(t('aProjectHasNoRemainingWorkspaceOnDisk'), 'warning');
       })
       .catch((error) => showSnackbar(getApiErrorMessage(error), 'warning'))
       .finally(resume);
@@ -295,11 +292,11 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
         />
         <div
           className="relative min-h-0 flex-1"
-          aria-label={t('Workspace content')}
+          aria-label={t('workspaceContent')}
         >
           <div
             role="tabpanel"
-            aria-label={t('Conversation')}
+            aria-label={t('conversation')}
             className="absolute inset-0"
             inert={workspace.activeId !== 'conversation'}
             style={{
@@ -319,7 +316,7 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
               <SurfaceActivityContext key={tab.id} value={active}>
                 <div
                   role="tabpanel"
-                  aria-label={tab.kind === 'file' ? tab.path : t('Terminal')}
+                  aria-label={tab.kind === 'file' ? tab.path : t('terminal')}
                   className="absolute inset-0 flex min-h-0 flex-col"
                   inert={!active}
                   style={{ visibility: active ? 'visible' : 'hidden' }}

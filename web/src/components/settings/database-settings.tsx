@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import { lazy, Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -123,7 +124,7 @@ export function DatabaseSettings() {
       <div className="flex h-10 min-w-0 shrink-0 items-center border-b bg-background">
         <div
           role="tablist"
-          aria-label={t('Database sections')}
+          aria-label={t('databaseSections')}
           className="flex min-w-0 flex-1 items-center overflow-x-auto"
         >
           {tabs.map(({ id, label, icon: Icon }) => (
@@ -141,7 +142,7 @@ export function DatabaseSettings() {
               )}
             >
               <Icon className="h-4 w-4" />
-              {t(label)}
+              {t(translationKey(label))}
             </button>
           ))}
         </div>
@@ -150,11 +151,11 @@ export function DatabaseSettings() {
       {tab === 'overview' && (
         <div className="min-h-0 flex-1 space-y-5 overflow-auto px-4 py-4 sm:px-6">
           {status.isPending && (
-            <p className="text-sm text-muted-foreground">{t('Loading…')}</p>
+            <p className="text-sm text-muted-foreground">{t('loading')}</p>
           )}
           {status.isError && (
             <p role="alert" className="text-sm text-destructive">
-              {t('Unable to read database information.')}
+              {t('unableToReadDatabaseInformation')}
             </p>
           )}
           {database && (
@@ -162,59 +163,58 @@ export function DatabaseSettings() {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <InfoCard
                   icon={Database}
-                  label={t('Engine')}
+                  label={t('engine')}
                   value={database.engine}
                 />
                 <InfoCard
                   icon={HardDrive}
-                  label={t('Current size')}
+                  label={t('currentSize')}
                   value={size(database.totalSizeBytes)}
                 />
                 <InfoCard
                   icon={CheckCircle2}
-                  label={t('Status')}
+                  label={t('status')}
                   value={
-                    database.connected ? t('Connected') : t('Disconnected')
+                    database.connected ? t('connected') : t('disconnected')
                   }
                 />
                 <InfoCard
                   icon={Braces}
-                  label={t('Database version')}
+                  label={t('databaseVersion')}
                   value={database.schemaVersion}
                 />
               </div>
               <div className="rounded-xl border p-4">
-                <h3 className="text-sm font-semibold">{t('Storage')}</h3>
+                <h3 className="text-sm font-semibold">{t('storage')}</h3>
                 <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
-                  <Info label={t('Database path')} value={database.path} wide />
+                  <Info label={t('databasePath')} value={database.path} wide />
                   <Info
-                    label={t('Database file')}
+                    label={t('databaseFile')}
                     value={size(database.databaseSizeBytes)}
                   />
                   <Info
-                    label={t('Write-ahead log')}
+                    label={t('writeAheadLog')}
                     value={size(database.walSizeBytes)}
                   />
                   <Info
-                    label={t('Shared memory')}
+                    label={t('sharedMemory')}
                     value={size(database.sharedMemorySizeBytes)}
                   />
+                  <Info label={t('journalMode')} value={database.journalMode} />
                   <Info
-                    label={t('Journal mode')}
-                    value={database.journalMode}
+                    label={t('foreignKeys')}
+                    value={database.foreignKeys ? t('enabled') : t('disabled')}
                   />
                   <Info
-                    label={t('Foreign keys')}
-                    value={database.foreignKeys ? t('Enabled') : t('Disabled')}
-                  />
-                  <Info
-                    label={t('Access mode')}
+                    label={t('accessMode')}
                     value={
-                      database.readOnly ? t('Read-only') : t('Read and write')
+                      database.readOnly
+                        ? t('readOnly9b19a5a2')
+                        : t('readAndWrite')
                     }
                   />
                   <Info
-                    label={t('Pages')}
+                    label={t('pages')}
                     value={new Intl.NumberFormat(i18n.language).format(
                       database.pageCount,
                     )}
@@ -222,7 +222,7 @@ export function DatabaseSettings() {
                 </dl>
                 <p className="mt-4 text-xs text-muted-foreground">
                   {t(
-                    'The database path is configured with WEBUI_DB_PATH and is applied when the server starts.',
+                    'theDatabasePathIsConfiguredWithWebuiDbPathAndIsAppliedWhenTheServerStarts',
                   )}
                 </p>
               </div>
@@ -233,14 +233,14 @@ export function DatabaseSettings() {
 
       {tab === 'schema' && (
         <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6">
-          {schema.isPending && <p>{t('Loading…')}</p>}
+          {schema.isPending && <p>{t('loading')}</p>}
           {schema.isError && (
             <p role="alert" className="text-sm text-destructive">
-              {t('Unable to read the database schema.')}
+              {t('unableToReadTheDatabaseSchema')}
             </p>
           )}
           {schema.data && (
-            <Suspense fallback={<p>{t('Loading…')}</p>}>
+            <Suspense fallback={<p>{t('loading')}</p>}>
               <DatabaseSchemaGraph
                 objects={schema.data.objects}
                 onOpenTable={openTable}
@@ -255,7 +255,7 @@ export function DatabaseSettings() {
           <div className="mb-3 flex shrink-0 flex-wrap items-end gap-3">
             <label className="space-y-1 text-sm">
               <span className="block text-xs text-muted-foreground">
-                {t('Table')}
+                {t('table')}
               </span>
               <select
                 value={selectedTable}
@@ -275,7 +275,7 @@ export function DatabaseSettings() {
             </label>
             <label className="min-w-56 flex-1 space-y-1 text-sm">
               <span className="block text-xs text-muted-foreground">
-                {t('Search in table')}
+                {t('searchInTable')}
               </span>
               <span className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -286,14 +286,14 @@ export function DatabaseSettings() {
                     setSearch(event.target.value);
                     setPage(1);
                   }}
-                  placeholder={t('Search across visible columns…')}
+                  placeholder={t('searchAcrossVisibleColumns')}
                   className="h-9 w-full rounded-md border bg-background pl-9 pr-3"
                 />
               </span>
             </label>
             <label className="space-y-1 text-sm">
               <span className="block text-xs text-muted-foreground">
-                {t('Rows per page')}
+                {t('rowsPerPage')}
               </span>
               <select
                 value={pageSize}
@@ -312,14 +312,12 @@ export function DatabaseSettings() {
             </label>
           </div>
           <p className="mb-3 shrink-0 text-xs text-muted-foreground">
-            {t(
-              'Read-only view. Sensitive values are masked and rows are paginated.',
-            )}
+            {t('readOnlyViewSensitiveValuesAreMaskedAndRowsArePaginated')}
           </p>
-          {(schema.isPending || rows.isPending) && <p>{t('Loading…')}</p>}
+          {(schema.isPending || rows.isPending) && <p>{t('loading')}</p>}
           {(schema.isError || rows.isError) && (
             <p role="alert" className="text-sm text-destructive">
-              {t('Unable to read database rows.')}
+              {t('unableToReadDatabaseRows')}
             </p>
           )}
           {rows.data && (
@@ -352,14 +350,14 @@ export function DatabaseSettings() {
                 </table>
                 {rows.data.rows.length === 0 && (
                   <p className="p-4 text-sm text-muted-foreground">
-                    {t('This table is empty.')}
+                    {t('thisTableIsEmpty')}
                   </p>
                 )}
               </div>
               <div className="flex shrink-0 items-center justify-between gap-3 pt-3 text-sm">
                 <span className="text-muted-foreground">
-                  {t('{{count}} row', { count: rows.data.total })} ·{' '}
-                  {t('Page {{page}} of {{total}}', {
+                  {t('countRow', { count: rows.data.total })} ·{' '}
+                  {t('pagePageOfTotal', {
                     page: rows.data.page,
                     total: rows.data.totalPages,
                   })}
@@ -371,7 +369,7 @@ export function DatabaseSettings() {
                     disabled={page <= 1 || rows.isFetching}
                     onClick={() => setPage((current) => current - 1)}
                   >
-                    {t('Previous')}
+                    {t('previous')}
                   </Button>
                   <Button
                     size="sm"
@@ -379,7 +377,7 @@ export function DatabaseSettings() {
                     disabled={page >= rows.data.totalPages || rows.isFetching}
                     onClick={() => setPage((current) => current + 1)}
                   >
-                    {t('Next')}
+                    {t('next')}
                   </Button>
                 </div>
               </div>

@@ -80,13 +80,13 @@ function FilePathForm({
       />
       <DialogFooter>
         <Button variant="ghost" onClick={onCancel}>
-          {t('Cancel')}
+          {t('cancel')}
         </Button>
         <Button
           disabled={!selectedPath}
           onClick={() => selectedPath && (onConfirm(selectedPath), onCancel())}
         >
-          {t('Confirm')}
+          {t('confirm')}
         </Button>
       </DialogFooter>
     </>
@@ -114,25 +114,22 @@ export function DeleteConfirmDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('Delete')}</AlertDialogTitle>
+          <AlertDialogTitle>{t('delete')}</AlertDialogTitle>
           <AlertDialogDescription>
             {isDirectory
-              ? t(
-                  'Are you sure you want to delete the directory "{{name}}" and all its contents?',
-                  { name: entryName },
-                )
-              : t('Are you sure you want to delete "{{name}}"?', {
+              ? t('confirmDeleteDirectoryWithContents', { name: entryName })
+              : t('confirmDeleteEntry', {
                   name: entryName,
                 })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+          <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             onClick={() => onConfirm(isDirectory)}
           >
-            {t('Delete')}
+            {t('delete')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

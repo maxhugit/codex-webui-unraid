@@ -4,10 +4,21 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { ChevronLeft, ChevronRight, FileText, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Loader2,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { buildPreviewUrl, fetchPreviewBlob, type PreviewSource } from './preview-source';
+import {
+  buildPreviewUrl,
+  fetchPreviewBlob,
+  type PreviewSource,
+} from './preview-source';
 
 // Importing the worker as an explicit Vite asset ensures it is copied into the
 // production image. Resolving it with `new URL(..., import.meta.url)` can leave
@@ -37,7 +48,10 @@ export function PdfViewer({ source }: Props) {
     setBlobUrl(null);
   }
 
-  const file = useMemo(() => blobUrl ?? (source.kind === 'file' ? buildPreviewUrl(source) : null), [blobUrl, source]);
+  const file = useMemo(
+    () => blobUrl ?? (source.kind === 'file' ? buildPreviewUrl(source) : null),
+    [blobUrl, source],
+  );
 
   // Fetch blob URL for archive sources
   useEffect(() => {
@@ -50,7 +64,9 @@ export function PdfViewer({ source }: Props) {
         revokedUrl = URL.createObjectURL(blob);
         setBlobUrl(revokedUrl);
       })
-      .catch(() => { if (!cancelled) setError(t('Failed to load PDF')); });
+      .catch(() => {
+        if (!cancelled) setError(t('failedToLoadPdf'));
+      });
     return () => {
       cancelled = true;
       if (revokedUrl) URL.revokeObjectURL(revokedUrl);
@@ -62,21 +78,51 @@ export function PdfViewer({ source }: Props) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center gap-1 border-b border-border px-2 py-1">
-        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={pageNumber <= 1} onClick={() => setPageNumber((p) => Math.max(1, p - 1))} title={t('Previous page')}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6"
+          disabled={pageNumber <= 1}
+          onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
+          title={t('previousPage')}
+        >
           <ChevronLeft className="h-3.5 w-3.5" />
         </Button>
         <span className="min-w-[5.5rem] text-center text-xs text-muted-foreground">
-          {numPages ? t('Page {{page}} of {{total}}', { page: pageNumber, total: numPages }) : t('Loading...')}
+          {numPages
+            ? t('pagePageOfTotal', { page: pageNumber, total: numPages })
+            : t('loadingb04ba49f')}
         </span>
-        <Button size="icon" variant="ghost" className="h-6 w-6" disabled={!numPages || pageNumber >= numPages} onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))} title={t('Next page')}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6"
+          disabled={!numPages || pageNumber >= numPages}
+          onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
+          title={t('nextPage')}
+        >
           <ChevronRight className="h-3.5 w-3.5" />
         </Button>
         <div className="ml-auto flex items-center gap-1">
-          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))} title={t('Zoom out')}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6"
+            onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
+            title={t('zoomOut')}
+          >
             <ZoomOut className="h-3.5 w-3.5" />
           </Button>
-          <span className="min-w-[3rem] text-center text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
-          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setZoom((z) => Math.min(3, z + 0.1))} title={t('Zoom in')}>
+          <span className="min-w-[3rem] text-center text-xs text-muted-foreground">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6"
+            onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
+            title={t('zoomIn')}
+          >
             <ZoomIn className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -86,22 +132,36 @@ export function PdfViewer({ source }: Props) {
         {file ? (
           <Document
             file={file}
-            loading={<PdfMessage icon={<Loader2 className="h-4 w-4 animate-spin" />} message={t('Loading...')} />}
+            loading={
+              <PdfMessage
+                icon={<Loader2 className="h-4 w-4 animate-spin" />}
+                message={t('loadingb04ba49f')}
+              />
+            }
             onLoadSuccess={(pdf) => setNumPages(pdf.numPages)}
-            onLoadError={() => setError(t('Failed to load PDF'))}
-            onPassword={() => setError(t('Encrypted files are not supported'))}
+            onLoadError={() => setError(t('failedToLoadPdf'))}
+            onPassword={() => setError(t('encryptedFilesAreNotSupported'))}
           >
             <Page pageNumber={pageNumber} scale={zoom} />
           </Document>
         ) : (
-          <PdfMessage icon={<Loader2 className="h-4 w-4 animate-spin" />} message={t('Loading...')} />
+          <PdfMessage
+            icon={<Loader2 className="h-4 w-4 animate-spin" />}
+            message={t('loadingb04ba49f')}
+          />
         )}
       </div>
     </div>
   );
 }
 
-function PdfMessage({ icon, message }: { icon?: React.ReactNode; message: string }) {
+function PdfMessage({
+  icon,
+  message,
+}: {
+  icon?: React.ReactNode;
+  message: string;
+}) {
   return (
     <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
       {icon ?? <FileText className="h-5 w-5 opacity-50" />}

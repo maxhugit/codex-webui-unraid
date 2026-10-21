@@ -58,9 +58,7 @@ export function SimpleChatSettings() {
         setBackend(engine.backend);
         setSavedBackend(engine.backend);
       })
-      .catch(() =>
-        setBackendError(t('Unable to read the Simple Chat settings.')),
-      );
+      .catch(() => setBackendError(t('unableToReadTheSimpleChatSettings')));
   }, [t]);
 
   const saveBackend = async (value: 'openai' | 'codex') => {
@@ -85,12 +83,12 @@ export function SimpleChatSettings() {
       setSavedBackend(value);
       setBackendMessage(
         value === 'codex'
-          ? t('Simple Chat now uses Codex CLI.')
-          : t('Simple Chat now uses the OpenAI API.'),
+          ? t('simpleChatNowUsesCodexCli')
+          : t('simpleChatNowUsesTheOpenAiApi'),
       );
     } catch (caught) {
       setBackendError(
-        caught instanceof Error ? caught.message : t('Unable to save.'),
+        caught instanceof Error ? caught.message : t('unableToSave'),
       );
     } finally {
       setSavingBackend(false);
@@ -115,10 +113,10 @@ export function SimpleChatSettings() {
         throw new Error(payload.message || `HTTP ${response.status}`);
       setStatus(payload);
       setApiKey('');
-      setApiKeyMessage(t('The API key has been saved and activated.'));
+      setApiKeyMessage(t('theApiKeyHasBeenSavedAndActivated'));
     } catch (caught) {
       setApiKeyError(
-        caught instanceof Error ? caught.message : t('Unable to save.'),
+        caught instanceof Error ? caught.message : t('unableToSave'),
       );
     } finally {
       setSavingApiKey(false);
@@ -134,15 +132,15 @@ export function SimpleChatSettings() {
               htmlFor="simple-chat-backend"
               className="text-sm font-medium"
             >
-              {t('Active engine')}
+              {t('activeEngine')}
             </label>
             <p className="mt-1 text-xs text-muted-foreground">
               {backend === 'codex'
                 ? t(
-                    'Uses the Codex subscription with the model and reasoning effort configured for the project.',
+                    'usesTheCodexSubscriptionWithTheModelAndReasoningEffortConfiguredForTheProject',
                   )
                 : t(
-                    'Uses the API key saved below and the model selected for each conversation.',
+                    'usesTheApiKeySavedBelowAndTheModelSelectedForEachConversation',
                   )}
             </p>
           </div>
@@ -159,8 +157,8 @@ export function SimpleChatSettings() {
               }
               className="h-10 min-w-48 cursor-pointer rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="openai">{t('OpenAI API')}</option>
-              <option value="codex">{t('Codex CLI')}</option>
+              <option value="openai">{t('openAiApi')}</option>
+              <option value="codex">{t('codexCli')}</option>
             </select>
           </div>
         </div>
@@ -175,19 +173,19 @@ export function SimpleChatSettings() {
       <div className="rounded-xl border p-4">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-semibold">
-            {t('OpenAI API configuration')}
+            {t('openAiApiConfiguration')}
           </h3>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {status?.configured ? (
               <>
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                {t('API key configured')}
-                {status.managed ? t(' from this interface') : t(' on Unraid')}
+                {t('apiKeyConfigured')}
+                {status.managed ? t('fromThisInterface') : t('onUnraid')}
               </>
             ) : (
               <>
                 <KeyRound className="h-4 w-4 text-amber-500" />
-                {t('No API key available')}
+                {t('noApiKeyAvailable')}
               </>
             )}
           </div>
@@ -197,7 +195,7 @@ export function SimpleChatSettings() {
           htmlFor="openai-api-key"
           className="mb-1.5 block text-sm font-medium"
         >
-          {t('New OpenAI API key')}
+          {t('newOpenAiApiKey')}
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
@@ -211,7 +209,7 @@ export function SimpleChatSettings() {
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {t(
-            'The key is sent over HTTPS, stored only on the server with restrictive permissions, and can never be read back from the interface.',
+            'theKeyIsSentOverHttpsStoredOnlyOnTheServerWithRestrictivePermissionsAndCanNeverb1c6d8c2',
           )}
         </p>
         {apiKeyMessage && (

@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /** Desktop tabs and phone view chooser share descriptors and explicit activation. */
 import { useState } from 'react';
 import {
@@ -46,7 +47,7 @@ export function WorkspaceControls({
   const label = (tab: WorkspaceTab) => {
     if (tab.kind === 'file') return tab.path.split('/').pop() ?? tab.path;
     const terminal = terminals[tab.terminalId];
-    const title = terminal?.title ?? t('Terminal');
+    const title = terminal?.title ?? t('terminal');
     if (terminal?.status === 'expired') return `${title} · ${t('lost')}`;
     if (terminal?.status === 'closed') return `${title} · ${t('closed')}`;
     return title;
@@ -76,11 +77,11 @@ export function WorkspaceControls({
       )}
     >
       <MessageSquare className="h-4 w-4" />
-      <span className="hidden sm:inline">{t('Conversation')}</span>
-      <span className="sr-only sm:hidden">{t('Conversation')}</span>
+      <span className="hidden sm:inline">{t('conversation')}</span>
+      <span className="sr-only sm:hidden">{t('conversation')}</span>
       {pending > 0 ? (
         <span
-          aria-label={t('Pending decisions')}
+          aria-label={t('pendingDecisions')}
           className="rounded bg-amber-500/20 px-1.5 text-amber-600"
         >
           {pending}
@@ -88,7 +89,7 @@ export function WorkspaceControls({
       ) : (
         running && (
           <span
-            aria-label={t('Running')}
+            aria-label={t('running')}
             className="h-2 w-2 animate-pulse rounded-full bg-primary"
           />
         )
@@ -100,7 +101,7 @@ export function WorkspaceControls({
     <div className="flex h-10 min-w-0 shrink-0 items-center border-b bg-background">
       <div
         role={desktop ? 'tablist' : undefined}
-        aria-label={t('Workspace views')}
+        aria-label={t('workspaceViews')}
         className="flex min-w-0 flex-1 items-center"
         onKeyDown={(event) => {
           if (
@@ -169,7 +170,9 @@ export function WorkspaceControls({
                   tabIndex={-1}
                   onClick={() => onClose(tab)}
                   aria-label={t(
-                    tab.kind === 'terminal' ? 'Close terminal' : 'Close file',
+                    translationKey(
+                      tab.kind === 'terminal' ? 'closeTerminal' : 'Close file',
+                    ),
                   )}
                   className="mr-1 rounded p-1 hover:bg-accent"
                 >
@@ -183,10 +186,10 @@ export function WorkspaceControls({
             type="button"
             onClick={() => setChooser(true)}
             className="flex min-w-0 flex-1 items-center gap-1 px-2 text-xs"
-            aria-label={t('Switch view')}
+            aria-label={t('switchView')}
           >
             <span className="truncate">
-              {selected ? label(selected) : t('Conversation')}
+              {selected ? label(selected) : t('conversation')}
             </span>
             <ChevronDown className="h-4 w-4 shrink-0" />
           </button>
@@ -196,8 +199,8 @@ export function WorkspaceControls({
         <button
           type="button"
           className="h-10 shrink-0 px-3 hover:bg-accent"
-          title={t('New terminal')}
-          aria-label={t('New terminal')}
+          title={t('newTerminal')}
+          aria-label={t('newTerminal')}
           onClick={onNewTerminal}
           disabled={terminalCreationDisabled}
         >
@@ -207,8 +210,8 @@ export function WorkspaceControls({
       <button
         type="button"
         className="h-10 shrink-0 px-3 hover:bg-accent"
-        title={t('Explorer')}
-        aria-label={t('Explorer')}
+        title={t('explorer')}
+        aria-label={t('explorer')}
         onClick={onExplorer}
       >
         <FolderTree className="h-4 w-4" />
@@ -219,13 +222,13 @@ export function WorkspaceControls({
             side="bottom"
             className="max-h-[calc(var(--app-vh)*0.7)] overflow-y-auto"
           >
-            <SheetTitle>{t('Workspace views')}</SheetTitle>
+            <SheetTitle>{t('workspaceViews')}</SheetTitle>
             <button
               type="button"
               className="w-full px-3 py-3 text-left"
               onClick={() => choose('conversation')}
             >
-              {t('Conversation')}
+              {t('conversation')}
             </button>
             {workspace.tabs.map((tab) => (
               <div key={tab.id} className="flex min-w-0 items-center">
@@ -240,7 +243,9 @@ export function WorkspaceControls({
                   type="button"
                   className="p-3"
                   aria-label={t(
-                    tab.kind === 'terminal' ? 'Close terminal' : 'Close file',
+                    translationKey(
+                      tab.kind === 'terminal' ? 'closeTerminal' : 'Close file',
+                    ),
                   )}
                   onClick={() => onClose(tab)}
                 >

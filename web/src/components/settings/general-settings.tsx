@@ -12,18 +12,18 @@ export function GeneralSettings() {
     <section className="space-y-4">
       <div className="space-y-1">
         <h2 className="text-sm font-medium text-muted-foreground">
-          {t('Runtime Settings')}
+          {t('runtimeSettings')}
         </h2>
         <p className="text-xs text-muted-foreground">
           {t(
-            'Idle thread subscriptions are cleaned up in the browser while active or approval-blocked threads stay subscribed.',
+            'idleThreadSubscriptionsAreCleanedUpInTheBrowserWhileActiveOrApprovalBlockedThre9ac3fe67',
           )}
         </p>
       </div>
 
       {runtimeSettings.isLoading && (
         <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm text-muted-foreground">
-          {t('Loading...')}
+          {t('loadingb04ba49f')}
         </div>
       )}
 

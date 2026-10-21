@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * Codex app-server config management tab.
  *
@@ -229,7 +230,7 @@ export function CodexSettings() {
       // is where "the configured model is not in the catalog" surfaces at all.
       setSaveWarnings(data.warnings ?? []);
       invalidate();
-      showSnackbar(t('Config saved'), 'success');
+      showSnackbar(t('configSaved'), 'success');
       // Only clear drafts for saved keys, preserve other pending edits
       const savedKeys = new Set(variables.body.edits.map((e) => e.keyPath));
       setClearedKeys(
@@ -243,10 +244,7 @@ export function CodexSettings() {
       });
     },
     onError: (err) => {
-      showSnackbar(
-        t('Failed to save config: {{msg}}', { msg: String(err) }),
-        'error',
-      );
+      showSnackbar(t('failedToSaveConfigMsg', { msg: String(err) }), 'error');
     },
   });
 
@@ -305,10 +303,10 @@ export function CodexSettings() {
         value,
         label:
           value === 'user'
-            ? t('User')
+            ? t('user')
             : value === 'auto_review'
-              ? t('Automatic review')
-              : t('Guardian subagent'),
+              ? t('automaticReview')
+              : t('guardianSubagent'),
       })),
     [t],
   );
@@ -372,11 +370,11 @@ export function CodexSettings() {
   // came here to write — which is most likely exactly when the read is failing.
   const unavailable = configQuery.isLoading ? (
     <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm text-muted-foreground">
-      {t('Loading...')}
+      {t('loadingb04ba49f')}
     </div>
   ) : (
     <div className="rounded-lg border border-destructive/30 bg-card/50 px-4 py-3 text-sm text-destructive">
-      {t('Failed to load Codex config')}
+      {t('failedToLoadCodexConfig')}
     </div>
   );
 
@@ -402,7 +400,7 @@ export function CodexSettings() {
       }
       const result = stringToConfigValue(key, drafts[key] ?? '');
       if (!result.ok) {
-        showSnackbar(t(result.error), 'error');
+        showSnackbar(t(translationKey(result.error)), 'error');
         return;
       }
       edits.push({ keyPath: key, value: result.value });
@@ -442,7 +440,7 @@ export function CodexSettings() {
       <div className="-mx-4 border-b sm:-mx-6">
         <div
           role="tablist"
-          aria-label={t('Codex configuration sections')}
+          aria-label={t('codexConfigurationSections')}
           className="flex h-10 min-w-0 items-center overflow-x-auto px-1 sm:px-3"
           onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
@@ -477,7 +475,7 @@ export function CodexSettings() {
               aria-selected={activeTab === id}
               aria-controls="codex-settings-panel"
               tabIndex={activeTab === id ? 0 : -1}
-              title={t(label)}
+              title={t(translationKey(label))}
               onClick={() => setActiveTab(id)}
               className={cn(
                 'flex h-10 shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]',
@@ -487,7 +485,7 @@ export function CodexSettings() {
               )}
             >
               <Icon aria-hidden="true" className="h-4 w-4" />
-              <span>{t(label)}</span>
+              <span>{t(translationKey(label))}</span>
             </button>
           ))}
         </div>
@@ -519,7 +517,7 @@ export function CodexSettings() {
                 ['model', 'reasoning', 'advanced'].includes(activeTab) && (
                   <p role="alert" className="text-xs text-amber-500">
                     {t(
-                      'Live model choices are unavailable. Existing values are preserved; custom model identifiers can still be entered.',
+                      'liveModelChoicesAreUnavailableExistingValuesArePreservedCustomModelIdentifiersCb466fb89',
                     )}
                   </p>
                 )}
@@ -567,13 +565,13 @@ export function CodexSettings() {
             >
               <p className="text-xs text-muted-foreground">
                 {t(
-                  'Defaults for new conversations. Changing them does not affect a conversation already open — use its security badge for that.',
+                  'defaultsForNewConversationsChangingThemDoesNotAffectAConversationAlreadyOpenUse71a22217',
                 )}
               </p>
               <ConfigSelectOverrideControl
                 deferred
-                label={t('Approval Policy')}
-                description={t('When Codex asks before running a command.')}
+                label={t('approvalPolicy')}
+                description={t('whenCodexAsksBeforeRunningACommand')}
                 effectiveValue={
                   (drafts.approval_policy ||
                     globalApprovalPolicy.value) as ApprovalPolicyValue
@@ -583,7 +581,7 @@ export function CodexSettings() {
                 saving={updateMutation.isPending}
                 options={APPROVAL_POLICY_VALUES.map((value) => ({
                   value,
-                  label: t(value),
+                  label: t(translationKey(value)),
                 }))}
                 onCommit={(value) =>
                   value === null
@@ -593,8 +591,8 @@ export function CodexSettings() {
               />
               <ConfigSelectOverrideControl
                 deferred
-                label={t('Sandbox Mode')}
-                description={t('What a command may reach by default.')}
+                label={t('sandboxMode')}
+                description={t('whatACommandMayReachByDefault')}
                 effectiveValue={
                   (drafts.sandbox_mode ||
                     globalSandboxMode.value) as SandboxModeValue
@@ -604,7 +602,7 @@ export function CodexSettings() {
                 saving={updateMutation.isPending}
                 options={SANDBOX_MODE_VALUES.map((value) => ({
                   value,
-                  label: t(value),
+                  label: t(translationKey(value)),
                 }))}
                 onCommit={(value) =>
                   value === null
@@ -614,8 +612,8 @@ export function CodexSettings() {
               />
               <ApprovalReviewerControl
                 deferred
-                label={t('Approvals Reviewer')}
-                description={t('Default reviewer for approval requests.')}
+                label={t('approvalsReviewer')}
+                description={t('defaultReviewerForApprovalRequests')}
                 effectiveValue={
                   (drafts.approvals_reviewer ||
                     topLevelReviewer.value) as ApprovalReviewerValue
@@ -637,7 +635,7 @@ export function CodexSettings() {
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">
-                      {t(SECURITY_FIELD_LABELS[key])}
+                      {t(translationKey(SECURITY_FIELD_LABELS[key]))}
                     </span>
                     {isNonEnglish && (
                       <code className="text-xs text-muted-foreground">
@@ -672,7 +670,7 @@ export function CodexSettings() {
         <>
           {activeKeys.some((key) => clearedKeys.has(key)) && (
             <p role="status" className="text-xs text-amber-500">
-              {t('Return to inheritance pending. Save this tab to apply.')}
+              {t('returnToInheritancePendingSaveThisTabToApply')}
             </p>
           )}
           <SettingsSaveBar

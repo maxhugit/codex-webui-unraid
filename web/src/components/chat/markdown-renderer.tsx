@@ -5,7 +5,14 @@
  * File references — link destinations and qualifying inline-code tokens — open
  * in the session panel instead of navigating the browser to a dead URL.
  */
-import { memo, useEffect, useMemo, useState, useCallback, type ComponentProps } from 'react';
+import {
+  memo,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  type ComponentProps,
+} from 'react';
 import Markdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Copy, Check, FileText } from 'lucide-react';
@@ -21,7 +28,9 @@ import {
   FILE_REFERENCE_LINE_ATTR,
 } from '@/lib/remark-file-references';
 
-type HighlighterType = Awaited<ReturnType<typeof import('shiki')['createHighlighter']>>;
+type HighlighterType = Awaited<
+  ReturnType<(typeof import('shiki'))['createHighlighter']>
+>;
 
 let highlighterPromise: Promise<HighlighterType> | null = null;
 let highlighterInstance: HighlighterType | null = null;
@@ -34,9 +43,24 @@ function getHighlighter(): Promise<HighlighterType> {
       const hl = await createHighlighter({
         themes: ['github-dark', 'github-light'],
         langs: [
-          'javascript', 'typescript', 'jsx', 'tsx', 'json', 'html', 'css',
-          'python', 'rust', 'go', 'bash', 'shell', 'sql', 'yaml', 'toml',
-          'markdown', 'diff', 'dockerfile',
+          'javascript',
+          'typescript',
+          'jsx',
+          'tsx',
+          'json',
+          'html',
+          'css',
+          'python',
+          'rust',
+          'go',
+          'bash',
+          'shell',
+          'sql',
+          'yaml',
+          'toml',
+          'markdown',
+          'diff',
+          'dockerfile',
         ],
       });
       highlighterInstance = hl;
@@ -61,7 +85,9 @@ interface Props {
 /** Local-looking destination: no scheme, not protocol-relative, not a fragment. */
 function isLocalDestination(url: string): boolean {
   return (
-    !/^[A-Za-z][A-Za-z0-9+.-]*:/.test(url) && !url.startsWith('//') && !url.startsWith('#')
+    !/^[A-Za-z][A-Za-z0-9+.-]*:/.test(url) &&
+    !url.startsWith('//') &&
+    !url.startsWith('#')
   );
 }
 
@@ -84,7 +110,12 @@ const agentUrlTransform: NonNullable<
 > = (url, key, node) => {
   if (key !== 'href' || node.tagName !== 'a') return defaultUrlTransform(url);
   const reference = parseFileReference(url, 'link');
-  if (reference && reference.line !== null && !url.includes('/') && /:\d+$/.test(url)) {
+  if (
+    reference &&
+    reference.line !== null &&
+    !url.includes('/') &&
+    /:\d+$/.test(url)
+  ) {
     return defaultUrlTransform(`./${url}`);
   }
   return defaultUrlTransform(url);
@@ -107,7 +138,9 @@ function FileReferenceMark({
 }) {
   const activate = () => onOpen(reference);
   const label =
-    reference.line !== null ? `${reference.path}:${reference.line}` : reference.path;
+    reference.line !== null
+      ? `${reference.path}:${reference.line}`
+      : reference.path;
   return (
     // A span rather than a button: these appear inside paragraphs, and the
     // human-message mention badge already established this shape.
@@ -170,7 +203,9 @@ function CodeBlock({
       }
     });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [children, lang, completed]);
 
   const handleCopy = useCallback(async () => {
@@ -179,21 +214,25 @@ function CodeBlock({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      showSnackbar(t('Copy failed'), 'error');
+      showSnackbar(t('copyFailed'), 'error');
     }
   }, [children, t]);
 
   return (
     <div className="group relative my-3 overflow-hidden rounded-lg border border-border/50 bg-[#0d1117]">
       <div className="flex items-center justify-between border-b border-white/10 px-3 py-1">
-        <span className="text-xs text-gray-400">{lang || t('Code')}</span>
+        <span className="text-xs text-gray-400">{lang || t('code')}</span>
         <button
           type="button"
           onClick={() => void handleCopy()}
           className="hover-reveal flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-400 transition-opacity hover:text-gray-100 focus-visible:opacity-100 group-hover:opacity-100"
         >
-          {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          {copied ? t('Copied!') : t('Copy')}
+          {copied ? (
+            <Check className="h-3 w-3" />
+          ) : (
+            <Copy className="h-3 w-3" />
+          )}
+          {copied ? t('copied') : t('copy')}
         </button>
       </div>
       {html ? (
@@ -203,7 +242,10 @@ function CodeBlock({
           dangerouslySetInnerHTML={{ __html: html }}
         />
       ) : (
-        <pre data-reading-block={blockKey} className="m-0 overflow-auto p-3 text-sm leading-relaxed text-gray-300">
+        <pre
+          data-reading-block={blockKey}
+          className="m-0 overflow-auto p-3 text-sm leading-relaxed text-gray-300"
+        >
           <code>{children}</code>
         </pre>
       )}
@@ -216,12 +258,44 @@ const components = (
   completed: boolean,
   onOpenFileReference?: (reference: FileReference) => void,
 ): ComponentProps<typeof Markdown>['components'] => ({
-  h1: ({ children, node }) => <h1 data-reading-block={node?.position?.start.offset} className="mb-3 mt-5 text-xl font-bold first:mt-0">{children}</h1>,
-  h2: ({ children, node }) => <h2 data-reading-block={node?.position?.start.offset} className="mb-2 mt-4 text-lg font-semibold first:mt-0">{children}</h2>,
-  h3: ({ children, node }) => <h3 data-reading-block={node?.position?.start.offset} className="mb-2 mt-3 text-base font-semibold first:mt-0">{children}</h3>,
-  p: ({ children, node }) => <p data-reading-block={node?.position?.start.offset} className="mb-2 last:mb-0">{children}</p>,
-  ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1">{children}</ul>,
-  ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1">{children}</ol>,
+  h1: ({ children, node }) => (
+    <h1
+      data-reading-block={node?.position?.start.offset}
+      className="mb-3 mt-5 text-xl font-bold first:mt-0"
+    >
+      {children}
+    </h1>
+  ),
+  h2: ({ children, node }) => (
+    <h2
+      data-reading-block={node?.position?.start.offset}
+      className="mb-2 mt-4 text-lg font-semibold first:mt-0"
+    >
+      {children}
+    </h2>
+  ),
+  h3: ({ children, node }) => (
+    <h3
+      data-reading-block={node?.position?.start.offset}
+      className="mb-2 mt-3 text-base font-semibold first:mt-0"
+    >
+      {children}
+    </h3>
+  ),
+  p: ({ children, node }) => (
+    <p
+      data-reading-block={node?.position?.start.offset}
+      className="mb-2 last:mb-0"
+    >
+      {children}
+    </p>
+  ),
+  ul: ({ children }) => (
+    <ul className="mb-2 ml-4 list-disc space-y-1">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="mb-2 ml-4 list-decimal space-y-1">{children}</ol>
+  ),
   li: ({ children }) => <li className="text-sm">{children}</li>,
   blockquote: ({ children }) => (
     <blockquote className="my-2 border-l-2 border-muted-foreground/30 pl-3 italic text-muted-foreground">
@@ -267,19 +341,41 @@ const components = (
       <table className="min-w-full border-collapse text-sm">{children}</table>
     </div>
   ),
-  thead: ({ children }) => <thead className="border-b border-border">{children}</thead>,
-  th: ({ children }) => <th className="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">{children}</th>,
-  td: ({ children }) => <td className="border-t border-border/50 px-3 py-1.5 text-sm">{children}</td>,
+  thead: ({ children }) => (
+    <thead className="border-b border-border">{children}</thead>
+  ),
+  th: ({ children }) => (
+    <th className="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border-t border-border/50 px-3 py-1.5 text-sm">
+      {children}
+    </td>
+  ),
   hr: () => <hr className="my-4 border-border/50" />,
-  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  strong: ({ children }) => (
+    <strong className="font-semibold">{children}</strong>
+  ),
   em: ({ children }) => <em>{children}</em>,
-  del: ({ children }) => <del className="text-muted-foreground">{children}</del>,
+  del: ({ children }) => (
+    <del className="text-muted-foreground">{children}</del>
+  ),
   code: ({ node, className, children, ...rest }) => {
-    if (className === 'language-webui-memory-proposal') return <MemoryProposalMessage text={String(children)} completed={completed} />;
-    const isBlock = className?.startsWith('language-') || String(children).includes('\n');
+    if (className === 'language-webui-memory-proposal')
+      return (
+        <MemoryProposalMessage text={String(children)} completed={completed} />
+      );
+    const isBlock =
+      className?.startsWith('language-') || String(children).includes('\n');
     if (isBlock) {
       return (
-        <CodeBlock className={className} completed={completed} blockKey={node?.position?.start.offset}>
+        <CodeBlock
+          className={className}
+          completed={completed}
+          blockKey={node?.position?.start.offset}
+        >
           {String(children).replace(/\n$/, '')}
         </CodeBlock>
       );

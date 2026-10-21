@@ -33,7 +33,9 @@ export function TerminalTabs({
   className,
 }: Props) {
   const { t } = useTranslation();
-  const [pendingClose, setPendingClose] = useState<TerminalMetadata | null>(null);
+  const [pendingClose, setPendingClose] = useState<TerminalMetadata | null>(
+    null,
+  );
   const context = useTerminalStore((s) => s.contexts[contextKey]);
   const terminals = useTerminalStore((s) => s.terminals);
   const createTerminal = useTerminalStore((s) => s.createTerminal);
@@ -97,7 +99,7 @@ export function TerminalTabs({
                   requestClose(terminal);
                 }}
                 className="hover-reveal mr-1 rounded p-0.5 hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100"
-                title={t('Close terminal')}
+                title={t('closeTerminal')}
               >
                 <X className="h-2.5 w-2.5" />
               </button>
@@ -110,32 +112,36 @@ export function TerminalTabs({
           variant="ghost"
           size="icon-xs"
           onClick={() => void handleCreate()}
-          title={t('New terminal')}
+          title={t('newTerminal')}
         >
           <Plus />
         </Button>
       </div>
 
-      <AlertDialog open={pendingClose !== null} onOpenChange={(open) => !open && setPendingClose(null)}>
+      <AlertDialog
+        open={pendingClose !== null}
+        onOpenChange={(open) => !open && setPendingClose(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Close shared terminal?')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('closeSharedTerminal')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                'This terminal is attached in {{count}} clients. Closing it will kill the process for everyone.',
+                'thisTerminalIsAttachedInCountClientsClosingItWillKillTheProcessForEveryone',
                 { count: pendingClose?.attachedCount ?? 0 },
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (pendingClose) void closeTerminal(contextKey, pendingClose.id);
+                if (pendingClose)
+                  void closeTerminal(contextKey, pendingClose.id);
                 setPendingClose(null);
               }}
             >
-              {t('Close terminal')}
+              {t('closeTerminal')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

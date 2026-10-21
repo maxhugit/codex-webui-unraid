@@ -18,7 +18,7 @@ export function TurnFailureCard({ failure }: { failure: TurnFailure }) {
       <div className="flex items-start gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <div className="min-w-0 space-y-1.5">
-          <p className="font-medium">{t('Turn failed')}</p>
+          <p className="font-medium">{t('turnFailed')}</p>
           <p className="whitespace-pre-wrap wrap-break-word">
             {failure.message}
           </p>
@@ -35,7 +35,7 @@ export function TurnFailureCard({ failure }: { failure: TurnFailure }) {
           {hasMisalignment && (
             <div className="mt-2 space-y-1 border-t border-destructive/20 pt-2">
               <p className="text-xs font-medium">
-                {t('Request alignment explanation')}
+                {t('requestAlignmentExplanation')}
               </p>
               {failure.misalignmentErrorType && (
                 <p className="font-mono text-[11px] opacity-75">

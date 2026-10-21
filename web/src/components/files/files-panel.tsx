@@ -27,7 +27,7 @@ function FileTreeSidebar({
   return (
     <>
       <div className="shrink-0 px-3 py-2 text-xs font-medium text-muted-foreground">
-        {t('Explorer')}
+        {t('explorer')}
       </div>
       {rootDir && (
         <div className="shrink-0 truncate border-b border-border px-3 pb-1.5 text-xs text-muted-foreground/60">
@@ -68,7 +68,7 @@ export function FilesPanel({ active = true }: { active?: boolean }) {
     />
   ) : (
     <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-      {t('Select a file to view')}
+      {t('selectAFileToView')}
     </div>
   );
 
@@ -94,7 +94,7 @@ export function FilesPanel({ active = true }: { active?: boolean }) {
           onClick={() => setTreeSheetOpen(true)}
         >
           <FolderTree className="h-4 w-4" />
-          {t('Explorer')}
+          {t('explorer')}
         </Button>
         {rootDir && (
           <span className="truncate text-xs text-muted-foreground/60">
@@ -110,7 +110,7 @@ export function FilesPanel({ active = true }: { active?: boolean }) {
           className="!w-[280px] p-0 sm:!max-w-[320px]"
           showCloseButton={false}
         >
-          <SheetTitle className="sr-only">{t('File explorer')}</SheetTitle>
+          <SheetTitle className="sr-only">{t('fileExplorer')}</SheetTitle>
           <div className="flex h-full flex-col bg-muted/20">
             <FileTreeSidebar
               rootDir={rootDir}

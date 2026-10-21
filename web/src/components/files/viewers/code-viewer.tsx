@@ -1,7 +1,13 @@
 /** A disposable editor view over a shared document model and a per-view reading position. */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
-import { AlertTriangle, FilePlus, Loader2, RotateCcw, Save } from 'lucide-react';
+import {
+  AlertTriangle,
+  FilePlus,
+  Loader2,
+  RotateCcw,
+  Save,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +30,12 @@ interface Props {
 }
 
 /** Mounts one editor without owning, resetting, or disposing the document's working text. */
-export function CodeViewer({ filePath, documentId: stableDocumentId, viewId, active }: Props) {
+export function CodeViewer({
+  filePath,
+  documentId: stableDocumentId,
+  viewId,
+  active,
+}: Props) {
   const { t } = useTranslation();
   const document = useDocumentStore((s) => {
     const id = stableDocumentId ?? s.pathIndex[filePath];
@@ -86,7 +97,7 @@ export function CodeViewer({ filePath, documentId: stableDocumentId, viewId, act
     useWorkspaceStore.getState().consumeReveal(viewId, request.request);
     if (line !== request.line)
       showSnackbar(
-        t('Line {{line}} is beyond the end of this file', {
+        t('lineLineIsBeyondTheEndOfThisFile', {
           line: request.line,
         }),
         'warning',
@@ -114,14 +125,16 @@ export function CodeViewer({ filePath, documentId: stableDocumentId, viewId, act
           <>
             <AlertTriangle />
             <p>{document.error}</p>
-            <Button onClick={() => void reloadDocument(stableDocumentId ?? filePath)}>
-              {t('Retry')}
+            <Button
+              onClick={() => void reloadDocument(stableDocumentId ?? filePath)}
+            >
+              {t('retry')}
             </Button>
           </>
         ) : (
           <>
             <Loader2 className="animate-spin" />
-            {t('Loading...')}
+            {t('loadingb04ba49f')}
           </>
         )}
       </div>
@@ -133,16 +146,16 @@ export function CodeViewer({ filePath, documentId: stableDocumentId, viewId, act
         <span className="min-w-0 flex-1 truncate text-muted-foreground">
           {document.error ??
             (document.conflict
-              ? t('File changed on disk. Your unsaved changes are retained.')
+              ? t('fileChangedOnDiskYourUnsavedChangesAreRetained')
               : document.dirty
-                ? t('Unsaved changes')
-                : t('Saved'))}
+                ? t('unsavedChanges')
+                : t('saved'))}
         </span>
         <Button
           size="icon"
           variant="ghost"
           className="h-7 w-7"
-          title={t('Refresh')}
+          title={t('refresh')}
           disabled={document.detached || document.loading || document.saving}
           onClick={() => void reloadDocument(documentId.current ?? filePath)}
         >
@@ -152,8 +165,13 @@ export function CodeViewer({ filePath, documentId: stableDocumentId, viewId, act
           size="icon"
           variant="ghost"
           className="h-7 w-7"
-          title={t('Save (Ctrl+S)')}
-          disabled={document.detached || document.saving || document.loading || !document.dirty}
+          title={t('saveCtrlS')}
+          disabled={
+            document.detached ||
+            document.saving ||
+            document.loading ||
+            !document.dirty
+          }
           onClick={() => void saveDocument(documentId.current ?? filePath)}
         >
           <Save className="h-3.5 w-3.5" />
@@ -163,7 +181,7 @@ export function CodeViewer({ filePath, documentId: stableDocumentId, viewId, act
             size="icon"
             variant="ghost"
             className="h-7 w-7"
-            title={t('Save As')}
+            title={t('saveAs')}
             onClick={() => setSaveAsOpen(true)}
           >
             <FilePlus className="h-3.5 w-3.5" />

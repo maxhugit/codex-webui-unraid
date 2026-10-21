@@ -351,9 +351,7 @@ export async function saveDocumentAs(
   const indexed = useDocumentStore.getState().pathIndex[newPath];
   if (indexed && indexed !== id) {
     updateDocument(id, {
-      error: i18n.t(
-        'Close the other document at this destination before saving.',
-      ),
+      error: i18n.t('closeTheOtherDocumentAtThisDestinationBeforeSaving'),
     });
     return false;
   }
@@ -429,7 +427,7 @@ export function markDocumentsDeleted(deletedPath: string): void {
             lastPath: document.path!,
             detached: true,
             locationVersion: latest.locationVersion + 1,
-            error: i18n.t('File was deleted or moved outside this client.'),
+            error: i18n.t('fileWasDeletedOrMovedOutsideThisClient'),
           },
         },
       };
@@ -455,7 +453,7 @@ export function remapDocuments(oldPath: string, newPath: string): void {
             path: null,
             detached: true,
             locationVersion: replaced.locationVersion + 1,
-            error: i18n.t('File was replaced by a moved document.'),
+            error: i18n.t('fileWasReplacedByAMovedDocument'),
           };
       }
       delete pathIndex[document.path];

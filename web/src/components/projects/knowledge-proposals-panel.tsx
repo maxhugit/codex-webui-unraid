@@ -105,7 +105,7 @@ export function KnowledgeProposalsPanel({
   return (
     <section className="space-y-3 rounded-lg border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-semibold">{t('Memory proposals')}</h3>
+        <h3 className="font-semibold">{t('memoryProposals')}</h3>
         <Button
           variant="outline"
           disabled={query.isFetching || review.isPending}
@@ -114,20 +114,18 @@ export function KnowledgeProposalsPanel({
             if (selected) void detail.refetch();
           }}
         >
-          {t('Reload')}
+          {t('reload')}
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
         {t(
-          'Agents can suggest lasting facts or decisions. Only accepted proposals change shared knowledge. You can ask a conversation to propose a memory update.',
+          'agentsCanSuggestLastingFactsOrDecisionsOnlyAcceptedProposalsChangeSharedKnowledbe771c56',
         )}
       </p>
-      {query.error && (
-        <p role="alert">{t('Unable to load memory proposals')}</p>
-      )}
+      {query.error && <p role="alert">{t('unableToLoadMemoryProposals')}</p>}
       {!query.isPending && !query.error && !query.data?.proposals?.length && (
         <p className="text-sm text-muted-foreground">
-          {t('No memory proposals')}
+          {t('noMemoryProposals')}
         </p>
       )}
       {(query.data?.proposals ?? []).map((item) => (
@@ -137,10 +135,10 @@ export function KnowledgeProposalsPanel({
             <span className="text-xs">
               {t(
                 item.status === 'pending'
-                  ? 'Pending review'
+                  ? 'pendingReview'
                   : item.status === 'accepted'
-                    ? 'Accepted'
-                    : 'Rejected',
+                    ? 'accepted'
+                    : 'rejected',
               )}
             </span>
           </div>
@@ -155,7 +153,7 @@ export function KnowledgeProposalsPanel({
                 : `/simple-chat?thread=${encodeURIComponent(item.threadId)}`,
             )}
           >
-            {t('Open source conversation')} · {item.threadId}
+            {t('openSourceConversation')} · {item.threadId}
           </a>
           {item.reviewedAt && (
             <p className="text-xs text-muted-foreground">
@@ -171,13 +169,13 @@ export function KnowledgeProposalsPanel({
               review.reset();
             }}
           >
-            {selected === item.id ? t('Close') : t('Review proposal')}
+            {selected === item.id ? t('close') : t('reviewProposal')}
           </Button>
           {selected === item.id && detail.isPending && (
-            <p role="status">{t('Loading…')}</p>
+            <p role="status">{t('loading')}</p>
           )}
           {selected === item.id && detail.error && (
-            <p role="alert">{t('Unable to load memory proposals')}</p>
+            <p role="alert">{t('unableToLoadMemoryProposals')}</p>
           )}
           {selected === item.id && proposal && (
             <div className="mt-3 space-y-3">
@@ -187,7 +185,7 @@ export function KnowledgeProposalsPanel({
                     htmlFor={`before-${item.id}`}
                     className="text-sm font-medium"
                   >
-                    {t('Before proposal')}
+                    {t('beforeProposal')}
                   </label>
                   <Textarea
                     id={`before-${item.id}`}
@@ -202,7 +200,7 @@ export function KnowledgeProposalsPanel({
                     htmlFor={`after-${item.id}`}
                     className="text-sm font-medium"
                   >
-                    {t('Proposed content')}
+                    {t('proposedContent')}
                   </label>
                   <Textarea
                     id={`after-${item.id}`}
@@ -218,26 +216,24 @@ export function KnowledgeProposalsPanel({
               {stale && proposal.status === 'pending' && (
                 <p role="alert" className="text-sm text-destructive">
                   {t(
-                    'Shared knowledge has changed. Reject this outdated proposal and ask the conversation for a new proposal based on the current knowledge.',
+                    'sharedKnowledgeHasChangedRejectThisOutdatedProposalAndAskTheConversationForANew6e73ab19',
                   )}
                 </p>
               )}
               {unsaved && (
                 <p className="text-sm text-muted-foreground">
-                  {t(
-                    'Save or discard your knowledge draft before accepting a proposal.',
-                  )}
+                  {t('saveOrDiscardYourKnowledgeDraftBeforeAcceptingAProposal')}
                 </p>
               )}
               {tooLarge && (
                 <p role="alert">
-                  {t('Each knowledge file is limited to 32 KiB of UTF-8 text.')}
+                  {t('eachKnowledgeFileIsLimitedTo32KiBOfUtf8Text')}
                 </p>
               )}
               {review.error && (
                 <p role="alert" className="text-sm text-destructive">
                   {t(
-                    'The proposal could not be updated. Reload to check its version; your local changes have been kept.',
+                    'theProposalCouldNotBeUpdatedReloadToCheckItsVersionYourLocalChangesHaveBeenKept',
                   )}
                 </p>
               )}
@@ -248,7 +244,7 @@ export function KnowledgeProposalsPanel({
                     disabled={!changed || tooLarge || review.isPending}
                     onClick={() => review.mutate({ action: 'edit', proposal })}
                   >
-                    {t('Save proposal changes')}
+                    {t('saveProposalChanges')}
                   </Button>
                   <Button
                     disabled={changed || stale || unsaved || review.isPending}
@@ -256,7 +252,7 @@ export function KnowledgeProposalsPanel({
                       review.mutate({ action: 'accept', proposal })
                     }
                   >
-                    {t('Accept and apply')}
+                    {t('acceptAndApply')}
                   </Button>
                   <Button
                     variant="outline"
@@ -265,7 +261,7 @@ export function KnowledgeProposalsPanel({
                       review.mutate({ action: 'reject', proposal })
                     }
                   >
-                    {t('Reject')}
+                    {t('reject')}
                   </Button>
                 </div>
               )}
@@ -282,7 +278,7 @@ export function KnowledgeProposalsPanel({
             setSelected(null);
           }}
         >
-          {t('Previous')}
+          {t('previous')}
         </Button>
         <Button
           variant="ghost"
@@ -292,7 +288,7 @@ export function KnowledgeProposalsPanel({
             setSelected(null);
           }}
         >
-          {t('Next')}
+          {t('next')}
         </Button>
       </div>
     </section>

@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * The parts of an approval that are not its command text.
  *
@@ -59,14 +60,17 @@ function hasAmendment(
  * and `tmpdir` authorize very different things, and collapsing both to
  * "special" would hide the difference behind an identical badge.
  */
-function accessLabel(entry: RequestedFileSystemAccess, t: (key: string) => string): string {
+function accessLabel(
+  entry: RequestedFileSystemAccess,
+  t: (key: string) => string,
+): string {
   const scope =
     entry.kind === 'glob'
       ? t('pattern')
       : entry.kind === 'special'
         ? (entry.scope ?? t('special'))
         : t('path');
-  return `${t(entry.access)} · ${scope}`;
+  return `${t(translationKey(entry.access))} · ${scope}`;
 }
 
 /**
@@ -93,21 +97,26 @@ export function ApprovalDetails({ approval }: { approval: ApprovalRequest }) {
 
   return (
     <>
-      {approval.negativeOnlyReason && <p role="alert" className="text-xs text-amber-600">{t(approval.negativeOnlyReason)}</p>}
+      {approval.negativeOnlyReason && (
+        <p role="alert" className="text-xs text-amber-600">
+          {t(translationKey(approval.negativeOnlyReason))}
+        </p>
+      )}
       {approval.reason && (
         <p className="text-xs text-muted-foreground">{approval.reason}</p>
       )}
 
       {approval.grantRoot && (
         <p className="text-xs text-muted-foreground">
-          {t('Requesting write access to:')}{' '}
+          {t('requestingWriteAccessTo')}{' '}
           <code className="rounded bg-muted px-1">{approval.grantRoot}</code>
         </p>
       )}
 
       {approval.cwd && (
         <p className="text-xs text-muted-foreground">
-          {t('cwd:')} <code className="rounded bg-muted px-1">{approval.cwd}</code>
+          {t('cwd')}{' '}
+          <code className="rounded bg-muted px-1">{approval.cwd}</code>
         </p>
       )}
 
@@ -115,7 +124,7 @@ export function ApprovalDetails({ approval }: { approval: ApprovalRequest }) {
         <div className="space-y-1 rounded border border-amber-500/30 bg-amber-500/5 p-2">
           <div className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-500">
             <Shield className="h-3 w-3" />
-            {t('Requesting additional access:')}
+            {t('requestingAdditionalAccess')}
           </div>
           {/* Tri-state on purpose: an omitted value means the request said
               nothing about network access, which is not the same as "no
@@ -124,14 +133,16 @@ export function ApprovalDetails({ approval }: { approval: ApprovalRequest }) {
             <div className="flex items-center gap-1.5 text-xs">
               <Globe className="h-3 w-3 shrink-0 text-muted-foreground" />
               {permissions.networkEnabled
-                ? t('Network access')
-                : t('No network access')}
+                ? t('networkAccess')
+                : t('noNetworkAccess')}
             </div>
           )}
           {permissions.fileSystem.map((entry, i) => (
             <div key={i} className="flex items-start gap-1.5 text-xs">
               <FolderTree className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
-              <code className="min-w-0 flex-1 break-all">{accessValue(entry)}</code>
+              <code className="min-w-0 flex-1 break-all">
+                {accessValue(entry)}
+              </code>
               <span
                 className={cn(
                   'shrink-0 rounded px-1 text-[10px]',
@@ -172,13 +183,15 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
   // not approvable. The backend refuses anything but decline/cancel with a 409,
   // so offering Accept here would only produce a button that always fails —
   // and, worse, one that reads as though approving unseen writes were allowed.
-  const canApprove = !approval.negativeOnlyReason && !(
-    approval.kind === 'fileChange' && !approval.reviewChanges?.length
-  );
-  const showAccept = canApprove && (!explicit || hasSimpleDecision(avail, 'accept'));
+  const canApprove =
+    !approval.negativeOnlyReason &&
+    !(approval.kind === 'fileChange' && !approval.reviewChanges?.length);
+  const showAccept =
+    canApprove && (!explicit || hasSimpleDecision(avail, 'accept'));
   const showAcceptForSession =
     canApprove && hasSimpleDecision(avail, 'acceptForSession');
-  const showDecline = !canApprove || !explicit || hasSimpleDecision(avail, 'decline');
+  const showDecline =
+    !canApprove || !explicit || hasSimpleDecision(avail, 'decline');
   // Cancel is normally opt-in, but with no subject it is the other half of the
   // only answer left; without it a request the server permits only to cancel
   // could have no button at all.
@@ -204,7 +217,7 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
             onClick={() => decide('accepted')}
           >
             <Check className="mr-1 h-3 w-3" />
-            {t('Accept')}
+            {t('accept')}
           </Button>
         )}
         {showAcceptForSession && (
@@ -216,7 +229,7 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
             onClick={() => decide('acceptedForSession')}
           >
             <CheckCheck className="mr-1 h-3 w-3" />
-            {t('Accept for session')}
+            {t('acceptForSession')}
           </Button>
         )}
         {showDecline && (
@@ -228,7 +241,7 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
             onClick={() => decide('declined')}
           >
             <X className="mr-1 h-3 w-3" />
-            {t('Decline')}
+            {t('decline')}
           </Button>
         )}
         {showCancel && (
@@ -240,7 +253,7 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
             onClick={() => decide('cancelled')}
           >
             <Ban className="mr-1 h-3 w-3" />
-            {t('Cancel')}
+            {t('cancel')}
           </Button>
         )}
       </div>
@@ -262,7 +275,7 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
               <ChevronRight className="h-3 w-3" />
             )}
             <Shield className="h-3 w-3" />
-            {t('Also change policy for future commands')}
+            {t('alsoChangePolicyForFutureCommands')}
           </button>
 
           {amendmentsOpen && (
@@ -270,7 +283,7 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
               {showExec && (
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground">
-                    {t('Allow similar commands:')}
+                    {t('allowSimilarCommands')}
                   </div>
                   {approval.proposedExecpolicyAmendment!.map((pattern, i) => (
                     <code
@@ -288,7 +301,7 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
                     onClick={acceptWithExecPolicy}
                   >
                     <Shield className="mr-1 h-3 w-3" />
-                    {t('Accept with exec policy')}
+                    {t('acceptWithExecPolicy')}
                   </Button>
                 </div>
               )}
@@ -297,24 +310,27 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Globe className="h-3 w-3" />
-                    {t('Network access rules:')}
+                    {t('networkAccessRules')}
                   </div>
-                  {approval.proposedNetworkPolicyAmendments!.map((amendment, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <code className="flex-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-                        {amendment.action === 'allow' ? '✓' : '✗'} {amendment.host}
-                      </code>
-                      <Button
-                        disabled={submitting}
-                        size="sm"
-                        variant="outline"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => applyNetworkAmendment(i)}
-                      >
-                        {t('Apply')}
-                      </Button>
-                    </div>
-                  ))}
+                  {approval.proposedNetworkPolicyAmendments!.map(
+                    (amendment, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <code className="flex-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                          {amendment.action === 'allow' ? '✓' : '✗'}{' '}
+                          {amendment.host}
+                        </code>
+                        <Button
+                          disabled={submitting}
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => applyNetworkAmendment(i)}
+                        >
+                          {t('apply')}
+                        </Button>
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
             </div>
@@ -334,57 +350,77 @@ export function ApprovalControls({ approval }: { approval: ApprovalRequest }) {
  * certain half — what this browser submitted — so an answered card still says
  * which choice was made without claiming the action was carried out.
  */
-export function ApprovalStatusBadge({ approval }: { approval: ApprovalRequest }) {
+export function ApprovalStatusBadge({
+  approval,
+}: {
+  approval: ApprovalRequest;
+}) {
   const { t } = useTranslation();
   const submitting = approval.status === 'submitted';
   const failed = approval.status === 'failed';
-  if (approval.decision && (submitting || failed || approval.status === 'resolved'))
+  if (
+    approval.decision &&
+    (submitting || failed || approval.status === 'resolved')
+  )
     return (
-      <span className={cn('flex items-center gap-1 text-xs', failed ? 'text-destructive' : 'text-muted-foreground')}>
-        {t(DECISION_LABELS[approval.decision])}
-        {submitting && ` · ${t('Decision submitted')}`}
-        {failed && ` · ${t('Delivery unconfirmed')}`}
+      <span
+        className={cn(
+          'flex items-center gap-1 text-xs',
+          failed ? 'text-destructive' : 'text-muted-foreground',
+        )}
+      >
+        {t(translationKey(DECISION_LABELS[approval.decision]))}
+        {submitting && ` · ${t('decisionSubmitted')}`}
+        {failed && ` · ${t('deliveryUnconfirmed')}`}
       </span>
     );
   switch (approval.status) {
     case 'submitted':
-      return <span className="text-xs text-muted-foreground">{t('Decision submitted')}</span>;
+      return (
+        <span className="text-xs text-muted-foreground">
+          {t('decisionSubmitted')}
+        </span>
+      );
     case 'failed':
-      return <span className="text-xs text-destructive">{t('Delivery unconfirmed')}</span>;
+      return (
+        <span className="text-xs text-destructive">
+          {t('deliveryUnconfirmed')}
+        </span>
+      );
     case 'accepted':
       return (
         <span className="flex items-center gap-1 text-xs text-green-500">
-          <Check className="h-3 w-3" /> {t('Accepted')}
+          <Check className="h-3 w-3" /> {t('accepted')}
         </span>
       );
     case 'acceptedForSession':
       return (
         <span className="flex items-center gap-1 text-xs text-green-500">
-          <CheckCheck className="h-3 w-3" /> {t('Accepted for session')}
+          <CheckCheck className="h-3 w-3" /> {t('acceptedForSession')}
         </span>
       );
     case 'declined':
       return (
         <span className="flex items-center gap-1 text-xs text-red-500">
-          <X className="h-3 w-3" /> {t('Declined')}
+          <X className="h-3 w-3" /> {t('declined')}
         </span>
       );
     case 'cancelled':
       return (
         <span className="flex items-center gap-1 text-xs text-orange-500">
-          <Ban className="h-3 w-3" /> {t('Cancelled')}
+          <Ban className="h-3 w-3" /> {t('cancelled')}
         </span>
       );
     case 'resolved':
       return (
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          {t('No longer awaiting a decision')}
+          {t('noLongerAwaitingADecision')}
         </span>
       );
     case 'pending':
       return (
         <span className="flex items-center gap-1 text-xs text-yellow-500">
-          {t('Awaiting approval')}
+          {t('awaitingApproval')}
         </span>
       );
   }

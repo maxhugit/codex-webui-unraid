@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 /**
  * What is currently preventing a catalog restart, and what to do about it.
  *
@@ -50,8 +51,8 @@ export function CatalogBlockerList({
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium">
           {data.canApply
-            ? t('No work is blocking a restart')
-            : t('{{count}} blockers prevent a restart', {
+            ? t('noWorkIsBlockingARestart')
+            : t('countBlockersPreventARestart', {
                 count: data.blockers.length,
               })}
         </p>
@@ -62,7 +63,7 @@ export function CatalogBlockerList({
           onClick={() => void query.refetch()}
         >
           <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-          {t('Re-check')}
+          {t('reCheck')}
         </Button>
       </div>
 
@@ -71,12 +72,12 @@ export function CatalogBlockerList({
           {data.blockers.map((blocker, index) => (
             <li key={index} className="text-xs">
               <span className="font-medium">
-                {blocker.name ?? blocker.threadId ?? t('Server')}
+                {blocker.name ?? blocker.threadId ?? t('server')}
               </span>
               {': '}
               <span className="text-muted-foreground">{blocker.reason}</span>
               <p className="text-muted-foreground/80">
-                {t(escapeHint(blocker))}
+                {t(translationKey(escapeHint(blocker)))}
               </p>
             </li>
           ))}
@@ -95,7 +96,7 @@ export function CatalogBlockerList({
         <div className="space-y-0.5">
           <p>
             {t(
-              'Covers this Codex process and the work this server started. Another client using the same Codex home is not visible here.',
+              'coversThisCodexProcessAndTheWorkThisServerStartedAnotherClientUsingTheSameCodex019b2623',
             )}
           </p>
           {data.limitations.map((limitation, index) => (

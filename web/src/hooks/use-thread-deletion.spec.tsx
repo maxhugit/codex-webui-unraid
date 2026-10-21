@@ -29,7 +29,7 @@ vi.mock('../socket', () => ({
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }));
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: globalThis.__testTranslate }),
   // The hook now reaches the policy store, which initialises i18n on import.
   initReactI18next: { type: '3rdParty', init: () => undefined },
 }));
@@ -153,7 +153,10 @@ describe('useDeleteThread', () => {
 
   it("completed: writes the server's post-delete tree into surviving members' caches", async () => {
     const tree = makeTree('root', ['survivor', 'doomed']);
-    deleteResult = makeResult({ status: 'completed', updatedTree: tree as never });
+    deleteResult = makeResult({
+      status: 'completed',
+      updatedTree: tree as never,
+    });
 
     await runDelete();
 

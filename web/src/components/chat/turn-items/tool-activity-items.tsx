@@ -90,11 +90,11 @@ export function HookPromptItem({
   return (
     <ActivityCard
       icon={Puzzle}
-      title={t('Hook prompt')}
+      title={t('hookPrompt')}
       completed={item.completed}
     >
       {item.fragments.length === 0 ? (
-        <p>{t('No prompt content was provided.')}</p>
+        <p>{t('noPromptContentWasProvided')}</p>
       ) : (
         item.fragments.map((fragment, index) => (
           <div key={`${fragment.hookRunId}:${index}`}>
@@ -126,10 +126,10 @@ export function FunctionCallOutputItem({
   return (
     <ActivityCard
       icon={Wrench}
-      title={title || t('Function output')}
+      title={title || t('functionOutput')}
       completed={item.completed}
     >
-      {!hasOutput && <p>{t('No output content was provided.')}</p>}
+      {!hasOutput && <p>{t('noOutputContentWasProvided')}</p>}
       {item.textOutput !== null && (
         <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono wrap-break-word">
           {item.textOutput}
@@ -139,7 +139,10 @@ export function FunctionCallOutputItem({
         switch (part.type) {
           case 'text':
             return (
-              <pre key={index} className="whitespace-pre-wrap font-mono wrap-break-word">
+              <pre
+                key={index}
+                className="whitespace-pre-wrap font-mono wrap-break-word"
+              >
                 {part.text}
               </pre>
             );
@@ -148,23 +151,28 @@ export function FunctionCallOutputItem({
               <img
                 key={index}
                 src={part.imageUrl}
-                alt={t('Function output')}
+                alt={t('functionOutput')}
                 className="max-h-64 rounded-md object-contain"
               />
             ) : (
-              <p key={index}>{t('Image output cannot be previewed.')}</p>
+              <p key={index}>{t('imageOutputCannotBePreviewed')}</p>
             );
           case 'audio':
             return part.audioUrl ? (
-              <audio key={index} controls src={part.audioUrl} className="w-full" />
+              <audio
+                key={index}
+                controls
+                src={part.audioUrl}
+                className="w-full"
+              />
             ) : (
-              <p key={index}>{t('Audio output cannot be previewed.')}</p>
+              <p key={index}>{t('audioOutputCannotBePreviewed')}</p>
             );
           case 'encrypted':
             return (
               <p key={index} className="flex items-center gap-1.5">
                 <FileLock2 className="h-3.5 w-3.5" />
-                {t('Encrypted output cannot be previewed.')}
+                {t('encryptedOutputCannotBePreviewed')}
               </p>
             );
         }
@@ -181,16 +189,17 @@ export function DynamicToolCallItem({
 }) {
   const { t } = useTranslation();
   const title = item.namespace ? `${item.namespace}/${item.tool}` : item.tool;
-  const status = item.success === null
-    ? item.status
-    : item.success
-      ? t('succeeded')
-      : t('failed');
+  const status =
+    item.success === null
+      ? item.status
+      : item.success
+        ? t('succeeded')
+        : t('failed');
 
   return (
     <ActivityCard
       icon={Wrench}
-      title={title || t('Dynamic tool call')}
+      title={title || t('dynamicToolCall')}
       completed={item.completed}
       status={status}
     >
@@ -200,23 +209,39 @@ export function DynamicToolCallItem({
         </pre>
       )}
       {item.durationMs !== null && (
-        <p>{t('Duration')}: {item.durationMs} ms</p>
+        <p>
+          {t('duration')}: {item.durationMs} ms
+        </p>
       )}
       {item.contentItems.map((part, index) => {
         switch (part.type) {
           case 'text':
-            return <p key={index} className="whitespace-pre-wrap wrap-break-word">{part.text}</p>;
+            return (
+              <p key={index} className="whitespace-pre-wrap wrap-break-word">
+                {part.text}
+              </p>
+            );
           case 'image':
             return part.imageUrl ? (
-              <img key={index} src={part.imageUrl} alt={t('Tool output')} className="max-h-64 rounded-md object-contain" />
+              <img
+                key={index}
+                src={part.imageUrl}
+                alt={t('toolOutput')}
+                className="max-h-64 rounded-md object-contain"
+              />
             ) : (
-              <p key={index}>{t('Image output cannot be previewed.')}</p>
+              <p key={index}>{t('imageOutputCannotBePreviewed')}</p>
             );
           case 'audio':
             return part.audioUrl ? (
-              <audio key={index} controls src={part.audioUrl} className="w-full" />
+              <audio
+                key={index}
+                controls
+                src={part.audioUrl}
+                className="w-full"
+              />
             ) : (
-              <p key={index}>{t('Audio output cannot be previewed.')}</p>
+              <p key={index}>{t('audioOutputCannotBePreviewed')}</p>
             );
         }
       })}
@@ -234,26 +259,29 @@ export function CollabAgentToolCallItem({
   return (
     <ActivityCard
       icon={Network}
-      title={`${t('Agent collaboration')}: ${item.tool}`}
+      title={`${t('agentCollaboration')}: ${item.tool}`}
       completed={item.completed}
       status={item.status}
     >
       <p className="font-mono text-[10px]">
         {item.senderThreadId}
-        {item.receiverThreadIds.length > 0 && ` → ${item.receiverThreadIds.join(', ')}`}
+        {item.receiverThreadIds.length > 0 &&
+          ` → ${item.receiverThreadIds.join(', ')}`}
       </p>
-      {item.prompt && <p className="whitespace-pre-wrap wrap-break-word">{item.prompt}</p>}
+      {item.prompt && (
+        <p className="whitespace-pre-wrap wrap-break-word">{item.prompt}</p>
+      )}
       {(item.model || item.reasoningEffort) && (
-        <p>
-          {[item.model, item.reasoningEffort].filter(Boolean).join(' · ')}
-        </p>
+        <p>{[item.model, item.reasoningEffort].filter(Boolean).join(' · ')}</p>
       )}
       {item.agentStates.map((state) => (
         <div key={state.threadId} className="flex items-start gap-2">
           <Bot className="mt-0.5 h-3 w-3 shrink-0" />
           <span className="font-mono">{state.threadId}</span>
           <span>{state.status}</span>
-          {state.message && <span className="min-w-0 wrap-break-word">— {state.message}</span>}
+          {state.message && (
+            <span className="min-w-0 wrap-break-word">— {state.message}</span>
+          )}
         </div>
       ))}
     </ActivityCard>

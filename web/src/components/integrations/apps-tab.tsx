@@ -80,7 +80,7 @@ export function AppsTab() {
   if (isError) {
     return (
       <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-        {t('Failed to load apps')}
+        {t('failedToLoadApps')}
       </div>
     );
   }
@@ -99,13 +99,13 @@ export function AppsTab() {
           onClick={() => setDefaultsOpen(true)}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          {t('Defaults')}
+          {t('defaults')}
         </Button>
       </div>
 
       {isEmpty ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          {t('No apps available')}
+          {t('noAppsAvailable')}
         </p>
       ) : (
         <div className="space-y-2">
@@ -123,19 +123,26 @@ export function AppsTab() {
       {/* Pagination */}
       {(cursorStack.length > 0 || nextCursor) && (
         <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" disabled={isFetching || cursorStack.length === 0} onClick={goPrevious}>
-            {t('Previous')}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isFetching || cursorStack.length === 0}
+            onClick={goPrevious}
+          >
+            {t('previous')}
           </Button>
-          <Button size="sm" variant="outline" disabled={isFetching || !nextCursor} onClick={goNext}>
-            {t('Next')}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isFetching || !nextCursor}
+            onClick={goNext}
+          >
+            {t('next')}
           </Button>
         </div>
       )}
 
-      <AppDetailSheet
-        app={selectedApp}
-        onClose={() => setSelectedApp(null)}
-      />
+      <AppDetailSheet app={selectedApp} onClose={() => setSelectedApp(null)} />
       <AppDefaultsSheet
         open={defaultsOpen}
         onClose={() => setDefaultsOpen(false)}
@@ -170,10 +177,7 @@ function AppRow({
         },
         throwOnError: true,
       });
-      showSnackbar(
-        enabled ? t('App enabled') : t('App disabled'),
-        'success',
-      );
+      showSnackbar(enabled ? t('appEnabled') : t('appDisabled'), 'success');
       onToggled();
     } catch (err) {
       showSnackbar(getApiErrorMessage(err), 'error');
@@ -190,7 +194,9 @@ function AppRow({
           src={app.logoUrl}
           alt={app.name}
           className="h-10 w-10 shrink-0 rounded-lg object-contain"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
         />
       ) : (
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -203,19 +209,28 @@ function AppRow({
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{app.name}</span>
           {!app.isAccessible && (
-            <Badge variant="outline" className="text-[10px] text-muted-foreground">
-              {t('not available')}
+            <Badge
+              variant="outline"
+              className="text-[10px] text-muted-foreground"
+            >
+              {t('notAvailable')}
             </Badge>
           )}
           {category && (
-            <Badge variant="outline" className="text-[10px]">{category}</Badge>
+            <Badge variant="outline" className="text-[10px]">
+              {category}
+            </Badge>
           )}
         </div>
         {app.description && (
-          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{app.description}</p>
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+            {app.description}
+          </p>
         )}
         {developer && (
-          <p className="mt-0.5 text-[11px] text-muted-foreground/70">{developer}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+            {developer}
+          </p>
         )}
         {app.pluginDisplayNames.length > 0 && (
           <p className="mt-0.5 text-[11px] text-muted-foreground/70">
@@ -232,21 +247,23 @@ function AppRow({
         onClick={onOpenDetails}
       >
         <SlidersHorizontal className="h-3 w-3" />
-        {t('Manage')}
+        {t('manage')}
       </Button>
 
       {app.installUrl && (
         <Button asChild size="sm" variant="ghost" className="h-7 gap-1 text-xs">
           <a href={app.installUrl} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="h-3 w-3" />
-            {t('Install')}
+            {t('install')}
           </a>
         </Button>
       )}
 
       {/* Enable/Disable toggle */}
       <div className="flex items-center gap-2">
-        {toggling && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+        {toggling && (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+        )}
         <Switch
           checked={app.isEnabled}
           disabled={toggling || !app.isAccessible}

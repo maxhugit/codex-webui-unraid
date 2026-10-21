@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import {
   Activity,
   ArrowLeft,
@@ -74,8 +75,8 @@ function CodexCliUpdateIndicator() {
       aria-hidden="true"
       title={t(
         state === 'missing'
-          ? 'Codex CLI installation is required'
-          : 'A CLI update is available',
+          ? 'codexCliInstallationIsRequired'
+          : 'aCliUpdateIsAvailable',
       )}
       className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-xs font-semibold text-white"
     >
@@ -104,7 +105,7 @@ export function SettingsSidebar() {
     );
   return (
     <nav
-      aria-label={t('Administration navigation')}
+      aria-label={t('administrationNavigation')}
       className="flex h-full min-h-0 flex-col bg-card/80"
     >
       <div className="shrink-0 border-b p-2">
@@ -116,13 +117,13 @@ export function SettingsSidebar() {
           }}
         >
           <ArrowLeft className="h-4 w-4" />
-          {t('Back to projects')}
+          {t('backToProjects')}
         </button>
       </div>
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-2 py-4">
         <section>
           <h2 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('Administration')}
+            {t('administration')}
           </h2>
           {SETTINGS_SECTIONS.map((entry) => {
             const Icon = sectionIcons[entry];
@@ -146,7 +147,7 @@ export function SettingsSidebar() {
                 }}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {t(settingsPageLabel(entry))}
+                {t(translationKey(settingsPageLabel(entry)))}
                 {entry === 'codexCli' && <CodexCliUpdateIndicator />}
               </button>
             );
@@ -154,7 +155,7 @@ export function SettingsSidebar() {
         </section>
         <section>
           <h2 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('Operations tools')}
+            {t('operationsTools')}
           </h2>
           <button
             aria-current={pathname === '/files' ? 'page' : undefined}
@@ -165,7 +166,7 @@ export function SettingsSidebar() {
             }}
           >
             <FolderOpen className="h-4 w-4" />
-            {t('Files')}
+            {t('files')}
           </button>
           <button
             aria-current={pathname === '/terminal' ? 'page' : undefined}
@@ -176,7 +177,7 @@ export function SettingsSidebar() {
             }}
           >
             <Terminal className="h-4 w-4" />
-            {t('Terminal')}
+            {t('terminal')}
           </button>
           <button
             aria-current={pathname === '/logs' ? 'page' : undefined}
@@ -187,7 +188,7 @@ export function SettingsSidebar() {
             }}
           >
             <ScrollText className="h-4 w-4" />
-            {t('Logs')}
+            {t('logs')}
           </button>
           <button
             aria-current={pathname === '/diagnostics' ? 'page' : undefined}
@@ -198,7 +199,7 @@ export function SettingsSidebar() {
             }}
           >
             <Activity className="h-4 w-4" />
-            {t('Diagnostics')}
+            {t('diagnostics')}
           </button>
         </section>
       </div>

@@ -1,3 +1,4 @@
+import { translationKey } from '@/locales/translation-key';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -88,19 +89,19 @@ export function ProjectKnowledgePanel({
   if (!snapshot || !files)
     return (
       <div role={query.error ? 'alert' : 'status'}>
-        {query.error ? t('Unable to load project knowledge') : t('Loading…')}
+        {query.error ? t('unableToLoadProjectKnowledge') : t('loading')}
         {query.error && (
-          <Button onClick={() => void reload()}>{t('Retry')}</Button>
+          <Button onClick={() => void reload()}>{t('retry')}</Button>
         )}
       </div>
     );
   return (
     <section className="space-y-5 pb-3">
       <div>
-        <h3 className="font-semibold">{t('Shared project knowledge')}</h3>
+        <h3 className="font-semibold">{t('sharedProjectKnowledge')}</h3>
         <p className="mt-1 text-sm text-muted-foreground">
           {t(
-            'These files are read at each new exchange, including in secondary workspaces. Saved changes apply to the next exchange; a response already in progress keeps its current context.',
+            'theseFilesAreReadAtEachNewExchangeIncludingInSecondaryWorkspacesSavedChangesApp86cf98f9',
           )}
         </p>
         <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
@@ -110,13 +111,13 @@ export function ProjectKnowledgePanel({
       {names.map((name, index) => (
         <div key={name} className="space-y-2 rounded-lg border p-3">
           <label htmlFor={`knowledge-${name}`} className="block font-medium">
-            {t(labels[index])}{' '}
+            {t(translationKey(labels[index]))}{' '}
             <span className="font-mono text-xs text-muted-foreground">
               {name}
             </span>
           </label>
           <p className="text-sm text-muted-foreground">
-            {t(descriptions[index])}
+            {t(translationKey(descriptions[index]))}
           </p>
           <Textarea
             id={`knowledge-${name}`}
@@ -155,24 +156,24 @@ export function ProjectKnowledgePanel({
       {save.error && (
         <p role="alert" className="text-sm text-destructive">
           {t(
-            'Unable to save project knowledge. If another edit was saved, reload before trying again. Your draft has been kept.',
+            'unableToSaveProjectKnowledgeIfAnotherEditWasSavedReloadBeforeTryingAgainYourDra8e2b12e6',
           )}{' '}
         </p>
       )}
       {reloadError && (
         <p role="alert" className="text-sm text-destructive">
-          {t('Unable to load project knowledge')}
+          {t('unableToLoadProjectKnowledge')}
         </p>
       )}
       {tooLarge && (
         <p role="alert" className="text-sm text-destructive">
-          {t('Each knowledge file is limited to 32 KiB of UTF-8 text.')}
+          {t('eachKnowledgeFileIsLimitedTo32KiBOfUtf8Text')}
         </p>
       )}
       {!readOnly && (
         <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 border-t bg-background py-3">
           <span role="status" className="text-sm text-muted-foreground">
-            {dirty ? t('Unsaved changes') : t('No pending changes')}
+            {dirty ? t('unsavedChanges') : t('noPendingChanges')}
           </span>
           <div className="flex gap-2">
             <Button
@@ -180,7 +181,7 @@ export function ProjectKnowledgePanel({
               disabled={save.isPending || proposalBusy || query.isFetching}
               onClick={() => void reload()}
             >
-              {dirty ? t('Reload and discard changes') : t('Reload')}
+              {dirty ? t('reloadAndDiscardChanges') : t('reload')}
             </Button>
             <Button
               disabled={!dirty || tooLarge || save.isPending || proposalBusy}
@@ -191,7 +192,7 @@ export function ProjectKnowledgePanel({
                 })
               }
             >
-              {save.isPending ? t('Saving…') : t('Save')}
+              {save.isPending ? t('saving56a2285c') : t('save')}
             </Button>
           </div>
         </div>

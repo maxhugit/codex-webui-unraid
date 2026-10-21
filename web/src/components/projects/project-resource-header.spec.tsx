@@ -7,8 +7,7 @@ import type { ProjectTaskBoard } from '@/lib/projects-api';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, values: { count: number }) =>
-      key.replace('{{count}}', String(values.count)),
+    t: globalThis.__testTranslate,
   }),
 }));
 afterEach(cleanup);

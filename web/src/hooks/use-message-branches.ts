@@ -7,7 +7,10 @@ import {
   threadsCreateMessageBranchMutation,
   threadsReadBranchTreeOptions,
 } from '@/generated/api/@tanstack/react-query.gen';
-import type { BranchTreeDto, BranchVersionDto } from '@/generated/api/types.gen';
+import type {
+  BranchTreeDto,
+  BranchVersionDto,
+} from '@/generated/api/types.gen';
 import { getApiErrorMessage } from '@/lib/api-error';
 import {
   invalidateBranchTreeMembersSoon,
@@ -117,12 +120,15 @@ export function useCreateMessageBranch(onBranchReady: (text: string) => void) {
       ]);
       invalidateBranchTreesSoon(queryClient);
       invalidateThreadListSoon(queryClient);
-      void navigate({ to: '/t/$threadId', params: { threadId: childThreadId } });
+      void navigate({
+        to: '/t/$threadId',
+        params: { threadId: childThreadId },
+      });
       onBranchReady(vars.body?.previewText ?? '');
     },
     onError: (err) => {
       showSnackbar(
-        `${t('Could not create a new version of this message.')} ${getApiErrorMessage(err)}`,
+        `${t('couldNotCreateANewVersionOfThisMessage')} ${getApiErrorMessage(err)}`,
         'error',
       );
     },
