@@ -184,6 +184,22 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 
+it('returns an HTTP redirect when starting the OIDC flow', async () => {
+  vi.spyOn(app.get(OidcAuthService), 'start').mockResolvedValue({
+    authorizationUrl: 'https://sso.example.test/authorize',
+    cookie: 'codex_webui_oidc_state=test-state; Path=/api/auth/oidc',
+  });
+  const response = await app.inject({
+    method: 'GET',
+    url: '/api/auth/oidc/start?returnTo=%2F',
+  });
+  expect(response.statusCode).toBe(302);
+  expect(response.headers.location).toBe('https://sso.example.test/authorize');
+  expect(response.headers['set-cookie']).toContain(
+    'codex_webui_oidc_state=test-state',
+  );
+});
+
 it('returns 403 on real settings routes for standard users and 200 for administrators', async () => {
   const server = app.getHttpAdapter().getInstance();
   const standard = await server.inject({
