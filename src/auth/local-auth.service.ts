@@ -76,6 +76,10 @@ export class LocalAuthService {
       .where(eq(people.id, personId))
       .get();
     if (!person) throw new BadRequestException('Unknown person');
+    if (person.identitySubject)
+      throw new BadRequestException(
+        'A local password cannot be configured for an SSO-linked account',
+      );
     const existing = this.db
       .select()
       .from(localAuthCredentials)

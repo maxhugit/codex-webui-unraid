@@ -72,6 +72,22 @@ describe('LocalAuthService', () => {
     expect(service.authenticateCookie(cookie)).toBeNull();
   });
 
+  it('rejects a local password for a person already linked to SSO', async () => {
+    database.db.update(people).set({ identitySubject: 'authentik-user' }).run();
+
+    await expect(
+      service.setAccount('admin', {
+        username: 'maxime',
+        password: 'a-secure-password',
+      }),
+    ).rejects.toThrow(
+      'A local password cannot be configured for an SSO-linked account',
+    );
+    expect(
+      database.db.select().from(localAuthCredentials).get(),
+    ).toBeUndefined();
+  });
+
   it('locks an account after the configured number of failed attempts', async () => {
     await service.setAccount('admin', {
       username: 'maxime',

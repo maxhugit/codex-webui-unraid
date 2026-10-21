@@ -79,7 +79,7 @@ export function settingsPageLabel(section: string): string {
 export function settingsPageDescription(section: string): string {
   const descriptions: Record<string, string> = {
     general:
-      'Manage server session and runtime settings. Personal appearance is available from My account.',
+      'Manage server runtime settings. Personal appearance and session logout are available from My account.',
     people:
       'Create people before they connect. The manual reference uniquely identifies each person.',
     account:
@@ -95,7 +95,7 @@ export function settingsPageDescription(section: string): string {
     files: 'File upload limits take effect after server restart.',
     database: 'Review the storage configuration and current database status.',
     security:
-      'Workspace root changes take effect immediately for new file operations.',
+      'Manage authentication, local accounts and workspace access restrictions.',
     integrations:
       'Manage the plugins, applications, and MCP servers available on the platform.',
   };

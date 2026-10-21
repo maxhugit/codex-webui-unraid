@@ -1177,7 +1177,8 @@
   "Raw configuration": "Configuration brute",
   "Codex configuration sections": "Sections de la configuration Codex",
   "Manage the server appearance, language, session, and runtime settings.": "Gérez l’apparence, la langue, la session et les paramètres d’exécution du serveur.",
-  "Manage server session and runtime settings. Personal appearance is available from My account.": "Gérez la session et les paramètres d’exécution du serveur. L’apparence personnelle est accessible depuis Mon compte.",
+  "Manage server runtime settings. Personal appearance and session logout are available from My account.": "Gérez les paramètres d’exécution du serveur. L’apparence personnelle et la déconnexion sont accessibles depuis Mon compte.",
+  "Manage authentication, local accounts and workspace access restrictions.": "Gérez l’authentification, les comptes locaux et les restrictions d’accès aux espaces de travail.",
   "Manage the plugins, applications, and MCP servers available on the platform.": "Gérez les plugins, les applications et les serveurs MCP disponibles sur la plateforme.",
   "Secondary workspace": "Workspace secondaire",
   "Active workspace": "Workspace actif",
@@ -1321,6 +1322,8 @@
   "Inactive": "Inactif",
   "Password configured": "Mot de passe configuré",
   "SSO identity linked": "Identité SSO associée",
+  "SSO identity not linked": "Identité SSO non associée",
+  "This person is linked to SSO. A local password cannot be configured.": "Cette personne est associée au SSO. Aucun mot de passe local ne peut être configuré.",
   "Username": "Nom d’utilisateur",
   "Password": "Mot de passe",
   "New password (leave empty to keep it)": "Nouveau mot de passe (laisser vide pour le conserver)",
@@ -1360,6 +1363,7 @@
   "A password is required": "Un mot de passe est requis.",
   "Invalid password": "Mot de passe invalide.",
   "Unknown person": "Personne inconnue.",
+  "A local password cannot be configured for an SSO-linked account": "Aucun mot de passe local ne peut être configuré pour un compte associé au SSO.",
   "Password must contain at least 12 characters": "Le mot de passe doit contenir au moins 12 caractères.",
   "Username must contain 3 to 64 lowercase letters, digits, dots, dashes or underscores": "Le nom d’utilisateur doit contenir de 3 à 64 lettres minuscules, chiffres, points, tirets ou tirets bas."
 }

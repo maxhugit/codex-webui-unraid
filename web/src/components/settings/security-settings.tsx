@@ -1,37 +1,43 @@
 /** Security category runtime settings. */
 import { useTranslation } from 'react-i18next';
+import { Separator } from '@/components/ui/separator';
 import { SettingEditor } from './setting-editor';
 import { useCategorySettings } from './use-category-settings';
 import { SettingsSaveBar } from './settings-save-bar';
+import { AuthenticationSettings } from './authentication-settings';
 
 export function SecuritySettings() {
   const { t } = useTranslation();
   const ctx = useCategorySettings('security');
 
   return (
-    <section className="space-y-4">
-      {ctx.isLoading && (
-        <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm text-muted-foreground">
-          {t('Loading...')}
-        </div>
-      )}
+    <div className="space-y-6">
+      <AuthenticationSettings />
+      <Separator />
+      <section className="space-y-4">
+        {ctx.isLoading && (
+          <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-sm text-muted-foreground">
+            {t('Loading...')}
+          </div>
+        )}
 
-      {ctx.settings.map((setting) => (
-        <SettingEditor
-          key={setting.key}
-          setting={setting}
-          draft={ctx.drafts[setting.key] ?? ''}
-          disabled={ctx.isSaving}
-          onDraftChange={ctx.handleDraftChange}
-          onReset={ctx.handleReset}
+        {ctx.settings.map((setting) => (
+          <SettingEditor
+            key={setting.key}
+            setting={setting}
+            draft={ctx.drafts[setting.key] ?? ''}
+            disabled={ctx.isSaving}
+            onDraftChange={ctx.handleDraftChange}
+            onReset={ctx.handleReset}
+          />
+        ))}
+        <SettingsSaveBar
+          dirty={ctx.isDirty}
+          saving={ctx.isSaving}
+          onSave={() => void ctx.handleSaveAll()}
+          onDiscard={ctx.discardChanges}
         />
-      ))}
-      <SettingsSaveBar
-        dirty={ctx.isDirty}
-        saving={ctx.isSaving}
-        onSave={() => void ctx.handleSaveAll()}
-        onDiscard={ctx.discardChanges}
-      />
-    </section>
+      </section>
+    </div>
   );
 }

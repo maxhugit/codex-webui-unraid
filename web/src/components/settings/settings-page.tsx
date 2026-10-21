@@ -2,13 +2,10 @@
  * Settings page shell with tab routing to category sub-components.
  */
 import { lazy, Suspense, useState } from 'react';
-import { useNavigate, useRouterState } from '@tanstack/react-router';
+import { useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { clearApiToken } from '@/auth-token';
-import { authLogout } from '@/generated/api';
-import { resetSocket } from '@/socket';
 import type { SettingsSection } from './settings-sections';
 import { cn } from '@/lib/utils';
 
@@ -83,20 +80,12 @@ const DatabaseSettings = lazy(() =>
 
 export function SettingsPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const section = useRouterState({
     select: (s) =>
       (s.location.search as { section?: SettingsSection }).section ?? 'general',
   });
   const [integrationSection, setIntegrationSection] =
     useState<IntegrationSection>('plugins');
-
-  const handleLogout = async () => {
-    await authLogout({ throwOnError: false }).catch(() => undefined);
-    clearApiToken();
-    resetSocket();
-    void navigate({ to: '/login', search: { redirect: '/', manual: true } });
-  };
 
   return (
     <div
@@ -120,7 +109,7 @@ export function SettingsPage() {
             </div>
           }
         >
-          {section === 'general' && <GeneralSettings onLogout={handleLogout} />}
+          {section === 'general' && <GeneralSettings />}
           {section === 'account' && <AccountSettings />}
           {section === 'people' && <PeopleManager showHeading={false} />}
           {section === 'codex' && <CodexSettings />}
