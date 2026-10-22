@@ -274,6 +274,13 @@
       "when": 1792681446123,
       "tag": "0038_serious_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1792690013213,
+      "tag": "0039_nasty_princess_powerful",
+      "breakpoints": true
     }
   ]
 }

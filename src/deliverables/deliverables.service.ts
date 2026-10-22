@@ -17,6 +17,8 @@ import {
   projectResources,
   projectDeliverables as items,
   projectDeliverableVersions as versions,
+  projectDeliverableDocuments as documents,
+  projectDeliverableDocumentVersions as documentVersions,
   projectWorkspaces,
   projectParticipants,
   people,
@@ -39,6 +41,10 @@ export interface DeliverableInput {
   taskIds?: string[];
   conversations?: Array<{ type: 'agent' | 'simple'; id: string }>;
   version?: number;
+}
+export interface DeliverableDocumentActor {
+  personId: string | null;
+  name: string;
 }
 const MAX_FILE = 100 * 1024 * 1024;
 
@@ -249,6 +255,31 @@ export class DeliverablesService {
           .orderBy(desc(versions.number))
           .all()
       : [];
+    const documentRows = records.length
+      ? this.db
+          .select()
+          .from(documents)
+          .where(
+            inArray(
+              documents.deliverableId,
+              records.map((row) => row.id),
+            ),
+          )
+          .all()
+      : [];
+    const documentHistory = documentRows.length
+      ? this.db
+          .select()
+          .from(documentVersions)
+          .where(
+            inArray(
+              documentVersions.documentId,
+              documentRows.map((row) => row.id),
+            ),
+          )
+          .orderBy(desc(documentVersions.number))
+          .all()
+      : [];
     return {
       ...context,
       ...this.options(projectId),
@@ -264,6 +295,14 @@ export class DeliverablesService {
             version.deliverableId === item.id &&
             version.files.every((file) => this.canReadSource(file.sourcePath)),
         ),
+        documents: documentRows
+          .filter((document) => document.deliverableId === item.id)
+          .map((document) => ({
+            ...document,
+            versions: documentHistory.filter(
+              (version) => version.documentId === document.id,
+            ),
+          })),
       })),
     };
   }
@@ -534,6 +573,70 @@ export class DeliverablesService {
           })
           .returning()
           .get();
+        const access = currentAccess();
+        for (const file of files) {
+          let document = tx
+            .select()
+            .from(documents)
+            .where(
+              and(
+                eq(documents.deliverableId, id),
+                eq(documents.sourcePath, file.sourcePath),
+              ),
+            )
+            .get();
+          if (!document) {
+            const documentId = randomUUID();
+            document = tx
+              .insert(documents)
+              .values({
+                id: documentId,
+                deliverableId: id,
+                name: file.name,
+                format: path.extname(file.name).slice(1).toLowerCase(),
+                sourcePath: file.sourcePath,
+                currentVersionNumber: 0,
+                createdAt: created.createdAt,
+                updatedAt: created.createdAt,
+              })
+              .returning()
+              .get();
+          }
+          const latest = tx
+            .select()
+            .from(documentVersions)
+            .where(eq(documentVersions.documentId, document.id))
+            .orderBy(desc(documentVersions.number))
+            .get();
+          if (latest?.sha256 === file.sha256) continue;
+          const number = (latest?.number ?? 0) + 1;
+          tx.insert(documentVersions)
+            .values({
+              id: randomUUID(),
+              documentId: document.id,
+              number,
+              fileName: file.name,
+              sourcePath: file.sourcePath,
+              snapshotPath: file.snapshotPath,
+              size: file.size,
+              sha256: file.sha256,
+              authorPersonId: access?.identity.personId ?? null,
+              authorName: access?.identity.name ?? 'Utilisateur',
+              comment: note,
+              createdAt: created.createdAt,
+            })
+            .run();
+          tx.update(documents)
+            .set({
+              name: file.name,
+              format: path.extname(file.name).slice(1).toLowerCase(),
+              currentVersionNumber: number,
+              deletedAt: null,
+              updatedAt: created.createdAt,
+            })
+            .where(eq(documents.id, document.id))
+            .run();
+        }
         if (
           !tx
             .update(items)
@@ -552,6 +655,348 @@ export class DeliverablesService {
       await fs.rm(folder, { recursive: true, force: true });
       throw error;
     }
+  }
+
+  documents(projectId: string, resourceId: string, deliverableId: string) {
+    this.get(projectId, resourceId, deliverableId);
+    const rows = this.db
+      .select()
+      .from(documents)
+      .where(eq(documents.deliverableId, deliverableId))
+      .orderBy(desc(documents.updatedAt))
+      .all();
+    const history = rows.length
+      ? this.db
+          .select()
+          .from(documentVersions)
+          .where(
+            inArray(
+              documentVersions.documentId,
+              rows.map((row) => row.id),
+            ),
+          )
+          .orderBy(desc(documentVersions.number))
+          .all()
+      : [];
+    return rows.map((document) => ({
+      ...document,
+      versions: history.filter((version) => version.documentId === document.id),
+    }));
+  }
+
+  async addDocumentVersion(
+    projectId: string,
+    resourceId: string,
+    deliverableId: string,
+    input: {
+      path?: unknown;
+      comment?: unknown;
+      expectedVersion?: unknown;
+    },
+    actor: DeliverableDocumentActor,
+    documentId?: string,
+  ) {
+    this.get(projectId, resourceId, deliverableId);
+    if (typeof input.path !== 'string' || !input.path.trim())
+      throw new BadRequestException('Document path is required');
+    const comment = this.text(input.comment ?? '', 4000);
+    const sourcePath = await this.files.resolveSafePath(input.path);
+    this.identities.requireWorkspacePath(sourcePath);
+    const workspaces = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(eq(projectWorkspaces.projectId, projectId))
+      .all();
+    const roots = await Promise.all(
+      workspaces.map((workspace) =>
+        fs.realpath(workspace.path).catch(() => null),
+      ),
+    );
+    if (!roots.some((root) => root && sourcePath.startsWith(root + path.sep)))
+      throw new BadRequestException(
+        'Document must belong to a project workspace',
+      );
+    this.files.assertProjectPathMutable(sourcePath);
+    const stat = await fs.stat(sourcePath);
+    if (!stat.isFile() || stat.size > MAX_FILE)
+      throw new BadRequestException('Invalid document file');
+    const fileName = path.basename(sourcePath);
+    let document = documentId
+      ? this.db
+          .select()
+          .from(documents)
+          .where(
+            and(
+              eq(documents.id, documentId),
+              eq(documents.deliverableId, deliverableId),
+            ),
+          )
+          .get()
+      : undefined;
+    if (documentId && !document)
+      throw new NotFoundException('Document not found');
+    if (!document) {
+      const duplicate = this.db
+        .select()
+        .from(documents)
+        .where(
+          and(
+            eq(documents.deliverableId, deliverableId),
+            eq(documents.sourcePath, sourcePath),
+          ),
+        )
+        .get();
+      if (duplicate)
+        throw new ConflictException(
+          'This document already belongs to the deliverable',
+        );
+    } else if (sourcePath !== document.sourcePath) {
+      throw new BadRequestException(
+        'A document version must use the document source path',
+      );
+    } else if (
+      input.expectedVersion !== document.currentVersionNumber ||
+      document.deletedAt !== null
+    ) {
+      throw new ConflictException('Document changed. Reload before saving.');
+    }
+    const digest = await this.hash(sourcePath);
+    const latest = document
+      ? this.db
+          .select()
+          .from(documentVersions)
+          .where(eq(documentVersions.documentId, document.id))
+          .orderBy(desc(documentVersions.number))
+          .get()
+      : undefined;
+    if (latest?.sha256 === digest.sha256)
+      throw new ConflictException('Document content has not changed');
+    const id = document?.id ?? randomUUID();
+    const versionId = randomUUID();
+    const number = (latest?.number ?? 0) + 1;
+    const folder = await this.directory(projectId, [
+      '.webui',
+      'history',
+      'deliverables',
+      deliverableId,
+      'documents',
+      id,
+      versionId,
+    ]);
+    const snapshotPath = path.join(folder, fileName);
+    await fs.copyFile(sourcePath, snapshotPath, constants.COPYFILE_EXCL);
+    const after = await fs.stat(sourcePath);
+    if (after.size !== stat.size || after.mtimeMs !== stat.mtimeMs) {
+      await fs.rm(folder, { recursive: true, force: true });
+      throw new ConflictException(
+        'Document changed while its version was created',
+      );
+    }
+    const now = Date.now();
+    try {
+      return this.db.transaction((tx) => {
+        if (!document) {
+          document = tx
+            .insert(documents)
+            .values({
+              id,
+              deliverableId,
+              name: fileName,
+              format: path.extname(fileName).slice(1).toLowerCase(),
+              sourcePath,
+              currentVersionNumber: number,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning()
+            .get();
+        } else {
+          const changed = tx
+            .update(documents)
+            .set({
+              name: fileName,
+              format: path.extname(fileName).slice(1).toLowerCase(),
+              sourcePath,
+              currentVersionNumber: number,
+              updatedAt: now,
+            })
+            .where(
+              and(
+                eq(documents.id, id),
+                eq(documents.currentVersionNumber, latest?.number ?? 0),
+              ),
+            )
+            .run();
+          if (!changed.changes)
+            throw new ConflictException('Document changed while saving');
+        }
+        const version = tx
+          .insert(documentVersions)
+          .values({
+            id: versionId,
+            documentId: id,
+            number,
+            fileName,
+            sourcePath,
+            snapshotPath,
+            ...digest,
+            authorPersonId: actor.personId,
+            authorName: actor.name,
+            comment,
+            createdAt: now,
+          })
+          .returning()
+          .get();
+        return { document, version };
+      });
+    } catch (error) {
+      await fs.rm(folder, { recursive: true, force: true });
+      throw error;
+    }
+  }
+
+  setDocumentDeleted(
+    projectId: string,
+    resourceId: string,
+    deliverableId: string,
+    documentId: string,
+    expectedVersion: unknown,
+    deleted: boolean,
+  ) {
+    this.get(projectId, resourceId, deliverableId);
+    if (!Number.isSafeInteger(expectedVersion))
+      throw new BadRequestException('Invalid document version');
+    const document = this.db
+      .select()
+      .from(documents)
+      .where(
+        and(
+          eq(documents.id, documentId),
+          eq(documents.deliverableId, deliverableId),
+        ),
+      )
+      .get();
+    if (!document) throw new NotFoundException('Document not found');
+    if (document.currentVersionNumber !== expectedVersion)
+      throw new ConflictException('Document changed. Reload before saving.');
+    this.db
+      .update(documents)
+      .set({ deletedAt: deleted ? Date.now() : null, updatedAt: Date.now() })
+      .where(eq(documents.id, documentId))
+      .run();
+    return { ok: true };
+  }
+
+  private getDocument(deliverableId: string, documentId: string) {
+    const document = this.db
+      .select()
+      .from(documents)
+      .where(
+        and(
+          eq(documents.id, documentId),
+          eq(documents.deliverableId, deliverableId),
+        ),
+      )
+      .get();
+    if (!document) throw new NotFoundException('Document not found');
+    return document;
+  }
+
+  private getDocumentVersion(documentId: string, versionId: string) {
+    const version = this.db
+      .select()
+      .from(documentVersions)
+      .where(
+        and(
+          eq(documentVersions.id, versionId),
+          eq(documentVersions.documentId, documentId),
+        ),
+      )
+      .get();
+    if (!version) throw new NotFoundException('Document version not found');
+    return version;
+  }
+
+  async documentVersionFile(
+    projectId: string,
+    resourceId: string,
+    deliverableId: string,
+    documentId: string,
+    versionId: string,
+  ) {
+    this.get(projectId, resourceId, deliverableId);
+    const document = this.getDocument(deliverableId, documentId);
+    const version = this.getDocumentVersion(documentId, versionId);
+    const folder = await this.directory(
+      projectId,
+      [
+        '.webui',
+        'history',
+        'deliverables',
+        deliverableId,
+        'documents',
+        documentId,
+        versionId,
+      ],
+      false,
+    );
+    const resolved = await fs.realpath(version.snapshotPath);
+    if (
+      path.dirname(resolved) !== (await fs.realpath(folder)) ||
+      (await fs.lstat(version.snapshotPath)).isSymbolicLink()
+    )
+      throw new ConflictException('Invalid document version file');
+    const actual = await this.hash(resolved);
+    if (actual.sha256 !== version.sha256 || actual.size !== version.size)
+      throw new ConflictException('Document version file was modified');
+    return { document, version, path: resolved };
+  }
+
+  async restoreDocumentVersion(
+    projectId: string,
+    resourceId: string,
+    deliverableId: string,
+    documentId: string,
+    versionId: string,
+    input: { expectedVersion?: unknown; comment?: unknown },
+    actor: DeliverableDocumentActor,
+  ) {
+    this.get(projectId, resourceId, deliverableId);
+    const document = this.getDocument(deliverableId, documentId);
+    if (
+      !Number.isSafeInteger(input.expectedVersion) ||
+      input.expectedVersion !== document.currentVersionNumber ||
+      document.deletedAt !== null
+    )
+      throw new ConflictException('Document changed. Reload before restoring.');
+    const historical = await this.documentVersionFile(
+      projectId,
+      resourceId,
+      deliverableId,
+      documentId,
+      versionId,
+    );
+    await fs.copyFile(historical.path, document.sourcePath);
+    const result = await this.addDocumentVersion(
+      projectId,
+      resourceId,
+      deliverableId,
+      {
+        path: document.sourcePath,
+        expectedVersion: document.currentVersionNumber,
+        comment:
+          input.comment ??
+          `Restauration de la version ${historical.version.number}`,
+      },
+      actor,
+      documentId,
+    );
+    this.db
+      .update(documentVersions)
+      .set({ restoredFromVersionId: versionId })
+      .where(eq(documentVersions.id, result.version.id))
+      .run();
+    return result;
   }
   private getVersion(id: string, versionId: string) {
     const version = this.db

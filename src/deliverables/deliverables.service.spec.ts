@@ -126,6 +126,95 @@ describe('project deliverables', () => {
     expect(await fs.readFile(source, 'utf8')).toBe('Next');
     expect(database.sqlite.pragma('foreign_key_check')).toEqual([]);
   });
+  it('versions every document independently and restores history as a new version', async () => {
+    const item = await service.create('p', 'r', { title: 'Document set' });
+    const report = path.join(root, 'livrables', item.id, 'report.docx');
+    const sheet = path.join(root, 'livrables', item.id, 'budget.xlsx');
+    await fs.writeFile(report, 'Report V1');
+    await service.addDocumentVersion(
+      'p',
+      'r',
+      item.id,
+      { path: report, comment: 'Initial report' },
+      { personId: null, name: 'Alice' },
+    );
+    await fs.writeFile(sheet, 'Budget V1');
+    await service.addDocumentVersion(
+      'p',
+      'r',
+      item.id,
+      { path: sheet },
+      { personId: null, name: 'Bob' },
+    );
+    let documents = service.documents('p', 'r', item.id);
+    const reportDocument = documents.find(
+      (document) => document.name === 'report.docx',
+    )!;
+    const sheetDocument = documents.find(
+      (document) => document.name === 'budget.xlsx',
+    )!;
+    expect(reportDocument.currentVersionNumber).toBe(1);
+    expect(sheetDocument.currentVersionNumber).toBe(1);
+    expect(reportDocument.versions[0].authorName).toBe('Alice');
+
+    await fs.writeFile(report, 'Report V2');
+    await service.addDocumentVersion(
+      'p',
+      'r',
+      item.id,
+      { path: report, expectedVersion: 1, comment: 'Reworked' },
+      { personId: null, name: 'Alice' },
+      reportDocument.id,
+    );
+    documents = service.documents('p', 'r', item.id);
+    expect(
+      documents.find((document) => document.id === reportDocument.id)?.versions,
+    ).toHaveLength(2);
+    expect(
+      documents.find((document) => document.id === sheetDocument.id)?.versions,
+    ).toHaveLength(1);
+    await expect(
+      service.addDocumentVersion(
+        'p',
+        'r',
+        item.id,
+        { path: report, expectedVersion: 2 },
+        { personId: null, name: 'Alice' },
+        reportDocument.id,
+      ),
+    ).rejects.toThrow('has not changed');
+
+    const firstVersion = documents
+      .find((document) => document.id === reportDocument.id)!
+      .versions.find((version) => version.number === 1)!;
+    await service.restoreDocumentVersion(
+      'p',
+      'r',
+      item.id,
+      reportDocument.id,
+      firstVersion.id,
+      { expectedVersion: 2 },
+      { personId: null, name: 'Alice' },
+    );
+    expect(await fs.readFile(report, 'utf8')).toBe('Report V1');
+    expect(
+      service
+        .documents('p', 'r', item.id)
+        .find((document) => document.id === reportDocument.id),
+    ).toMatchObject({ currentVersionNumber: 3, deletedAt: null });
+    service.setDocumentDeleted('p', 'r', item.id, reportDocument.id, 3, true);
+    expect(
+      service
+        .documents('p', 'r', item.id)
+        .find((document) => document.id === reportDocument.id)?.deletedAt,
+    ).toEqual(expect.any(Number));
+    service.setDocumentDeleted('p', 'r', item.id, reportDocument.id, 3, false);
+    expect(
+      service
+        .documents('p', 'r', item.id)
+        .find((document) => document.id === reportDocument.id)?.deletedAt,
+    ).toBeNull();
+  });
   it('rejects forged validation, out-of-project links, system files and tampered snapshots', async () => {
     await expect(
       service.create('p', 'r', { title: 'Forged', status: 'validated' }),

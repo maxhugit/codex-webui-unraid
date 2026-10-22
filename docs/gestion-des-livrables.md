@@ -23,12 +23,19 @@ envoie ensuite son message pour lancer le travail.
 
 ## Fichiers et versions
 
+Un livrable est composé de documents possédant chacun un identifiant permanent,
+un format, un fichier courant et un historique indépendant. Ajouter ou modifier
+un document crée sa propre version sans incrémenter celles des autres documents.
+Une restauration crée une nouvelle version référant la version historique
+d'origine ; elle ne réécrit jamais l'historique. La suppression d'un document
+est logique et réversible.
+
 Les fichiers de travail sont dans le workspace principal permanent :
 `/workspaces/<id-projet>/livrables/<id-livrable>/`. Renommer le projet ou la fiche
 ne change pas ce chemin. On peut importer/remplacer ces fichiers ou soumettre
 des fichiers existants dans les workspaces rattachés au projet.
 
-La soumission crée une copie séparée dans
+La soumission historique crée une copie séparée dans
 `.webui/history/deliverables/<id-livrable>/<id-version>/` du principal.
 Une version comprend de 1 à 10 fichiers, de 100 Mio maximum chacun, avec un total
 de 200 Mio maximum. Une empreinte SHA-256 détecte les modifications extérieures
@@ -46,7 +53,10 @@ La suppression du projet suit les choix existants de suppression des workspaces.
 
 ## Migration et sauvegarde
 
-La migration SQLite 0032 ajoute les fiches, versions et contraintes d’unicité
-des gestionnaires. Aucun gestionnaire de livrables n’est créé automatiquement.
+La migration SQLite 0032 ajoute les fiches, anciennes versions groupées et
+contraintes d’unicité des gestionnaires. La migration 0039 introduit les
+documents et leurs versions indépendantes. Elle convertit les anciennes copies
+en regroupant les entrées portant le même chemin source, sans supprimer les
+données historiques. Aucun gestionnaire de livrables n’est créé automatiquement.
 Sauvegarder ensemble la base SQLite et le workspace principal, y compris
 `.webui/history`, pour conserver métadonnées, copies et version de référence.

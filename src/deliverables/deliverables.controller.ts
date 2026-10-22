@@ -69,6 +69,125 @@ export class DeliverablesController {
   ) {
     return this.service.remove(p, r, id, body.version);
   }
+  @Get(':id/documents') documents(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+  ) {
+    return { documents: this.service.documents(p, r, id) };
+  }
+  @Post(':id/documents') addDocument(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Body() body: { path?: unknown; comment?: unknown },
+    @Req() request: IdentityRequest,
+  ) {
+    return this.service.addDocumentVersion(p, r, id, body, {
+      personId: request.platformIdentity?.personId ?? null,
+      name: request.platformIdentity?.name ?? 'Utilisateur',
+    });
+  }
+  @Post(':id/documents/:documentId/versions') addDocumentVersion(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @Body()
+    body: { path?: unknown; comment?: unknown; expectedVersion?: unknown },
+    @Req() request: IdentityRequest,
+  ) {
+    return this.service.addDocumentVersion(
+      p,
+      r,
+      id,
+      body,
+      {
+        personId: request.platformIdentity?.personId ?? null,
+        name: request.platformIdentity?.name ?? 'Utilisateur',
+      },
+      documentId,
+    );
+  }
+  @Delete(':id/documents/:documentId') deleteDocument(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @Body() body: { expectedVersion?: unknown },
+  ) {
+    return this.service.setDocumentDeleted(
+      p,
+      r,
+      id,
+      documentId,
+      body.expectedVersion,
+      true,
+    );
+  }
+  @Post(':id/documents/:documentId/restore') restoreDeletedDocument(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @Body() body: { expectedVersion?: unknown },
+  ) {
+    return this.service.setDocumentDeleted(
+      p,
+      r,
+      id,
+      documentId,
+      body.expectedVersion,
+      false,
+    );
+  }
+  @Post(':id/documents/:documentId/versions/:versionId/restore')
+  restoreDocumentVersion(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+    @Body() body: { expectedVersion?: unknown; comment?: unknown },
+    @Req() request: IdentityRequest,
+  ) {
+    return this.service.restoreDocumentVersion(
+      p,
+      r,
+      id,
+      documentId,
+      versionId,
+      body,
+      {
+        personId: request.platformIdentity?.personId ?? null,
+        name: request.platformIdentity?.name ?? 'Utilisateur',
+      },
+    );
+  }
+  @Get(':id/documents/:documentId/versions/:versionId/file')
+  async downloadDocumentVersion(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+    @Res() reply: FastifyReply,
+  ) {
+    const file = await this.service.documentVersionFile(
+      p,
+      r,
+      id,
+      documentId,
+      versionId,
+    );
+    return reply
+      .type('application/octet-stream')
+      .header(
+        'Content-Disposition',
+        `attachment; filename*=UTF-8''${encodeURIComponent(file.version.fileName)}`,
+      )
+      .send(createReadStream(file.path));
+  }
   @Post(':id/versions') submit(
     @Param('projectId') p: string,
     @Param('resourceId') r: string,
