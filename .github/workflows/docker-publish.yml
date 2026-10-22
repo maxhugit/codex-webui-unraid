@@ -16,6 +16,9 @@ env:
 
 jobs:
   quality:
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/quality.yml
 
   build:
