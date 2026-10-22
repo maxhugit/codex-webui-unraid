@@ -16,6 +16,28 @@ show_failure() {
 
 trap cleanup EXIT
 
+image_size_bytes="$(docker image inspect --format '{{.Size}}' "${image_ref}")"
+echo "Candidate image size: ${image_size_bytes} bytes."
+
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  printf '### Production image\n\n- Size: **%s bytes**\n' "${image_size_bytes}" >>"${GITHUB_STEP_SUMMARY}"
+fi
+
+# Development headers and Python packaging tools belong to builder stages. This
+# assertion prevents them from silently returning to the published image while
+# also checking that the copied Office environment remains usable.
+docker run --rm --entrypoint /bin/bash "${image_ref}" -euc '
+  for package in python3-pip python3-venv libssl-dev zlib1g-dev libbz2-dev \
+    libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev; do
+    if dpkg-query --show "${package}" >/dev/null 2>&1; then
+      echo "Unexpected runtime package: ${package}" >&2
+      exit 1
+    fi
+  done
+  /opt/office-venv/bin/python -c \
+    "from PIL import Image; import docx, openpyxl, pypdf, pptx, reportlab"
+'
+
 docker run --detach \
   --name "${container_name}" \
   --env NODE_ENV=production \

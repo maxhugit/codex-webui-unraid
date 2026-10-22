@@ -13,6 +13,10 @@ use `common` or add a focused namespace, then register it in `manifest.json`.
 Source code always passes semantic keys to i18next; English sentences are
 values, never identifiers.
 
+Runtime text received from Codex or the server is resolved by reversing the
+English `common` catalog already loaded as the fallback language. There is no
+separate source-to-key catalog to maintain or download.
+
 Every locale must expose the same keys and interpolation variables. The catalog
 tests and `pnpm check:i18n` enforce this requirement before another language is
 enabled. The CI also rejects missing or additional namespaces, missing or

@@ -47,7 +47,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/home/codex
 ENV MISE_YES=1
 ENV NODE_ENV=production
-ENV PATH="/home/codex/.local/bin:/home/codex/.local/share/mise/shims:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+ENV PATH="/opt/office-venv/bin:/home/codex/.local/bin:/home/codex/.local/share/mise/shims:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 RUN mkdir -p /home/codex
 
@@ -78,19 +78,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     build-essential \
     pkg-config \
     python3 \
-    python3-pip \
-    python3-venv \
-    make \
-    g++ \
-    libssl-dev \
-    zlib1g-dev \
-    libbz2-dev \
-    libreadline-dev \
-    libsqlite3-dev \
-    libffi-dev \
-    liblzma-dev \
-    tk-dev \
-    uuid-dev \
     xz-utils \
     zstd
 
@@ -108,9 +95,31 @@ RUN curl --fail --silent --show-error --location \
  && rm /tmp/gh.tar.gz \
  && gh version | grep -F "gh version ${GH_VERSION}"
 
+# Python headers and packaging tools are needed while assembling the managed
+# Python runtimes, but not by the published image. Keeping them in this shared
+# builder prevents every development header from becoming a runtime layer.
+FROM runtime-base AS python-builder-base
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
+    python3-venv \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libffi-dev \
+    liblzma-dev \
+    tk-dev \
+    uuid-dev
+
 # Keep the Office Python stack together in one isolated runtime. Installing
 # these packages from Debian pulled in python3-pil 11, which is affected by two
 # image-decoder vulnerabilities. Direct and transitive pins keep rebuilds stable.
+FROM python-builder-base AS office-builder
+
 RUN python3 -m venv /opt/office-venv \
  && /opt/office-venv/bin/pip install --no-cache-dir \
       "Pillow==${PILLOW_VERSION}" \
@@ -125,10 +134,7 @@ RUN python3 -m venv /opt/office-venv \
       "reportlab==5.0.1" \
       "typing_extensions==4.16.0" \
  && /opt/office-venv/bin/python -c \
-      "from PIL import Image; import docx, openpyxl, pypdf, pptx, reportlab; assert Image.__version__ == '${PILLOW_VERSION}'" \
- && rm -rf /home/codex/.cache /home/codex/.config
-
-ENV PATH="/opt/office-venv/bin:${PATH}"
+      "from PIL import Image; import docx, openpyxl, pypdf, pptx, reportlab; assert Image.__version__ == '${PILLOW_VERSION}'"
 
 RUN command -v 7za >/dev/null
 
@@ -136,7 +142,7 @@ RUN command -v 7za >/dev/null
 # Build the user toolchain outside the final image. The final image receives
 # only the compressed seed, avoiding a second copy of the same /home/codex tree in
 # its immutable layers.
-FROM runtime-base AS toolchain-builder
+FROM python-builder-base AS toolchain-builder
 
 # Install a reviewed mise installer whose digest is fixed in this Dockerfile.
 ARG MISE_VERSION=2026.10.15
@@ -210,6 +216,7 @@ WORKDIR /app
 # The toolchain exists only once in the final image and is restored into a
 # mounted /home/codex on first start.
 COPY --from=toolchain-builder /opt/codex-home-seed.tar.zst /opt/codex-home-seed.tar.zst
+COPY --from=office-builder /opt/office-venv /opt/office-venv
 COPY --from=app-deps-builder /app/node_modules ./node_modules/
 COPY package.json pnpm-lock.yaml* ./
 

@@ -11,7 +11,6 @@ import {
   Outlet,
 } from '@tanstack/react-router';
 import { getApiToken } from '@/auth-token';
-import { AuthenticatedLayout } from './authenticated-layout';
 import {
   SETTINGS_SECTIONS,
   type SettingsSection,
@@ -30,6 +29,10 @@ const INTEGRATION_TABS = ['plugins', 'apps', 'mcps'] as const;
 const LoginRoute = lazyRouteComponent(
   () => import('./login-route'),
   'LoginRoute',
+);
+const AuthenticatedLayout = lazyRouteComponent(
+  () => import('./authenticated-layout'),
+  'AuthenticatedLayout',
 );
 const HomeRoute = lazyRouteComponent(() => import('./home-route'), 'HomeRoute');
 const HelpRoute = lazyRouteComponent(() => import('./help-route'), 'HelpRoute');

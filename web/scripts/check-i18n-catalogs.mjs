@@ -143,9 +143,6 @@ for (const locale of localeNames) {
   }
 }
 
-const sourceKeyMap = JSON.parse(
-  await readFile(path.join(localesRoot, 'source-key-map.json'), 'utf8'),
-);
 const commonKeys = await readCatalog(sourceLocale, 'common');
 const declaredKeys = new Set();
 for (const namespace of sourceNamespaces) {
@@ -153,17 +150,17 @@ for (const namespace of sourceNamespaces) {
     declaredKeys.add(key);
   }
 }
-for (const [source, key] of Object.entries(sourceKeyMap)) {
-  if (!source.trim())
-    failures.push('Runtime source-key map contains an empty source');
-  if (!isSemanticKey(key.replace(/_(?:zero|one|two|few|many|other)$/, ''))) {
-    failures.push(`Runtime source-key map has a non-semantic target: ${key}`);
-  }
-  if (!commonKeys.has(key)) {
+const runtimeSources = new Map();
+for (const [key, source] of commonKeys) {
+  if (!source.trim()) failures.push(`Runtime source is empty for common.${key}`);
+  const baseKey = key.replace(/_(?:zero|one|two|few|many|other)$/, '');
+  const existing = runtimeSources.get(source);
+  if (existing && existing !== baseKey) {
     failures.push(
-      `Runtime source-key map targets a missing common key: ${key}`,
+      `Runtime source is ambiguous between common.${existing} and common.${baseKey}: ${source}`,
     );
   }
+  runtimeSources.set(source, baseKey);
 }
 
 const sourceFiles = [];

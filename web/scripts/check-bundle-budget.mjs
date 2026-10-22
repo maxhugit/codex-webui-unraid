@@ -7,8 +7,9 @@ const assetsDirectory = path.resolve(webRoot, '..', 'public', 'assets');
 
 const budgets = {
   maximumJavaScriptAssetBytes: 1_100_000,
-  totalJavaScriptBytes: 25_000_000,
-  translationKeyAssetBytes: 90_000,
+  mainEntryAssetBytes: 350_000,
+  totalJavaScriptBytes: 18_000_000,
+  commonCatalogAssetBytes: 160_000,
 };
 
 const entries = await readdir(assetsDirectory, { withFileTypes: true }).catch(
@@ -32,8 +33,9 @@ const assets = await Promise.all(
 assets.sort((left, right) => right.size - left.size);
 const totalJavaScriptBytes = assets.reduce((total, asset) => total + asset.size, 0);
 const largestAsset = assets[0];
-const translationKeyAsset = assets.find((asset) =>
-  asset.name.startsWith('translation-key-'),
+const mainEntryAsset = assets.find((asset) => asset.name.startsWith('index-'));
+const commonCatalogAsset = assets.find((asset) =>
+  asset.name.startsWith('common-'),
 );
 const failures = [];
 
@@ -51,12 +53,20 @@ if (totalJavaScriptBytes > budgets.totalJavaScriptBytes) {
   );
 }
 
+if (!mainEntryAsset) {
+  failures.push('The main JavaScript entry was not produced.');
+} else if (mainEntryAsset.size > budgets.mainEntryAssetBytes) {
+  failures.push(
+    `${mainEntryAsset.name} is ${mainEntryAsset.size} bytes; main entry budget is ${budgets.mainEntryAssetBytes}.`,
+  );
+}
+
 if (
-  translationKeyAsset &&
-  translationKeyAsset.size > budgets.translationKeyAssetBytes
+  commonCatalogAsset &&
+  commonCatalogAsset.size > budgets.commonCatalogAssetBytes
 ) {
   failures.push(
-    `${translationKeyAsset.name} is ${translationKeyAsset.size} bytes; budget is ${budgets.translationKeyAssetBytes}.`,
+    `${commonCatalogAsset.name} is ${commonCatalogAsset.size} bytes; budget is ${budgets.commonCatalogAssetBytes}.`,
   );
 }
 
@@ -65,6 +75,9 @@ for (const asset of assets.slice(0, 5)) {
   console.log(`- ${asset.name}: ${asset.size} bytes`);
 }
 console.log(`Total JavaScript: ${totalJavaScriptBytes} bytes`);
+if (mainEntryAsset) {
+  console.log(`Main JavaScript entry: ${mainEntryAsset.size} bytes`);
+}
 
 if (failures.length > 0) {
   console.error('\nBundle budget exceeded:');
