@@ -46,7 +46,7 @@ jobs:
       - name: Validate repository content
         run: |
           python3 scripts/check-no-chinese.py
-          python3 -m unittest discover -s scripts -p test_linux_header_vex.py
+          python3 -m unittest discover -s scripts -p 'test_*vex.py'
 
       - name: Validate translation catalogs
         run: pnpm --dir web check:i18n
@@ -148,8 +148,17 @@ jobs:
         env:
           IMAGE_REF: codex-webui-unraid:quality-${{ github.sha }}
         run: |
-          trivy image --cache-dir .cache/trivy --skip-db-update --scanners vuln --severity HIGH,CRITICAL --vex security/linux-libc-dev.openvex.json --format json --output trivy-quality-results.json "$IMAGE_REF"
-          python3 scripts/audit-linux-header-vex.py trivy-quality-results.raw.json trivy-quality-results.json security/linux-libc-dev.openvex.json
+          trivy image --cache-dir .cache/trivy --skip-db-update --scanners vuln --severity HIGH,CRITICAL --vex security/linux-libc-dev.openvex.json --format json --output trivy-quality-results.headers.json "$IMAGE_REF"
+          python3 scripts/audit-linux-header-vex.py trivy-quality-results.raw.json trivy-quality-results.headers.json security/linux-libc-dev.openvex.json
+
+      - name: Verify absent system implementations and retained client features
+        env:
+          IMAGE_REF: codex-webui-unraid:quality-${{ github.sha }}
+        run: |
+          scripts/verify-system-components-image.sh "$IMAGE_REF" > system-component-evidence.json
+          python3 scripts/audit-system-component-vex.py prepare system-component-evidence.json image.openvex.json
+          trivy image --cache-dir .cache/trivy --skip-db-update --scanners vuln --severity HIGH,CRITICAL --vex image.openvex.json --format json --output trivy-quality-results.json "$IMAGE_REF"
+          python3 scripts/audit-system-component-vex.py audit system-component-evidence.json trivy-quality-results.headers.json trivy-quality-results.json
 
       - name: Require no HIGH or CRITICAL Node.js dependencies
         run: |
@@ -171,6 +180,11 @@ jobs:
           path: |
             trivy-quality-results.json
             trivy-quality-results.raw.json
+            trivy-quality-results.headers.json
+            system-component-evidence.json
+            image.openvex.json
+            security/system-components.openvex.json
+            security/system-components-assessment.json
             linux-header-evidence.json
             security/linux-libc-dev.openvex.json
             security/linux-libc-dev-assessment.csv

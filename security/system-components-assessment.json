@@ -1,0 +1,106 @@
+[
+  {
+    "package": "dirmngr",
+    "version": "2.4.7-21+deb13u1+b5",
+    "purl": "pkg:deb/debian/dirmngr@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7",
+    "cve": "CVE-2026-24882",
+    "component": "tpm2daemon",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-24882"
+  },
+  {
+    "package": "gnupg",
+    "version": "2.4.7-21+deb13u1",
+    "purl": "pkg:deb/debian/gnupg@2.4.7-21%2Bdeb13u1?arch=all&distro=debian-13.7",
+    "cve": "CVE-2026-24882",
+    "component": "tpm2daemon",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-24882"
+  },
+  {
+    "package": "gnupg-l10n",
+    "version": "2.4.7-21+deb13u1",
+    "purl": "pkg:deb/debian/gnupg-l10n@2.4.7-21%2Bdeb13u1?arch=all&distro=debian-13.7",
+    "cve": "CVE-2026-24882",
+    "component": "tpm2daemon",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-24882"
+  },
+  {
+    "package": "gpg",
+    "version": "2.4.7-21+deb13u1+b5",
+    "purl": "pkg:deb/debian/gpg@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7",
+    "cve": "CVE-2026-24882",
+    "component": "tpm2daemon",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-24882"
+  },
+  {
+    "package": "gpg-agent",
+    "version": "2.4.7-21+deb13u1+b5",
+    "purl": "pkg:deb/debian/gpg-agent@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7",
+    "cve": "CVE-2026-24882",
+    "component": "tpm2daemon",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-24882"
+  },
+  {
+    "package": "gpgconf",
+    "version": "2.4.7-21+deb13u1+b5",
+    "purl": "pkg:deb/debian/gpgconf@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7",
+    "cve": "CVE-2026-24882",
+    "component": "tpm2daemon",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-24882"
+  },
+  {
+    "package": "gpgsm",
+    "version": "2.4.7-21+deb13u1+b5",
+    "purl": "pkg:deb/debian/gpgsm@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7",
+    "cve": "CVE-2026-24882",
+    "component": "tpm2daemon",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-24882"
+  },
+  {
+    "package": "libsystemd0",
+    "version": "257.13-1~deb13u1",
+    "purl": "pkg:deb/debian/libsystemd0@257.13-1~deb13u1?arch=amd64&distro=debian-13.7",
+    "cve": "CVE-2026-16742",
+    "component": "systemd-homed",
+    "source": "https://github.com/systemd/systemd/security/advisories/GHSA-jm29-p7hh-vjhv"
+  },
+  {
+    "package": "libudev1",
+    "version": "257.13-1~deb13u1",
+    "purl": "pkg:deb/debian/libudev1@257.13-1~deb13u1?arch=amd64&distro=debian-13.7",
+    "cve": "CVE-2026-16742",
+    "component": "systemd-homed",
+    "source": "https://github.com/systemd/systemd/security/advisories/GHSA-jm29-p7hh-vjhv"
+  },
+  {
+    "package": "openssh-client",
+    "version": "1:10.0p1-7+deb13u4",
+    "purl": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1",
+    "cve": "CVE-2026-106553",
+    "component": "sshd",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-106553"
+  },
+  {
+    "package": "openssh-client",
+    "version": "1:10.0p1-7+deb13u4",
+    "purl": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1",
+    "cve": "CVE-2026-106555",
+    "component": "sshd",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-106555"
+  },
+  {
+    "package": "openssh-client",
+    "version": "1:10.0p1-7+deb13u4",
+    "purl": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1",
+    "cve": "CVE-2026-59999",
+    "component": "sshd",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-59999"
+  },
+  {
+    "package": "openssh-client",
+    "version": "1:10.0p1-7+deb13u4",
+    "purl": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1",
+    "cve": "CVE-2026-60000",
+    "component": "sshd",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-60000"
+  }
+]
