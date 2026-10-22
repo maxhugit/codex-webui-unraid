@@ -59,6 +59,8 @@ def main():
         finally:
             run('gpgconf', '--kill', 'all', env=env)
 
+        data = root / 'ssh-payload'
+        data.write_text('SSH agent signing smoke test\n')
         key = root / 'ssh-key'
         run('ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(key))
         run('ssh-keygen', '-lf', str(key) + '.pub')
