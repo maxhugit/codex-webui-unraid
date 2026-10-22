@@ -101,7 +101,14 @@ export function buildContentDisposition(
   filename: string,
   inline: boolean,
 ): string {
-  const fallback = filename.replace(/[\r\n"\\]/g, '_');
+  // HTTP/1 header values cannot contain arbitrary Unicode (notably decomposed
+  // accents such as `e\u0301`). Keep the legacy filename parameter ASCII-only
+  // and preserve the exact name in the RFC 5987 filename* parameter.
+  const fallback = filename
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7e]/g, '_')
+    .replace(/[\r\n"\\]/g, '_');
   const disposition = inline ? 'inline' : 'attachment';
   return `${disposition}; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }

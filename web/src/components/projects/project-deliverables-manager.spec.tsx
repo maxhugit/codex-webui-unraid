@@ -91,8 +91,10 @@ it('saves the brief with its revision and cannot manually select validated', asy
   fireEvent.change(screen.getByLabelText('Validation criteria'), {
     target: { value: 'Checked by owner' },
   });
-  fireEvent.click(screen.getByRole('tab', { name: 'History' }));
-  expect(screen.getByRole('button', { name: 'Submit version' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('tab', { name: 'Validation' }));
+  expect(
+    screen.getByRole('button', { name: 'Submit deliverable for validation' }),
+  ).toBeDisabled();
   fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() =>
@@ -111,11 +113,13 @@ it('saves the brief with its revision and cannot manually select validated', asy
 });
 it('submits file paths as a proposed version without validating automatically', async () => {
   await setup();
-  fireEvent.click(screen.getByRole('tab', { name: 'History' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Validation' }));
   fireEvent.change(screen.getByLabelText('Project file paths, one per line'), {
     target: { value: '/workspaces/p/report.pdf\n/workspaces/p/data.csv' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Submit version' }));
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Submit deliverable for validation' }),
+  );
   await waitFor(() =>
     expect(api).toHaveBeenCalledWith(
       '/p/resources/r/deliverables/d/versions',
@@ -273,12 +277,62 @@ it('creates an independent version from the current document file', async () => 
   });
 });
 
+it('opens a detailed document sheet with versions and information', async () => {
+  const document = {
+    id: 'doc',
+    deliverableId: 'd',
+    name: 'report.docx',
+    format: 'docx',
+    sourcePath: '/workspaces/p/livrables/d/report.docx',
+    currentVersionNumber: 2,
+    deletedAt: null,
+    createdAt: 1,
+    updatedAt: 2,
+    versions: [
+      {
+        id: 'dv2',
+        documentId: 'doc',
+        number: 2,
+        fileName: 'report.docx',
+        sourcePath: '/workspaces/p/livrables/d/report.docx',
+        snapshotPath: '/history/report.docx',
+        size: 2048,
+        sha256: 'document-hash',
+        authorPersonId: null,
+        authorName: 'Maxime',
+        comment: 'Reviewed version',
+        restoredFromVersionId: null,
+        createdAt: 2,
+      },
+    ],
+  };
+  await setup({
+    ...board,
+    deliverables: [{ ...item, documents: [document] }],
+  });
+  fireEvent.click(screen.getByRole('tab', { name: /Documents/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+  expect(screen.getByRole('dialog')).toHaveTextContent('Reviewed version');
+  expect(screen.getByRole('tab', { name: 'Versions' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  fireEvent.click(screen.getByRole('tab', { name: 'Information' }));
+  expect(screen.getByRole('dialog')).toHaveTextContent('2.0 KB');
+  expect(screen.getByRole('dialog')).toHaveTextContent('document-hash');
+  expect(screen.getByRole('dialog')).toHaveTextContent(
+    '/workspaces/p/livrables/d/report.docx',
+  );
+});
+
 it('uploads selected files before creating their document records', async () => {
   const fetchMock = vi.fn().mockResolvedValue({
     ok: true,
-    json: () => Promise.resolve({
-      files: [{ path: '/workspaces/p/livrables/d/brief.pdf' }],
-    }),
+    json: () =>
+      Promise.resolve({
+        files: [{ path: '/workspaces/p/livrables/d/brief.pdf' }],
+      }),
   });
   vi.stubGlobal('fetch', fetchMock);
 
@@ -286,9 +340,14 @@ it('uploads selected files before creating their document records', async () => 
   fireEvent.click(screen.getByRole('tab', { name: /Documents/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Add a document' }));
   fireEvent.change(screen.getByLabelText('Documents'), {
-    target: { files: [new File(['brief'], 'brief.pdf', { type: 'application/pdf' })] },
+    target: {
+      files: [new File(['brief'], 'brief.pdf', { type: 'application/pdf' })],
+    },
   });
-  fireEvent.click(screen.getAllByRole('button', { name: 'Add a document' }).at(-1)!);
+  const addDocumentButtons = screen.getAllByRole('button', {
+    name: 'Add a document',
+  });
+  fireEvent.click(addDocumentButtons[addDocumentButtons.length - 1]);
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
   await waitFor(() =>

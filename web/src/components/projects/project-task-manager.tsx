@@ -21,6 +21,7 @@ import {
   Hand,
   ListFilter,
   Loader2,
+  PackageOpen,
   Pencil,
   Play,
   Plus,
@@ -53,10 +54,13 @@ import { useThemeStore } from '@/stores/theme-store';
 import { englishGanttLocale, frenchGanttLocale } from '@/lib/gantt-locales';
 import {
   projectsApi,
+  projectsQueryKey,
+  type ProjectSummary,
   type ProjectTaskBoard,
   type ProjectTaskStatusSummary,
   type ProjectTaskSummary,
 } from '@/lib/projects-api';
+import type { DeliverablesBoard } from '@/lib/deliverables-api';
 
 type Draft = {
   assigneeId: string;
@@ -316,6 +320,21 @@ export function ProjectTaskManager({
       projectsApi<ProjectTaskBoard>(`/${projectId}/resources/${resourceId}`),
     refetchInterval: 5000,
   });
+  const projects = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
+  });
+  const deliverableResource = projects.data?.projects
+    .find((project) => project.id === projectId)
+    ?.resources.find((resource) => resource.type === 'deliverable_board');
+  const deliverables = useQuery({
+    queryKey: ['project-deliverables', projectId, deliverableResource?.id],
+    queryFn: () =>
+      projectsApi<DeliverablesBoard>(
+        `/${projectId}/resources/${deliverableResource!.id}/deliverables`,
+      ),
+    enabled: Boolean(deliverableResource),
+  });
   const refresh = () => client.invalidateQueries({ queryKey: key });
   const request = useMutation({
     mutationFn: ({
@@ -562,6 +581,11 @@ export function ProjectTaskManager({
       .map((d) => d.dependsOnTaskId);
   const childrenFor = (id: string) =>
     board.tasks.filter((t) => t.parentTaskId === id);
+  const linkedDeliverable = editing
+    ? deliverables.data?.deliverables.find(
+        (deliverable) => deliverable.primaryTaskId === editing.id,
+      )
+    : undefined;
   const rootTask = rootTaskId
     ? (board.tasks.find((task) => task.id === rootTaskId) ?? null)
     : null;
@@ -2571,17 +2595,36 @@ export function ProjectTaskManager({
                 )}
               </div>
             </fieldset>
-            {!draft.parentTaskId && (
-              <label className="grid gap-1 text-xs text-muted-foreground">
-                {t('linkedFileOptional')}
-                <Input
-                  placeholder={t('linkedFileOptional')}
-                  value={draft.linkedFilePath}
-                  onChange={(e) =>
-                    setDraft({ ...draft, linkedFilePath: e.target.value })
-                  }
-                />
-              </label>
+            {!draft.parentTaskId && deliverableResource && (
+              <div className="grid gap-1 text-xs text-muted-foreground">
+                <span>{t('linkedDeliverable')}</span>
+                {linkedDeliverable ? (
+                  <button
+                    type="button"
+                    className="flex h-10 items-center gap-2 rounded-lg border px-3 text-left text-sm text-foreground hover:bg-muted"
+                    onClick={() => {
+                      setTaskOpen(false);
+                      void navigate({
+                        to: '/projects/$projectId/resources/$resourceId',
+                        params: {
+                          projectId,
+                          resourceId: deliverableResource.id,
+                        },
+                        search: { task: undefined },
+                      });
+                    }}
+                  >
+                    <PackageOpen className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1 truncate">{linkedDeliverable.title}</span>
+                    <ChevronRight className="h-4 w-4 shrink-0" />
+                  </button>
+                ) : (
+                  <div className="flex h-10 items-center gap-2 rounded-lg border bg-muted/30 px-3 text-sm text-muted-foreground">
+                    <PackageOpen className="h-4 w-4" />
+                    {t('noLinkedDeliverable')}
+                  </div>
+                )}
+              </div>
             )}
             {!draft.parentTaskId && (
               <fieldset className="rounded-lg border p-3">

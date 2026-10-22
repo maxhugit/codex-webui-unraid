@@ -39,6 +39,7 @@ import {
   OkResponseDto,
 } from '../common/dto/api-responses.dto';
 import {
+  buildContentDisposition as buildFileContentDisposition,
   guessMimeType,
   sendRangedStream,
   singleHeaderValue,
@@ -428,7 +429,6 @@ export class FilesController {
 
   /** Builds a safe Content-Disposition attachment header value. */
   private buildContentDisposition(filename: string): string {
-    const fallback = filename.replace(/[\r\n"\\]/g, '_');
-    return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+    return buildFileContentDisposition(filename, false);
   }
 }

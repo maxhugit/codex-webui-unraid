@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Download, Eye, FileText, History, MoreVertical, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Download, Eye, FileText, History, Info, MoreVertical, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -40,8 +40,10 @@ export function DeliverableDocuments({
   const [comment, setComment] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [viewed, setViewed] = useState<DeliverableDocument | null>(null);
-  const [history, setHistory] = useState<DeliverableDocument | null>(null);
+  const [detail, setDetail] = useState<{
+    document: DeliverableDocument;
+    tab: 'versions' | 'preview' | 'information';
+  } | null>(null);
   const active = useMemo(
     () => item.documents.filter((document) => document.deletedAt === null),
     [item.documents],
@@ -156,8 +158,8 @@ export function DeliverableDocuments({
               key={document.id}
               document={document}
               busy={busy}
-              onView={() => setViewed(document)}
-              onHistory={() => setHistory(document)}
+              onView={() => setDetail({ document, tab: 'preview' })}
+              onHistory={() => setDetail({ document, tab: 'versions' })}
               onDownload={() => void downloadVersion(base, item.id, document, document.versions.at(-1)!, onError)}
               onFile={(file) => addVersion.mutate({ document, file })}
               onSnapshot={() =>
@@ -257,56 +259,163 @@ export function DeliverableDocuments({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!viewed} onOpenChange={(open) => !open && setViewed(null)}>
-        <DialogContent className="flex h-[90dvh] max-w-[calc(100%-1rem)] flex-col p-0 sm:max-w-6xl">
-          <DialogHeader className="px-4 pt-4">
-            <DialogTitle>{viewed?.name}</DialogTitle>
-            <DialogDescription>{t('documentViewerDescription')}</DialogDescription>
-          </DialogHeader>
-          {viewed && (
-            <div className="min-h-0 flex-1 overflow-hidden border-t">
-              <FileViewer filePath={viewed.sourcePath} viewId={`deliverable:${viewed.id}`} />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!history} onOpenChange={(open) => !open && setHistory(null)}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t('documentVersionHistory', { name: history?.name })}</DialogTitle>
-            <DialogDescription>{t('restoringCreatesANewVersion')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            {history?.versions.slice().reverse().map((version) => (
-              <div key={version.id} className="space-y-2 rounded-lg border p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <strong>V{version.number}</strong>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(version.createdAt).toLocaleString()} · {version.authorName}
-                  </span>
-                </div>
-                {version.comment && <p className="whitespace-pre-wrap text-sm">{version.comment}</p>}
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => void downloadVersion(base, item.id, history, version, onError)}>
-                    <Download className="h-4 w-4" /> {t('download')}
-                  </Button>
-                  {version.number !== history.currentVersionNumber && history.deletedAt === null && (
-                    <Button size="sm" variant="outline" disabled={busy} onClick={() => request.mutate({
-                      suffix: `/documents/${history.id}/versions/${version.id}/restore`,
-                      body: { expectedVersion: history.currentVersionNumber, comment },
-                    })}>
-                      <RotateCcw className="h-4 w-4" /> {t('restoreAsNewVersion')}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <DocumentDetailDialog
+        detail={detail}
+        setDetail={setDetail}
+        deliverableId={item.id}
+        base={base}
+        busy={busy}
+        onError={onError}
+        onRestore={(document, version) =>
+          request.mutate({
+            suffix: `/documents/${document.id}/versions/${version.id}/restore`,
+            body: {
+              expectedVersion: document.currentVersionNumber,
+              comment,
+            },
+          })
+        }
+      />
     </section>
   );
+}
+
+function DocumentDetailDialog({
+  detail,
+  setDetail,
+  deliverableId,
+  base,
+  busy,
+  onError,
+  onRestore,
+}: {
+  detail: { document: DeliverableDocument; tab: 'versions' | 'preview' | 'information' } | null;
+  setDetail: (detail: { document: DeliverableDocument; tab: 'versions' | 'preview' | 'information' } | null) => void;
+  deliverableId: string;
+  base: string;
+  busy: boolean;
+  onError: () => void;
+  onRestore: (document: DeliverableDocument, version: DeliverableDocumentVersion) => void;
+}) {
+  const { t } = useTranslation();
+  const document = detail?.document;
+  const latest = document?.versions.at(-1);
+  const tabs = [
+    { id: 'versions' as const, label: t('versions'), icon: History },
+    { id: 'preview' as const, label: t('preview'), icon: Eye },
+    { id: 'information' as const, label: t('information'), icon: Info },
+  ];
+
+  return (
+    <Dialog open={!!detail} onOpenChange={(open) => !open && setDetail(null)}>
+      <DialogContent className="flex h-[92dvh] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
+        <DialogHeader className="border-b px-4 pb-3 pt-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3 pr-8">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <DialogTitle className="truncate">{document?.name}</DialogTitle>
+              <DialogDescription>
+                {t('documentDetailSummary', {
+                  version: document?.currentVersionNumber ?? 0,
+                  author: latest?.authorName ?? '—',
+                })}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <div role="tablist" aria-label={t('documentDetailSections')} className="flex shrink-0 gap-1 overflow-x-auto border-b px-3 sm:px-6">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={detail?.tab === id}
+              className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm ${
+                detail?.tab === id
+                  ? 'border-primary font-medium text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => document && setDetail({ document, tab: id })}
+            >
+              <Icon className="h-4 w-4" /> {label}
+            </button>
+          ))}
+        </div>
+        {document && detail?.tab === 'versions' && (
+          <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+            <div className="overflow-hidden rounded-lg border">
+              <div className="hidden grid-cols-[5rem_10rem_minmax(0,1fr)_8rem] gap-3 bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground sm:grid">
+                <span>{t('version')}</span>
+                <span>{t('date')}</span>
+                <span>{t('authorAndComment')}</span>
+                <span className="sr-only">{t('actions')}</span>
+              </div>
+              {document.versions.slice().reverse().map((version) => (
+                <article key={version.id} className="grid gap-2 border-t px-3 py-3 first:border-t-0 sm:grid-cols-[5rem_10rem_minmax(0,1fr)_8rem] sm:items-center sm:gap-3">
+                  <strong>V{version.number}</strong>
+                  <time className="text-sm text-muted-foreground">{new Date(version.createdAt).toLocaleDateString()}</time>
+                  <div className="min-w-0 text-sm">
+                    <div>{version.authorName}</div>
+                    <div className="truncate text-muted-foreground">{version.comment || t('noComment')}</div>
+                  </div>
+                  <div className="flex justify-end gap-1">
+                    <Button size="icon" variant="ghost" aria-label={t('downloadVersion', { version: version.number })} onClick={() => void downloadVersion(base, deliverableId, document, version, onError)}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    {version.number !== document.currentVersionNumber && document.deletedAt === null && (
+                      <Button size="icon" variant="ghost" aria-label={t('restoreVersion', { version: version.number })} disabled={busy} onClick={() => onRestore(document, version)}>
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">{t('restoringCreatesANewVersion')}</p>
+          </div>
+        )}
+        {document && detail?.tab === 'preview' && (
+          <div role="tabpanel" className="min-h-0 flex-1 overflow-hidden">
+            <FileViewer filePath={document.sourcePath} viewId={`deliverable:${document.id}`} />
+          </div>
+        )}
+        {document && detail?.tab === 'information' && (
+          <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+            <dl className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
+              <DocumentFact label={t('documentName')} value={document.name} />
+              <DocumentFact label={t('format')} value={document.format.toUpperCase() || '—'} />
+              <DocumentFact label={t('currentVersion')} value={`V${document.currentVersionNumber}`} />
+              <DocumentFact label={t('fileSize')} value={latest ? formatBytes(latest.size) : '—'} />
+              <DocumentFact label={t('created')} value={new Date(document.createdAt).toLocaleString()} />
+              <DocumentFact label={t('lastModified')} value={new Date(document.updatedAt).toLocaleString()} />
+              <DocumentFact label={t('author')} value={latest?.authorName ?? '—'} />
+              <DocumentFact label={t('checksum')} value={latest?.sha256 ?? '—'} mono />
+              <div className="sm:col-span-2">
+                <DocumentFact label={t('location')} value={document.sourcePath} mono />
+              </div>
+            </dl>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DocumentFact({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className={`mt-1 break-words text-sm ${mono ? 'font-mono text-xs' : ''}`}>{value}</dd>
+    </div>
+  );
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function DocumentRow({ document, busy, onView, onHistory, onDownload, onFile, onSnapshot, onDelete }: {
