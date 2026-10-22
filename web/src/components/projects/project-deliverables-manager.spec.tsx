@@ -31,6 +31,8 @@ const item: Deliverable = {
   version: 3,
   validatedVersionId: null,
   directory: '/workspaces/p/livrables/d',
+  createdAt: 1,
+  updatedAt: 2,
   versions: [],
   documents: [],
 };
@@ -74,7 +76,9 @@ it('saves the brief with its revision and cannot manually select validated', asy
   fireEvent.change(screen.getByLabelText('Validation criteria'), {
     target: { value: 'Checked by owner' },
   });
+  fireEvent.click(screen.getByRole('tab', { name: 'History' }));
   expect(screen.getByRole('button', { name: 'Submit version' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() =>
     expect(api).toHaveBeenCalledWith(
@@ -92,6 +96,7 @@ it('saves the brief with its revision and cannot manually select validated', asy
 });
 it('submits file paths as a proposed version without validating automatically', async () => {
   await setup();
+  fireEvent.click(screen.getByRole('tab', { name: 'History' }));
   fireEvent.change(screen.getByLabelText('Project file paths, one per line'), {
     target: { value: '/workspaces/p/report.pdf\n/workspaces/p/data.csv' },
   });
@@ -171,6 +176,7 @@ it('creates an independent version from the current document file', async () => 
     ...board,
     deliverables: [{ ...item, documents: [document] }],
   });
+  fireEvent.click(screen.getByRole('tab', { name: /Documents/ }));
   fireEvent.change(screen.getByLabelText('Version comment'), {
     target: { value: 'After review' },
   });

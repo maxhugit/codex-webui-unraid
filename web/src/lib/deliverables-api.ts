@@ -56,6 +56,8 @@ export interface Deliverable {
   version: number;
   validatedVersionId: string | null;
   directory: string;
+  createdAt: number;
+  updatedAt: number;
   versions: DeliverableVersion[];
   documents: DeliverableDocument[];
 }
