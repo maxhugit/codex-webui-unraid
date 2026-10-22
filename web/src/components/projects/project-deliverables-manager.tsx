@@ -407,9 +407,11 @@ function DeliverableDetail({
     onDirty(revisionDirty || !!paths.trim() || !!note.trim());
     return () => onDirty(false);
   }, [revisionDirty, paths, note, onDirty]);
-  const fail = () =>
+  const fail = (failure?: unknown) =>
     setError(
-      t('theDeliverableCouldNotBeUpdatedReloadToCheckForConcurrentChanges'),
+      failure instanceof Error && failure.message
+        ? failure.message
+        : t('theDeliverableCouldNotBeUpdatedReloadToCheckForConcurrentChanges'),
     );
   const action = useMutation({
     mutationFn: ({

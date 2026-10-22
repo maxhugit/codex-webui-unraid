@@ -27,8 +27,8 @@ describe('ProjectConnectionPolicyService', () => {
       }
       return Promise.resolve({
         data: [
-          { name: 'unraid', pluginId: null },
-          { name: 'drive', pluginId: 'google' },
+          { name: 'unraid', pluginId: null, authStatus: 'oAuth' },
+          { name: 'drive', pluginId: 'google', authStatus: 'unsupported' },
         ],
         nextCursor: null,
       });
@@ -56,6 +56,42 @@ describe('ProjectConnectionPolicyService', () => {
       plugins: {
         google: { mcp_servers: { drive: { enabled: false } } },
       },
+    });
+  });
+
+  it('does not emit the built-in connector catalog as an MCP transport', async () => {
+    const request = vi.fn((method: string) =>
+      Promise.resolve({
+        data:
+          method === 'app/list'
+            ? []
+            : [
+                {
+                  name: 'codex_apps',
+                  pluginId: null,
+                  authStatus: 'unsupported',
+                },
+              ],
+        nextCursor: null,
+      }),
+    );
+    const service = new ProjectConnectionPolicyService(
+      { request } as unknown as CodexService,
+      databaseReturning(
+        { projectId: 'project-1' },
+        {
+          appIds: [],
+          mcpServerIds: ['codex_apps'],
+          agentModel: null,
+          agentReasoningEffort: null,
+        },
+      ),
+    );
+
+    await expect(service.configForCwd('/workspaces/mail')).resolves.toEqual({
+      apps: { _default: { enabled: false } },
+      mcp_servers: {},
+      plugins: {},
     });
   });
 
