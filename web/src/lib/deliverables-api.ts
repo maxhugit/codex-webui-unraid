@@ -16,6 +16,33 @@ export interface DeliverableVersion {
   reviewedAt: number | null;
   createdAt: number;
 }
+export interface DeliverableDocumentVersion {
+  id: string;
+  documentId: string;
+  number: number;
+  fileName: string;
+  sourcePath: string;
+  snapshotPath: string;
+  size: number;
+  sha256: string;
+  authorPersonId: string | null;
+  authorName: string;
+  comment: string;
+  restoredFromVersionId: string | null;
+  createdAt: number;
+}
+export interface DeliverableDocument {
+  id: string;
+  deliverableId: string;
+  name: string;
+  format: string;
+  sourcePath: string;
+  currentVersionNumber: number;
+  deletedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+  versions: DeliverableDocumentVersion[];
+}
 export interface Deliverable {
   id: string;
   title: string;
@@ -30,6 +57,7 @@ export interface Deliverable {
   validatedVersionId: string | null;
   directory: string;
   versions: DeliverableVersion[];
+  documents: DeliverableDocument[];
 }
 export interface DeliverablesBoard {
   resource: ProjectResourceSummary;

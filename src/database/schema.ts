@@ -661,6 +661,66 @@ export const projectDeliverableVersions = sqliteTable(
   ],
 );
 
+/** Stable document identities composing a deliverable. */
+export const projectDeliverableDocuments = sqliteTable(
+  'project_deliverable_documents',
+  {
+    id: text('id').primaryKey(),
+    deliverableId: text('deliverable_id')
+      .notNull()
+      .references(() => projectDeliverables.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    format: text('format').notNull(),
+    sourcePath: text('source_path').notNull(),
+    currentVersionNumber: integer('current_version_number')
+      .notNull()
+      .default(0),
+    deletedAt: integer('deleted_at'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('uidx_deliverable_document_source').on(
+      table.deliverableId,
+      table.sourcePath,
+    ),
+    index('idx_deliverable_documents_deliverable').on(table.deliverableId),
+  ],
+);
+
+/** Immutable history for one document, independent from other documents. */
+export const projectDeliverableDocumentVersions = sqliteTable(
+  'project_deliverable_document_versions',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => projectDeliverableDocuments.id, {
+        onDelete: 'cascade',
+      }),
+    number: integer('number').notNull(),
+    fileName: text('file_name').notNull(),
+    sourcePath: text('source_path').notNull(),
+    snapshotPath: text('snapshot_path').notNull(),
+    size: integer('size').notNull(),
+    sha256: text('sha256').notNull(),
+    authorPersonId: text('author_person_id').references(() => people.id, {
+      onDelete: 'set null',
+    }),
+    authorName: text('author_name').notNull(),
+    comment: text('comment').notNull().default(''),
+    restoredFromVersionId: text('restored_from_version_id'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('uidx_deliverable_document_version_number').on(
+      table.documentId,
+      table.number,
+    ),
+    index('idx_deliverable_document_versions_document').on(table.documentId),
+  ],
+);
+
 export const projectTaskStatuses = sqliteTable(
   'project_task_statuses',
   {
