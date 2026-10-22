@@ -19,6 +19,8 @@ import {
   projectDeliverableVersions as versions,
   projectDeliverableDocuments as documents,
   projectDeliverableDocumentVersions as documentVersions,
+  projectDeliverableSnapshots as snapshots,
+  projectDeliverableLifecycleEvents as lifecycleEvents,
   projectWorkspaces,
   projectParticipants,
   people,
@@ -26,11 +28,17 @@ import {
   projectAgentThreads,
   simpleChatThreads,
   type DeliverableFile,
+  type DeliverableSnapshotDocument,
 } from '../database/schema';
 import { FilesService } from '../files/files.service';
 import { IdentityService } from '../auth/identity.service';
 
 type Item = typeof items.$inferSelect;
+export type DeliverableLifecycleStatus =
+  | 'draft'
+  | 'in_constitution'
+  | 'finalized'
+  | 'archived';
 export interface DeliverableInput {
   title?: string;
   description?: string;
@@ -46,6 +54,16 @@ export interface DeliverableDocumentActor {
   personId: string | null;
   name: string;
 }
+
+const LIFECYCLE_TRANSITIONS: Record<
+  DeliverableLifecycleStatus,
+  DeliverableLifecycleStatus[]
+> = {
+  draft: ['in_constitution', 'finalized'],
+  in_constitution: ['draft', 'finalized'],
+  finalized: ['in_constitution', 'archived'],
+  archived: ['finalized'],
+};
 const MAX_FILE = 100 * 1024 * 1024;
 
 @Injectable()
@@ -280,6 +298,32 @@ export class DeliverablesService {
           .orderBy(desc(documentVersions.number))
           .all()
       : [];
+    const lifecycleHistory = records.length
+      ? this.db
+          .select()
+          .from(lifecycleEvents)
+          .where(
+            inArray(
+              lifecycleEvents.deliverableId,
+              records.map((row) => row.id),
+            ),
+          )
+          .orderBy(desc(lifecycleEvents.createdAt))
+          .all()
+      : [];
+    const snapshotHistory = records.length
+      ? this.db
+          .select()
+          .from(snapshots)
+          .where(
+            inArray(
+              snapshots.deliverableId,
+              records.map((row) => row.id),
+            ),
+          )
+          .orderBy(desc(snapshots.createdAt))
+          .all()
+      : [];
     return {
       ...context,
       ...this.options(projectId),
@@ -303,6 +347,12 @@ export class DeliverablesService {
               (version) => version.documentId === document.id,
             ),
           })),
+        lifecycleEvents: lifecycleHistory.filter(
+          (event) => event.deliverableId === item.id,
+        ),
+        snapshots: snapshotHistory.filter(
+          (snapshot) => snapshot.deliverableId === item.id,
+        ),
       })),
     };
   }
@@ -429,11 +479,26 @@ export class DeliverablesService {
     const id = randomUUID(),
       now = Date.now();
     await this.directory(projectId, ['livrables', id]);
-    return this.db
-      .insert(items)
-      .values({ id, resourceId, ...values, createdAt: now, updatedAt: now })
-      .returning()
-      .get();
+    const actor = this.actor();
+    return this.db.transaction((tx) => {
+      const created = tx
+        .insert(items)
+        .values({ id, resourceId, ...values, createdAt: now, updatedAt: now })
+        .returning()
+        .get();
+      tx.insert(lifecycleEvents)
+        .values({
+          id: randomUUID(),
+          deliverableId: id,
+          fromStatus: null,
+          toStatus: 'draft',
+          actorPersonId: actor.personId,
+          actorName: actor.name,
+          createdAt: now,
+        })
+        .run();
+      return created;
+    });
   }
   update(
     projectId: string,
@@ -442,6 +507,8 @@ export class DeliverablesService {
     input: DeliverableInput,
   ) {
     const current = this.get(projectId, resourceId, id);
+    if (current.lifecycleStatus === 'archived')
+      throw new ConflictException('Archived deliverables are read-only');
     if (input.version !== current.version)
       throw new ConflictException('Deliverable changed. Reload before saving.');
     const changed = this.db
@@ -457,6 +524,130 @@ export class DeliverablesService {
     if (!changed)
       throw new ConflictException('Deliverable changed. Reload before saving.');
     return changed;
+  }
+
+  transitionLifecycle(
+    projectId: string,
+    resourceId: string,
+    id: string,
+    input: { target?: unknown; version?: unknown },
+  ) {
+    const current = this.get(projectId, resourceId, id);
+    const target = input.target as DeliverableLifecycleStatus;
+    if (
+      !Number.isSafeInteger(input.version) ||
+      input.version !== current.version
+    )
+      throw new ConflictException('Deliverable changed. Reload before saving.');
+    if (!LIFECYCLE_TRANSITIONS[current.lifecycleStatus].includes(target))
+      throw new BadRequestException('Invalid deliverable lifecycle transition');
+
+    const actor = this.actor();
+    const now = Date.now();
+    let snapshotId: string | null = null;
+    let snapshotDocuments: DeliverableSnapshotDocument[] = [];
+    if (target === 'finalized' && current.lifecycleStatus !== 'archived') {
+      const activeDocuments = this.db
+        .select()
+        .from(documents)
+        .where(
+          and(
+            eq(documents.deliverableId, id),
+            sql`${documents.deletedAt} is null`,
+          ),
+        )
+        .all();
+      if (!activeDocuments.length)
+        throw new ConflictException(
+          'A deliverable needs at least one document before finalization',
+        );
+      snapshotDocuments = activeDocuments.map((document) => {
+        const version = this.db
+          .select()
+          .from(documentVersions)
+          .where(
+            and(
+              eq(documentVersions.documentId, document.id),
+              eq(documentVersions.number, document.currentVersionNumber),
+            ),
+          )
+          .get();
+        if (!version)
+          throw new ConflictException('A current document version is missing');
+        return {
+          documentId: document.id,
+          documentVersionId: version.id,
+          versionNumber: version.number,
+          sha256: version.sha256,
+        };
+      });
+      snapshotId = randomUUID();
+    }
+
+    return this.db.transaction((tx) => {
+      if (snapshotId) {
+        tx.insert(snapshots)
+          .values({
+            id: snapshotId,
+            deliverableId: id,
+            documents: snapshotDocuments,
+            createdByPersonId: actor.personId,
+            createdByName: actor.name,
+            createdAt: now,
+          })
+          .run();
+      }
+      const changed = tx
+        .update(items)
+        .set({
+          lifecycleStatus: target,
+          ...(snapshotId
+            ? {
+                currentSnapshotId: snapshotId,
+                finalizedAt: now,
+                finalizedByPersonId: actor.personId,
+                finalizedByName: actor.name,
+              }
+            : {}),
+          version: current.version + 1,
+          updatedAt: now,
+        })
+        .where(and(eq(items.id, id), eq(items.version, current.version)))
+        .run();
+      if (!changed.changes)
+        throw new ConflictException('Deliverable changed during transition');
+      tx.insert(lifecycleEvents)
+        .values({
+          id: randomUUID(),
+          deliverableId: id,
+          fromStatus: current.lifecycleStatus,
+          toStatus: target,
+          snapshotId,
+          actorPersonId: actor.personId,
+          actorName: actor.name,
+          createdAt: now,
+        })
+        .run();
+      return tx.select().from(items).where(eq(items.id, id)).get()!;
+    });
+  }
+
+  private actor(): DeliverableDocumentActor {
+    const identity = currentAccess()?.identity;
+    return {
+      personId: identity?.personId ?? null,
+      name: identity?.name ?? 'System',
+    };
+  }
+
+  private requireDocumentMutable(item: Item) {
+    if (
+      item.lifecycleStatus !== 'draft' &&
+      item.lifecycleStatus !== 'in_constitution'
+    )
+      throw new ConflictException(
+        'Reopen the deliverable before changing its documents',
+      );
   }
   remove(projectId: string, resourceId: string, id: string, version: number) {
     this.get(projectId, resourceId, id);
@@ -490,6 +681,7 @@ export class DeliverablesService {
     input: { paths: string[]; note?: string; version: number },
   ) {
     const current = this.get(projectId, resourceId, id);
+    this.requireDocumentMutable(current);
     if (current.version !== input.version)
       throw new ConflictException(
         'Deliverable changed. Reload before submitting.',
@@ -642,6 +834,9 @@ export class DeliverablesService {
             .update(items)
             .set({
               status: 'review',
+              ...(current.lifecycleStatus === 'draft'
+                ? { lifecycleStatus: 'in_constitution' as const }
+                : {}),
               version: current.version + 1,
               updatedAt: Date.now(),
             })
@@ -649,6 +844,18 @@ export class DeliverablesService {
             .run().changes
         )
           throw new ConflictException('Deliverable changed during submission');
+        if (current.lifecycleStatus === 'draft')
+          tx.insert(lifecycleEvents)
+            .values({
+              id: randomUUID(),
+              deliverableId: id,
+              fromStatus: 'draft',
+              toStatus: 'in_constitution',
+              actorPersonId: access?.identity.personId ?? null,
+              actorName: access?.identity.name ?? 'Utilisateur',
+              createdAt: Date.now(),
+            })
+            .run();
         return created;
       });
     } catch (error) {
@@ -696,7 +903,8 @@ export class DeliverablesService {
     actor: DeliverableDocumentActor,
     documentId?: string,
   ) {
-    this.get(projectId, resourceId, deliverableId);
+    const deliverable = this.get(projectId, resourceId, deliverableId);
+    this.requireDocumentMutable(deliverable);
     if (typeof input.path !== 'string' || !input.path.trim())
       throw new BadRequestException('Document path is required');
     const comment = this.text(input.comment ?? '', 4000);
@@ -847,6 +1055,32 @@ export class DeliverablesService {
           })
           .returning()
           .get();
+        if (deliverable.lifecycleStatus === 'draft') {
+          tx.update(items)
+            .set({
+              lifecycleStatus: 'in_constitution',
+              version: deliverable.version + 1,
+              updatedAt: now,
+            })
+            .where(
+              and(
+                eq(items.id, deliverableId),
+                eq(items.version, deliverable.version),
+              ),
+            )
+            .run();
+          tx.insert(lifecycleEvents)
+            .values({
+              id: randomUUID(),
+              deliverableId,
+              fromStatus: 'draft',
+              toStatus: 'in_constitution',
+              actorPersonId: actor.personId,
+              actorName: actor.name,
+              createdAt: now,
+            })
+            .run();
+        }
         return { document, version };
       });
     } catch (error) {
@@ -863,7 +1097,8 @@ export class DeliverablesService {
     expectedVersion: unknown,
     deleted: boolean,
   ) {
-    this.get(projectId, resourceId, deliverableId);
+    const deliverable = this.get(projectId, resourceId, deliverableId);
+    this.requireDocumentMutable(deliverable);
     if (!Number.isSafeInteger(expectedVersion))
       throw new BadRequestException('Invalid document version');
     const document = this.db
@@ -961,7 +1196,8 @@ export class DeliverablesService {
     input: { expectedVersion?: unknown; comment?: unknown },
     actor: DeliverableDocumentActor,
   ) {
-    this.get(projectId, resourceId, deliverableId);
+    const deliverable = this.get(projectId, resourceId, deliverableId);
+    this.requireDocumentMutable(deliverable);
     const document = this.getDocument(deliverableId, documentId);
     if (
       !Number.isSafeInteger(input.expectedVersion) ||

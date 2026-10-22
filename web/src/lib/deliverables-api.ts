@@ -51,6 +51,11 @@ export interface Deliverable {
   assigneeId: string | null;
   dueAt: number | null;
   status: 'planned' | 'in_progress' | 'review' | 'validated';
+  lifecycleStatus: 'draft' | 'in_constitution' | 'finalized' | 'archived';
+  currentSnapshotId: string | null;
+  finalizedAt: number | null;
+  finalizedByPersonId: string | null;
+  finalizedByName: string | null;
   taskIds: string[];
   conversations: Array<{ type: 'agent' | 'simple'; id: string }>;
   version: number;
@@ -60,6 +65,29 @@ export interface Deliverable {
   updatedAt: number;
   versions: DeliverableVersion[];
   documents: DeliverableDocument[];
+  snapshots: Array<{
+    id: string;
+    deliverableId: string;
+    documents: Array<{
+      documentId: string;
+      documentVersionId: string;
+      versionNumber: number;
+      sha256: string;
+    }>;
+    createdByPersonId: string | null;
+    createdByName: string;
+    createdAt: number;
+  }>;
+  lifecycleEvents: Array<{
+    id: string;
+    deliverableId: string;
+    fromStatus: Deliverable['lifecycleStatus'] | null;
+    toStatus: Deliverable['lifecycleStatus'];
+    snapshotId: string | null;
+    actorPersonId: string | null;
+    actorName: string;
+    createdAt: number;
+  }>;
 }
 export interface DeliverablesBoard {
   resource: ProjectResourceSummary;

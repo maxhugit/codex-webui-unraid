@@ -1387,5 +1387,17 @@
   "documents": "Documents",
   "validation": "Validation",
   "tasks": "Tâches",
-  "conversations": "Conversations"
+  "conversations": "Conversations",
+  "draft": "Brouillon",
+  "inConstitution": "En constitution",
+  "finalized": "Finalisé",
+  "startConstitution": "Commencer la constitution",
+  "finalize": "Finaliser",
+  "returnToDraft": "Revenir au brouillon",
+  "reopen": "Rouvrir",
+  "unarchive": "Désarchiver",
+  "lifecycleHistory": "Historique du cycle de vie",
+  "renameDeliverable": "Renommer le livrable",
+  "renameDeliverableDescription": "Choisissez le nom affiché dans la liste et la fiche du livrable.",
+  "deliverableName": "Nom du livrable"
 }

@@ -51,12 +51,33 @@ mais conserve les fichiers de travail et les copies de versions sur disque.
 Ces fichiers ne sont pas automatiquement réimportés lors d’une recréation.
 La suppression du projet suit les choix existants de suppression des workspaces.
 
+## Cycle de vie documentaire
+
+Le cycle de vie est indépendant de l'ancien état de production et de la
+validation. Un livrable commence en **Brouillon**. L'ajout du premier document
+le place en **En constitution**. Il peut ensuite être finalisé explicitement,
+rouvert pour modification, archivé, puis désarchivé.
+
+La finalisation exige au moins un document courant. Elle enregistre un
+instantané immuable composé des identifiants des documents, de leurs versions et
+de leurs empreintes SHA-256. Un livrable finalisé doit être rouvert avant toute
+modification documentaire. Un livrable archivé est en lecture seule ; son
+désarchivage le replace d'abord dans l'état finalisé.
+
+Chaque transition conserve l'état de départ et d'arrivée, l'auteur, la date et
+l'instantané éventuellement créé. Le livrable peut être renommé depuis son
+en-tête tant qu'il n'est pas archivé.
+
 ## Migration et sauvegarde
 
 La migration SQLite 0032 ajoute les fiches, anciennes versions groupées et
 contraintes d’unicité des gestionnaires. La migration 0039 introduit les
 documents et leurs versions indépendantes. Elle convertit les anciennes copies
 en regroupant les entrées portant le même chemin source, sans supprimer les
-données historiques. Aucun gestionnaire de livrables n’est créé automatiquement.
+données historiques. La migration 0040 ajoute le cycle de vie, ses événements et
+les instantanés de finalisation. Les anciens livrables validés deviennent
+finalisés avec un instantané de migration ; les autres sont convertis en
+brouillon ou en constitution selon leur état antérieur. Aucun gestionnaire de
+livrables n’est créé automatiquement.
 Sauvegarder ensemble la base SQLite et le workspace principal, y compris
 `.webui/history`, pour conserver métadonnées, copies et version de référence.
