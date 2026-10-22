@@ -27,7 +27,7 @@ fi
 # assertion prevents them from silently returning to the published image while
 # also checking that the copied Office environment remains usable.
 docker run --rm --entrypoint /bin/bash "${image_ref}" -euc '
-  for package in python3-pip python3-venv libssl-dev zlib1g-dev libbz2-dev \
+  for package in python3-pip libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev; do
     if dpkg-query --show "${package}" >/dev/null 2>&1; then
       echo "Unexpected runtime package: ${package}" >&2
