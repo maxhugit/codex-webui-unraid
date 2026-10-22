@@ -15,7 +15,7 @@ ASSESSMENT = json.loads((ROOT / 'security/system-components-assessment.json').re
 
 class SystemApplicabilityTests(unittest.TestCase):
     def setUp(self):
-        self.evidence = {'schema_version': 1, 'files_checked': 1000, 'excluded_implementations_found': [],
+        self.evidence = {'schema_version': 1, 'files_checked': 1000, 'seed_members_checked': 1000, 'excluded_implementations_found': [],
                          'installed_packages': {r['package']: r['version'] for r in ASSESSMENT},
                          'gpg_sign_verify_and_git': 'passed', 'ssh_keys_agent_sign_verify_config': 'passed'}
         self.allowed = module.reviewed_keys(VEX, ASSESSMENT, self.evidence)
@@ -41,7 +41,7 @@ class SystemApplicabilityTests(unittest.TestCase):
                     module.audit(before, self.report(), self.allowed)
 
     def test_missing_evidence_or_changed_image_fails(self):
-        for field, value in [('files_checked', 0), ('excluded_implementations_found', ['/usr/sbin/sshd']),
+        for field, value in [('files_checked', 0), ('seed_members_checked', 0), ('excluded_implementations_found', ['/usr/sbin/sshd']),
                              ('gpg_sign_verify_and_git', 'failed'), ('ssh_keys_agent_sign_verify_config', 'failed'),
                              ('installed_packages', {})]:
             with self.subTest(field=field), self.assertRaises(ValueError):

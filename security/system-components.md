@@ -27,7 +27,8 @@ Sources, reviewed individually:
 ## Evidence and safeguards
 
 Both PR and publication workflows inspect installed packages and the actual
-filesystem under /usr, /opt, /root and /home. The review fails if tpm2daemon,
+filesystem under /usr, /opt, /root and /home as root, plus the compressed
+toolchain seed restored by the entrypoint. Unreadable directories fail the check. The review fails if tpm2daemon,
 systemd-homed, systemd-homework, sshd, sshd-auth or sshd-session appears, including
 unpackaged files, or if a reviewed package version changes. Debian's merged /usr
 covers /bin, /sbin and /lib. Runtime mounts and user modifications are outside this

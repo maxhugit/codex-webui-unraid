@@ -21,15 +21,26 @@ def main():
     forbidden_packages = FORBIDDEN | {'openssh-server'}
     if forbidden_packages & installed.keys():
         raise RuntimeError('Excluded component package is installed; review applicability')
+    def inventory_error(error):
+        raise error
+
     checked = 0
     # Inspect the immutable image, including files not owned by Debian packages.
     # /bin, /sbin and /lib are merged into /usr on Debian Trixie.
     for base in ('/usr', '/opt', '/root', '/home'):
-        for directory, _, files in os.walk(base):
+        for directory, _, files in os.walk(base, onerror=inventory_error):
             for name in files:
                 checked += 1
                 if name in FORBIDDEN or name in {f'{n}.service' for n in FORBIDDEN}:
                     raise RuntimeError(f'Excluded implementation exists: {directory}/{name}')
+    # The entrypoint later restores this compressed toolchain into /home/codex.
+    seed_members = run('tar', '--zstd', '-tf', '/opt/codex-home-seed.tar.zst').splitlines()
+    for member in seed_members:
+        name = Path(member.rstrip('/')).name
+        if name in FORBIDDEN or name in {f'{n}.service' for n in FORBIDDEN}:
+            raise RuntimeError(f'Excluded implementation exists in toolchain seed: {member}')
+    if len(seed_members) < 100:
+        raise RuntimeError('Incomplete toolchain seed inventory')
     if checked < 100:
         raise RuntimeError('Incomplete filesystem inventory')
 
@@ -94,7 +105,7 @@ def main():
             agent.terminate()
             agent.communicate(timeout=10)
     print(json.dumps({'schema_version': 1, 'installed_packages': installed,
-                      'excluded_implementations_found': [], 'files_checked': checked,
+                      'excluded_implementations_found': [], 'files_checked': checked, 'seed_members_checked': len(seed_members),
                       'gpg_sign_verify_and_git': 'passed', 'ssh_keys_agent_sign_verify_config': 'passed',
                       'scope': 'immutable container filesystem; excludes host, mounts and user-installed tools'}, indent=2))
 

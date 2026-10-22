@@ -19,6 +19,7 @@ def reviewed_keys(vex, assessment, evidence):
         raise ValueError('Unexpected assessment scope')
     if (evidence.get('schema_version') != 1 or evidence.get('excluded_implementations_found') != []
             or evidence.get('files_checked', 0) < 100
+            or evidence.get('seed_members_checked', 0) < 100
             or evidence.get('gpg_sign_verify_and_git') != 'passed'
             or evidence.get('ssh_keys_agent_sign_verify_config') != 'passed'):
         raise ValueError('Missing image inventory or functional evidence')
