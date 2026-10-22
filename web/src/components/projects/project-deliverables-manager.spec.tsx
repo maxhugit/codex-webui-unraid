@@ -43,6 +43,7 @@ const item: Deliverable = {
   documents: [],
   snapshots: [],
   lifecycleEvents: [],
+  validations: [],
 };
 const board: DeliverablesBoard = {
   resource: {
@@ -111,18 +112,36 @@ it('saves the brief with its revision and cannot manually select validated', asy
     version: 3,
   });
 });
-it('submits file paths as a proposed version without validating automatically', async () => {
-  await setup();
-  fireEvent.click(screen.getByRole('tab', { name: 'Validation' }));
-  fireEvent.change(screen.getByLabelText('Project file paths, one per line'), {
-    target: { value: '/workspaces/p/report.pdf\n/workspaces/p/data.csv' },
+it('submits the current document snapshot for human validation', async () => {
+  await setup({
+    ...board,
+    deliverables: [
+      {
+        ...item,
+        documents: [
+          {
+            id: 'document',
+            deliverableId: item.id,
+            name: 'report.pdf',
+            format: 'pdf',
+            sourcePath: '/workspaces/p/report.pdf',
+            currentVersionNumber: 1,
+            deletedAt: null,
+            createdAt: 1,
+            updatedAt: 1,
+            versions: [],
+          },
+        ],
+      },
+    ],
   });
+  fireEvent.click(screen.getByRole('tab', { name: 'Validation' }));
   fireEvent.click(
     screen.getByRole('button', { name: 'Submit deliverable for validation' }),
   );
   await waitFor(() =>
     expect(api).toHaveBeenCalledWith(
-      '/p/resources/r/deliverables/d/versions',
+      '/p/resources/r/deliverables/d/validations',
       expect.objectContaining({ method: 'POST' }),
     ),
   );
@@ -130,13 +149,8 @@ it('submits file paths as a proposed version without validating automatically', 
     (call) => (call[1] as RequestInit | undefined)?.method === 'POST',
   )?.[1] as RequestInit;
   expect(JSON.parse(request.body as string)).toEqual({
-    paths: ['/workspaces/p/report.pdf', '/workspaces/p/data.csv'],
-    note: '',
     version: 3,
   });
-  expect(
-    api.mock.calls.some((call) => String(call[0]).endsWith('/review')),
-  ).toBe(false);
 });
 it('creates a linked agent only through an explicit action', async () => {
   await setup();

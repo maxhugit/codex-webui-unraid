@@ -89,6 +89,21 @@ export interface Deliverable {
     actorName: string;
     createdAt: number;
   }>;
+  validations: Array<{
+    id: string;
+    deliverableId: string;
+    snapshotId: string;
+    taskId: string | null;
+    status: 'pending' | 'approved' | 'rejected';
+    effectiveStatus: 'pending' | 'approved' | 'rejected' | 'outdated';
+    requestedByPersonId: string | null;
+    requestedByName: string;
+    requestedAt: number;
+    decidedByPersonId: string | null;
+    decidedByName: string | null;
+    decisionComment: string | null;
+    decidedAt: number | null;
+  }>;
 }
 export interface DeliverablesBoard {
   resource: ProjectResourceSummary;

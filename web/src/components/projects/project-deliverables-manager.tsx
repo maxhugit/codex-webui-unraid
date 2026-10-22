@@ -52,6 +52,12 @@ const lifecycleStatuses = {
   finalized: 'Finalized',
   archived: 'Archived',
 } as const;
+const validationStatuses = {
+  pending: 'Pending',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  outdated: 'Outdated',
+} as const;
 type DetailTab = 'overview' | 'documents' | 'validation' | 'history' | 'links';
 type Draft = {
   title: string;
@@ -63,7 +69,6 @@ type Draft = {
 type DeliverableAction = {
   mutate: (input: { suffix?: string; method?: string; body: unknown }) => void;
 };
-type FileUploadAction = { mutate: (files: FileList) => void };
 
 export function ProjectDeliverablesManager({
   projectId,
@@ -268,9 +273,11 @@ function DeliverablesList({
               <LifecycleBadge status={item.lifecycleStatus} />
               <span className="flex items-center gap-2 text-sm">
                 <CheckCircle2
-                  className={`h-4 w-4 ${item.validatedVersionId ? 'text-emerald-600' : 'text-muted-foreground'}`}
+                  className={`h-4 w-4 ${item.status === 'validated' ? 'text-emerald-600' : 'text-muted-foreground'}`}
                 />
-                {item.validatedVersionId ? t('validated') : t('notValidated')}
+                {item.status === 'validated'
+                  ? t('validated')
+                  : t('notValidated')}
               </span>
               <span className="flex min-w-0 items-center gap-2 text-sm">
                 <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -399,14 +406,12 @@ function DeliverableDetail({
     status: item.status,
     conversations: item.conversations,
   });
-  const [paths, setPaths] = useState('');
-  const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [revisionDirty, setRevisionDirty] = useState(false);
   useEffect(() => {
-    onDirty(revisionDirty || !!paths.trim() || !!note.trim());
+    onDirty(revisionDirty);
     return () => onDirty(false);
-  }, [revisionDirty, paths, note, onDirty]);
+  }, [revisionDirty, onDirty]);
   const fail = (failure?: unknown) =>
     setError(
       failure instanceof Error && failure.message
@@ -431,29 +436,6 @@ function DeliverableDetail({
       if (input.method === 'DELETE') onRemoved();
       await refresh();
     },
-    onError: fail,
-  });
-  const upload = useMutation({
-    mutationFn: async (files: FileList) => {
-      const form = new FormData();
-      for (const file of Array.from(files))
-        form.append('files', file, file.name);
-      const authorization = getAuthorizationHeader();
-      const response = await fetch(
-        withBasePath(
-          `/api/files/upload?destinationPath=${encodeURIComponent(item.directory)}&overwrite=true`,
-        ),
-        {
-          method: 'POST',
-          headers: authorization ? { Authorization: authorization } : {},
-          body: form,
-        },
-      );
-      if (!response.ok) throw new Error('upload');
-      return response.json() as Promise<{ files: Array<{ path: string }> }>;
-    },
-    onSuccess: (result) =>
-      setPaths(result.files.map((file) => file.path).join('\n')),
     onError: fail,
   });
   const agent = useMutation({
@@ -483,8 +465,7 @@ function DeliverableDetail({
     },
     onError: fail,
   });
-  const busy =
-    action.isPending || upload.isPending || agent.isPending || rename.isPending;
+  const busy = action.isPending || agent.isPending || rename.isPending;
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
     setRevisionDirty(true);
@@ -560,18 +541,14 @@ function DeliverableDetail({
               </Button>
               <LifecycleActions
                 item={item}
-                busy={busy || revisionDirty || !!paths.trim() || !!note.trim()}
+                busy={busy || revisionDirty}
                 action={action}
               />
               {session.isAdministrator && (
                 <Button
                   variant="outline"
                   disabled={
-                    busy ||
-                    revisionDirty ||
-                    !!paths.trim() ||
-                    !!note.trim() ||
-                    item.lifecycleStatus === 'archived'
+                    busy || revisionDirty || item.lifecycleStatus === 'archived'
                   }
                   onClick={() => agent.mutate()}
                 >
@@ -645,11 +622,6 @@ function DeliverableDetail({
               !['draft', 'in_constitution'].includes(item.lifecycleStatus)
             }
             dirty={revisionDirty}
-            paths={paths}
-            note={note}
-            setPaths={setPaths}
-            setNote={setNote}
-            upload={upload}
             action={action}
             download={download}
           />
@@ -841,7 +813,9 @@ function Overview({
         <Summary
           icon={CheckCircle2}
           title={t('validation')}
-          value={item.validatedVersionId ? t('validated') : t('notValidated')}
+          value={
+            item.status === 'validated' ? t('validated') : t('notValidated')
+          }
         />
         <Summary
           icon={UserRound}
@@ -897,11 +871,6 @@ function VersionHistory({
   item,
   busy,
   dirty,
-  paths,
-  note,
-  setPaths,
-  setNote,
-  upload,
   action,
   download,
 }: {
@@ -909,15 +878,14 @@ function VersionHistory({
   item: Deliverable;
   busy: boolean;
   dirty: boolean;
-  paths: string;
-  note: string;
-  setPaths: (value: string) => void;
-  setNote: (value: string) => void;
-  upload: FileUploadAction;
   action: DeliverableAction;
   download: (version: DeliverableVersion, index: number) => Promise<void>;
 }) {
   const { t } = useTranslation();
+  const [decisionComment, setDecisionComment] = useState('');
+  const pendingValidation = item.validations.find(
+    (validation) => validation.effectiveStatus === 'pending',
+  );
   return (
     <div
       className={
@@ -934,51 +902,14 @@ function VersionHistory({
           <p className="text-sm text-muted-foreground">
             {t('submitDeliverableForValidationDescription')}
           </p>
-          <label className="block text-sm">
-            {t('uploadOrReplaceWorkingFiles')}
-            <Input
-              className="mt-1"
-              type="file"
-              multiple
-              disabled={busy || dirty}
-              onChange={(event) => {
-                if (event.target.files?.length)
-                  upload.mutate(event.target.files);
-                event.target.value = '';
-              }}
-            />
-          </label>
-          <label className="block text-sm">
-            {t('projectFilePathsOnePerLine')}
-            <Textarea
-              className="mt-1 font-mono text-xs"
-              disabled={busy || dirty}
-              value={paths}
-              onChange={(event) => setPaths(event.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            {t('versionNote')}
-            <Input
-              className="mt-1"
-              disabled={busy || dirty}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </label>
           <Button
-            disabled={busy || dirty || !paths.trim()}
+            disabled={
+              busy || dirty || !item.documents.length || !!pendingValidation
+            }
             onClick={() =>
               action.mutate({
-                suffix: '/versions',
-                body: {
-                  paths: paths
-                    .split('\n')
-                    .map((path) => path.trim())
-                    .filter(Boolean),
-                  note,
-                  version: item.version,
-                },
+                suffix: '/validations',
+                body: { version: item.version },
               })
             }
           >
@@ -987,6 +918,84 @@ function VersionHistory({
         </section>
       )}
       <div className="space-y-4">
+        {mode === 'validation' && (
+          <section className="space-y-3 rounded-xl border bg-card p-4">
+            <h2 className="font-semibold">{t('validationHistory')}</h2>
+            {!item.validations.length && (
+              <p className="text-sm text-muted-foreground">
+                {t('noValidationRequest')}
+              </p>
+            )}
+            {item.validations.map((validation) => (
+              <div
+                className="space-y-3 rounded-lg border p-3"
+                key={validation.id}
+              >
+                <div className="flex flex-wrap justify-between gap-2">
+                  <strong>
+                    {t(
+                      translationKey(
+                        validationStatuses[validation.effectiveStatus],
+                      ),
+                    )}
+                  </strong>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(validation.requestedAt).toLocaleString()} ·{' '}
+                    {validation.requestedByName}
+                  </span>
+                </div>
+                {validation.decisionComment && (
+                  <p className="text-sm">{validation.decisionComment}</p>
+                )}
+                {validation.effectiveStatus === 'pending' && (
+                  <>
+                    <Textarea
+                      value={decisionComment}
+                      onChange={(event) =>
+                        setDecisionComment(event.target.value)
+                      }
+                      placeholder={t('validationDecisionComment')}
+                      disabled={busy || dirty}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        disabled={busy || dirty}
+                        onClick={() =>
+                          action.mutate({
+                            suffix: `/validations/${validation.id}/decision`,
+                            body: {
+                              action: 'approve',
+                              comment: decisionComment,
+                              version: item.version,
+                            },
+                          })
+                        }
+                      >
+                        {t('approve')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={busy || dirty || !decisionComment.trim()}
+                        onClick={() =>
+                          action.mutate({
+                            suffix: `/validations/${validation.id}/decision`,
+                            body: {
+                              action: 'reject',
+                              comment: decisionComment,
+                              version: item.version,
+                            },
+                          })
+                        }
+                      >
+                        {t('reject')}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
         {mode === 'history' && (
           <section className="space-y-3 rounded-xl border bg-card p-4">
             <h2 className="font-semibold">{t('lifecycleHistory')}</h2>
@@ -1009,76 +1018,47 @@ function VersionHistory({
             ))}
           </section>
         )}
-        <section className="space-y-3 rounded-xl border bg-card p-4">
-          <h2 className="font-semibold">{t('versionHistory')}</h2>
-          {!item.versions.length && (
-            <p className="text-sm text-muted-foreground">
-              {t('noSubmittedVersions')}
-            </p>
-          )}
-          {item.versions.map((version) => (
-            <div className="space-y-2 rounded-lg border p-3" key={version.id}>
-              <div className="flex justify-between gap-2">
-                <strong>
-                  V{version.number} ·{' '}
-                  {t(
-                    version.status === 'validated'
-                      ? 'validated'
-                      : version.status === 'rejected'
-                        ? 'rejected'
-                        : 'awaitingValidation',
-                  )}
-                </strong>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(version.createdAt).toLocaleString()}
-                </span>
-              </div>
-              <p className="text-sm">{version.note}</p>
-              <div className="flex flex-wrap gap-2">
-                {version.files.map((file, index) => (
-                  <Button
-                    key={index}
-                    variant="ghost"
-                    onClick={() => void download(version, index)}
-                  >
-                    {file.name}
-                  </Button>
-                ))}
-              </div>
-              {mode === 'validation' && (
-                <div className="flex gap-2">
-                  <Button
-                    disabled={
-                      busy || dirty || item.validatedVersionId === version.id
-                    }
-                    onClick={() =>
-                      action.mutate({
-                        suffix: `/versions/${version.id}/review`,
-                        body: { action: 'validate', version: item.version },
-                      })
-                    }
-                  >
-                    {t('validateThisVersion')}
-                  </Button>
-                  {version.status === 'proposed' && (
-                    <Button
-                      variant="outline"
-                      disabled={busy || dirty}
-                      onClick={() =>
-                        action.mutate({
-                          suffix: `/versions/${version.id}/review`,
-                          body: { action: 'reject', version: item.version },
-                        })
-                      }
-                    >
-                      {t('reject')}
-                    </Button>
-                  )}
+        {mode === 'history' && (
+          <section className="space-y-3 rounded-xl border bg-card p-4">
+            <h2 className="font-semibold">{t('versionHistory')}</h2>
+            {!item.versions.length && (
+              <p className="text-sm text-muted-foreground">
+                {t('noSubmittedVersions')}
+              </p>
+            )}
+            {item.versions.map((version) => (
+              <div className="space-y-2 rounded-lg border p-3" key={version.id}>
+                <div className="flex justify-between gap-2">
+                  <strong>
+                    V{version.number} ·{' '}
+                    {t(
+                      version.status === 'validated'
+                        ? 'validated'
+                        : version.status === 'rejected'
+                          ? 'rejected'
+                          : 'awaitingValidation',
+                    )}
+                  </strong>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(version.createdAt).toLocaleString()}
+                  </span>
                 </div>
-              )}
-            </div>
-          ))}
-        </section>
+                <p className="text-sm">{version.note}</p>
+                <div className="flex flex-wrap gap-2">
+                  {version.files.map((file, index) => (
+                    <Button
+                      key={index}
+                      variant="ghost"
+                      onClick={() => void download(version, index)}
+                    >
+                      {file.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
       </div>
     </div>
   );

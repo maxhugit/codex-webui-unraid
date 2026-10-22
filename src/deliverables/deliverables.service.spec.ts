@@ -277,6 +277,84 @@ describe('project deliverables', () => {
         .find((document) => document.id === reportDocument.id)?.deletedAt,
     ).toBeNull();
   });
+  it('validates an immutable snapshot and marks pending requests outdated after document changes', async () => {
+    const item = await service.create('p', 'r', { title: 'Approval pack' });
+    const source = path.join(root, 'livrables', item.id, 'report.docx');
+    await fs.writeFile(source, 'Version 1');
+    await service.addDocumentVersion(
+      'p',
+      'r',
+      item.id,
+      { path: source },
+      { personId: null, name: 'Alice' },
+    );
+    const firstRequest = service.requestValidation(
+      'p',
+      'r',
+      item.id,
+      { version: 2 },
+      { personId: null, name: 'Alice' },
+    );
+    expect(
+      service.board('p', 'r').deliverables[0].validations[0],
+    ).toMatchObject({ id: firstRequest.id, effectiveStatus: 'pending' });
+
+    const document = service.documents('p', 'r', item.id)[0];
+    await fs.writeFile(source, 'Version 2');
+    await service.addDocumentVersion(
+      'p',
+      'r',
+      item.id,
+      { path: source, expectedVersion: 1 },
+      { personId: null, name: 'Alice' },
+      document.id,
+    );
+    expect(
+      service.board('p', 'r').deliverables[0].validations[0].effectiveStatus,
+    ).toBe('outdated');
+    expect(() =>
+      service.decideValidation(
+        'p',
+        'r',
+        item.id,
+        firstRequest.id,
+        { action: 'approve', version: 4 },
+        { personId: null, name: 'Bob' },
+      ),
+    ).toThrow('outdated');
+
+    const secondRequest = service.requestValidation(
+      'p',
+      'r',
+      item.id,
+      { version: 4 },
+      { personId: null, name: 'Alice' },
+    );
+    expect(() =>
+      service.decideValidation(
+        'p',
+        'r',
+        item.id,
+        secondRequest.id,
+        { action: 'reject', version: 5 },
+        { personId: null, name: 'Bob' },
+      ),
+    ).toThrow('reason');
+    const decision = service.decideValidation(
+      'p',
+      'r',
+      item.id,
+      secondRequest.id,
+      { action: 'approve', comment: 'Conforme', version: 5 },
+      { personId: null, name: 'Bob' },
+    );
+    expect(decision).toMatchObject({
+      status: 'approved',
+      decidedByName: 'Bob',
+      decisionComment: 'Conforme',
+    });
+    expect(service.get('p', 'r', item.id).status).toBe('validated');
+  });
   it('enforces the deliverable lifecycle and preserves immutable finalization snapshots', async () => {
     const item = await service.create('p', 'r', { title: 'Lifecycle' });
     expect(item.lifecycleStatus).toBe('draft');

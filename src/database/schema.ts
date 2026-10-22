@@ -794,6 +794,46 @@ export const projectDeliverableLifecycleEvents = sqliteTable(
   ],
 );
 
+/** Human validation decisions attached to an immutable deliverable snapshot. */
+export const projectDeliverableValidations = sqliteTable(
+  'project_deliverable_validations',
+  {
+    id: text('id').primaryKey(),
+    deliverableId: text('deliverable_id')
+      .notNull()
+      .references(() => projectDeliverables.id, { onDelete: 'cascade' }),
+    snapshotId: text('snapshot_id')
+      .notNull()
+      .references(() => projectDeliverableSnapshots.id, {
+        onDelete: 'restrict',
+      }),
+    taskId: text('task_id').references(() => projectTasks.id, {
+      onDelete: 'set null',
+    }),
+    status: text('status')
+      .$type<'pending' | 'approved' | 'rejected'>()
+      .notNull()
+      .default('pending'),
+    requestedByPersonId: text('requested_by_person_id').references(
+      () => people.id,
+      { onDelete: 'set null' },
+    ),
+    requestedByName: text('requested_by_name').notNull(),
+    requestedAt: integer('requested_at').notNull(),
+    decidedByPersonId: text('decided_by_person_id').references(
+      () => people.id,
+      { onDelete: 'set null' },
+    ),
+    decidedByName: text('decided_by_name'),
+    decisionComment: text('decision_comment'),
+    decidedAt: integer('decided_at'),
+  },
+  (table) => [
+    index('idx_deliverable_validations_deliverable').on(table.deliverableId),
+    index('idx_deliverable_validations_snapshot').on(table.snapshotId),
+  ],
+);
+
 export const projectTaskStatuses = sqliteTable(
   'project_task_statuses',
   {
