@@ -4,6 +4,12 @@ Cette méthode est recommandée pour l'exploitation quotidienne. Les trois
 conteneurs apparaissent séparément dans l'onglet **Docker** d'Unraid et peuvent
 être mis à jour avec l'action standard **Check for Updates / Update**.
 
+Lire d’abord le
+[comparatif des deux modes](choisir-mode-installation.md). DockerMan enregistre
+les paramètres dans les modèles et formulaires Unraid. Toute modification de
+chemin, variable, volume ou option avancée doit donc être appliquée au formulaire
+du conteneur concerné. Le fichier Compose du dépôt n’est pas utilisé par ce mode.
+
 Les trois formulaires conservent l'architecture de sécurité existante :
 
 1. `codex-web-squid` filtre les accès sortants avec Squid ;
@@ -164,6 +170,10 @@ Le formulaire principal utilise
 Cette opération télécharge l'image et recrée seulement le conteneur ; les
 données restent dans `/mnt/pool/appdata/codex-web/state`.
 
+Après la recréation, vérifier que le réconciliateur a remis `codex-webui` sur
+`codex_admin`. Une mise à jour réussie de l’image ne garantit pas à elle seule
+que les réseaux secondaires sont présents.
+
 Pour un retour arrière, remplacer temporairement `latest` dans le champ
 **Repository** par le tag immuable `sha-<commit>` précédemment validé, puis
 cliquer sur **Apply**.
@@ -178,3 +188,22 @@ Le réconciliateur est installé dans
 `/mnt/pool/appdata/codex-web/reconcile-networks.sh`. Son journal est disponible
 dans `/var/log/codex-webui-network-reconciler.log`. Aucun fichier de la clé USB
 Unraid n'est créé ou modifié par cette procédure.
+
+## 8. Source de vérité et maintenance
+
+Les modèles XML copiés dans `/boot/config/plugins/dockerMan/templates-user/`
+permettent de recréer les formulaires. Les fichiers réellement persistants de
+l’application restent dans `/mnt/pool/appdata/codex-web`.
+
+Lorsqu’une nouvelle version du dépôt modifie un modèle XML ou un fichier sous
+`deployment/config/`, comparer puis recopier le fichier concerné avant de
+réappliquer le formulaire. Une mise à jour d’image ne remplace pas les fichiers
+de configuration montés depuis l’Appdata.
+
+Conserver ensemble dans la sauvegarde :
+
+- `state/home`, `state/workspace` et `state/ssh` ;
+- les fichiers de `config/` ;
+- les deux scripts réseau ;
+- les modèles DockerMan présents sur la clé USB, si l’on veut retrouver les
+  formulaires personnalisés exactement à l’identique.

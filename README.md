@@ -9,12 +9,18 @@ licence AGPL-3.0-or-later.
 
 ## Fonctions principales
 
-- conversations Codex regroupées par espace de travail ;
+- projets avec participants, workspaces, connaissances et connecteurs dédiés ;
+- conversations Codex regroupées par projet et espace de travail ;
 - chat simple utilisant directement l’API OpenAI ;
+- tableaux de tâches, planning, sous-tâches et agents Codex ;
+- livrables documentaires versionnés, validables et rattachés aux tâches ;
+- gestion des personnes, chef de projet et groupes internes au projet ;
+- automatisations rattachées aux projets ;
 - terminaux persistants ;
 - navigation et modification des fichiers de `/workspaces` et `/appdata` ;
 - consultation des PDF et édition des documents Office avec OnlyOffice ;
 - intégrations MCP, notamment Home Assistant ;
+- isolation des données selon le rôle et la participation aux projets ;
 - accès SSH à Unraid et au VPS avec des clés montées en lecture seule ;
 - interface adaptée aux ordinateurs et aux mobiles/PWA.
 
@@ -47,7 +53,9 @@ Les détails des réseaux et des protections sont documentés dans
 ## Reconstruire la plateforme
 
 Le [sommaire de la documentation](docs/README.md) permet de comprendre le dépôt
-et de reconstruire toute la plateforme. La
+et de reconstruire toute la plateforme. Le
+[comparatif des modes d’installation](docs/choisir-mode-installation.md) explique
+les différences de gestion des réseaux, mises à jour et retours arrière. La
 [procédure DockerMan](docs/installation-unraid-dockerman.md) est recommandée
 pour une gestion native dans l'onglet Docker. La
 [procédure Compose](docs/installation-unraid.md) reste disponible. Elles couvrent

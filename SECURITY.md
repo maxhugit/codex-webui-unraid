@@ -25,6 +25,26 @@ les permissions de l’hôte, et non par une simple consigne textuelle au modèl
 - sauvegarde des données persistantes ;
 - journaux avec rotation et sans secret.
 
+## Contrôles de l’image publiée
+
+Les workflows de qualité et de publication analysent l’image finale avec Trivy,
+testent les outils sensibles et conservent les rapports comme artefacts. Les
+moteurs 7-Zip fournis par l’image sont installés dans une version épinglée et
+leurs fonctions d’extraction sont vérifiées dans un conteneur jetable.
+
+Les décisions OpenVEX ne masquent que des vulnérabilités dont l’implémentation
+concernée a été vérifiée comme absente de l’image. Elles ne déclarent pas sûr le
+noyau de l’hôte Unraid et ne couvrent ni les volumes montés ni les outils ajoutés
+après construction. Consulter les éléments d’audit :
+
+- [évaluation GnuPG, systemd et serveur SSH](security/system-components.md) ;
+- [inventaire correspondant](security/system-components-assessment.json) ;
+- [évaluation des en-têtes noyau](security/linux-libc-dev-assessment.csv) ;
+- documents OpenVEX dans [`security/`](security/).
+
+Les vulnérabilités hors périmètre, les composants réellement présents et toutes
+les conclusions critiques non justifiées restent visibles dans les rapports.
+
 ## Risques résiduels connus
 
 Le réseau `codex_admin` permet au conteneur principal d’atteindre Unraid, le VPS
@@ -35,6 +55,10 @@ autorisations SSH et les services accessibles doivent rester strictement limité
 Les chemins `/workspaces` et `/appdata` sont accessibles en écriture car cela
 correspond au besoin fonctionnel. Une compromission de Codex pourrait modifier
 les fichiers contenus dans ces montages.
+
+L’image contient un client SSH pour les connexions administratives mais aucun
+serveur SSH. Les risques propres au client restent applicables et doivent être
+suivis séparément des constats concernant `sshd`.
 
 ## Secrets à renouveler après exposition
 

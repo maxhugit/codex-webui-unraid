@@ -18,8 +18,8 @@ Terminal-only native commands (`/vim`, `/raw`, `/pets`, `/statusline`, `/theme`,
 `/init` is excluded because it has no app-server RPC behind it — it is a prompt
 macro, and the official ACP adapter does not implement it either.
 
-See [remaining-tasks.md](remaining-tasks.md) for what is explicitly deferred
-(`/shell`, `/side`, turn queue, `/prompts:<name>`) and why.
+The explicitly deferred set is `/shell`, `/side`, turn queue and
+`/prompts:<name>`; these require separate protocol and interaction work.
 
 ## Dispatch model
 
@@ -32,11 +32,11 @@ centralize unrelated security policy into one hard-to-review place.
 Instead `lib/slash-commands.ts` holds a typed catalog, and each command declares
 a dispatch kind:
 
-| Kind | Commands | Behavior |
-| --- | --- | --- |
-| `ui` | `/goal`, `/review`, `/feedback` | Opens a dialog. Nothing is sent until the user confirms, so a mistyped command costs nothing |
-| `threadMutation` | `/compact` | Calls an existing semantic endpoint immediately |
-| `nextTurnSetting` | `/plan` | Writes thread settings that apply to the next turn |
+| Kind              | Commands                        | Behavior                                                                                     |
+| ----------------- | ------------------------------- | -------------------------------------------------------------------------------------------- |
+| `ui`              | `/goal`, `/review`, `/feedback` | Opens a dialog. Nothing is sent until the user confirms, so a mistyped command costs nothing |
+| `threadMutation`  | `/compact`                      | Calls an existing semantic endpoint immediately                                              |
+| `nextTurnSetting` | `/plan`                         | Writes thread settings that apply to the next turn                                           |
 
 Each command also carries an `unavailableReason(availability)` predicate, so the
 palette can grey a row out **and** explain why rather than silently failing.
@@ -60,13 +60,13 @@ literal text as a message.
 
 ## Availability
 
-| Command | Needs thread | Blocked when read-only | Blocked during active turn |
-| --- | --- | --- | --- |
-| `/plan` | yes | yes | no — it only affects the next turn |
-| `/goal` | yes | yes | no |
-| `/review` | yes | yes | **yes** |
-| `/compact` | yes | yes | **yes** |
-| `/feedback` | yes | no | no |
+| Command     | Needs thread | Blocked when read-only | Blocked during active turn         |
+| ----------- | ------------ | ---------------------- | ---------------------------------- |
+| `/plan`     | yes          | yes                    | no — it only affects the next turn |
+| `/goal`     | yes          | yes                    | no                                 |
+| `/review`   | yes          | yes                    | **yes**                            |
+| `/compact`  | yes          | yes                    | **yes**                            |
+| `/feedback` | yes          | no                     | no                                 |
 
 `/review` and `/compact` start their own turn, and app-server rejects
 `turn/steer` for review and manual-compaction turn kinds, so they cannot be
@@ -102,8 +102,8 @@ Consequences the UI must honor:
 ### Reasoning effort is restored across mode switches
 
 `collaborationMode/list` reports the Plan preset with `reasoning_effort: medium`
-and the Default preset with `reasoning_effort: null`. That null means *this
-preset does not select an effort* — but app-server treats a **written** null as
+and the Default preset with `reasoning_effort: null`. That null means _this
+preset does not select an effort_ — but app-server treats a **written** null as
 clearing the thread's effort.
 
 Two distinct problems follow, and both are handled:
@@ -116,19 +116,19 @@ Two distinct problems follow, and both are handled:
    value. Leaving Plan can therefore only restore `xhigh` if the backend
    remembered it on the way in.
 
-The backend records the *displaced* effort when entering a preset that dictates
+The backend records the _displaced_ effort when entering a preset that dictates
 its own, and writes it back on exit. The saved value is wrapped rather than
 stored bare, because "the thread had no effort" and "nothing was displaced" are
 different states that must restore differently.
 
 Lifecycle details that are easy to get wrong:
 
-| Case | Behavior |
-| --- | --- |
-| Re-entering the same mode | Does not overwrite the saved value with the preset's own |
+| Case                                          | Behavior                                                                                                                                                 |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Re-entering the same mode                     | Does not overwrite the saved value with the preset's own                                                                                                 |
 | Leaving the mode elsewhere (TUI, another tab) | The settings notification clears the saved value — nothing is left to restore, and keeping it would let a later exit overwrite the user's current effort |
-| app-server restart | Displaced effort survives, because the imposed effort was persisted server-side; observed settings do not, because they describe one generation |
-| Thread deleted | Both are dropped |
+| app-server restart                            | Displaced effort survives, because the imposed effort was persisted server-side; observed settings do not, because they describe one generation          |
+| Thread deleted                                | Both are dropped                                                                                                                                         |
 
 `Settings.model` is likewise a required non-null string, so the current model is
 always echoed back; the request fails fast if no model can be resolved.
@@ -137,7 +137,7 @@ always echoed back; the request fails fast if no model can be resolved.
 
 The composer badge and the value sent with `turn/start` are deliberately
 different things. `effortOverride` is a user choice and rides along on every
-turn; an effort merely *observed* from a thread must never be written there, or
+turn; an effort merely _observed_ from a thread must never be written there, or
 one thread's Plan-imposed medium would be forced onto the next thread the user
 sends to. Observed efforts are therefore recorded per thread and used for
 display only, behind any explicit user override.
@@ -189,7 +189,7 @@ Plan mode disappeared on refresh, and so did reasoning, which had been silently
 missing from reopened threads all along.
 
 Rather than paying for `full` across the whole first page, each turn tops
-*itself* up. A turn entry records the `itemsView` it was fetched at, and a turn
+_itself_ up. A turn entry records the `itemsView` it was fetched at, and a turn
 rendered at `summary` detail fetches its own full items once via
 `thread/items/list` filtered to that `turnId`, then marks itself `full`.
 
