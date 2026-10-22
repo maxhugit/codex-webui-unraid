@@ -146,7 +146,7 @@ export function DeliverableDocuments({
         <p className="text-sm text-muted-foreground">{t('noDocumentYet')}</p>
       )}
       {!!active.length && (
-        <div className="overflow-hidden rounded-lg border">
+        <div className="overflow-visible rounded-lg border">
           <div className="hidden grid-cols-[minmax(0,1fr)_7rem_minmax(12rem,0.7fr)_3rem] gap-3 bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground sm:grid">
             <span>{t('documentName')}</span>
             <span>{t('versions')}</span>
