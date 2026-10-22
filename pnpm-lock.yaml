@@ -19,9 +19,6 @@ importers:
 
   .:
     dependencies:
-      7zip-min:
-        specifier: ^3.0.1
-        version: 3.0.1
       '@fastify/multipart':
         specifier: ^10.1.6
         version: 10.1.6
@@ -199,12 +196,6 @@ importers:
         version: 4.1.11(@types/node@24.12.3)(@vitest/coverage-v8@4.1.11)(vite@8.2.2(@types/node@24.12.3)(esbuild@0.27.7)(terser@5.47.1)(tsx@4.21.0))
 
 packages:
-
-  7zip-bin@5.1.1:
-    resolution: {integrity: sha512-sAP4LldeWNz0lNzmTird3uWfFDWWTeg6V/MsmyyLR9X1idwKBWIgt/ZvinqQldJm3LecKEs1emkbquO6PCiLVQ==}
-
-  7zip-min@3.0.1:
-    resolution: {integrity: sha512-WB4VCA/KSKzxhj+BAp8fI3ZYMMAftclkXlUTckuiDacsqyubQxxG3lGcpBcgzWWuJqnfQncEq1xrJpPLSxqsxw==}
 
   '@angular-devkit/core@19.2.24':
     resolution: {integrity: sha512-Kd49warf6U/EyWe5BszF/eebN3zQ3bk7tgfEljAw8q/rX95UUtriJubWvp6pgzHfzBA4jwq8f+QiNZB8eBEXPA==}
@@ -3891,12 +3882,6 @@ packages:
     engines: {node: '>=18'}
 
 snapshots:
-
-  7zip-bin@5.1.1: {}
-
-  7zip-min@3.0.1:
-    dependencies:
-      7zip-bin: 5.1.1
 
   '@angular-devkit/core@19.2.24(chokidar@4.0.3)':
     dependencies:

@@ -51,6 +51,13 @@ jobs:
       - name: Validate translation catalogs
         run: pnpm --dir web check:i18n
 
+      - name: Install reviewed 7-Zip for archive tests
+        run: |
+          version="$(sed -n 's/^ARG SEVENZIP_VERSION=//p' Dockerfile.unraid)"
+          checksum="$(sed -n 's/^ARG SEVENZIP_LINUX_X64_SHA256=//p' Dockerfile.unraid)"
+          bash scripts/install-sevenzip.sh "$version" "$checksum" "$RUNNER_TEMP/7zip"
+          echo "$RUNNER_TEMP/7zip" >> "$GITHUB_PATH"
+
       - name: Lint
         run: |
           pnpm ensure:codex-schema
@@ -64,12 +71,16 @@ jobs:
           src/database/database.service.spec.ts
           src/database/pending-request-migration.spec.ts
           src/http-stack.spec.ts
+          src/archive
 
       - name: Run frontend tests
         run: pnpm --dir web test
 
       - name: Build backend
         run: pnpm build
+
+      - name: Test built archive adapters with real 7-Zip
+        run: node scripts/smoke-test-archives.cjs
 
       - name: Build frontend
         run: pnpm --dir web build

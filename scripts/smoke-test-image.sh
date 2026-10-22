@@ -35,7 +35,8 @@ fi
 # also checking that the copied Office environment remains usable.
 docker run --rm --entrypoint /bin/bash "${image_ref}" -euc '
   for package in python3-pip libssl-dev zlib1g-dev libbz2-dev \
-    libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev; do
+    libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev \
+    7zip p7zip-full p7zip; do
     if dpkg-query --show "${package}" >/dev/null 2>&1; then
       echo "Unexpected runtime package: ${package}" >&2
       exit 1
@@ -48,6 +49,10 @@ docker run --rm --entrypoint /bin/bash "${image_ref}" -euc '
 # Exercise the installed CLI against a local fixture without GitHub credentials.
 docker run --rm --interactive --entrypoint python3 "${image_ref}" \
   - < "${script_dir}/smoke-test-gh.py"
+
+# Run the built adapters with the exact Linux binary delivered to users.
+docker run --rm --interactive "${image_ref}" node \
+  - < "${script_dir}/smoke-test-archives.cjs"
 
 docker run --detach \
   --name "${container_name}" \

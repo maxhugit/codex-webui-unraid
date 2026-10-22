@@ -133,30 +133,36 @@ export class TarArchiveAdapter implements ArchiveAdapter {
 
     this.assert7zaAvailable();
     // -spd disables wildcard matching for safety
-    const child = spawn('7za', ['x', '-so', '-spd', '--', archivePath], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const format = /\.(tbz2|tar\.bz2)$/.test(lower) ? '-tbzip2' : '-txz';
+    const child = spawn(
+      '7za',
+      ['x', '-so', '-spd', format, '--', archivePath],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
     let childDone = false;
+    const output = new PassThrough();
     child.stderr.resume();
-    child.stdout.once('end', () => {
-      childDone = true;
-    });
-    child.stdout.once('close', () => {
+    output.once('close', () => {
       if (!childDone && !child.killed) child.kill();
     });
-    child.on('error', (error) => child.stdout.destroy(error));
+    child.stdout.pipe(output, { end: false });
+    child.on('error', (error) => output.destroy(error));
     child.on('close', (code) => {
       childDone = true;
       if (code !== 0) {
-        child.stdout.destroy(
+        output.destroy(
           BusinessException.badRequest(
             ErrorCode.archive.unsupportedFormat,
             'Unable to decompress TAR archive',
           ),
         );
+      } else {
+        output.end();
       }
     });
-    return child.stdout;
+    return output;
   }
 
   /** Fails fast with a clear message when host 7za is not installed (cached after first check). */

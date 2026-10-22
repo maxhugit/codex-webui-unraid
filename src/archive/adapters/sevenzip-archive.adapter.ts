@@ -1,19 +1,14 @@
-/** 7z adapter: 7zip-min lists entries, host 7za streams selected entry contents. */
+/** 7z adapter: the managed 7za binary lists and streams archive entries. */
 import { Injectable } from '@nestjs/common';
 import { BusinessException } from '../../common/business.exception';
 import { ErrorCode } from '../../common/error-codes';
-import { spawn, spawnSync } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import { PassThrough, type Readable } from 'node:stream';
-import sevenZip from '7zip-min';
+import { promisify } from 'node:util';
 import { archiveEntryName, normalizeArchiveEntryPath } from '../archive-path';
 import type { ArchiveAdapter, ArchiveEntry } from '../archive.types';
 
-interface SevenZipListItem {
-  name: string;
-  size?: string | number;
-  attr?: string;
-  encrypted?: string;
-}
+const execFileAsync = promisify(execFile);
 
 @Injectable()
 export class SevenZipArchiveAdapter implements ArchiveAdapter {
@@ -26,12 +21,26 @@ export class SevenZipArchiveAdapter implements ArchiveAdapter {
     return archivePath.toLowerCase().endsWith('.7z');
   }
 
-  /** Lists 7z entries using 7zip-min metadata parsing. */
+  /** Lists only 7z format; never falls back to another signature-based handler. */
   async list(archivePath: string): Promise<ArchiveEntry[]> {
     this.assert7zaAvailable();
-    const items = (await sevenZip.list(archivePath)) as SevenZipListItem[];
-    return items
-      .map((item) => this.toEntry(item))
+    let stdout: string;
+    try {
+      ({ stdout } = await execFileAsync(
+        '7za',
+        ['l', '-slt', '-ba', '-t7z', '-sccUTF-8', '-p-', '--', archivePath],
+        { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 30_000 },
+      ));
+    } catch {
+      throw BusinessException.badRequest(
+        ErrorCode.archive.unsupportedFormat,
+        'Unable to list 7z archive',
+      );
+    }
+    return stdout
+      .trim()
+      .split(/\r?\n\r?\n/)
+      .map((block) => this.toEntry(block))
       .filter((entry): entry is ArchiveEntry => entry !== null);
   }
 
@@ -46,7 +55,7 @@ export class SevenZipArchiveAdapter implements ArchiveAdapter {
     // -spd disables wildcard matching so entry names with * or ? are treated literally
     const child = spawn(
       '7za',
-      ['x', '-so', '-y', '-spd', '--', archivePath, entryPath],
+      ['x', '-so', '-y', '-spd', '-t7z', '-p-', '--', archivePath, entryPath],
       {
         stdio: ['ignore', 'pipe', 'pipe'],
       },
@@ -60,7 +69,7 @@ export class SevenZipArchiveAdapter implements ArchiveAdapter {
       childDone = true;
     });
     output.once('close', killChild);
-    child.stdout.pipe(output);
+    child.stdout.pipe(output, { end: false });
     child.on('error', (error) => output.destroy(error));
     child.on('close', (code) => {
       childDone = true;
@@ -72,25 +81,39 @@ export class SevenZipArchiveAdapter implements ArchiveAdapter {
             'Unable to stream archive entry',
           ),
         );
+      } else {
+        output.end();
       }
     });
     return output;
   }
 
-  /** Converts 7zip-min list output to the shared archive entry shape. */
-  private toEntry(item: SevenZipListItem): ArchiveEntry | null {
-    const normalized = normalizeArchiveEntryPath(item.name);
+  /** Converts technical listing records to the shared archive entry shape. */
+  private toEntry(block: string): ArchiveEntry | null {
+    const fields: Record<string, string> = {};
+    for (const line of block.split(/\r?\n/)) {
+      const separator = line.indexOf(' = ');
+      if (separator < 0) continue;
+      const key = line.slice(0, separator);
+      if (Object.hasOwn(fields, key)) {
+        throw BusinessException.badRequest(
+          ErrorCode.archive.unsafeEntryPath,
+          'Ambiguous 7z entry metadata',
+        );
+      }
+      fields[key] = line.slice(separator + 3);
+    }
+    const normalized = normalizeArchiveEntryPath(fields.Path ?? '');
     if (!normalized) return null;
-    const attr = item.attr ?? '';
-    const isDirectory = attr.includes('D') || item.name.endsWith('/');
-    const size =
-      typeof item.size === 'number' ? item.size : Number(item.size ?? 0);
+    const isDirectory =
+      fields.Folder === '+' || (fields.Attributes ?? '').includes('D');
+    const size = Number(fields.Size ?? 0);
     return {
       name: archiveEntryName(normalized),
       path: normalized,
       type: isDirectory ? 'directory' : 'file',
       size: isDirectory || !Number.isFinite(size) ? undefined : size,
-      encrypted: item.encrypted === '+' || item.encrypted === 'true',
+      encrypted: fields.Encrypted === '+',
     };
   }
 
