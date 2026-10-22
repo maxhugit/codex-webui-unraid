@@ -19,7 +19,7 @@ import {
   requireExecutionAccess,
 } from '../auth/access-context';
 import * as path from 'node:path';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { Inject } from '@nestjs/common';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
@@ -34,6 +34,9 @@ import {
   simpleChatThreads,
   people,
   projectParticipants,
+  projectManagerAssignments,
+  projectPersonGroups,
+  projectPersonGroupMembers,
   projectActivity,
   documentAccessSessions,
   type Project,
@@ -510,6 +513,35 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     requireExecutionAccess();
     this.get(projectId);
     this.db.transaction((tx) => {
+      const managedProject = tx
+        .select()
+        .from(projectManagerAssignments)
+        .where(
+          and(
+            eq(projectManagerAssignments.projectId, projectId),
+            eq(projectManagerAssignments.personId, personId),
+          ),
+        )
+        .get();
+      if (managedProject)
+        tx.delete(projectManagerAssignments)
+          .where(eq(projectManagerAssignments.projectId, projectId))
+          .run();
+      const groupIds = tx
+        .select({ id: projectPersonGroups.id })
+        .from(projectPersonGroups)
+        .where(eq(projectPersonGroups.projectId, projectId))
+        .all()
+        .map((group) => group.id);
+      for (const groupId of groupIds)
+        tx.delete(projectPersonGroupMembers)
+          .where(
+            and(
+              eq(projectPersonGroupMembers.groupId, groupId),
+              eq(projectPersonGroupMembers.personId, personId),
+            ),
+          )
+          .run();
       tx.delete(projectParticipants)
         .where(
           and(
@@ -530,6 +562,207 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     });
     identityEvents.emit('changed', personId);
     return { ok: true };
+  }
+
+  peopleConfiguration(projectId: string) {
+    this.get(projectId);
+    const manager = this.db
+      .select()
+      .from(projectManagerAssignments)
+      .where(eq(projectManagerAssignments.projectId, projectId))
+      .get();
+    const groups = this.db
+      .select()
+      .from(projectPersonGroups)
+      .where(eq(projectPersonGroups.projectId, projectId))
+      .all()
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const groupIds = groups.map((group) => group.id);
+    const memberships = groupIds.length
+      ? this.db
+          .select()
+          .from(projectPersonGroupMembers)
+          .where(inArray(projectPersonGroupMembers.groupId, groupIds))
+          .all()
+      : [];
+    return {
+      projectManagerPersonId: manager?.personId ?? null,
+      groups: groups.map((group) => ({
+        ...group,
+        memberIds: memberships
+          .filter((member) => member.groupId === group.id)
+          .map((member) => member.personId),
+      })),
+    };
+  }
+
+  configureProjectManager(
+    projectId: string,
+    personId: unknown,
+    actor?: ProjectActivityActor,
+  ) {
+    requireExecutionAccess();
+    this.get(projectId);
+    if (personId !== null && personId !== '')
+      this.requireActiveParticipant(projectId, personId);
+    const previous = this.db
+      .select()
+      .from(projectManagerAssignments)
+      .where(eq(projectManagerAssignments.projectId, projectId))
+      .get();
+    const nextPersonId: string | null =
+      typeof personId === 'string' && personId ? personId : null;
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      tx.delete(projectManagerAssignments)
+        .where(eq(projectManagerAssignments.projectId, projectId))
+        .run();
+      if (typeof nextPersonId === 'string')
+        tx.insert(projectManagerAssignments)
+          .values({
+            projectId,
+            personId: nextPersonId,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+    });
+    this.recordActivity(
+      projectId,
+      'project_manager_updated',
+      'project_manager',
+      nextPersonId,
+      'Chef de projet',
+      { before: previous?.personId ?? null, after: nextPersonId },
+      actor,
+    );
+    return this.peopleConfiguration(projectId);
+  }
+
+  savePersonGroup(
+    projectId: string,
+    input: { name?: unknown; memberIds?: unknown },
+    groupId?: string,
+    actor?: ProjectActivityActor,
+  ) {
+    requireExecutionAccess();
+    this.get(projectId);
+    const existing = groupId
+      ? this.db
+          .select()
+          .from(projectPersonGroups)
+          .where(
+            and(
+              eq(projectPersonGroups.id, groupId),
+              eq(projectPersonGroups.projectId, projectId),
+            ),
+          )
+          .get()
+      : undefined;
+    if (groupId && !existing) throw new NotFoundException('Group not found');
+    const name = this.validateTaskText(
+      input.name ?? existing?.name,
+      'Group name',
+      80,
+    );
+    const duplicate = this.db
+      .select()
+      .from(projectPersonGroups)
+      .where(eq(projectPersonGroups.projectId, projectId))
+      .all()
+      .some(
+        (group) =>
+          group.id !== groupId &&
+          group.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+      );
+    if (duplicate) throw new ConflictException('Group name already exists');
+    if (!Array.isArray(input.memberIds))
+      throw new BadRequestException('Invalid group members');
+    if (
+      input.memberIds.some((id) => typeof id !== 'string') ||
+      input.memberIds.length > 500
+    )
+      throw new BadRequestException('Invalid group members');
+    const memberIds = [...new Set(input.memberIds as string[])];
+    for (const memberId of memberIds)
+      this.requireActiveParticipant(projectId, memberId);
+    const id = existing?.id ?? randomUUID();
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      if (existing)
+        tx.update(projectPersonGroups)
+          .set({ name, updatedAt: now })
+          .where(eq(projectPersonGroups.id, id))
+          .run();
+      else
+        tx.insert(projectPersonGroups)
+          .values({ id, projectId, name, createdAt: now, updatedAt: now })
+          .run();
+      tx.delete(projectPersonGroupMembers)
+        .where(eq(projectPersonGroupMembers.groupId, id))
+        .run();
+      for (const personId of memberIds)
+        tx.insert(projectPersonGroupMembers)
+          .values({ groupId: id, personId, createdAt: now })
+          .run();
+    });
+    this.recordActivity(
+      projectId,
+      existing ? 'person_group_updated' : 'person_group_created',
+      'person_group',
+      id,
+      name,
+      { memberIds },
+      actor,
+    );
+    return this.peopleConfiguration(projectId);
+  }
+
+  deletePersonGroup(
+    projectId: string,
+    groupId: string,
+    actor?: ProjectActivityActor,
+  ) {
+    requireExecutionAccess();
+    this.get(projectId);
+    const group = this.db
+      .select()
+      .from(projectPersonGroups)
+      .where(
+        and(
+          eq(projectPersonGroups.id, groupId),
+          eq(projectPersonGroups.projectId, projectId),
+        ),
+      )
+      .get();
+    if (!group) throw new NotFoundException('Group not found');
+    this.db
+      .delete(projectPersonGroups)
+      .where(eq(projectPersonGroups.id, groupId))
+      .run();
+    this.recordActivity(
+      projectId,
+      'person_group_deleted',
+      'person_group',
+      groupId,
+      group.name,
+      {},
+      actor,
+    );
+    return { ok: true };
+  }
+
+  private requireActiveParticipant(projectId: string, personId: unknown) {
+    if (typeof personId !== 'string' || !personId)
+      throw new BadRequestException('Select an active project participant');
+    const person = this.db
+      .select()
+      .from(people)
+      .where(eq(people.id, personId))
+      .get();
+    if (!person?.active || !this.isParticipant(projectId, personId))
+      throw new BadRequestException('Select an active project participant');
+    return person;
   }
 
   private validateAssignee(projectId: string, id: unknown): string | null {

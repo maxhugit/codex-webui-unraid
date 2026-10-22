@@ -1325,5 +1325,21 @@
   "dueDate": "Due date",
   "title": "Title",
   "availableLabel": "Available",
-  "workspacesLabel": "Workspaces"
+  "workspacesLabel": "Workspaces",
+  "projectOrganization": "Project organization",
+  "defineTheProjectManagerAndPreparePeopleGroupsForFutureDeliverables": "Select the project manager and prepare groups that can later be associated with deliverables.",
+  "projectManager": "Project manager",
+  "noProjectManager": "No project manager",
+  "peopleGroups": "People groups",
+  "groupsCanBeAssociatedWithDeliverablesAsTheProjectProgresses": "Groups can be associated with deliverables as the project progresses.",
+  "newGroup": "New group",
+  "noPeopleGroupYet": "No people group yet.",
+  "memberCount_one": "{{count}} member",
+  "memberCount_other": "{{count}} members",
+  "deletePeopleGroupConfirmation": "Delete this people group?",
+  "editPeopleGroup": "Edit people group",
+  "newPeopleGroup": "New people group",
+  "aGroupCanOnlyContainActiveProjectParticipants": "A group can only contain active participants of this project.",
+  "groupName": "Group name",
+  "members": "Members"
 }

@@ -117,6 +117,62 @@ export class ProjectsController {
     return result;
   }
 
+  @Get(':id/people-configuration')
+  peopleConfiguration(@Param('id') id: string) {
+    return this.projects.peopleConfiguration(id);
+  }
+
+  @Put(':id/project-manager')
+  configureProjectManager(
+    @Param('id') id: string,
+    @Body() body: { personId?: unknown },
+    @Req() request: IdentityRequest,
+  ) {
+    return this.projects.configureProjectManager(
+      id,
+      body.personId ?? null,
+      activityActor(request),
+    );
+  }
+
+  @Post(':id/person-groups')
+  createPersonGroup(
+    @Param('id') id: string,
+    @Body() body: { name?: unknown; memberIds?: unknown },
+    @Req() request: IdentityRequest,
+  ) {
+    return this.projects.savePersonGroup(
+      id,
+      body,
+      undefined,
+      activityActor(request),
+    );
+  }
+
+  @Patch(':id/person-groups/:groupId')
+  updatePersonGroup(
+    @Param('id') id: string,
+    @Param('groupId') groupId: string,
+    @Body() body: { name?: unknown; memberIds?: unknown },
+    @Req() request: IdentityRequest,
+  ) {
+    return this.projects.savePersonGroup(
+      id,
+      body,
+      groupId,
+      activityActor(request),
+    );
+  }
+
+  @Delete(':id/person-groups/:groupId')
+  deletePersonGroup(
+    @Param('id') id: string,
+    @Param('groupId') groupId: string,
+    @Req() request: IdentityRequest,
+  ) {
+    return this.projects.deletePersonGroup(id, groupId, activityActor(request));
+  }
+
   @Get('dashboard')
   dashboard() {
     return this.projects.dashboard();

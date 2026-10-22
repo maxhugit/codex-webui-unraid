@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { PeopleManager } from './people-manager';
+import { ProjectPeopleConfigurationPanel } from './project-people-configuration';
 import { ProjectKnowledgePanel } from './project-knowledge-panel';
 import { usePlatformSession } from '@/lib/platform-session';
 import { DirectoryPickerDialog } from '@/components/chat/sidebar/directory-picker-dialog';
@@ -375,10 +376,16 @@ export function ProjectSettingsPanel({
         )}
 
         {section === 'participants' && (
-          <PeopleManager
-            projectId={project.id}
-            readOnly={!canManageParticipants}
-          />
+          <div className="space-y-6">
+            <ProjectPeopleConfigurationPanel
+              projectId={project.id}
+              readOnly={!canManageParticipants}
+            />
+            <PeopleManager
+              projectId={project.id}
+              readOnly={!canManageParticipants}
+            />
+          </div>
         )}
         {section === 'mcps' && (
           <section className="space-y-6">

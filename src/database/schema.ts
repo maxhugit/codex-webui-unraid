@@ -527,6 +527,57 @@ export const projectParticipants = sqliteTable(
   (table) => [primaryKey({ columns: [table.projectId, table.personId] })],
 );
 
+/** One informational project manager selected from the project participants. */
+export const projectManagerAssignments = sqliteTable(
+  'project_manager_assignments',
+  {
+    projectId: text('project_id')
+      .primaryKey()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    personId: text('person_id')
+      .notNull()
+      .references(() => people.id, { onDelete: 'restrict' }),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [index('idx_project_manager_person').on(table.personId)],
+);
+
+/** Named, project-scoped groups prepared for future deliverable visibility. */
+export const projectPersonGroups = sqliteTable(
+  'project_person_groups',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('uidx_project_person_groups_name').on(
+      table.projectId,
+      table.name,
+    ),
+    index('idx_project_person_groups_project').on(table.projectId),
+  ],
+);
+
+export const projectPersonGroupMembers = sqliteTable(
+  'project_person_group_members',
+  {
+    groupId: text('group_id')
+      .notNull()
+      .references(() => projectPersonGroups.id, { onDelete: 'cascade' }),
+    personId: text('person_id')
+      .notNull()
+      .references(() => people.id, { onDelete: 'restrict' }),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.groupId, table.personId] })],
+);
+
 export const projectResources = sqliteTable(
   'project_resources',
   {
