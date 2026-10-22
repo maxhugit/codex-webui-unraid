@@ -1,624 +1,105 @@
-import { translationKey } from '@/locales/translation-key';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { usePlatformSession } from '@/lib/platform-session';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { ArrowLeft, CalendarDays, CheckCircle2, FileText, FolderOpen, History, Link2, ListFilter, Plus, Search, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { projectsApi } from '@/lib/projects-api';
-import type {
-  Deliverable,
-  DeliverablesBoard,
-  DeliverableVersion,
-} from '@/lib/deliverables-api';
+import type { Deliverable, DeliverablesBoard, DeliverableVersion } from '@/lib/deliverables-api';
+import { translationKey } from '@/locales/translation-key';
+import { usePlatformSession } from '@/lib/platform-session';
 import { withBasePath } from '@/base-path';
 import { getAuthorizationHeader } from '@/auth-token';
 import { DeliverableDocuments } from './deliverable-documents';
 
-const statuses = {
-  planned: 'To produce',
-  in_progress: 'In progress',
-  review: 'Awaiting validation',
-  validated: 'Validated',
-};
-export function ProjectDeliverablesManager({
-  projectId,
-  resourceId,
-}: {
-  projectId: string;
-  resourceId: string;
-}) {
+const statuses = { planned: 'To produce', in_progress: 'In progress', review: 'Awaiting validation', validated: 'Validated' } as const;
+type DetailTab = 'overview' | 'documents' | 'history' | 'links';
+type Draft = { title: string; description: string; criteria: string; assigneeId: string; dueAt: string; status: Deliverable['status']; taskIds: string[]; conversations: Deliverable['conversations'] };
+type DeliverableAction = { mutate: (input: { suffix?: string; method?: string; body: unknown }) => void };
+type FileUploadAction = { mutate: (files: FileList) => void };
+
+export function ProjectDeliverablesManager({ projectId, resourceId }: { projectId: string; resourceId: string }) {
   const { t } = useTranslation();
   const client = useQueryClient();
   const key = ['project-deliverables', projectId, resourceId];
   const base = `/${projectId}/resources/${resourceId}/deliverables`;
-  const query = useQuery({
-    queryKey: key,
-    queryFn: () => projectsApi<DeliverablesBoard>(base),
-    refetchOnWindowFocus: false,
-  });
+  const query = useQuery({ queryKey: key, queryFn: () => projectsApi<DeliverablesBoard>(base), refetchOnWindowFocus: false });
   const [title, setTitle] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
   const [dirty, setDirty] = useState(false);
-  const canLeave = () =>
-    !dirty || window.confirm(t('discardUnsavedDeliverableChanges'));
+  const canLeave = () => !dirty || window.confirm(t('discardUnsavedDeliverableChanges'));
   const create = useMutation({
-    mutationFn: () =>
-      projectsApi<Deliverable>(base, {
-        method: 'POST',
-        body: JSON.stringify({ title }),
-      }),
-    onSuccess: async (item) => {
-      setTitle('');
-      setSelected(item.id);
-      await client.invalidateQueries({ queryKey: key });
-    },
+    mutationFn: () => projectsApi<Deliverable>(base, { method: 'POST', body: JSON.stringify({ title }) }),
+    onSuccess: async (item) => { setTitle(''); setSelected(item.id); await client.invalidateQueries({ queryKey: key }); },
   });
   const board = query.data;
-  if (!board)
-    return (
-      <main className="p-6" role={query.error ? 'alert' : 'status'}>
-        {query.error ? t('unableToLoadDeliverables') : t('loading')}
-      </main>
-    );
-  return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 md:p-6">
-      <div className="mx-auto w-full max-w-6xl space-y-4">
-        <h1 className="text-xl font-semibold">{board.resource.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            'trackExpectedOutputsWorkingFilesAndValidatedVersionsRemovingThisManagerPreservesItsFiles',
-          )}
-        </p>
-        <form
-          className="flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (title.trim() && canLeave()) create.mutate();
-          }}
-        >
-          <Input
-            aria-label={t('newDeliverableTitle')}
-            value={title}
-            maxLength={160}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t('newDeliverableTitle')}
-          />
-          <Button disabled={!title.trim() || create.isPending}>
-            {t('addDeliverable')}
-          </Button>
-        </form>
-        {create.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {t('unableToSaveDeliverable')}
-          </p>
-        )}
-        {!board.deliverables.length && (
-          <p className="text-muted-foreground">{t('noDeliverablesYet')}</p>
-        )}
-        <div className="grid gap-4 lg:grid-cols-[minmax(200px,1fr)_minmax(0,3fr)]">
-          <div className="space-y-2">
-            {board.deliverables.map((item) => (
-              <button
-                key={item.id}
-                className={`w-full space-y-1 rounded-lg border p-3 text-left ${selected === item.id ? 'bg-accent' : ''}`}
-                onClick={() => {
-                  if (selected !== item.id && canLeave()) setSelected(item.id);
-                }}
-              >
-                <strong className="block break-words">{item.title}</strong>
-                <span className="block text-xs text-muted-foreground">
-                  {t(translationKey(statuses[item.status]))} ·{' '}
-                  {board.assignees.find((p) => p.id === item.assigneeId)
-                    ?.name ?? t('unassigned')}
-                </span>
-                {item.dueAt !== null && (
-                  <span className="block text-xs">
-                    {t('dueDate')}:{' '}
-                    {new Date(item.dueAt).toLocaleDateString(undefined, {
-                      timeZone: 'UTC',
-                    })}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          {board.deliverables
-            .filter((item) => item.id === selected)
-            .map((item) => (
-              <DeliverableEditor
-                key={`${item.id}:${item.version}`}
-                item={item}
-                board={board}
-                base={base}
-                refresh={() => client.invalidateQueries({ queryKey: key })}
-                onRemoved={() => setSelected(null)}
-                onDirty={setDirty}
-              />
-            ))}
-        </div>
-      </div>
-    </main>
-  );
+  const visible = useMemo(() => board?.deliverables.filter((item) => {
+    const needle = search.trim().toLocaleLowerCase();
+    return (status === 'all' || item.status === status) && (!needle || item.title.toLocaleLowerCase().includes(needle) || item.description.toLocaleLowerCase().includes(needle));
+  }) ?? [], [board, search, status]);
+  if (!board) return <main className="p-6" role={query.error ? 'alert' : 'status'}>{query.error ? t('unableToLoadDeliverables') : t('loading')}</main>;
+  const current = board.deliverables.find((item) => item.id === selected);
+  if (current) return <DeliverableDetail key={`${current.id}:${current.version}`} item={current} board={board} base={base} refresh={() => client.invalidateQueries({ queryKey: key })} onBack={() => { if (canLeave()) setSelected(null); }} onRemoved={() => setSelected(null)} onDirty={setDirty} />;
+  return <main className="flex min-h-0 flex-1 flex-col overflow-y-auto"><div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">{t('deliverables')}</h1><p className="mt-1 text-sm text-muted-foreground">{t('deliverablesListDescription', { resource: board.resource.name })}</p></div><form className="flex w-full gap-2 sm:w-auto" onSubmit={(event) => { event.preventDefault(); if (title.trim()) create.mutate(); }}><Input aria-label={t('newDeliverableTitle')} className="sm:w-64" value={title} maxLength={160} onChange={(event) => setTitle(event.target.value)} placeholder={t('newDeliverableTitle')} /><Button disabled={!title.trim() || create.isPending}><Plus className="h-4 w-4" />{t('newDeliverable')}</Button></form></div>
+    <div className="flex flex-col gap-2 rounded-xl border bg-card p-3 sm:flex-row"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label={t('searchDeliverable')} className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('searchDeliverable')} /></label><label className="flex items-center gap-2"><ListFilter className="h-4 w-4 text-muted-foreground" /><select aria-label={t('filterByStatus')} className="h-9 rounded-md border bg-background px-3 text-sm" value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">{t('allStatuses')}</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{t(translationKey(label))}</option>)}</select></label></div>
+    {create.error && <p role="alert" className="text-sm text-destructive">{t('unableToSaveDeliverable')}</p>}
+    {!visible.length ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">{board.deliverables.length ? t('noDeliverableMatchesFilters') : t('noDeliverablesYet')}</div> : <DeliverablesList items={visible} board={board} onSelect={setSelected} />}
+  </div></main>;
 }
 
-function DeliverableEditor({
-  item,
-  board,
-  base,
-  refresh,
-  onRemoved,
-  onDirty,
-}: {
-  item: Deliverable;
-  board: DeliverablesBoard;
-  base: string;
-  refresh: () => Promise<unknown>;
-  onRemoved: () => void;
-  onDirty: (dirty: boolean) => void;
-}) {
+function DeliverablesList({ items, board, onSelect }: { items: Deliverable[]; board: DeliverablesBoard; onSelect: (id: string) => void }) {
+  const { t } = useTranslation();
+  return <div className="overflow-hidden rounded-xl border bg-card"><div className="hidden grid-cols-[minmax(220px,2fr)_100px_150px_130px_minmax(160px,1fr)_150px] gap-3 border-b bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground lg:grid"><span>{t('title')}</span><span>{t('documents')}</span><span>{t('status')}</span><span>{t('validation')}</span><span>{t('responsiblePerson')}</span><span>{t('lastModified')}</span></div><div className="divide-y">{items.map((item) => {
+    const assignee = board.assignees.find((person) => person.id === item.assigneeId)?.name ?? t('unassigned');
+    const count = item.documents.filter((document) => document.deletedAt === null).length;
+    return <button key={item.id} className="grid w-full gap-3 px-4 py-4 text-left transition-colors hover:bg-accent/60 lg:grid-cols-[minmax(220px,2fr)_100px_150px_130px_minmax(160px,1fr)_150px] lg:items-center" onClick={() => onSelect(item.id)}><span className="min-w-0"><strong className="block truncate">{item.title}</strong><span className="mt-1 block truncate text-xs text-muted-foreground">{item.description || t('noDescription')}</span></span><span className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4 text-muted-foreground" />{count}</span><StatusBadge status={item.status} /><span className="flex items-center gap-2 text-sm"><CheckCircle2 className={`h-4 w-4 ${item.validatedVersionId ? 'text-emerald-600' : 'text-muted-foreground'}`} />{item.validatedVersionId ? t('validated') : t('notValidated')}</span><span className="flex min-w-0 items-center gap-2 text-sm"><UserRound className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="truncate">{assignee}</span></span><span className="text-xs text-muted-foreground">{new Date(item.updatedAt).toLocaleDateString()}</span></button>;
+  })}</div></div>;
+}
+
+function StatusBadge({ status }: { status: Deliverable['status'] }) {
+  const { t } = useTranslation();
+  const color = status === 'validated' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : status === 'review' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' : status === 'in_progress' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300' : 'bg-muted text-muted-foreground';
+  return <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${color}`}>{t(translationKey(statuses[status]))}</span>;
+}
+
+function DeliverableDetail({ item, board, base, refresh, onBack, onRemoved, onDirty }: { item: Deliverable; board: DeliverablesBoard; base: string; refresh: () => Promise<unknown>; onBack: () => void; onRemoved: () => void; onDirty: (dirty: boolean) => void }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const session = usePlatformSession();
-  const [draft, setDraft] = useState({
-    title: item.title,
-    description: item.description,
-    criteria: item.criteria,
-    assigneeId: item.assigneeId ?? '',
-    dueAt:
-      item.dueAt === null
-        ? ''
-        : new Date(item.dueAt).toISOString().slice(0, 10),
-    status: item.status,
-    taskIds: item.taskIds,
-    conversations: item.conversations,
-  });
-  const [paths, setPaths] = useState(''),
-    [note, setNote] = useState('');
-  const [error, setError] = useState('');
-  const [revisionDirty, setRevisionDirty] = useState(false);
-  useEffect(() => {
-    onDirty(revisionDirty || !!paths.trim() || !!note.trim());
-    return () => onDirty(false);
-  }, [revisionDirty, paths, note, onDirty]);
-  const fail = () =>
-    setError(
-      t('theDeliverableCouldNotBeUpdatedReloadToCheckForConcurrentChanges'),
-    );
-  const action = useMutation({
-    mutationFn: ({
-      suffix = '',
-      method = 'POST',
-      body,
-    }: {
-      suffix?: string;
-      method?: string;
-      body: unknown;
-    }) =>
-      projectsApi(`${base}/${item.id}${suffix}`, {
-        method,
-        body: JSON.stringify(body),
-      }),
-    onSuccess: async (_, input) => {
-      if (input.method === 'DELETE') onRemoved();
-      await refresh();
-    },
-    onError: fail,
-  });
-  const upload = useMutation({
-    mutationFn: async (files: FileList) => {
-      const form = new FormData();
-      for (const file of Array.from(files))
-        form.append('files', file, file.name);
-      const authorization = getAuthorizationHeader();
-      const response = await fetch(
-        withBasePath(
-          `/api/files/upload?destinationPath=${encodeURIComponent(item.directory)}&overwrite=true`,
-        ),
-        {
-          method: 'POST',
-          headers: authorization ? { Authorization: authorization } : {},
-          body: form,
-        },
-      );
-      if (!response.ok) throw new Error('Upload failed');
-      return response.json() as Promise<{ files: Array<{ path: string }> }>;
-    },
-    onSuccess: (result) =>
-      setPaths(result.files.map((file) => file.path).join('\n')),
-    onError: fail,
-  });
-  const agent = useMutation({
-    mutationFn: () =>
-      projectsApi<{ threadId: string }>(`${base}/${item.id}/agent`, {
-        method: 'POST',
-        body: JSON.stringify({ version: item.version }),
-      }),
-    onSuccess: async ({ threadId }) => {
-      await refresh();
-      await navigate({ to: '/t/$threadId', params: { threadId } });
-    },
-    onError: fail,
-  });
+  const [tab, setTab] = useState<DetailTab>('overview');
+  const [draft, setDraft] = useState<Draft>({ title: item.title, description: item.description, criteria: item.criteria, assigneeId: item.assigneeId ?? '', dueAt: item.dueAt === null ? '' : new Date(item.dueAt).toISOString().slice(0, 10), status: item.status, taskIds: item.taskIds, conversations: item.conversations });
+  const [paths, setPaths] = useState(''); const [note, setNote] = useState(''); const [error, setError] = useState(''); const [revisionDirty, setRevisionDirty] = useState(false);
+  useEffect(() => { onDirty(revisionDirty || !!paths.trim() || !!note.trim()); return () => onDirty(false); }, [revisionDirty, paths, note, onDirty]);
+  const fail = () => setError(t('theDeliverableCouldNotBeUpdatedReloadToCheckForConcurrentChanges'));
+  const action = useMutation({ mutationFn: ({ suffix = '', method = 'POST', body }: { suffix?: string; method?: string; body: unknown }) => projectsApi(`${base}/${item.id}${suffix}`, { method, body: JSON.stringify(body) }), onSuccess: async (_, input) => { if (input.method === 'DELETE') onRemoved(); await refresh(); }, onError: fail });
+  const upload = useMutation({ mutationFn: async (files: FileList) => { const form = new FormData(); for (const file of Array.from(files)) form.append('files', file, file.name); const authorization = getAuthorizationHeader(); const response = await fetch(withBasePath(`/api/files/upload?destinationPath=${encodeURIComponent(item.directory)}&overwrite=true`), { method: 'POST', headers: authorization ? { Authorization: authorization } : {}, body: form }); if (!response.ok) throw new Error('upload'); return response.json() as Promise<{ files: Array<{ path: string }> }>; }, onSuccess: (result) => setPaths(result.files.map((file) => file.path).join('\n')), onError: fail });
+  const agent = useMutation({ mutationFn: () => projectsApi<{ threadId: string }>(`${base}/${item.id}/agent`, { method: 'POST', body: JSON.stringify({ version: item.version }) }), onSuccess: async ({ threadId }) => { await refresh(); await navigate({ to: '/t/$threadId', params: { threadId } }); }, onError: fail });
   const busy = action.isPending || upload.isPending || agent.isPending;
-  const set = <K extends keyof typeof draft>(
-    key: K,
-    value: (typeof draft)[K],
-  ) => {
-    setDraft((current) => ({ ...current, [key]: value }));
-    setRevisionDirty(true);
-  };
-  const download = async (version: DeliverableVersion, index: number) => {
-    try {
-      const authorization = getAuthorizationHeader();
-      const response = await fetch(
-        withBasePath(
-          `/api/projects${base}/${item.id}/versions/${version.id}/files/${index}`,
-        ),
-        { headers: authorization ? { Authorization: authorization } : {} },
-      );
-      if (!response.ok) {
-        fail();
-        return;
-      }
-      const url = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = version.files[index].name;
-      anchor.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      fail();
-    }
-  };
-  return (
-    <section className="min-w-0 space-y-4 rounded-xl border p-4">
-      {session.isAdministrator && (
-        <Button
-          variant="outline"
-          disabled={busy || revisionDirty || !!paths.trim() || !!note.trim()}
-          onClick={() => agent.mutate()}
-        >
-          {t('workOnThisDeliverable')}
-        </Button>
-      )}
-      <div className="space-y-2">
-        <label htmlFor="deliverable-title">{t('title')}</label>
-        <Input
-          id="deliverable-title"
-          disabled={busy}
-          value={draft.title}
-          onChange={(e) => set('title', e.target.value)}
-          maxLength={160}
-        />
-        <label className="block" htmlFor="deliverable-description">
-          {t('description')}
-        </label>
-        <Textarea
-          id="deliverable-description"
-          disabled={busy}
-          value={draft.description}
-          onChange={(e) => set('description', e.target.value)}
-        />
-        <label className="block" htmlFor="deliverable-criteria">
-          {t('validationCriteria')}
-        </label>
-        <Textarea
-          id="deliverable-criteria"
-          disabled={busy}
-          value={draft.criteria}
-          onChange={(e) => set('criteria', e.target.value)}
-        />
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label>
-            {t('responsiblePerson')}
-            <select
-              className="mt-1 w-full rounded border bg-background p-2 text-sm"
-              disabled={busy}
-              value={draft.assigneeId}
-              onChange={(e) => set('assigneeId', e.target.value)}
-            >
-              <option value="">{t('unassigned')}</option>
-              {board.assignees.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {t('dueDate')}
-            <Input
-              type="date"
-              disabled={busy}
-              value={draft.dueAt}
-              onChange={(e) => set('dueAt', e.target.value)}
-            />
-          </label>
-          <label>
-            {t('status')}
-            <select
-              className="mt-1 w-full rounded border bg-background p-2 text-sm"
-              disabled={busy}
-              value={draft.status}
-              onChange={(e) =>
-                set('status', e.target.value as typeof draft.status)
-              }
-            >
-              {Object.entries(statuses)
-                .filter(
-                  ([value]) =>
-                    value !== 'validated' || item.status === 'validated',
-                )
-                .map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {t(translationKey(label))}
-                  </option>
-                ))}
-            </select>
-          </label>
-        </div>
-      </div>
-      <p className="break-all font-mono text-xs text-muted-foreground">
-        {item.directory}
-      </p>
-      <details>
-        <summary className="cursor-pointer text-sm font-medium">
-          {t('linkedTasksAndConversations')}
-        </summary>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <div>
-            {board.tasks.map((task) => (
-              <label key={task.id} className="flex gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  disabled={busy}
-                  checked={draft.taskIds.includes(task.id)}
-                  onChange={(e) =>
-                    set(
-                      'taskIds',
-                      e.target.checked
-                        ? [...draft.taskIds, task.id]
-                        : draft.taskIds.filter((id) => id !== task.id),
-                    )
-                  }
-                />
-                <a
-                  className="underline"
-                  href={withBasePath(
-                    `/projects/${encodeURIComponent(base.split('/')[1])}/resources/${encodeURIComponent(task.resourceId)}?task=${encodeURIComponent(task.id)}`,
-                  )}
-                >
-                  {task.title}
-                </a>
-              </label>
-            ))}
-          </div>
-          <div>
-            {board.conversations.map((conversation) => (
-              <label
-                key={`${conversation.type}:${conversation.id}`}
-                className="flex gap-2 break-all text-sm"
-              >
-                <input
-                  type="checkbox"
-                  disabled={busy}
-                  checked={draft.conversations.some(
-                    (c) =>
-                      c.id === conversation.id && c.type === conversation.type,
-                  )}
-                  onChange={(e) =>
-                    set(
-                      'conversations',
-                      e.target.checked
-                        ? [
-                            ...draft.conversations,
-                            { id: conversation.id, type: conversation.type },
-                          ]
-                        : draft.conversations.filter(
-                            (c) =>
-                              c.id !== conversation.id ||
-                              c.type !== conversation.type,
-                          ),
-                    )
-                  }
-                />
-                <a
-                  className="underline"
-                  href={withBasePath(
-                    conversation.type === 'agent'
-                      ? `/t/${encodeURIComponent(conversation.id)}`
-                      : `/simple-chat?thread=${encodeURIComponent(conversation.id)}`,
-                  )}
-                >
-                  {conversation.title}
-                </a>
-              </label>
-            ))}
-          </div>
-        </div>
-      </details>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          disabled={busy || !revisionDirty || !draft.title.trim()}
-          onClick={() =>
-            action.mutate({
-              method: 'PATCH',
-              body: {
-                ...draft,
-                assigneeId: draft.assigneeId || null,
-                dueAt: draft.dueAt
-                  ? Date.parse(`${draft.dueAt}T00:00:00Z`)
-                  : null,
-                version: item.version,
-              },
-            })
-          }
-        >
-          {t('save')}
-        </Button>
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => {
-            if (
-              window.confirm(
-                t(
-                  'removeThisDeliverableRecordAndItsVersionHistoryAllFilesWillBePreserved',
-                ),
-              )
-            )
-              action.mutate({
-                method: 'DELETE',
-                body: { version: item.version },
-              });
-          }}
-        >
-          {t('removeRecord')}
-        </Button>
-      </div>
-      <DeliverableDocuments
-        item={item}
-        base={base}
-        disabled={busy || revisionDirty}
-        refresh={refresh}
-        onError={fail}
-      />
-      <div className="space-y-2 border-t pt-4">
-        <h2 className="font-semibold">{t('proposeAVersion')}</h2>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            'saveTheRecordFirstSubmitExistingProjectFilesOrUploadWorkingFilesASubmittedVersi1a153ed7',
-          )}
-        </p>
-        <label className="block text-sm">
-          {t('uploadOrReplaceWorkingFiles')}
-          <Input
-            type="file"
-            multiple
-            disabled={busy || revisionDirty}
-            onChange={(e) => {
-              if (e.target.files?.length) upload.mutate(e.target.files);
-              e.target.value = '';
-            }}
-          />
-        </label>
-        <label className="block text-sm" htmlFor="deliverable-paths">
-          {t('projectFilePathsOnePerLine')}
-        </label>
-        <Textarea
-          id="deliverable-paths"
-          className="font-mono text-xs"
-          disabled={busy || revisionDirty}
-          value={paths}
-          onChange={(e) => setPaths(e.target.value)}
-        />
-        <label className="block text-sm" htmlFor="version-note">
-          {t('versionNote')}
-        </label>
-        <Input
-          id="version-note"
-          disabled={busy || revisionDirty}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-        <Button
-          disabled={busy || revisionDirty || !paths.trim()}
-          onClick={() =>
-            action.mutate({
-              suffix: '/versions',
-              body: {
-                paths: paths
-                  .split('\n')
-                  .map((p) => p.trim())
-                  .filter(Boolean),
-                note,
-                version: item.version,
-              },
-            })
-          }
-        >
-          {t('submitVersion')}
-        </Button>
-      </div>
-      <div className="space-y-3 border-t pt-4">
-        <h2 className="font-semibold">{t('versionHistory')}</h2>
-        {!item.versions.length && (
-          <p className="text-sm text-muted-foreground">
-            {t('noSubmittedVersions')}
-          </p>
-        )}
-        {item.versions.map((version) => (
-          <div className="space-y-2 rounded border p-3" key={version.id}>
-            <strong>
-              V{version.number} ·{' '}
-              {t(
-                version.status === 'validated'
-                  ? 'validated'
-                  : version.status === 'rejected'
-                    ? 'rejected'
-                    : 'awaitingValidation',
-              )}
-              {item.validatedVersionId === version.id
-                ? ` · ${t('currentValidatedVersion')}`
-                : ''}
-            </strong>
-            <p className="text-xs text-muted-foreground">
-              {new Date(version.createdAt).toLocaleString()}{' '}
-              {version.reviewer && `· ${version.reviewer}`}
-            </p>
-            <p className="whitespace-pre-wrap text-sm">{version.note}</p>
-            {version.files.map((file, index) => (
-              <Button
-                key={index}
-                variant="ghost"
-                disabled={busy}
-                onClick={() => void download(version, index)}
-              >
-                {file.name} · {Math.ceil(file.size / 1024)} KiB
-              </Button>
-            ))}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                disabled={
-                  busy ||
-                  revisionDirty ||
-                  item.validatedVersionId === version.id
-                }
-                onClick={() =>
-                  action.mutate({
-                    suffix: `/versions/${version.id}/review`,
-                    body: { action: 'validate', version: item.version },
-                  })
-                }
-              >
-                {t('validateThisVersion')}
-              </Button>
-              {version.status === 'proposed' && (
-                <Button
-                  variant="outline"
-                  disabled={busy || revisionDirty}
-                  onClick={() =>
-                    action.mutate({
-                      suffix: `/versions/${version.id}/review`,
-                      body: { action: 'reject', version: item.version },
-                    })
-                  }
-                >
-                  {t('reject')}
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-    </section>
-  );
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => { setDraft((current) => ({ ...current, [key]: value })); setRevisionDirty(true); };
+  const download = async (version: DeliverableVersion, index: number) => { try { const authorization = getAuthorizationHeader(); const response = await fetch(withBasePath(`/api/projects${base}/${item.id}/versions/${version.id}/files/${index}`), { headers: authorization ? { Authorization: authorization } : {} }); if (!response.ok) throw new Error('download'); const url = URL.createObjectURL(await response.blob()); const anchor = document.createElement('a'); anchor.href = url; anchor.download = version.files[index].name; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); } catch { fail(); } };
+  const tabs: Array<{ id: DetailTab; label: string; icon: typeof FileText }> = [{ id: 'overview', label: t('overview'), icon: FolderOpen }, { id: 'documents', label: t('documents'), icon: FileText }, { id: 'history', label: t('history'), icon: History }, { id: 'links', label: t('tasksAndConversations'), icon: Link2 }];
+  return <main className="flex min-h-0 flex-1 flex-col overflow-y-auto"><div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur"><div className="mx-auto w-full max-w-7xl px-4 pt-4 md:px-6"><button className="mb-3 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground" onClick={onBack}><ArrowLeft className="h-4 w-4" />{t('backToDeliverables')}</button><div className="flex flex-wrap items-start justify-between gap-3 pb-4"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="truncate text-2xl font-semibold">{item.title}</h1><StatusBadge status={item.status} /></div><p className="mt-1 text-sm text-muted-foreground">{t('deliverableHeaderSummary', { documents: item.documents.filter((document) => document.deletedAt === null).length, date: new Date(item.updatedAt).toLocaleDateString() })}</p></div>{session.isAdministrator && <Button variant="outline" disabled={busy || revisionDirty || !!paths.trim() || !!note.trim()} onClick={() => agent.mutate()}>{t('workOnThisDeliverable')}</Button>}</div><div className="flex gap-1 overflow-x-auto" role="tablist" aria-label={t('deliverableSections')}>{tabs.map(({ id, label, icon: Icon }) => <button key={id} role="tab" aria-selected={tab === id} className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm ${tab === id ? 'border-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`} onClick={() => setTab(id)}><Icon className="h-4 w-4" />{label}{id === 'documents' && <span className="rounded-full bg-muted px-1.5 text-xs">{item.documents.filter((document) => document.deletedAt === null).length}</span>}</button>)}</div></div></div>
+    <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">{tab === 'overview' && <Overview item={item} board={board} draft={draft} set={set} busy={busy} dirty={revisionDirty} action={action} />}{tab === 'documents' && <div className="rounded-xl border bg-card p-4"><DeliverableDocuments item={item} base={base} disabled={busy || revisionDirty} refresh={refresh} onError={fail} /></div>}{tab === 'history' && <VersionHistory item={item} busy={busy} dirty={revisionDirty} paths={paths} note={note} setPaths={setPaths} setNote={setNote} upload={upload} action={action} download={download} />}{tab === 'links' && <Links board={board} base={base} draft={draft} set={set} busy={busy} />}{error && <p role="alert" className="text-sm text-destructive">{error}</p>}</div>
+  </main>;
+}
+
+function Overview({ item, board, draft, set, busy, dirty, action }: { item: Deliverable; board: DeliverablesBoard; draft: Draft; set: <K extends keyof Draft>(key: K, value: Draft[K]) => void; busy: boolean; dirty: boolean; action: DeliverableAction }) {
+  const { t } = useTranslation();
+  return <div className="grid gap-4 lg:grid-cols-3"><section className="space-y-4 rounded-xl border bg-card p-4 lg:col-span-2"><h2 className="font-semibold">{t('generalInformation')}</h2><label className="block text-sm">{t('title')}<Input className="mt-1" disabled={busy} value={draft.title} onChange={(event) => set('title', event.target.value)} /></label><label className="block text-sm">{t('description')}<Textarea className="mt-1" disabled={busy} value={draft.description} onChange={(event) => set('description', event.target.value)} /></label><label className="block text-sm">{t('validationCriteria')}<Textarea className="mt-1" disabled={busy} value={draft.criteria} onChange={(event) => set('criteria', event.target.value)} /></label><div className="grid gap-3 sm:grid-cols-3"><label className="text-sm">{t('responsiblePerson')}<select className="mt-1 w-full rounded border bg-background p-2" disabled={busy} value={draft.assigneeId} onChange={(event) => set('assigneeId', event.target.value)}><option value="">{t('unassigned')}</option>{board.assignees.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label><label className="text-sm">{t('dueDate')}<Input className="mt-1" type="date" disabled={busy} value={draft.dueAt} onChange={(event) => set('dueAt', event.target.value)} /></label><label className="text-sm">{t('status')}<select className="mt-1 w-full rounded border bg-background p-2" disabled={busy} value={draft.status} onChange={(event) => set('status', event.target.value as Draft['status'])}>{Object.entries(statuses).filter(([value]) => value !== 'validated' || item.status === 'validated').map(([value, label]) => <option key={value} value={value}>{t(translationKey(label))}</option>)}</select></label></div><div className="flex gap-2"><Button disabled={busy || !dirty || !draft.title.trim()} onClick={() => action.mutate({ method: 'PATCH', body: { ...draft, assigneeId: draft.assigneeId || null, dueAt: draft.dueAt ? Date.parse(`${draft.dueAt}T00:00:00Z`) : null, version: item.version } })}>{t('save')}</Button><Button variant="outline" disabled={busy} onClick={() => { if (window.confirm(t('removeThisDeliverableRecordAndItsVersionHistoryAllFilesWillBePreserved'))) action.mutate({ method: 'DELETE', body: { version: item.version } }); }}>{t('removeRecord')}</Button></div></section><aside className="space-y-3"><Summary icon={FileText} title={t('documents')} value={String(item.documents.filter((document) => document.deletedAt === null).length)} /><Summary icon={CheckCircle2} title={t('validation')} value={item.validatedVersionId ? t('validated') : t('notValidated')} /><Summary icon={CalendarDays} title={t('dueDate')} value={item.dueAt ? new Date(item.dueAt).toLocaleDateString(undefined, { timeZone: 'UTC' }) : t('notDefined')} /><div className="rounded-xl border bg-card p-4"><div className="mb-2 flex items-center gap-2 font-medium"><FolderOpen className="h-4 w-4" />{t('location')}</div><p className="break-all font-mono text-xs text-muted-foreground">{item.directory}</p></div></aside></div>;
+}
+function Summary({ icon: Icon, title, value }: { icon: typeof FileText; title: string; value: string }) { return <div className="rounded-xl border bg-card p-4"><div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon className="h-4 w-4" />{title}</div><strong className="mt-2 block">{value}</strong></div>; }
+
+function VersionHistory({ item, busy, dirty, paths, note, setPaths, setNote, upload, action, download }: { item: Deliverable; busy: boolean; dirty: boolean; paths: string; note: string; setPaths: (value: string) => void; setNote: (value: string) => void; upload: FileUploadAction; action: DeliverableAction; download: (version: DeliverableVersion, index: number) => Promise<void> }) {
+  const { t } = useTranslation();
+  return <div className="grid gap-4 lg:grid-cols-[minmax(280px,1fr)_minmax(0,2fr)]"><section className="space-y-3 rounded-xl border bg-card p-4"><h2 className="font-semibold">{t('proposeAVersion')}</h2><label className="block text-sm">{t('uploadOrReplaceWorkingFiles')}<Input className="mt-1" type="file" multiple disabled={busy || dirty} onChange={(event) => { if (event.target.files?.length) upload.mutate(event.target.files); event.target.value = ''; }} /></label><label className="block text-sm">{t('projectFilePathsOnePerLine')}<Textarea className="mt-1 font-mono text-xs" disabled={busy || dirty} value={paths} onChange={(event) => setPaths(event.target.value)} /></label><label className="block text-sm">{t('versionNote')}<Input className="mt-1" disabled={busy || dirty} value={note} onChange={(event) => setNote(event.target.value)} /></label><Button disabled={busy || dirty || !paths.trim()} onClick={() => action.mutate({ suffix: '/versions', body: { paths: paths.split('\n').map((path) => path.trim()).filter(Boolean), note, version: item.version } })}>{t('submitVersion')}</Button></section><section className="space-y-3 rounded-xl border bg-card p-4"><h2 className="font-semibold">{t('versionHistory')}</h2>{!item.versions.length && <p className="text-sm text-muted-foreground">{t('noSubmittedVersions')}</p>}{item.versions.map((version) => <div className="space-y-2 rounded-lg border p-3" key={version.id}><div className="flex justify-between gap-2"><strong>V{version.number} · {t(version.status === 'validated' ? 'validated' : version.status === 'rejected' ? 'rejected' : 'awaitingValidation')}</strong><span className="text-xs text-muted-foreground">{new Date(version.createdAt).toLocaleString()}</span></div><p className="text-sm">{version.note}</p><div className="flex flex-wrap gap-2">{version.files.map((file, index) => <Button key={index} variant="ghost" onClick={() => void download(version, index)}>{file.name}</Button>)}</div><div className="flex gap-2"><Button disabled={busy || dirty || item.validatedVersionId === version.id} onClick={() => action.mutate({ suffix: `/versions/${version.id}/review`, body: { action: 'validate', version: item.version } })}>{t('validateThisVersion')}</Button>{version.status === 'proposed' && <Button variant="outline" disabled={busy || dirty} onClick={() => action.mutate({ suffix: `/versions/${version.id}/review`, body: { action: 'reject', version: item.version } })}>{t('reject')}</Button>}</div></div>)}</section></div>;
+}
+
+function Links({ board, base, draft, set, busy }: { board: DeliverablesBoard; base: string; draft: Draft; set: <K extends keyof Draft>(key: K, value: Draft[K]) => void; busy: boolean }) {
+  const { t } = useTranslation();
+  return <section className="space-y-4 rounded-xl border bg-card p-4"><div><h2 className="font-semibold">{t('linkedTasksAndConversations')}</h2><p className="text-sm text-muted-foreground">{t('linkedItemsDescription')}</p></div><div className="grid gap-6 sm:grid-cols-2"><div className="space-y-2"><h3 className="font-medium">{t('tasks')}</h3>{board.tasks.map((task) => <label key={task.id} className="flex gap-2 rounded-lg border p-3 text-sm"><input type="checkbox" disabled={busy} checked={draft.taskIds.includes(task.id)} onChange={(event) => set('taskIds', event.target.checked ? [...draft.taskIds, task.id] : draft.taskIds.filter((id) => id !== task.id))} /><a className="underline" href={withBasePath(`/projects/${encodeURIComponent(base.split('/')[1])}/resources/${encodeURIComponent(task.resourceId)}?task=${encodeURIComponent(task.id)}`)}>{task.title}</a></label>)}</div><div className="space-y-2"><h3 className="font-medium">{t('conversations')}</h3>{board.conversations.map((conversation) => <label key={`${conversation.type}:${conversation.id}`} className="flex gap-2 rounded-lg border p-3 text-sm"><input type="checkbox" disabled={busy} checked={draft.conversations.some((current) => current.id === conversation.id && current.type === conversation.type)} onChange={(event) => set('conversations', event.target.checked ? [...draft.conversations, { id: conversation.id, type: conversation.type }] : draft.conversations.filter((current) => current.id !== conversation.id || current.type !== conversation.type))} /><a className="break-all underline" href={withBasePath(conversation.type === 'agent' ? `/t/${encodeURIComponent(conversation.id)}` : `/simple-chat?thread=${encodeURIComponent(conversation.id)}`)}>{conversation.title}</a></label>)}</div></div><p className="text-xs text-muted-foreground">{t('saveOverviewToApplyLinkedItems')}</p></section>;
 }
