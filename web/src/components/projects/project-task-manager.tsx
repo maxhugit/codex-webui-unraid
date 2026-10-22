@@ -291,10 +291,14 @@ export function ProjectTaskManager({
   projectId,
   resourceId,
   initialTaskId,
+  modalOnly = false,
+  onModalClose,
 }: {
   projectId: string;
   resourceId: string;
   initialTaskId?: string;
+  modalOnly?: boolean;
+  onModalClose?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const people = usePeople();
@@ -1586,7 +1590,12 @@ export function ProjectTaskManager({
   };
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <main
+      className={
+        modalOnly ? 'contents' : 'flex min-h-0 flex-1 flex-col overflow-hidden'
+      }
+    >
+      <div className={modalOnly ? 'hidden' : 'contents'}>
       <TaskManagerToolbar
         view={view}
         onViewChange={setView}
@@ -2150,7 +2159,14 @@ export function ProjectTaskManager({
           <TaskActivityJournal board={board} statuses={board.statuses} />
         )}
       </div>
-      <Dialog open={taskOpen} onOpenChange={setTaskOpen}>
+      </div>
+      <Dialog
+        open={taskOpen}
+        onOpenChange={(open) => {
+          setTaskOpen(open);
+          if (!open) onModalClose?.();
+        }}
+      >
         <DialogContent className="flex max-h-[92vh] flex-col overflow-hidden p-0 sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="px-6 pt-6">
