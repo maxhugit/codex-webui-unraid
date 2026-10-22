@@ -44,7 +44,9 @@ jobs:
           pnpm --dir web install --frozen-lockfile
 
       - name: Validate repository content
-        run: python3 scripts/check-no-chinese.py
+        run: |
+          python3 scripts/check-no-chinese.py
+          python3 -m unittest discover -s scripts -p test_linux_header_vex.py
 
       - name: Validate translation catalogs
         run: pnpm --dir web check:i18n
@@ -119,13 +121,24 @@ jobs:
       - name: Scan production image dependencies
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.76.1
           image-ref: codex-webui-unraid:quality-${{ github.sha }}
           format: json
-          output: trivy-quality-results.json
+          output: trivy-quality-results.raw.json
           scanners: vuln
           severity: HIGH,CRITICAL
           ignore-unfixed: false
           exit-code: '0'
+
+      - name: Verify header package and native compilation
+        run: scripts/verify-linux-headers-image.sh "codex-webui-unraid:quality-${{ github.sha }}" > linux-header-evidence.json
+
+      - name: Apply reviewed header applicability statements
+        env:
+          IMAGE_REF: codex-webui-unraid:quality-${{ github.sha }}
+        run: |
+          trivy image --cache-dir .cache/trivy --skip-db-update --scanners vuln --severity HIGH,CRITICAL --vex security/linux-libc-dev.openvex.json --format json --output trivy-quality-results.json "$IMAGE_REF"
+          python3 scripts/audit-linux-header-vex.py trivy-quality-results.raw.json trivy-quality-results.json security/linux-libc-dev.openvex.json
 
       - name: Require no HIGH or CRITICAL Node.js dependencies
         run: |
@@ -144,6 +157,11 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: trivy-quality-report-${{ github.sha }}
-          path: trivy-quality-results.json
+          path: |
+            trivy-quality-results.json
+            trivy-quality-results.raw.json
+            linux-header-evidence.json
+            security/linux-libc-dev.openvex.json
+            security/linux-libc-dev-assessment.csv
           if-no-files-found: warn
           retention-days: 30
