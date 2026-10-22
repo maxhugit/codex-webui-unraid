@@ -8,6 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ProjectDeliverablesManager } from './project-deliverables-manager';
+import type { Deliverable } from '@/lib/deliverables-api';
 const api = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/projects-api', () => ({ projectsApi: api }));
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }));
@@ -17,7 +18,7 @@ vi.mock('@/lib/platform-session', () => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: globalThis.__testTranslate }),
 }));
-const item = {
+const item: Deliverable = {
   id: 'd',
   title: 'Report',
   description: '',
@@ -31,6 +32,7 @@ const item = {
   validatedVersionId: null,
   directory: '/workspaces/p/livrables/d',
   versions: [],
+  documents: [],
 };
 const board = {
   resource: { name: 'Deliverables' },
@@ -44,7 +46,10 @@ beforeEach(() => {
   api.mockImplementation((_path, input) => Promise.resolve(input ? {} : board));
 });
 afterEach(cleanup);
-async function setup() {
+async function setup(data = board) {
+  api.mockImplementation((_path, input) =>
+    Promise.resolve(input ? {} : data),
+  );
   render(
     <QueryClientProvider
       client={
@@ -132,4 +137,60 @@ it('creates a linked agent only through an explicit action', async () => {
       body: JSON.stringify({ version: 3 }),
     }),
   );
+});
+it('creates an independent version from the current document file', async () => {
+  const document = {
+    id: 'doc',
+    deliverableId: 'd',
+    name: 'report.docx',
+    format: 'docx',
+    sourcePath: '/workspaces/p/livrables/d/report.docx',
+    currentVersionNumber: 2,
+    deletedAt: null,
+    createdAt: 1,
+    updatedAt: 2,
+    versions: [
+      {
+        id: 'dv2',
+        documentId: 'doc',
+        number: 2,
+        fileName: 'report.docx',
+        sourcePath: '/workspaces/p/livrables/d/report.docx',
+        snapshotPath: '/history/report.docx',
+        size: 42,
+        sha256: 'hash',
+        authorPersonId: null,
+        authorName: 'Maxime',
+        comment: '',
+        restoredFromVersionId: null,
+        createdAt: 2,
+      },
+    ],
+  };
+  await setup({
+    ...board,
+    deliverables: [{ ...item, documents: [document] }],
+  });
+  fireEvent.change(screen.getByLabelText('Version comment'), {
+    target: { value: 'After review' },
+  });
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: 'Create a version from the current file',
+    }),
+  );
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith(
+      '/p/resources/r/deliverables/d/documents/doc/versions',
+      expect.objectContaining({ method: 'POST' }),
+    ),
+  );
+  const request = api.mock.calls.find((call) =>
+    String(call[0]).endsWith('/documents/doc/versions'),
+  )?.[1] as RequestInit;
+  expect(JSON.parse(request.body as string)).toEqual({
+    path: '/workspaces/p/livrables/d/report.docx',
+    comment: 'After review',
+    expectedVersion: 2,
+  });
 });

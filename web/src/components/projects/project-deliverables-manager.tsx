@@ -15,6 +15,7 @@ import type {
 } from '@/lib/deliverables-api';
 import { withBasePath } from '@/base-path';
 import { getAuthorizationHeader } from '@/auth-token';
+import { DeliverableDocuments } from './deliverable-documents';
 
 const statuses = {
   planned: 'To produce',
@@ -478,6 +479,13 @@ function DeliverableEditor({
           {t('removeRecord')}
         </Button>
       </div>
+      <DeliverableDocuments
+        item={item}
+        base={base}
+        disabled={busy || revisionDirty}
+        refresh={refresh}
+        onError={fail}
+      />
       <div className="space-y-2 border-t pt-4">
         <h2 className="font-semibold">{t('proposeAVersion')}</h2>
         <p className="text-sm text-muted-foreground">
