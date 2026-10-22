@@ -52,7 +52,7 @@ const lifecycleStatuses = {
   finalized: 'Finalized',
   archived: 'Archived',
 } as const;
-type DetailTab = 'overview' | 'documents' | 'history' | 'links';
+type DetailTab = 'overview' | 'documents' | 'validation' | 'history' | 'links';
 type Draft = {
   title: string;
   description: string;
@@ -510,6 +510,7 @@ function DeliverableDetail({
   const tabs: Array<{ id: DetailTab; label: string; icon: typeof FileText }> = [
     { id: 'overview', label: t('overview'), icon: FolderOpen },
     { id: 'documents', label: t('documents'), icon: FileText },
+    { id: 'validation', label: t('validation'), icon: CheckCircle2 },
     { id: 'history', label: t('history'), icon: History },
     { id: 'links', label: t('tasksAndConversations'), icon: Link2 },
   ];
@@ -633,8 +634,9 @@ function DeliverableDetail({
             />
           </div>
         )}
-        {tab === 'history' && (
+        {(tab === 'validation' || tab === 'history') && (
           <VersionHistory
+            mode={tab}
             item={item}
             busy={
               busy ||
@@ -889,6 +891,7 @@ function Summary({
 }
 
 function VersionHistory({
+  mode,
   item,
   busy,
   dirty,
@@ -900,6 +903,7 @@ function VersionHistory({
   action,
   download,
 }: {
+  mode: 'validation' | 'history';
   item: Deliverable;
   busy: boolean;
   dirty: boolean;
@@ -913,80 +917,96 @@ function VersionHistory({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(280px,1fr)_minmax(0,2fr)]">
-      <section className="space-y-3 rounded-xl border bg-card p-4">
-        <h2 className="font-semibold">{t('proposeAVersion')}</h2>
-        <label className="block text-sm">
-          {t('uploadOrReplaceWorkingFiles')}
-          <Input
-            className="mt-1"
-            type="file"
-            multiple
-            disabled={busy || dirty}
-            onChange={(event) => {
-              if (event.target.files?.length) upload.mutate(event.target.files);
-              event.target.value = '';
-            }}
-          />
-        </label>
-        <label className="block text-sm">
-          {t('projectFilePathsOnePerLine')}
-          <Textarea
-            className="mt-1 font-mono text-xs"
-            disabled={busy || dirty}
-            value={paths}
-            onChange={(event) => setPaths(event.target.value)}
-          />
-        </label>
-        <label className="block text-sm">
-          {t('versionNote')}
-          <Input
-            className="mt-1"
-            disabled={busy || dirty}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-          />
-        </label>
-        <Button
-          disabled={busy || dirty || !paths.trim()}
-          onClick={() =>
-            action.mutate({
-              suffix: '/versions',
-              body: {
-                paths: paths
-                  .split('\n')
-                  .map((path) => path.trim())
-                  .filter(Boolean),
-                note,
-                version: item.version,
-              },
-            })
-          }
-        >
-          {t('submitVersion')}
-        </Button>
-      </section>
-      <div className="space-y-4">
+    <div
+      className={
+        mode === 'validation'
+          ? 'grid gap-4 lg:grid-cols-[minmax(280px,1fr)_minmax(0,2fr)]'
+          : 'space-y-4'
+      }
+    >
+      {mode === 'validation' && (
         <section className="space-y-3 rounded-xl border bg-card p-4">
-          <h2 className="font-semibold">{t('lifecycleHistory')}</h2>
-          {item.lifecycleEvents.map((event) => (
-            <div
-              key={event.id}
-              className="flex flex-wrap justify-between gap-2 border-b pb-2 text-sm last:border-0"
-            >
-              <span>
-                {event.fromStatus
-                  ? `${t(translationKey(lifecycleStatuses[event.fromStatus]))} → `
-                  : ''}
-                {t(translationKey(lifecycleStatuses[event.toStatus]))} ·{' '}
-                {event.actorName}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {new Date(event.createdAt).toLocaleString()}
-              </span>
-            </div>
-          ))}
+          <h2 className="font-semibold">
+            {t('submitDeliverableForValidation')}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {t('submitDeliverableForValidationDescription')}
+          </p>
+          <label className="block text-sm">
+            {t('uploadOrReplaceWorkingFiles')}
+            <Input
+              className="mt-1"
+              type="file"
+              multiple
+              disabled={busy || dirty}
+              onChange={(event) => {
+                if (event.target.files?.length)
+                  upload.mutate(event.target.files);
+                event.target.value = '';
+              }}
+            />
+          </label>
+          <label className="block text-sm">
+            {t('projectFilePathsOnePerLine')}
+            <Textarea
+              className="mt-1 font-mono text-xs"
+              disabled={busy || dirty}
+              value={paths}
+              onChange={(event) => setPaths(event.target.value)}
+            />
+          </label>
+          <label className="block text-sm">
+            {t('versionNote')}
+            <Input
+              className="mt-1"
+              disabled={busy || dirty}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </label>
+          <Button
+            disabled={busy || dirty || !paths.trim()}
+            onClick={() =>
+              action.mutate({
+                suffix: '/versions',
+                body: {
+                  paths: paths
+                    .split('\n')
+                    .map((path) => path.trim())
+                    .filter(Boolean),
+                  note,
+                  version: item.version,
+                },
+              })
+            }
+          >
+            {t('submitDeliverableForValidation')}
+          </Button>
         </section>
+      )}
+      <div className="space-y-4">
+        {mode === 'history' && (
+          <section className="space-y-3 rounded-xl border bg-card p-4">
+            <h2 className="font-semibold">{t('lifecycleHistory')}</h2>
+            {item.lifecycleEvents.map((event) => (
+              <div
+                key={event.id}
+                className="flex flex-wrap justify-between gap-2 border-b pb-2 text-sm last:border-0"
+              >
+                <span>
+                  {event.fromStatus
+                    ? `${t(translationKey(lifecycleStatuses[event.fromStatus]))} → `
+                    : ''}
+                  {t(translationKey(lifecycleStatuses[event.toStatus]))} ·{' '}
+                  {event.actorName}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(event.createdAt).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </section>
+        )}
         <section className="space-y-3 rounded-xl border bg-card p-4">
           <h2 className="font-semibold">{t('versionHistory')}</h2>
           {!item.versions.length && (
@@ -1023,35 +1043,37 @@ function VersionHistory({
                   </Button>
                 ))}
               </div>
-              <div className="flex gap-2">
-                <Button
-                  disabled={
-                    busy || dirty || item.validatedVersionId === version.id
-                  }
-                  onClick={() =>
-                    action.mutate({
-                      suffix: `/versions/${version.id}/review`,
-                      body: { action: 'validate', version: item.version },
-                    })
-                  }
-                >
-                  {t('validateThisVersion')}
-                </Button>
-                {version.status === 'proposed' && (
+              {mode === 'validation' && (
+                <div className="flex gap-2">
                   <Button
-                    variant="outline"
-                    disabled={busy || dirty}
+                    disabled={
+                      busy || dirty || item.validatedVersionId === version.id
+                    }
                     onClick={() =>
                       action.mutate({
                         suffix: `/versions/${version.id}/review`,
-                        body: { action: 'reject', version: item.version },
+                        body: { action: 'validate', version: item.version },
                       })
                     }
                   >
-                    {t('reject')}
+                    {t('validateThisVersion')}
                   </Button>
-                )}
-              </div>
+                  {version.status === 'proposed' && (
+                    <Button
+                      variant="outline"
+                      disabled={busy || dirty}
+                      onClick={() =>
+                        action.mutate({
+                          suffix: `/versions/${version.id}/review`,
+                          body: { action: 'reject', version: item.version },
+                        })
+                      }
+                    >
+                      {t('reject')}
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </section>

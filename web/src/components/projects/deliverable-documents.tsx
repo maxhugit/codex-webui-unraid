@@ -388,7 +388,7 @@ function DocumentDetailDialog({
               <DocumentFact label={t('format')} value={document.format.toUpperCase() || '—'} />
               <DocumentFact label={t('currentVersion')} value={`V${document.currentVersionNumber}`} />
               <DocumentFact label={t('fileSize')} value={latest ? formatBytes(latest.size) : '—'} />
-              <DocumentFact label={t('createdAt')} value={new Date(document.createdAt).toLocaleString()} />
+              <DocumentFact label={t('created')} value={new Date(document.createdAt).toLocaleString()} />
               <DocumentFact label={t('lastModified')} value={new Date(document.updatedAt).toLocaleString()} />
               <DocumentFact label={t('author')} value={latest?.authorName ?? '—'} />
               <DocumentFact label={t('checksum')} value={latest?.sha256 ?? '—'} mono />
