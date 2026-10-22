@@ -1,7 +1,10 @@
 /** Checks that SDK generation can preserve complete file-approval subjects and deletion failures. */
 import { Test } from '@nestjs/testing';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import type { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
+import {
+  DocumentBuilder,
+  SwaggerModule,
+  type SchemaObject,
+} from '@nestjs/swagger';
 import { PendingApprovalsController } from './pending-approvals.controller';
 import { PendingApprovalsService } from './pending-approvals.service';
 
