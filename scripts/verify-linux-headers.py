@@ -12,14 +12,20 @@ def run(*args):
 
 version = run("dpkg-query", "-W", "-f=${Version}", "linux-libc-dev")
 headers = 0
+missing_documentation = []
 for name in run("dpkg-query", "-L", "linux-libc-dev").splitlines():
     path = Path(name)
     if path.is_dir():
         continue
     is_header = name.startswith(("/usr/include/", "/usr/lib/linux/uapi/")) and name.endswith(".h")
-    is_doc = name.startswith("/usr/share/doc/linux-libc-dev/")
+    is_doc = name == "/usr/share/doc/linux-libc-dev" or name.startswith("/usr/share/doc/linux-libc-dev/")
     if not (is_header or is_doc):
         raise RuntimeError(f"Unexpected package payload; review VEX applicability: {name}")
+    # Debian slim removes documentation while dpkg retains its file inventory.
+    # Only documentation may be absent; missing headers still fail below.
+    if is_doc and not path.exists():
+        missing_documentation.append(name)
+        continue
     if path.read_bytes().startswith(b"\x7fELF"):
         raise RuntimeError(f"Executable code in header package: {name}")
     headers += is_header
@@ -77,6 +83,7 @@ print(json.dumps({
     "package": "linux-libc-dev",
     "version": version,
     "header_files_checked": headers,
+    "missing_documentation": missing_documentation,
     "kernel_packages": kernel_packages,
     "native_c_and_cpp": "passed",
     "host_kernel": "not assessed; this inventory covers only the container filesystem",
