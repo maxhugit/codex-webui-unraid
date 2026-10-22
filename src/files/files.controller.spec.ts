@@ -61,3 +61,37 @@ it('streams exact byte ranges with hardened headers and returns 416 for invalid 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it('serves filenames with decomposed accents using an HTTP-safe disposition', async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'file-unicode-')));
+  const filename = 'Re\u0301siliationApril.docx';
+  const file = join(root, filename);
+  await writeFile(file, 'document');
+  const settings = {
+    getStringSetting: (key: string) =>
+      key === SECURITY_SETTING_KEYS.workspaceRoots ? root : null,
+    getSetting: () => ({ value: null }),
+    onChange: () => () => undefined,
+  } as unknown as SettingsService;
+  const service = new FilesService(settings);
+  const controller = new FilesController(service, {} as never);
+  const app = Fastify();
+  app.get('/serve', (request, reply) =>
+    controller.serveFile(file, request, reply),
+  );
+  try {
+    const response = await app.inject('/serve');
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe('document');
+    expect(response.headers['content-disposition']).toContain(
+      'filename="ResiliationApril.docx"',
+    );
+    expect(response.headers['content-disposition']).toContain(
+      `filename*=UTF-8''${encodeURIComponent(filename)}`,
+    );
+  } finally {
+    await app.close();
+    service.onModuleDestroy();
+    await rm(root, { recursive: true, force: true });
+  }
+});
