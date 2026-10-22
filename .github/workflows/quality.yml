@@ -98,6 +98,11 @@ jobs:
           context: .
           file: ./Dockerfile.unraid
           push: false
+          load: true
+          tags: codex-webui-unraid:quality-${{ github.sha }}
           cache-from: |
             type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
             type=gha
+
+      - name: Start the production image and wait for its health check
+        run: scripts/smoke-test-image.sh "codex-webui-unraid:quality-${{ github.sha }}"

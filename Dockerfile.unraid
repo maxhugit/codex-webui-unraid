@@ -194,10 +194,16 @@ RUN node -e "require('node-pty'); const Database = require('better-sqlite3'); co
 # ── Stage 6: Runtime ─────────────────────────────────────────────────
 FROM runtime-base AS runtime
 
+# runtime-base sets HOME before installing system packages. Some installers may
+# leave build-only dotfiles there, which makes the entrypoint mistake a brand-new
+# container home for an existing persistent volume. The final runtime image must
+# start with an empty home so the toolchain seed can be restored deterministically.
 RUN groupadd --gid 11002 codex \
  && useradd --uid 11002 --gid 11002 --home-dir /home/codex --shell /bin/bash codex \
+ && find /home/codex -mindepth 1 -delete \
  && mkdir -p /home/codex /workspaces /app/logs \
- && chown -R 11002:11002 /home/codex /workspaces /app/logs
+ && chown -R 11002:11002 /home/codex /workspaces /app/logs \
+ && ! find /home/codex -mindepth 1 -maxdepth 1 -print -quit | grep -q .
 
 WORKDIR /app
 
