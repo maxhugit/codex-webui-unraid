@@ -171,4 +171,50 @@ describe('people and task responsibility', () => {
       { before: 'Marie Dupont (MD-001)', after: null },
     ]);
   });
+  it('configures one project manager and reusable project people groups', () => {
+    const first = service.savePerson(person());
+    const second = service.savePerson(person('AL-002', 'Alex Martin'));
+    service.addParticipant('p', first.id);
+    service.addParticipant('p', second.id);
+
+    service.configureProjectManager('p', first.id);
+    expect(service.peopleConfiguration('p').projectManagerPersonId).toBe(
+      first.id,
+    );
+    service.configureProjectManager('p', second.id);
+    expect(service.peopleConfiguration('p').projectManagerPersonId).toBe(
+      second.id,
+    );
+
+    const created = service.savePersonGroup('p', {
+      name: 'Direction',
+      memberIds: [first.id, second.id],
+    });
+    expect(created.groups).toHaveLength(1);
+    expect(created.groups[0]).toMatchObject({
+      name: 'Direction',
+      memberIds: [first.id, second.id],
+    });
+    expect(() =>
+      service.savePersonGroup('p', {
+        name: 'direction',
+        memberIds: [],
+      }),
+    ).toThrow('Group name already exists');
+  });
+  it('clears project responsibilities when a participant is removed', () => {
+    const first = service.savePerson(person());
+    service.addParticipant('p', first.id);
+    service.configureProjectManager('p', first.id);
+    service.savePersonGroup('p', {
+      name: 'Reviewers',
+      memberIds: [first.id],
+    });
+
+    service.removeParticipant('p', first.id);
+
+    const configuration = service.peopleConfiguration('p');
+    expect(configuration.projectManagerPersonId).toBeNull();
+    expect(configuration.groups[0]?.memberIds).toEqual([]);
+  });
 });

@@ -267,6 +267,13 @@
       "when": 1792586088325,
       "tag": "0037_rainy_prima",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1792681446123,
+      "tag": "0038_serious_black_widow",
+      "breakpoints": true
     }
   ]
 }

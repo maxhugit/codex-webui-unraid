@@ -1325,5 +1325,21 @@
   "dueDate": "Date d’échéance",
   "title": "Titre",
   "availableLabel": "Disponible",
-  "workspacesLabel": "Workspaces"
+  "workspacesLabel": "Workspaces",
+  "projectOrganization": "Organisation du projet",
+  "defineTheProjectManagerAndPreparePeopleGroupsForFutureDeliverables": "Sélectionnez le chef de projet et préparez les groupes qui pourront ensuite être associés aux livrables.",
+  "projectManager": "Chef de projet",
+  "noProjectManager": "Aucun chef de projet",
+  "peopleGroups": "Groupes de personnes",
+  "groupsCanBeAssociatedWithDeliverablesAsTheProjectProgresses": "Les groupes pourront être associés aux livrables au fur et à mesure de l’avancement du projet.",
+  "newGroup": "Nouveau groupe",
+  "noPeopleGroupYet": "Aucun groupe de personnes pour le moment.",
+  "memberCount_one": "{{count}} membre",
+  "memberCount_other": "{{count}} membres",
+  "deletePeopleGroupConfirmation": "Supprimer ce groupe de personnes ?",
+  "editPeopleGroup": "Modifier le groupe de personnes",
+  "newPeopleGroup": "Nouveau groupe de personnes",
+  "aGroupCanOnlyContainActiveProjectParticipants": "Un groupe peut uniquement contenir des participants actifs de ce projet.",
+  "groupName": "Nom du groupe",
+  "members": "Membres"
 }
