@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Download, Eye, History, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Download, Eye, FileText, History, MoreVertical, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -38,6 +38,8 @@ export function DeliverableDocuments({
 }: Props) {
   const { t } = useTranslation();
   const [comment, setComment] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [viewed, setViewed] = useState<DeliverableDocument | null>(null);
   const [history, setHistory] = useState<DeliverableDocument | null>(null);
   const active = useMemo(
@@ -71,9 +73,9 @@ export function DeliverableDocuments({
   });
 
   const addDocument = useMutation({
-    mutationFn: async (files: FileList) => {
-      for (const file of Array.from(files)) {
-        const path = await uploadFile(file, item.directory, false);
+    mutationFn: async (files: File[]) => {
+      for (const file of files) {
+        const path = await uploadFile(file, item.directory, true);
         await projectsApi(`${base}/${item.id}/documents`, {
           method: 'POST',
           body: JSON.stringify({ path, comment }),
@@ -82,6 +84,8 @@ export function DeliverableDocuments({
     },
     onSuccess: async () => {
       setComment('');
+      setPendingFiles([]);
+      setAddOpen(false);
       await refresh();
     },
     onError,
@@ -114,69 +118,70 @@ export function DeliverableDocuments({
 
   return (
     <section className="space-y-3 border-t pt-4">
-      <div>
-        <h2 className="font-semibold">{t('deliverableDocuments')}</h2>
-        <p className="text-sm text-muted-foreground">
-          {t('eachDocumentKeepsItsOwnVersionHistory')}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">{t('deliverableDocuments')}</h2>
+          <p className="text-sm text-muted-foreground">
+            {t('eachDocumentKeepsItsOwnVersionHistory')}
+          </p>
+        </div>
+        <Button disabled={busy} onClick={() => setAddOpen(true)}>
+          <Plus className="h-4 w-4" /> {t('addDocument')}
+        </Button>
       </div>
-      <label className="block text-sm" htmlFor={`document-comment-${item.id}`}>
+      <label className="grid gap-1 text-sm" htmlFor={`document-version-comment-${item.id}`}>
         {t('versionComment')}
-      </label>
-      <Input
-        id={`document-comment-${item.id}`}
-        value={comment}
-        disabled={busy}
-        maxLength={4000}
-        onChange={(event) => setComment(event.target.value)}
-        placeholder={t('optionalComment')}
-      />
-      <label className="block text-sm">
-        {t('addDocuments')}
         <Input
-          type="file"
-          multiple
+          id={`document-version-comment-${item.id}`}
+          value={comment}
           disabled={busy}
-          onChange={(event) => {
-            if (event.target.files?.length) addDocument.mutate(event.target.files);
-            event.target.value = '';
-          }}
+          maxLength={4000}
+          onChange={(event) => setComment(event.target.value)}
+          placeholder={t('optionalComment')}
         />
       </label>
       {!active.length && (
         <p className="text-sm text-muted-foreground">{t('noDocumentYet')}</p>
       )}
-      <div className="space-y-2">
-        {active.map((document) => (
-          <DocumentRow
-            key={document.id}
-            document={document}
-            busy={busy}
-            onView={() => setViewed(document)}
-            onHistory={() => setHistory(document)}
-            onDownload={() => void downloadVersion(base, item.id, document, document.versions.at(-1)!, onError)}
-            onFile={(file) => addVersion.mutate({ document, file })}
-            onSnapshot={() =>
-              request.mutate({
-                suffix: `/documents/${document.id}/versions`,
-                body: {
-                  path: document.sourcePath,
-                  comment,
-                  expectedVersion: document.currentVersionNumber,
-                },
-              })
-            }
-            onDelete={() => {
-              if (window.confirm(t('deleteDocumentConfirmation', { name: document.name })))
+      {!!active.length && (
+        <div className="overflow-hidden rounded-lg border">
+          <div className="hidden grid-cols-[minmax(0,1fr)_7rem_minmax(12rem,0.7fr)_3rem] gap-3 bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground sm:grid">
+            <span>{t('documentName')}</span>
+            <span>{t('versions')}</span>
+            <span>{t('lastModified')}</span>
+            <span className="sr-only">{t('actions')}</span>
+          </div>
+          {active.map((document) => (
+            <DocumentRow
+              key={document.id}
+              document={document}
+              busy={busy}
+              onView={() => setViewed(document)}
+              onHistory={() => setHistory(document)}
+              onDownload={() => void downloadVersion(base, item.id, document, document.versions.at(-1)!, onError)}
+              onFile={(file) => addVersion.mutate({ document, file })}
+              onSnapshot={() =>
                 request.mutate({
-                  suffix: `/documents/${document.id}`,
-                  method: 'DELETE',
-                  body: { expectedVersion: document.currentVersionNumber },
-                });
-            }}
-          />
-        ))}
-      </div>
+                  suffix: `/documents/${document.id}/versions`,
+                  body: {
+                    path: document.sourcePath,
+                    comment,
+                    expectedVersion: document.currentVersionNumber,
+                  },
+                })
+              }
+              onDelete={() => {
+                if (window.confirm(t('deleteDocumentConfirmation', { name: document.name })))
+                  request.mutate({
+                    suffix: `/documents/${document.id}`,
+                    method: 'DELETE',
+                    body: { expectedVersion: document.currentVersionNumber },
+                  });
+              }}
+            />
+          ))}
+        </div>
+      )}
       {!!archived.length && (
         <details>
           <summary className="cursor-pointer text-sm font-medium">
@@ -209,6 +214,48 @@ export function DeliverableDocuments({
             : t('unableToUpdateDocument')}
         </p>
       )}
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('addDocument')}</DialogTitle>
+            <DialogDescription>{t('addDocumentDescription')}</DialogDescription>
+          </DialogHeader>
+          <label className="grid gap-1 text-sm">
+            {t('documents')}
+            <Input
+              type="file"
+              multiple
+              disabled={busy}
+              onChange={(event) =>
+                setPendingFiles(Array.from(event.target.files ?? []))
+              }
+            />
+          </label>
+          <label className="grid gap-1 text-sm" htmlFor={`document-comment-${item.id}`}>
+            {t('versionComment')}
+            <Input
+              id={`document-comment-${item.id}`}
+              value={comment}
+              disabled={busy}
+              maxLength={4000}
+              onChange={(event) => setComment(event.target.value)}
+              placeholder={t('optionalComment')}
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" disabled={busy} onClick={() => setAddOpen(false)}>
+              {t('cancel')}
+            </Button>
+            <Button
+              disabled={busy || pendingFiles.length === 0}
+              onClick={() => addDocument.mutate(pendingFiles)}
+            >
+              <Upload className="h-4 w-4" /> {t('addDocument')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!viewed} onOpenChange={(open) => !open && setViewed(null)}>
         <DialogContent className="flex h-[90dvh] max-w-[calc(100%-1rem)] flex-col p-0 sm:max-w-6xl">
@@ -273,33 +320,41 @@ function DocumentRow({ document, busy, onView, onHistory, onDownload, onFile, on
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
+  const latest = document.versions.at(-1);
   return (
-    <article className="space-y-2 rounded-lg border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <strong className="block truncate">{document.name}</strong>
-          <span className="text-xs text-muted-foreground">
-            {t('versionNumber', { number: document.currentVersionNumber })} · {document.format.toUpperCase() || t('file')}
-          </span>
+    <article className="grid gap-2 border-t px-3 py-3 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(12rem,0.7fr)_3rem] sm:items-center sm:gap-3">
+      <button type="button" className="flex min-w-0 items-center gap-2 text-left hover:underline" onClick={onView}>
+        <FileText className="h-4 w-4 shrink-0 text-primary" />
+        <strong className="truncate">{document.name}</strong>
+      </button>
+      <span className="text-sm text-muted-foreground">
+        <span className="sm:hidden">{t('versions')}: </span>
+        {document.currentVersionNumber}
+      </span>
+      <span className="text-sm text-muted-foreground">
+        <span className="sm:hidden">{t('lastModified')}: </span>
+        {latest ? `${new Date(latest.createdAt).toLocaleDateString()} · ${latest.authorName}` : '—'}
+      </span>
+      <details className="relative justify-self-end">
+        <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md hover:bg-muted" aria-label={t('actions')}>
+          <MoreVertical className="h-4 w-4" />
+        </summary>
+        <div className="absolute right-0 z-20 mt-1 grid min-w-52 gap-1 rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg">
+          <button type="button" className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted" onClick={onView}><Eye className="h-4 w-4" /> {t('open')}</button>
+          <button type="button" className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted" onClick={onDownload}><Download className="h-4 w-4" /> {t('download')}</button>
+          <button type="button" className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted" onClick={onHistory}><History className="h-4 w-4" /> {t('history')}</button>
+          <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted">
+            <Upload className="h-4 w-4" /> {t('uploadNewVersion')}
+            <input className="sr-only" type="file" disabled={busy} onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onFile(file);
+              event.target.value = '';
+            }} />
+          </label>
+          <button type="button" className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted" disabled={busy} onClick={onSnapshot}><History className="h-4 w-4" /> {t('createVersionFromCurrentFile')}</button>
+          <button type="button" className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-destructive hover:bg-muted" disabled={busy} onClick={onDelete}><Trash2 className="h-4 w-4" /> {t('delete')}</button>
         </div>
-        <div className="flex flex-wrap gap-1">
-          <Button size="sm" variant="outline" onClick={onView}><Eye className="h-4 w-4" /> {t('open')}</Button>
-          <Button size="sm" variant="outline" onClick={onDownload}><Download className="h-4 w-4" /> {t('download')}</Button>
-          <Button size="sm" variant="outline" onClick={onHistory}><History className="h-4 w-4" /> {t('history')}</Button>
-          <Button size="sm" variant="ghost" disabled={busy} onClick={onDelete}><Trash2 className="h-4 w-4" /><span className="sr-only">{t('delete')}</span></Button>
-        </div>
-      </div>
-      <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary">
-        <Upload className="h-4 w-4" /> {t('uploadNewVersion')}
-        <input className="sr-only" type="file" disabled={busy} onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) onFile(file);
-          event.target.value = '';
-        }} />
-      </label>
-      <Button size="sm" variant="ghost" disabled={busy} onClick={onSnapshot}>
-        <History className="h-4 w-4" /> {t('createVersionFromCurrentFile')}
-      </Button>
+      </details>
     </article>
   );
 }
