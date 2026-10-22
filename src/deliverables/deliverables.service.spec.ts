@@ -215,6 +215,86 @@ describe('project deliverables', () => {
         .find((document) => document.id === reportDocument.id)?.deletedAt,
     ).toBeNull();
   });
+  it('enforces the deliverable lifecycle and preserves immutable finalization snapshots', async () => {
+    const item = await service.create('p', 'r', { title: 'Lifecycle' });
+    expect(item.lifecycleStatus).toBe('draft');
+    expect(() =>
+      service.transitionLifecycle('p', 'r', item.id, {
+        target: 'finalized',
+        version: 1,
+      }),
+    ).toThrow('at least one document');
+
+    const source = path.join(root, 'livrables', item.id, 'report.docx');
+    await fs.writeFile(source, 'Version 1');
+    await service.addDocumentVersion(
+      'p',
+      'r',
+      item.id,
+      { path: source },
+      { personId: null, name: 'Alice' },
+    );
+    expect(service.get('p', 'r', item.id)).toMatchObject({
+      lifecycleStatus: 'in_constitution',
+      version: 2,
+    });
+
+    const finalized = service.transitionLifecycle('p', 'r', item.id, {
+      target: 'finalized',
+      version: 2,
+    });
+    expect(finalized).toMatchObject({
+      lifecycleStatus: 'finalized',
+      version: 3,
+      finalizedByName: 'System',
+    });
+    expect(finalized.currentSnapshotId).toEqual(expect.any(String));
+    const board = service.board('p', 'r').deliverables[0];
+    expect(board.snapshots).toHaveLength(1);
+    expect(board.snapshots[0].documents).toEqual([
+      expect.objectContaining({ versionNumber: 1 }),
+    ]);
+
+    await fs.writeFile(source, 'Version 2');
+    await expect(
+      service.addDocumentVersion(
+        'p',
+        'r',
+        item.id,
+        { path: source, expectedVersion: 1 },
+        { personId: null, name: 'Alice' },
+        board.documents[0].id,
+      ),
+    ).rejects.toThrow('Reopen');
+
+    const archived = service.transitionLifecycle('p', 'r', item.id, {
+      target: 'archived',
+      version: 3,
+    });
+    expect(archived.lifecycleStatus).toBe('archived');
+    expect(() =>
+      service.update('p', 'r', item.id, { title: 'Forbidden', version: 4 }),
+    ).toThrow('read-only');
+    expect(() =>
+      service.transitionLifecycle('p', 'r', item.id, {
+        target: 'in_constitution',
+        version: 4,
+      }),
+    ).toThrow('Invalid deliverable lifecycle transition');
+
+    const unarchived = service.transitionLifecycle('p', 'r', item.id, {
+      target: 'finalized',
+      version: 4,
+    });
+    const reopened = service.transitionLifecycle('p', 'r', item.id, {
+      target: 'in_constitution',
+      version: unarchived.version,
+    });
+    expect(reopened.lifecycleStatus).toBe('in_constitution');
+    expect(
+      service.board('p', 'r').deliverables[0].lifecycleEvents,
+    ).toHaveLength(6);
+  });
   it('rejects forged validation, out-of-project links, system files and tampered snapshots', async () => {
     await expect(
       service.create('p', 'r', { title: 'Forged', status: 'validated' }),

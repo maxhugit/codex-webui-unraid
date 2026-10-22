@@ -1387,5 +1387,17 @@
   "documents": "Documents",
   "validation": "Validation",
   "tasks": "Tasks",
-  "conversations": "Conversations"
+  "conversations": "Conversations",
+  "draft": "Draft",
+  "inConstitution": "In constitution",
+  "finalized": "Finalized",
+  "startConstitution": "Start constitution",
+  "finalize": "Finalize",
+  "returnToDraft": "Return to draft",
+  "reopen": "Reopen",
+  "unarchive": "Unarchive",
+  "lifecycleHistory": "Lifecycle history",
+  "renameDeliverable": "Rename deliverable",
+  "renameDeliverableDescription": "Choose the name displayed in the deliverables list and detail view.",
+  "deliverableName": "Deliverable name"
 }

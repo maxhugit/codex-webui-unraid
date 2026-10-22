@@ -61,6 +61,14 @@ export class DeliverablesController {
   ) {
     return this.service.update(p, r, id, body);
   }
+  @Post(':id/lifecycle') transitionLifecycle(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Body() body: Parameters<DeliverablesService['transitionLifecycle']>[3],
+  ) {
+    return this.service.transitionLifecycle(p, r, id, body);
+  }
   @Delete(':id') remove(
     @Param('projectId') p: string,
     @Param('resourceId') r: string,

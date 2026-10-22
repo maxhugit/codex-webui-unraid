@@ -26,6 +26,11 @@ const item: Deliverable = {
   assigneeId: null,
   dueAt: null,
   status: 'planned',
+  lifecycleStatus: 'draft',
+  currentSnapshotId: null,
+  finalizedAt: null,
+  finalizedByPersonId: null,
+  finalizedByName: null,
   taskIds: [],
   conversations: [],
   version: 3,
@@ -35,6 +40,8 @@ const item: Deliverable = {
   updatedAt: 2,
   versions: [],
   documents: [],
+  snapshots: [],
+  lifecycleEvents: [],
 };
 const board = {
   resource: { name: 'Deliverables' },
@@ -140,6 +147,35 @@ it('creates a linked agent only through an explicit action', async () => {
     expect(api).toHaveBeenCalledWith('/p/resources/r/deliverables/d/agent', {
       method: 'POST',
       body: JSON.stringify({ version: 3 }),
+    }),
+  );
+});
+it('changes the lifecycle only through an explicit transition action', async () => {
+  await setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Start constitution' }));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith(
+      '/p/resources/r/deliverables/d/lifecycle',
+      {
+        method: 'POST',
+        body: JSON.stringify({ target: 'in_constitution', version: 3 }),
+      },
+    ),
+  );
+});
+it('renames a deliverable from its header', async () => {
+  await setup();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Rename deliverable' }),
+  );
+  fireEvent.change(screen.getByLabelText('Deliverable name'), {
+    target: { value: 'Architecture package' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /^Rename$/ }));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith('/p/resources/r/deliverables/d', {
+      method: 'PATCH',
+      body: JSON.stringify({ title: 'Architecture package', version: 3 }),
     }),
   );
 });

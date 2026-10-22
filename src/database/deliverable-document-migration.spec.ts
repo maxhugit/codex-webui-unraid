@@ -7,7 +7,7 @@ describe('deliverable document migration', () => {
     const sqlite = new Database(':memory:');
     sqlite.pragma('foreign_keys = ON');
     const migrations = readMigrationFiles({ migrationsFolder: 'drizzle' });
-    for (const migration of migrations.slice(0, -1))
+    for (const migration of migrations.slice(0, -2))
       for (const statement of migration.sql) sqlite.exec(statement);
 
     sqlite
@@ -30,7 +30,7 @@ describe('deliverable document migration', () => {
         `INSERT INTO project_deliverables
           (id, resource_id, title, description, criteria, status, task_ids,
            conversations, version, created_at, updated_at)
-         VALUES ('d', 'r', 'Package', '', '', 'review', '[]', '[]', 3, 1, 3)`,
+         VALUES ('d', 'r', 'Package', '', '', 'validated', '[]', '[]', 3, 1, 3)`,
       )
       .run();
     const insertVersion = sqlite.prepare(
@@ -76,6 +76,7 @@ describe('deliverable document migration', () => {
       20,
     );
 
+    for (const statement of migrations.at(-2)!.sql) sqlite.exec(statement);
     for (const statement of migrations.at(-1)!.sql) sqlite.exec(statement);
 
     const documents = sqlite
@@ -100,6 +101,24 @@ describe('deliverable document migration', () => {
       { number: 1, comment: 'Initial', sha256: 'first' },
       { number: 2, comment: 'Revision', sha256: 'second' },
     ]);
+    expect(
+      sqlite
+        .prepare(
+          `SELECT lifecycle_status FROM project_deliverables WHERE id = 'd'`,
+        )
+        .get(),
+    ).toEqual({ lifecycle_status: 'finalized' });
+    const snapshot = sqlite
+      .prepare(
+        `SELECT documents FROM project_deliverable_snapshots WHERE deliverable_id = 'd'`,
+      )
+      .get() as { documents: string };
+    expect(JSON.parse(snapshot.documents)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ versionNumber: 1, sha256: 'budget' }),
+        expect.objectContaining({ versionNumber: 2, sha256: 'second' }),
+      ]),
+    );
     expect(sqlite.pragma('foreign_key_check')).toEqual([]);
     sqlite.close();
   });

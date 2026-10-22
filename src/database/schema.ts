@@ -615,6 +615,17 @@ export const projectDeliverables = sqliteTable(
     }),
     dueAt: integer('due_at'),
     status: text('status').notNull().default('planned'),
+    lifecycleStatus: text('lifecycle_status')
+      .$type<'draft' | 'in_constitution' | 'finalized' | 'archived'>()
+      .notNull()
+      .default('draft'),
+    currentSnapshotId: text('current_snapshot_id'),
+    finalizedAt: integer('finalized_at'),
+    finalizedByPersonId: text('finalized_by_person_id').references(
+      () => people.id,
+      { onDelete: 'set null' },
+    ),
+    finalizedByName: text('finalized_by_name'),
     taskIds: text('task_ids', { mode: 'json' })
       .$type<string[]>()
       .notNull()
@@ -718,6 +729,65 @@ export const projectDeliverableDocumentVersions = sqliteTable(
       table.number,
     ),
     index('idx_deliverable_document_versions_document').on(table.documentId),
+  ],
+);
+
+export interface DeliverableSnapshotDocument {
+  documentId: string;
+  documentVersionId: string;
+  versionNumber: number;
+  sha256: string;
+}
+
+/** Immutable composition captured whenever a deliverable is finalized. */
+export const projectDeliverableSnapshots = sqliteTable(
+  'project_deliverable_snapshots',
+  {
+    id: text('id').primaryKey(),
+    deliverableId: text('deliverable_id')
+      .notNull()
+      .references(() => projectDeliverables.id, { onDelete: 'cascade' }),
+    documents: text('documents', { mode: 'json' })
+      .$type<DeliverableSnapshotDocument[]>()
+      .notNull(),
+    createdByPersonId: text('created_by_person_id').references(
+      () => people.id,
+      {
+        onDelete: 'set null',
+      },
+    ),
+    createdByName: text('created_by_name').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    index('idx_deliverable_snapshots_deliverable').on(table.deliverableId),
+  ],
+);
+
+/** Append-only audit trail for lifecycle changes. */
+export const projectDeliverableLifecycleEvents = sqliteTable(
+  'project_deliverable_lifecycle_events',
+  {
+    id: text('id').primaryKey(),
+    deliverableId: text('deliverable_id')
+      .notNull()
+      .references(() => projectDeliverables.id, { onDelete: 'cascade' }),
+    fromStatus: text('from_status'),
+    toStatus: text('to_status').notNull(),
+    snapshotId: text('snapshot_id').references(
+      () => projectDeliverableSnapshots.id,
+      { onDelete: 'set null' },
+    ),
+    actorPersonId: text('actor_person_id').references(() => people.id, {
+      onDelete: 'set null',
+    }),
+    actorName: text('actor_name').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    index('idx_deliverable_lifecycle_events_deliverable').on(
+      table.deliverableId,
+    ),
   ],
 );
 
