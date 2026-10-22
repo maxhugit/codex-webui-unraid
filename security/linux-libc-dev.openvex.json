@@ -1,0 +1,880 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/maxhugit/codex-webui-unraid/security/linux-libc-dev-6.12.113-1",
+  "author": "codex-webui-unraid maintainers",
+  "timestamp": "2026-10-22T21:08:06Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2013-7445"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "kernel: memory exhaustion via crafted Graphics Execution Manager (GEM) objects. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2019-19449"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "kernel: mounting a crafted f2fs filesystem image can lead to slab-out-of-bounds read access in f2fs_build_segment_manager in fs/f2fs/segment.c. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2019-19814"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "kernel: out-of-bounds write in __remove_dirty_segment in fs/f2fs/segment.c. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2021-3847"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "kernel: low-privileged user privileges escalation. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2021-3864"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "kernel: descendant's dumpable setting with certain SUID binaries. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-21803"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "kernel: bluetooth: use-after-free vulnerability in af_bluetooth.c. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-58015"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "wifi: ath12k: Fix for out-of bound access error. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-38137"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "PCI/pwrctrl: Cancel outstanding rescan work when unregistering. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-38187"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "drm/nouveau: fix a use-after-free in r535_gsp_rpc_push(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-38421"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "platform/x86/amd: pmf: Use device managed allocations. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-38636"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "rv: Use strings in da monitors tracepoints. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-39859"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "ptp: ocp: fix use-after-free bugs causing by ptp_ocp_watchdog. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-39862"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "wifi: mt76: mt7915: fix list corruption after hardware restart. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-39958"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "iommu/s390: Make attach succeed when the device was surprise removed. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-40025"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "f2fs: fix to do sanity check on node footer for non inode dnode. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-68174"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "amd/amdkfd: enhance kfd process check in switch partition. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-68735"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "drm/panthor: Prevent potential UAF in group creation. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-100072"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "ACPI: platform: Use acpi_bus_get_primary_device(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-23102"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "arm64/fpsimd: signal: Fix restoration of SVE context. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-23208"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "ALSA: usb-audio: Prevent excessive number of frames. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-23327"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "cxl/mbox: validate payload size before accessing contents in cxl_payload_from_user_allowed(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-31493"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "RDMA/efa: Fix use of completion ctx after free. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-31568"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "s390/mm: Add missing secure storage access fixups for donated memory. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-43185"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "ksmbd: fix signededness bug in smb_direct_prepare_negotiation(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-46130"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "dm-verity-fec: fix reading parity bytes split across blocks (take 3). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-46181"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "RDMA/mlx4: Fix mis-use of RCU in mlx4_srq_event(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-46279"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "mm/alloc_tag: clear codetag for pages allocated before page_ext initialization. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-52991"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "sched/psi: fix race between file release and pressure write. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53000"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "netfilter: nat: use kfree_rcu to release ops. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53091"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "net: pull headers in qdisc_pkt_len_segs_init(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53109"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "powerpc/pgtable-frag: Fix bad page state in pte_frag_destroy. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53118"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "vdpa: use generic driver_override infrastructure. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53277"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "KVM: arm64: Take the SRCU lock for page table walks in fault injection and AT emulation. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-53330"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "drm/amd/display: Fix out-of-bounds read in dp_get_eq_aux_rd_interval(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-63879"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "drm/amdgpu: fix amdgpu_hmm_range_get_pages. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-64283"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "KVM: guest_memfd: Treat memslot binding offset+size as unsigned values. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-64389"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "ksmbd: validate NTLMv2 response before updating session key. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-64400"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "ksmbd: prevent path traversal bypass by restricting caseless retry. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-68409"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "wifi: mac80211: defer link RX stats percpu free to RCU. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-68426"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "xfrm: fix stale skb->prev after async crypto steals a GSO segment. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-68470"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "wifi: mac80211: validate extension-frame layout before RX. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-72042"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "ipmi: Fix user refcount underflow in event delivery. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-72098"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "dm-verity: fix buffer overflow in FEC calculation. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-74269"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "bnxt: fix head underflow on XDP head-grow. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-74520"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "iommu/iommufd: Fix IOPF group ownership UAF. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-74752"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "sctp: validate cookie AUTH state before use. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-80905"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "net: tap: fix wrong transport_header when sending VLAN-tagged frame. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-89631"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "smb: client: reject a tree connect response whose byte count is too small. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-89675"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "nfsd: fix UAF in async copy cancel and shutdown. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-89788"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "ksmbd: fix tree connection use-after-free in smb2_tree_connect(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-89810"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "drm/amdkfd: Fix error path at svm_migrate_copy_to_ram. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-89811"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "drm/amdkfd: Add TLB flush after MES queue eviction/suspension. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-89913"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "KVM: arm64: vgic-v3: take an LPI reference in vgic_v3_save_pending_tables. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-90111"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "ip6mr: do not clone dst in ip6mr_cache_report(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-90206"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "nvmet: fix max_qid race between configfs and controller allocation. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-90315"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "PCI/sysfs: Add lockdown checks to legacy I/O and memory handlers. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98084"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "bpf: backtracking shouldn't clear outer frame R1-R5 for callbacks. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98085"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "bpf: backtrack_insn(): Handle ld_{abs,ind} subprog exit edge. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98364"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "xfrm: hold net_device reference under RCU in bundle creation. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98466"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "KVM: arm64: Transfer the hyp stack pages out of the host stage-2. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98652"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "KVM: s390: Add missing srcu in kvm_s390_set_irq_state(). The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98799"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "bpf: Skip detached progs in trampoline images that are still in use. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98803"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "net: stmmac: fix rx Scatter-Gather support. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98813"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "bpf: Hold map BTF for the memory allocator destructor record. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98824"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "wifi: mac80211: validate TX status rate metadata. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98829"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "wifi: mac80211: drop oversized fragments to avoid extra_len overflow. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-98863"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/linux-libc-dev@6.12.113-1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "KVM: x86: Re-pend GET_NESTED_STATE_PAGES if getting said pages fails. The affected implementation executes in the Linux kernel, not in the userspace UAPI headers shipped by linux-libc-dev 6.12.113-1. This statement covers only this header package in the WebUI image. The running Unraid/host kernel is outside this assessment and may require remediation."
+    }
+  ]
+}
