@@ -38,6 +38,7 @@ import { usePlatformSession } from '@/lib/platform-session';
 import { withBasePath } from '@/base-path';
 import { getAuthorizationHeader } from '@/auth-token';
 import { DeliverableDocuments } from './deliverable-documents';
+import { ProjectTaskManager } from './project-task-manager';
 
 const statuses = {
   planned: 'To produce',
@@ -1079,6 +1080,10 @@ function Links({
   const { t } = useTranslation();
   const [taskId, setTaskId] = useState(item.primaryTaskId ?? '');
   const [newTaskTitle, setNewTaskTitle] = useState(item.title);
+  const [openTask, setOpenTask] = useState<{
+    id: string;
+    resourceId: string;
+  } | null>(null);
   const mainTasks = board.tasks.filter((task) => task.parentTaskId === null);
   const primaryTask = board.tasks.find(
     (task) => task.id === item.primaryTaskId,
@@ -1177,36 +1182,55 @@ function Links({
           )}
           {primaryTask && (
             <div className="rounded-lg border p-3 text-sm">
-              <a
-                className="font-medium underline"
-                href={withBasePath(
-                  `/projects/${encodeURIComponent(base.split('/')[1])}/resources/${encodeURIComponent(primaryTask.resourceId)}?task=${encodeURIComponent(primaryTask.id)}`,
-                )}
+              <button
+                type="button"
+                className="block w-full rounded text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() =>
+                  setOpenTask({
+                    id: primaryTask.id,
+                    resourceId: primaryTask.resourceId,
+                  })
+                }
               >
-                {primaryTask.title}
-              </a>
-              <p className="mt-1 text-muted-foreground">
-                {primaryTask.status} · {primaryTask.progress}% ·{' '}
-                {primaryTask.assigneeName ?? t('unassigned')}
-              </p>
+                <span className="font-medium underline">
+                  {primaryTask.title}
+                </span>
+                <span className="mt-1 block text-muted-foreground">
+                  {primaryTask.status} · {primaryTask.progress}% ·{' '}
+                  {primaryTask.assigneeName ?? t('unassigned')}
+                </span>
+              </button>
               {subtasks.length > 0 && (
                 <ul className="mt-3 space-y-1 border-t pt-2">
                   {subtasks.map((task) => (
                     <li key={task.id}>
-                      <a
+                      <button
+                        type="button"
                         className="underline"
-                        href={withBasePath(
-                          `/projects/${encodeURIComponent(base.split('/')[1])}/resources/${encodeURIComponent(task.resourceId)}?task=${encodeURIComponent(task.id)}`,
-                        )}
+                        onClick={() =>
+                          setOpenTask({
+                            id: task.id,
+                            resourceId: task.resourceId,
+                          })
+                        }
                       >
                         {task.title}
-                      </a>{' '}
+                      </button>{' '}
                       · {task.progress}%
                     </li>
                   ))}
                 </ul>
               )}
             </div>
+          )}
+          {openTask && (
+            <ProjectTaskManager
+              projectId={base.split('/')[1]}
+              resourceId={openTask.resourceId}
+              initialTaskId={openTask.id}
+              modalOnly
+              onModalClose={() => setOpenTask(null)}
+            />
           )}
         </div>
         <div className="space-y-2">
