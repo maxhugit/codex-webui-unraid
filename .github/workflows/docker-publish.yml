@@ -103,13 +103,22 @@ jobs:
         env:
           IMAGE_REF: ${{ steps.candidate.outputs.tags }}
         run: |
-          trivy image --cache-dir .cache/trivy --skip-db-update --scanners vuln --severity HIGH,CRITICAL --vex security/linux-libc-dev.openvex.json --format json --output trivy-results.json "$IMAGE_REF"
-          python3 scripts/audit-linux-header-vex.py trivy-results.raw.json trivy-results.json security/linux-libc-dev.openvex.json
+          trivy image --cache-dir .cache/trivy --skip-db-update --scanners vuln --severity HIGH,CRITICAL --vex security/linux-libc-dev.openvex.json --format json --output trivy-results.headers.json "$IMAGE_REF"
+          python3 scripts/audit-linux-header-vex.py trivy-results.raw.json trivy-results.headers.json security/linux-libc-dev.openvex.json
+
+      - name: Verify absent system implementations and retained client features
+        env:
+          IMAGE_REF: ${{ steps.candidate.outputs.tags }}
+        run: |
+          scripts/verify-system-components-image.sh "$IMAGE_REF" > system-component-evidence.json
+          python3 scripts/audit-system-component-vex.py prepare system-component-evidence.json image.openvex.json
+          trivy image --cache-dir .cache/trivy --skip-db-update --scanners vuln --severity HIGH,CRITICAL --vex image.openvex.json --format json --output trivy-results.json "$IMAGE_REF"
+          python3 scripts/audit-system-component-vex.py audit system-component-evidence.json trivy-results.headers.json trivy-results.json
 
       - name: Scan candidate for HIGH and CRITICAL vulnerabilities (SARIF)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         env:
-          TRIVY_VEX: security/linux-libc-dev.openvex.json
+          TRIVY_VEX: image.openvex.json
         with:
           version: v0.76.1
           image-ref: ${{ steps.candidate.outputs.tags }}
@@ -134,6 +143,11 @@ jobs:
           path: |
             trivy-results.json
             trivy-results.raw.json
+            trivy-results.headers.json
+            system-component-evidence.json
+            image.openvex.json
+            security/system-components.openvex.json
+            security/system-components-assessment.json
             linux-header-evidence.json
             security/linux-libc-dev.openvex.json
             security/linux-libc-dev-assessment.csv

@@ -1,0 +1,178 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/maxhugit/codex-webui-unraid/security/system-components-2026-10-22",
+  "author": "codex-webui-unraid maintainers",
+  "timestamp": "2026-10-22T21:58:02Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2026-24882"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/dirmngr@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The overflow is in tpm2daemon handling TPM-backed private-key operations. The reviewed image ships ordinary GnuPG tools but no tpm2daemon package or executable. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-24882"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/gnupg@2.4.7-21%2Bdeb13u1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The overflow is in tpm2daemon handling TPM-backed private-key operations. The reviewed image ships ordinary GnuPG tools but no tpm2daemon package or executable. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-24882"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/gnupg-l10n@2.4.7-21%2Bdeb13u1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The overflow is in tpm2daemon handling TPM-backed private-key operations. The reviewed image ships ordinary GnuPG tools but no tpm2daemon package or executable. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-24882"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/gpg@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The overflow is in tpm2daemon handling TPM-backed private-key operations. The reviewed image ships ordinary GnuPG tools but no tpm2daemon package or executable. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-24882"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/gpg-agent@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The overflow is in tpm2daemon handling TPM-backed private-key operations. The reviewed image ships ordinary GnuPG tools but no tpm2daemon package or executable. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-24882"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/gpgconf@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The overflow is in tpm2daemon handling TPM-backed private-key operations. The reviewed image ships ordinary GnuPG tools but no tpm2daemon package or executable. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-24882"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/gpgsm@2.4.7-21%2Bdeb13u1%2Bb5?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The overflow is in tpm2daemon handling TPM-backed private-key operations. The reviewed image ships ordinary GnuPG tools but no tpm2daemon package or executable. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-16742"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/libsystemd0@257.13-1~deb13u1?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The vulnerable homed authentication implementation is not in libsystemd0 or libudev1. Neither systemd-homed nor systemd-homework is shipped in the reviewed image. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-16742"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/libudev1@257.13-1~deb13u1?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The vulnerable homed authentication implementation is not in libsystemd0 or libudev1. Neither systemd-homed nor systemd-homework is shipped in the reviewed image. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-106553"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Failed GSSAPI credential persistence is in sshd. The reviewed image contains openssh-client, without the SSH server implementation. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-106555"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "GSSAPI authentication state persistence is in sshd. The reviewed image contains openssh-client, without the SSH server implementation. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-59999"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The forwarding-option precedence bug is in sshd. The reviewed image contains openssh-client, without the SSH server implementation. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-60000"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The excessive GSSAPI authentication attempts bug is in sshd. The reviewed image contains openssh-client, without the SSH server implementation. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
+    }
+  ]
+}
