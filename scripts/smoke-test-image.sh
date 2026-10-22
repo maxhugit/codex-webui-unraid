@@ -16,6 +16,11 @@ show_failure() {
 
 trap cleanup EXIT
 
+if ! docker image inspect "${image_ref}" >/dev/null 2>&1; then
+  echo "Candidate image is not available locally; pulling ${image_ref}."
+  docker pull "${image_ref}"
+fi
+
 image_size_bytes="$(docker image inspect --format '{{.Size}}' "${image_ref}")"
 echo "Candidate image size: ${image_size_bytes} bytes."
 
