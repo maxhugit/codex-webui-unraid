@@ -46,6 +46,7 @@ jobs:
       - name: Validate repository content
         run: |
           python3 scripts/check-no-chinese.py
+          python3 scripts/check-markdown-links.py
           python3 -m unittest discover -s scripts -p 'test_*vex.py'
 
       - name: Validate translation catalogs

@@ -129,10 +129,10 @@ caches cannot supply that guarantee.
 Namespace: `/ws`. Sockets join the internal authenticated room only after token
 authentication succeeds. Thread-room membership is not required for either event.
 
-| Event | Payload | Consumer action |
-|---|---|---|
-| `conversation.overview.changed` | `{ "generation": number }` | Invalidate the displayed overview query variants. |
-| `conversation.pending.changed` | `{ "generation": number }` | Re-read and reconcile the global pending-request set. |
+| Event                           | Payload                    | Consumer action                                       |
+| ------------------------------- | -------------------------- | ----------------------------------------------------- |
+| `conversation.overview.changed` | `{ "generation": number }` | Invalidate the displayed overview query variants.     |
+| `conversation.pending.changed`  | `{ "generation": number }` | Re-read and reconcile the global pending-request set. |
 
 Both are invalidation hints, never snapshots, transcript events, or replay
 cursors. Generation is scoped to one backend lifetime. Fetch baselines on every
@@ -170,9 +170,9 @@ preceding item event. The pinned `file-approval-context` probe found the pending
 item absent from history despite other readable items, so opening history cannot
 replace this context. Retention follows live items and pending requests only;
 backend startup already expires old requests and needs no subject migration.
-See [approval.md](approval.md#global-attention-contract) for exact payloads and
-browser reconciliation obligations. Receiving attention never acquires a
-transcript subscription or triggers session reattachment.
+See [Approval payload preservation](thread-policy-recovery.md#approval-payload-preservation)
+for the payload contract. Receiving attention never acquires a transcript
+subscription or triggers session reattachment.
 
 ## Browser restore
 
@@ -182,11 +182,11 @@ it now shares item/lifecycle repair with `thread-restore.ts` and re-reads the
 backend's recorded token usage, turn diffs and errors. There is no remaining
 bulk page-load restoration call and no unused `pageLoad` reason.
 
-| Entry | Reads |
-|---|---|
-| Route open / page load | Resume/open snapshot, policy, item/lifecycle repair, recorded auxiliary data, goal and collaboration-mode queries |
-| `appServerRestart` | For viewed threads the backend successfully reattached: `recordActive:false` resume/open, then the same applier |
-| `reconnect` | Passive metadata/history/items, policy and recorded auxiliary data; refresh viewed goal/mode queries; no upstream resume |
+| Entry                  | Reads                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Route open / page load | Resume/open snapshot, policy, item/lifecycle repair, recorded auxiliary data, goal and collaboration-mode queries        |
+| `appServerRestart`     | For viewed threads the backend successfully reattached: `recordActive:false` resume/open, then the same applier          |
+| `reconnect`            | Passive metadata/history/items, policy and recorded auxiliary data; refresh viewed goal/mode queries; no upstream resume |
 
 Initial HTTP hydration and Socket.IO joining are independent. The transcript
 keeps a cold loading gate until full history and target geometry are settled; an acknowledged join is followed by

@@ -25,6 +25,11 @@ La création d'un projet inscrit son créateur parmi les participants. L'exécut
 Codex, le terminal, les automatismes et la planification IA restent réservés aux
 administrateurs, y compris les appels indirects du chat simple avec backend Codex.
 
+Le chef de projet et les groupes configurés dans un projet sont des informations
+d’organisation. Ils n’accordent aucun privilège et ne réduisent pas le périmètre
+des participants. Leur fonctionnement est détaillé dans
+[Organisation des personnes](organisation-personnes-projets.md).
+
 ## Conversations historiques
 
 La migration `0033_project_authorization` ajoute une table de propriétaires et une

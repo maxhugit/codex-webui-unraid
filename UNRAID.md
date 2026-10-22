@@ -8,6 +8,16 @@ l'onglet **Docker** d'Unraid, utiliser les trois formulaires de
 La définition [`deployment/compose.unraid.yml`](deployment/compose.unraid.yml)
 reste disponible comme variante pour Compose Manager.
 
+Avant une nouvelle installation ou un changement de méthode, consulter le
+[comparatif DockerMan / Compose Manager](docs/choisir-mode-installation.md). Les
+deux modes utilisent les mêmes données mais ne doivent pas fonctionner en même
+temps.
+
+| Mode            | À privilégier pour                                                           | Point d’attention                                                                                   |
+| --------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| DockerMan       | intégration native à l’onglet Docker et mises à jour conteneur par conteneur | le réconciliateur rattache les réseaux secondaires et doit être relancé après un redémarrage Unraid |
+| Compose Manager | gestion déclarative et mise à jour des trois services comme une stack        | les changements doivent être reportés dans `docker-compose.yml` ou `images.env`                     |
+
 ## Emplacements recommandés
 
 ```text
@@ -36,6 +46,10 @@ sans toucher aux données persistantes de `state`.
 Les trois conteneurs restent nécessaires : Nginx porte l'authentification et le
 routage entrant, tandis que Squid contrôle les accès Internet sortants.
 
+Dans ce mode, le formulaire de chaque conteneur est sa configuration de référence.
+Mettre à jour `codex-webui` ne recrée pas automatiquement Nginx ou Squid. Leurs
+images sont vérifiées et mises à jour séparément depuis l’onglet **Docker**.
+
 DockerMan recrée un conteneur avec un seul réseau de démarrage. Le
 réconciliateur lancé depuis l'Appdata rétablit automatiquement les réseaux
 secondaires après une mise à jour, sans modifier la clé USB. Il doit être
@@ -43,6 +57,10 @@ relancé après un redémarrage complet d'Unraid. Compose Manager gère nativeme
 ces réseaux et ne nécessite pas ce processus complémentaire.
 
 ## Variante Compose Manager
+
+Dans ce mode, `docker-compose.yml` décrit la topologie et `images.env` choisit
+les images et les chemins de l’hôte. Modifier directement un conteneur créé par
+Compose sans reporter le changement dans ces fichiers n’est pas durable.
 
 ### Commandes d'exploitation
 

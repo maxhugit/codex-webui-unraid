@@ -12,7 +12,13 @@ Décrire le problème et le résultat obtenu.
 - [ ] validation de `deployment/compose.unraid.yml`
 - [ ] compilation TypeScript
 - [ ] tests concernés
-- [ ] documentation française mise à jour
+- [ ] documentation française mise à jour, ou absence d’impact expliquée
+- [ ] migrations et changements de droits décrits lorsqu’ils existent
+
+## Documentation
+
+Lister les guides modifiés, ou expliquer pourquoi cette pull request ne change
+ni le comportement utilisateur, ni l’exploitation, ni les données persistantes.
 
 ## Sécurité
 

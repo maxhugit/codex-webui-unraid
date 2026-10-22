@@ -37,15 +37,15 @@ identity or the remembered desktop width. The left navigation is unchanged.
 
 ## State ownership
 
-| Owner | Lifetime and responsibility |
-| --- | --- |
-| `workspace-store` | In-memory per-conversation tab order, active view, editor view state and one-shot reveal requests; reset on reload |
-| `layout-store` | Persisted explorer collapse state and preferred width, alongside existing navigation preferences |
-| `document-store` | Shared text model, saved content/revision pair, dirty/conflict/save state for an absolute file |
-| `terminal-store` | Shared metadata, typed operations, creation-free discovery and presented-only recovery |
-| `terminal-view-store` / `TerminalHost` | Local retained attachments and the currently visible presentation rectangle |
-| `timeline-store` and its action modules | Conversation-scoped history, opening, submission, execution and pending decisions |
-| `transcript-anchor` | In-memory reading bookmarks independent of runtime-cache eviction |
+| Owner                                   | Lifetime and responsibility                                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `workspace-store`                       | In-memory per-conversation tab order, active view, editor view state and one-shot reveal requests; reset on reload |
+| `layout-store`                          | Persisted explorer collapse state and preferred width, alongside existing navigation preferences                   |
+| `document-store`                        | Shared text model, saved content/revision pair, dirty/conflict/save state for an absolute file                     |
+| `terminal-store`                        | Shared metadata, typed operations, creation-free discovery and presented-only recovery                             |
+| `terminal-view-store` / `TerminalHost`  | Local retained attachments and the currently visible presentation rectangle                                        |
+| `timeline-store` and its action modules | Conversation-scoped history, opening, submission, execution and pending decisions                                  |
+| `transcript-anchor`                     | In-memory reading bookmarks independent of runtime-cache eviction                                                  |
 
 Opening a file resolves its path in the originating conversation. Changing the
 working directory changes future opens and the tree; existing absolute file
@@ -86,7 +86,7 @@ Turns the pages did not cover are read individually, four at a time, on two
 different footings. A turn holding an unterminated item or plan fragment — or the
 one believed to be running — is visibly wrong until repaired, so it blocks the
 reveal and its failure is reported as an incomplete recovery. A retained
-*completed* turn is only swept for late sub-agent items, which attach after their
+_completed_ turn is only swept for late sub-agent items, which attach after their
 parent's `turn/completed`; nothing marks such a turn as swept, so an unbounded
 sweep would be re-issued in full on every reconnect and would grow with every
 page the reader loads. That sweep is therefore capped at eight
@@ -123,7 +123,7 @@ rows dissolve as they pass under it rather than cutting against its edge or
 surfacing in the gutters beside it. The mask ramp begins exactly where
 `paddingEnd` already reserves the composer band, so a transcript resting at the
 end is never faded. Rationale for not using a blurred pane instead is in
-[frontend-ui.md](frontend-ui.md).
+the stable opaque-surface design described above.
 
 The pinned virtualizer uses `anchorTo: 'end'` with `followOnAppend: false`.
 Indexed follow targets are prohibited: appends use one fixed `scrollToOffset`.
@@ -179,7 +179,7 @@ engines: the width cache is invalidated, so every unmounted row drops back to
 its estimate; the point is restored exactly and the next pass legitimately
 reads zero; then the rows above it mount and measure taller and the point moves
 ~950px. Releasing on that first zero re-anchored to a half-converged position
-and then corrected *towards* it, walking the reader away from the sentence that
+and then corrected _towards_ it, walking the reader away from the sentence that
 had just been put back. At most six geometry checks participate, counting zero
 samples as well as correction writes. Missing geometry is not a zero sample;
 unreachable offsets accept clamping and release. Input, hiding and explicit
@@ -189,13 +189,13 @@ are a settling heuristic, not proof against future layout changes: a delayed
 asset after release starts a new batch from the last settled reading point.
 
 The width invalidation itself is a known deviation: the agreed design says to
-invalidate the *affected* heights, and the pinned virtualizer exposes only
+invalidate the _affected_ heights, and the pinned virtualizer exposes only
 `measure()`, which clears the whole cache. The transaction surviving across
 passes compensates for that; it does not remove it.
 
 ## Terminals and verification
 
-Logical terminal identity and tab position survive replacement of the physical PTY. Only the presented terminal in a visible browser page requests replacement; hidden lost terminals stay lost until selected. The backend enforces three automatic attempts per identity in a rolling 24 hours, persisted across restart. A visible limit message offers manual recovery without resetting that budget. Replacement displays a persistent shell/cwd notice and the most recent previous shell's local output in a separate read-only section; disconnected input is discarded. See [terminal.md](terminal.md) for durable close ordering and directory precedence.
+Logical terminal identity and tab position survive replacement of the physical PTY. Only the presented terminal in a visible browser page requests replacement; hidden lost terminals stay lost until selected. The backend enforces three automatic attempts per identity in a rolling 24 hours, persisted across restart. A visible limit message offers manual recovery without resetting that budget. Replacement displays a persistent shell/cwd notice and the most recent previous shell's local output in a separate read-only section; disconnected input is discarded. The backend terminal service owns durable close ordering and directory precedence.
 
 Terminal instances live in `TerminalHost`, beyond route and sibling-tab lifetimes.
 Inactive instances stay mounted, attached and receiving output. Only a visibly
@@ -215,7 +215,7 @@ preference alone on an unmoved click; and the view selector holding one row and
 one tab stop, `inert` actually blocking pointers and focus, and a portalled
 dialog leaving the document when its surface deactivates. Because
 `visibility: hidden` alone already refuses focus and hit testing, the `inert`
-case asserts it on a *visible* panel and then removes it as a positive control.
+case asserts it on a _visible_ panel and then removes it as a positive control.
 Assertions name the reading point, not `scrollTop`: when a browser navigates to
 a sentence and rows above it then measure taller than their estimates, holding
 that sentence still is precisely what moves the offset, so an offset assertion
@@ -232,7 +232,6 @@ engine: `getBoundingClientRect` returns zeros, `Range.getClientRects` returns
 nothing, and `ResizeObserver` is a stub, so every claim in this section about
 positions and measurement is unverifiable there. A browser launch failure means
 layout behavior has not been verified; unit tests are not a substitute.
-
 
 ## File identity and recovery
 

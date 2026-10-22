@@ -9,17 +9,42 @@ Les tableaux de tâches restent multiples.
 
 ## Fiches et conversations
 
-Une fiche contient un titre, une description, des critères de validation, une
-échéance, un responsable choisi parmi les participants actifs et un état :
-à produire, en cours, à valider ou validé. La validation nécessite une version
+Une fiche contient un titre, une description, des critères de validation et un
+état : à produire, en cours, à valider ou validé. Elle peut être rattachée à une
+tâche principale du projet. Cette tâche pilote le responsable, l’échéance et
+l’avancement affichés sur le livrable. La validation nécessite une version
 soumise : elle ne peut pas être obtenue en modifiant simplement l’état.
 
-Les tâches et conversations du projet peuvent être associées à la fiche.
+L’onglet **Liens** permet de sélectionner une tâche principale existante ou d’en
+créer une dans le premier gestionnaire de tâches disponible. Seules les tâches
+principales du projet peuvent remplir ce rôle. La fiche affiche cette tâche et
+ses sous-tâches ; un clic ouvre la tâche dans une fenêtre de détail sans quitter
+le livrable. D’autres tâches et conversations du projet peuvent aussi rester
+associées à la fiche.
+
 À chaque message suivant dans une conversation liée, le modèle reçoit le brief,
 les critères et le dossier de travail, en complément des connaissances partagées.
 Le bouton **Travailler sur ce livrable**, réservé aux administrateurs comme les
 autres exécutions serveur, crée et ouvre une conversation Codex liée. L’utilisateur
-envoie ensuite son message pour lancer le travail.
+envoie ensuite son message pour lancer le travail. La nouvelle conversation
+reprend la sélection de connecteurs MCP et d’applications Codex du projet.
+
+## Interface du gestionnaire
+
+La liste présente pour chaque livrable le nombre de documents, son état de
+production, sa validation, le responsable hérité de la tâche principale et sa
+dernière modification. La fiche détaillée est organisée en cinq onglets :
+
+- **Aperçu** : description, critères, état et synthèse ;
+- **Documents** : ajout, remplacement, aperçu, téléchargement, suppression
+  logique, restauration et historique propre à chaque document ;
+- **Validation** : préparation des fichiers, soumission et décision sur une
+  version ;
+- **Historique** : versions soumises et transitions du cycle de vie ;
+- **Liens** : tâche principale, sous-tâches et conversations associées.
+
+La séparation entre **Validation** et **Historique** évite de mélanger les
+actions en attente avec la consultation des décisions passées.
 
 ## Fichiers et versions
 
@@ -77,7 +102,10 @@ en regroupant les entrées portant le même chemin source, sans supprimer les
 données historiques. La migration 0040 ajoute le cycle de vie, ses événements et
 les instantanés de finalisation. Les anciens livrables validés deviennent
 finalisés avec un instantané de migration ; les autres sont convertis en
-brouillon ou en constitution selon leur état antérieur. Aucun gestionnaire de
-livrables n’est créé automatiquement.
+brouillon ou en constitution selon leur état antérieur. La migration 0041 ajoute
+la tâche principale et reprend comme tâche principale le premier lien historique
+lorsqu’il désigne une tâche principale valide du même projet. Aucun gestionnaire
+de livrables n’est créé automatiquement.
+
 Sauvegarder ensemble la base SQLite et le workspace principal, y compris
 `.webui/history`, pour conserver métadonnées, copies et version de référence.

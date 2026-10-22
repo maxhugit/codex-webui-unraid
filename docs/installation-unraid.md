@@ -5,6 +5,12 @@
 > [procédure DockerMan](installation-unraid-dockerman.md), désormais
 > recommandée.
 
+Lire le [comparatif des deux modes](choisir-mode-installation.md) avant de
+choisir cette variante. Avec Compose Manager, `docker-compose.yml` et
+`images.env` sont la source de vérité : volumes, réseaux, limites, options de
+sécurité et versions d’images doivent y être modifiés, puis appliqués avec
+**Update Stack**.
+
 Ce guide permet de reconstruire les trois conteneurs sans placer de secret dans
 Git. Il part d’un Unraid sur lequel Docker fonctionne. Traefik, Authentik,
 OnlyOffice et HA-MCP sont des services externes : les étapes ci-dessous indiquent
@@ -159,6 +165,10 @@ L’action met à jour automatiquement l’application, Nginx et Squid. Compose
 respecte les contrôles de santé et ne démarre l’entrée Nginx qu’après
 l’application principale.
 
+Compose attache directement chaque service à tous ses réseaux déclarés. Ne pas
+lancer le réconciliateur DockerMan pour cette stack et ne pas recréer l’un des
+trois conteneurs avec **Add Container**.
+
 ## 5. Configurer Traefik
 
 Copier `deployment/traefik/codex.yml` dans le dossier dynamique de Traefik. Le
@@ -257,3 +267,30 @@ Liste de validation finale :
 Avant une mise à jour, noter le tag `sha-...` actif et sauvegarder `$STATE/home`.
 Tester la nouvelle image, puis revenir au précédent tag dans `.env` en cas de
 problème. Ne pas supprimer l’ancien tag avant validation fonctionnelle.
+
+Procédure de mise à jour reproductible :
+
+1. sauvegarder `state/home` et relever `CODEX_APP_IMAGE` ;
+2. exécuter `docker compose ... config` pour valider les fichiers ;
+3. définir le nouveau tag `sha-<commit>` dans `images.env` ;
+4. utiliser **Update Stack**, ou exécuter `pull` puis `up -d` ;
+5. contrôler l’état des trois conteneurs et les réseaux ;
+6. effectuer les tests fonctionnels de la section précédente.
+
+Pour revenir en arrière, remettre l’ancien tag dans `images.env`, relancer la
+stack et restaurer `state/home` uniquement si la migration de données impose ce
+retour. Les volumes et secrets ne sont jamais stockés dans l’image.
+
+## 11. Source de vérité et maintenance
+
+Conserver dans l’Appdata :
+
+- `docker-compose.yml` ;
+- `images.env` avec des permissions adaptées ;
+- le dossier `config/` ;
+- le dossier `state/` sauvegardé selon sa sensibilité.
+
+Lorsqu’une nouvelle version du dépôt modifie `deployment/compose.unraid.yml` ou
+`deployment/config/`, comparer ces fichiers avec les copies de production avant
+la mise à jour. Un simple changement de tag d’image ne met pas à jour les fichiers
+Compose, Nginx, Squid ou seccomp déjà copiés dans l’Appdata.

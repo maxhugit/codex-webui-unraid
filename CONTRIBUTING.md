@@ -35,6 +35,25 @@ pnpm test
 cd web && pnpm test
 ```
 
+## Impact documentaire
+
+Toute évolution visible dans l’interface, nouvelle route, migration de données,
+modification de droits ou changement d’exploitation doit être répercuté dans le
+manuel français au cours de la même pull request.
+
+Vérifier au minimum :
+
+- `README.md` lorsque les fonctions principales ou l’architecture changent ;
+- `docs/README.md` lorsqu’un guide est créé, renommé ou supprimé ;
+- le guide fonctionnel concerné pour les écrans, règles métier et migrations ;
+- `SECURITY.md` et les évaluations de `security/` pour les changements de
+  sécurité ou de dépendances système ;
+- les guides d’installation et d’exploitation pour les changements de
+  conteneurs, variables, volumes, réseaux ou procédures Unraid.
+
+Si aucun document n’est modifié, la description de la pull request doit indiquer
+pourquoi le changement est sans impact utilisateur, administrateur ou migration.
+
 ## Déploiement
 
 Une fusion dans `main` construit l’image GHCR. Tester de préférence le tag
