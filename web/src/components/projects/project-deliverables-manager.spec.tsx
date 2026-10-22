@@ -31,6 +31,7 @@ const item: Deliverable = {
   finalizedAt: null,
   finalizedByPersonId: null,
   finalizedByName: null,
+  primaryTaskId: null,
   taskIds: [],
   conversations: [],
   version: 3,
@@ -47,6 +48,7 @@ const board = {
   resource: { name: 'Deliverables' },
   deliverables: [item],
   assignees: [],
+  taskManagers: [],
   tasks: [],
   conversations: [],
 };
@@ -56,9 +58,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 async function setup(data = board) {
-  api.mockImplementation((_path, input) =>
-    Promise.resolve(input ? {} : data),
-  );
+  api.mockImplementation((_path, input) => Promise.resolve(input ? {} : data));
   render(
     <QueryClientProvider
       client={
@@ -94,7 +94,7 @@ it('saves the brief with its revision and cannot manually select validated', asy
     ),
   );
   const request = api.mock.calls.find(
-    (call) => call[1]?.method === 'PATCH',
+    (call) => (call[1] as RequestInit | undefined)?.method === 'PATCH',
   )?.[1] as RequestInit;
   expect(JSON.parse(request.body as string)).toMatchObject({
     criteria: 'Checked by owner',
@@ -115,7 +115,7 @@ it('submits file paths as a proposed version without validating automatically', 
     ),
   );
   const request = api.mock.calls.find(
-    (call) => call[1]?.method === 'POST',
+    (call) => (call[1] as RequestInit | undefined)?.method === 'POST',
   )?.[1] as RequestInit;
   expect(JSON.parse(request.body as string)).toEqual({
     paths: ['/workspaces/p/report.pdf', '/workspaces/p/data.csv'],
@@ -165,9 +165,7 @@ it('changes the lifecycle only through an explicit transition action', async () 
 });
 it('renames a deliverable from its header', async () => {
   await setup();
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Rename deliverable' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Rename deliverable' }));
   fireEvent.change(screen.getByLabelText('Deliverable name'), {
     target: { value: 'Architecture package' },
   });
@@ -176,6 +174,36 @@ it('renames a deliverable from its header', async () => {
     expect(api).toHaveBeenCalledWith('/p/resources/r/deliverables/d', {
       method: 'PATCH',
       body: JSON.stringify({ title: 'Architecture package', version: 3 }),
+    }),
+  );
+});
+it('associates exactly one primary task', async () => {
+  await setup({
+    ...board,
+    taskManagers: [{ id: 'tm', name: 'Tasks' }],
+    tasks: [
+      {
+        id: 'task',
+        title: 'Prepare report',
+        resourceId: 'tm',
+        parentTaskId: null,
+        status: 'To do',
+        progress: 20,
+        dueAt: null,
+        assigneeId: null,
+        assigneeName: null,
+      },
+    ],
+  });
+  fireEvent.click(screen.getByRole('tab', { name: 'Tasks and conversations' }));
+  fireEvent.change(screen.getByLabelText('Primary task'), {
+    target: { value: 'task' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Associate' }));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith('/p/resources/r/deliverables/d', {
+      method: 'PATCH',
+      body: JSON.stringify({ primaryTaskId: 'task', version: 3 }),
     }),
   );
 });

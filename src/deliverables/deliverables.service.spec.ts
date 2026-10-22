@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { eq } from 'drizzle-orm';
 import {
   createTestDatabase,
   type TestDatabase,
@@ -11,6 +12,8 @@ import {
   projectResources,
   projectWorkspaces,
   projectAgentThreads,
+  projectTasks,
+  projectTaskStatuses,
 } from '../database/schema';
 import { DeliverablesService } from './deliverables.service';
 import { FilesService } from '../files/files.service';
@@ -78,6 +81,65 @@ describe('project deliverables', () => {
       files,
       new IdentityService(database.db),
     );
+  });
+  it('associates one main task from the project and clears it when the task is deleted', async () => {
+    const now = Date.now();
+    database.db
+      .insert(projectResources)
+      .values({
+        id: 'tasks',
+        projectId: 'p',
+        name: 'Tasks',
+        type: 'task_board',
+        config: {},
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectTaskStatuses)
+      .values({
+        id: 'todo',
+        resourceId: 'tasks',
+        name: 'To do',
+        color: 'slate',
+        kind: 'unassigned',
+        position: 0,
+        system: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectTasks)
+      .values({
+        id: 'main-task',
+        resourceId: 'tasks',
+        statusId: 'todo',
+        title: 'Main task',
+        position: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    const item = await service.create('p', 'r', {
+      title: 'Linked',
+      primaryTaskId: 'main-task',
+    });
+    expect(item.primaryTaskId).toBe('main-task');
+    expect(service.board('p', 'r').tasks[0]).toMatchObject({
+      id: 'main-task',
+      status: 'To do',
+      parentTaskId: null,
+    });
+    expect(service.board('p', 'r').taskManagers).toEqual([
+      { id: 'tasks', name: 'Tasks' },
+    ]);
+    database.db
+      .delete(projectTasks)
+      .where(eq(projectTasks.id, 'main-task'))
+      .run();
+    expect(service.get('p', 'r', item.id).primaryTaskId).toBeNull();
   });
   afterEach(async () => {
     database.sqlite.close();

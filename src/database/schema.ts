@@ -626,6 +626,9 @@ export const projectDeliverables = sqliteTable(
       { onDelete: 'set null' },
     ),
     finalizedByName: text('finalized_by_name'),
+    primaryTaskId: text('primary_task_id').references(() => projectTasks.id, {
+      onDelete: 'set null',
+    }),
     taskIds: text('task_ids', { mode: 'json' })
       .$type<string[]>()
       .notNull()

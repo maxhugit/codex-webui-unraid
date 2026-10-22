@@ -25,6 +25,7 @@ import {
   projectParticipants,
   people,
   projectTasks,
+  projectTaskStatuses,
   projectAgentThreads,
   simpleChatThreads,
   type DeliverableFile,
@@ -47,6 +48,7 @@ export interface DeliverableInput {
   dueAt?: number | null;
   status?: string;
   taskIds?: string[];
+  primaryTaskId?: string | null;
   conversations?: Array<{ type: 'agent' | 'simple'; id: string }>;
   version?: number;
 }
@@ -223,17 +225,38 @@ export class DeliverablesService {
           ),
         )
         .all(),
+      taskManagers: this.db
+        .select({ id: projectResources.id, name: projectResources.name })
+        .from(projectResources)
+        .where(
+          and(
+            eq(projectResources.projectId, projectId),
+            eq(projectResources.type, 'task_board'),
+          ),
+        )
+        .all(),
       tasks: this.db
         .select({
           id: projectTasks.id,
           title: projectTasks.title,
           resourceId: projectTasks.resourceId,
+          parentTaskId: projectTasks.parentTaskId,
+          status: projectTaskStatuses.name,
+          progress: projectTasks.progress,
+          dueAt: projectTasks.dueAt,
+          assigneeId: projectTasks.assigneeId,
+          assigneeName: people.name,
         })
         .from(projectTasks)
         .innerJoin(
           projectResources,
           eq(projectTasks.resourceId, projectResources.id),
         )
+        .innerJoin(
+          projectTaskStatuses,
+          eq(projectTasks.statusId, projectTaskStatuses.id),
+        )
+        .leftJoin(people, eq(projectTasks.assigneeId, people.id))
         .where(eq(projectResources.projectId, projectId))
         .all(),
       conversations: [
@@ -395,6 +418,10 @@ export class DeliverablesService {
         'Validate a submitted version to validate a deliverable',
       );
     const taskIds = input.taskIds ?? current?.taskIds ?? [];
+    const primaryTaskId =
+      input.primaryTaskId === undefined
+        ? (current?.primaryTaskId ?? null)
+        : input.primaryTaskId || null;
     const conversations = input.conversations ?? current?.conversations ?? [];
     if (
       !Array.isArray(taskIds) ||
@@ -407,6 +434,15 @@ export class DeliverablesService {
       )
     )
       throw new BadRequestException('Tasks must belong to this project');
+    if (
+      primaryTaskId &&
+      !options.tasks.some(
+        (task) => task.id === primaryTaskId && task.parentTaskId === null,
+      )
+    )
+      throw new BadRequestException(
+        'Primary task must be a main task in this project',
+      );
     if (
       !Array.isArray(conversations) ||
       conversations.length > 100 ||
@@ -443,6 +479,7 @@ export class DeliverablesService {
       dueAt,
       status,
       taskIds: [...new Set(taskIds)],
+      primaryTaskId,
       conversations,
     };
   }
