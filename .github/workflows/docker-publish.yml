@@ -85,6 +85,7 @@ jobs:
       - name: Scan candidate for HIGH and CRITICAL vulnerabilities (JSON)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.76.1
           image-ref: ${{ steps.candidate.outputs.tags }}
           format: json
           output: trivy-results.json
@@ -96,6 +97,7 @@ jobs:
       - name: Scan candidate for HIGH and CRITICAL vulnerabilities (SARIF)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.76.1
           image-ref: ${{ steps.candidate.outputs.tags }}
           format: sarif
           output: trivy-results.sarif
