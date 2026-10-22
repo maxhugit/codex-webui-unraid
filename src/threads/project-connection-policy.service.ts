@@ -70,6 +70,10 @@ export class ProjectConnectionPolicyService {
     const directMcpConfig: JsonObject = {};
     const pluginConfig: JsonObject = {};
     for (const server of mcpServers) {
+      // codex_apps is the built-in connector catalog, not a configured MCP
+      // transport. Passing it through mcp_servers makes thread/start reject
+      // the complete configuration with "invalid transport".
+      if (server.name === 'codex_apps') continue;
       const enabled = selectedMcpServers.has(server.name);
       if (!server.pluginId) {
         directMcpConfig[server.name] = { enabled };
