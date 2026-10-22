@@ -29,7 +29,7 @@ import {
 } from '@/lib/remark-file-references';
 
 type HighlighterType = Awaited<
-  ReturnType<(typeof import('shiki'))['createHighlighter']>
+  ReturnType<(typeof import('shiki/core'))['createHighlighterCore']>
 >;
 
 let highlighterPromise: Promise<HighlighterType> | null = null;
@@ -39,29 +39,34 @@ let highlighterInstance: HighlighterType | null = null;
 function getHighlighter(): Promise<HighlighterType> {
   if (highlighterInstance) return Promise.resolve(highlighterInstance);
   if (!highlighterPromise) {
-    highlighterPromise = import('shiki').then(async ({ createHighlighter }) => {
-      const hl = await createHighlighter({
-        themes: ['github-dark', 'github-light'],
-        langs: [
-          'javascript',
-          'typescript',
-          'jsx',
-          'tsx',
-          'json',
-          'html',
-          'css',
-          'python',
-          'rust',
-          'go',
-          'bash',
-          'shell',
-          'sql',
-          'yaml',
-          'toml',
-          'markdown',
-          'diff',
-          'dockerfile',
-        ],
+    highlighterPromise = Promise.all([
+      import('shiki/core'),
+      import('shiki/engine/javascript'),
+      import('shiki/themes/github-dark.mjs'),
+      import('shiki/themes/github-light.mjs'),
+      import('shiki/langs/javascript.mjs'),
+      import('shiki/langs/typescript.mjs'),
+      import('shiki/langs/jsx.mjs'),
+      import('shiki/langs/tsx.mjs'),
+      import('shiki/langs/json.mjs'),
+      import('shiki/langs/html.mjs'),
+      import('shiki/langs/css.mjs'),
+      import('shiki/langs/python.mjs'),
+      import('shiki/langs/rust.mjs'),
+      import('shiki/langs/go.mjs'),
+      import('shiki/langs/bash.mjs'),
+      import('shiki/langs/shell.mjs'),
+      import('shiki/langs/sql.mjs'),
+      import('shiki/langs/yaml.mjs'),
+      import('shiki/langs/toml.mjs'),
+      import('shiki/langs/markdown.mjs'),
+      import('shiki/langs/diff.mjs'),
+      import('shiki/langs/dockerfile.mjs'),
+    ]).then(async ([core, engine, dark, light, ...languages]) => {
+      const hl = await core.createHighlighterCore({
+        engine: engine.createJavaScriptRegexEngine(),
+        themes: [dark.default, light.default],
+        langs: languages.map((language) => language.default),
       });
       highlighterInstance = hl;
       return hl;

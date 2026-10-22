@@ -4,7 +4,7 @@ import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
 import fr from '@/locales/fr/common.json';
-import sourceKeys from '@/locales/source-key-map.json';
+import { translationKey } from '@/locales/translation-key';
 import { loadLocaleResources } from '@/locales';
 import { FIELD_DEFS, GROUP_ORDER } from './codex-settings-defs';
 import { ConfigFieldEditor } from './codex-settings-fields';
@@ -44,12 +44,12 @@ describe('administration translations', () => {
     for (const text of [
       ...GROUP_ORDER,
       ...FIELD_DEFS.flatMap((field) =>
-        [field.label, field.description].filter(Boolean),
+        field.description ? [field.label, field.description] : [field.label],
       ),
       ...DYNAMIC_CODEX_LABELS,
     ]) {
-      const key = sourceKeys[text as keyof typeof sourceKeys] ?? text;
-      expect(fr, `Missing French translation: ${text}`).toHaveProperty(key!);
+      const key = translationKey(text);
+      expect(fr, `Missing French translation: ${text}`).toHaveProperty(key);
     }
   });
 
@@ -69,7 +69,7 @@ describe('administration translations', () => {
       'security.workspaceRoots',
     ]) {
       const label = settingLabel(key);
-      const translation = sourceKeys[label as keyof typeof sourceKeys] ?? label;
+      const translation = translationKey(label);
       expect(Object.hasOwn(fr, translation), key).toBe(true);
     }
   });

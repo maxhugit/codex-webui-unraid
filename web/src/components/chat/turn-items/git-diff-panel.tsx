@@ -35,7 +35,28 @@ interface GitDiffPanelProps {
 function loadHighlighter(): Promise<DiffViewHighlighter> {
   if (!highlighterPromise) {
     highlighterPromise = import('@git-diff-view/shiki')
-      .then(({ getDiffViewHighlighter }) => getDiffViewHighlighter())
+      .then(({ getDiffViewHighlighter }) =>
+        getDiffViewHighlighter([
+          'bash',
+          'c',
+          'cpp',
+          'css',
+          'diff',
+          'dockerfile',
+          'go',
+          'html',
+          'java',
+          'javascript',
+          'json',
+          'jsx',
+          'markdown',
+          'python',
+          'sql',
+          'tsx',
+          'typescript',
+          'xml',
+        ]),
+      )
       .then((highlighter) => {
         highlighter.setMaxLineToIgnoreSyntax(5000);
         return highlighter;
