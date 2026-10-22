@@ -273,6 +273,55 @@ it('creates an independent version from the current document file', async () => 
   });
 });
 
+it('opens a detailed document sheet with versions and information', async () => {
+  const document = {
+    id: 'doc',
+    deliverableId: 'd',
+    name: 'report.docx',
+    format: 'docx',
+    sourcePath: '/workspaces/p/livrables/d/report.docx',
+    currentVersionNumber: 2,
+    deletedAt: null,
+    createdAt: 1,
+    updatedAt: 2,
+    versions: [
+      {
+        id: 'dv2',
+        documentId: 'doc',
+        number: 2,
+        fileName: 'report.docx',
+        sourcePath: '/workspaces/p/livrables/d/report.docx',
+        snapshotPath: '/history/report.docx',
+        size: 2048,
+        sha256: 'document-hash',
+        authorPersonId: null,
+        authorName: 'Maxime',
+        comment: 'Reviewed version',
+        restoredFromVersionId: null,
+        createdAt: 2,
+      },
+    ],
+  };
+  await setup({
+    ...board,
+    deliverables: [{ ...item, documents: [document] }],
+  });
+  fireEvent.click(screen.getByRole('tab', { name: /Documents/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+  expect(screen.getByRole('dialog')).toHaveTextContent('Reviewed version');
+  expect(screen.getByRole('tab', { name: 'Versions' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  fireEvent.click(screen.getByRole('tab', { name: 'Information' }));
+  expect(screen.getByRole('dialog')).toHaveTextContent('2.0 KB');
+  expect(screen.getByRole('dialog')).toHaveTextContent('document-hash');
+  expect(screen.getByRole('dialog')).toHaveTextContent(
+    '/workspaces/p/livrables/d/report.docx',
+  );
+});
+
 it('uploads selected files before creating their document records', async () => {
   const fetchMock = vi.fn().mockResolvedValue({
     ok: true,
