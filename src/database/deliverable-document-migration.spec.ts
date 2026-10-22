@@ -7,7 +7,7 @@ describe('deliverable document migration', () => {
     const sqlite = new Database(':memory:');
     sqlite.pragma('foreign_keys = ON');
     const migrations = readMigrationFiles({ migrationsFolder: 'drizzle' });
-    for (const migration of migrations.slice(0, -2))
+    for (const migration of migrations.slice(0, -3))
       for (const statement of migration.sql) sqlite.exec(statement);
 
     sqlite
@@ -76,8 +76,8 @@ describe('deliverable document migration', () => {
       20,
     );
 
-    for (const statement of migrations.at(-2)!.sql) sqlite.exec(statement);
-    for (const statement of migrations.at(-1)!.sql) sqlite.exec(statement);
+    for (const migration of migrations.slice(-3))
+      for (const statement of migration.sql) sqlite.exec(statement);
 
     const documents = sqlite
       .prepare(
@@ -120,6 +120,43 @@ describe('deliverable document migration', () => {
       ]),
     );
     expect(sqlite.pragma('foreign_key_check')).toEqual([]);
+    sqlite.close();
+  });
+  it('backfills the first valid legacy main task as the primary task', () => {
+    const sqlite = new Database(':memory:');
+    sqlite.pragma('foreign_keys = ON');
+    const migrations = readMigrationFiles({ migrationsFolder: 'drizzle' });
+    for (const migration of migrations.slice(0, -1))
+      for (const statement of migration.sql) sqlite.exec(statement);
+    sqlite.exec(`
+      INSERT INTO projects (id, name, workspace_path, workspace_layout_version, mcp_server_ids, app_ids, sidebar_order, created_at, updated_at)
+      VALUES ('p', 'Project', '/project', 1, '[]', '[]', '[]', 1, 1);
+      INSERT INTO project_resources (id, project_id, type, name, config, created_at, updated_at)
+      VALUES ('dboard', 'p', 'deliverable_board', 'Deliverables', '{}', 1, 1),
+             ('tboard', 'p', 'task_board', 'Tasks', '{}', 1, 1);
+      INSERT INTO project_task_statuses (id, resource_id, name, color, kind, position, is_system, created_at, updated_at)
+      VALUES ('todo', 'tboard', 'To do', 'slate', 'unassigned', 0, 1, 1, 1);
+      INSERT INTO project_tasks (id, resource_id, status_id, title, position, created_at, updated_at)
+      VALUES ('task', 'tboard', 'todo', 'Main task', 0, 1, 1);
+      INSERT INTO project_deliverables (id, resource_id, title, task_ids, conversations, created_at, updated_at)
+      VALUES ('d', 'dboard', 'Package', '["task"]', '[]', 1, 1);
+    `);
+    for (const statement of migrations.at(-1)!.sql) sqlite.exec(statement);
+    expect(
+      sqlite
+        .prepare(
+          'SELECT primary_task_id FROM project_deliverables WHERE id = ?',
+        )
+        .get('d'),
+    ).toEqual({ primary_task_id: 'task' });
+    sqlite.prepare('DELETE FROM project_tasks WHERE id = ?').run('task');
+    expect(
+      sqlite
+        .prepare(
+          'SELECT primary_task_id FROM project_deliverables WHERE id = ?',
+        )
+        .get('d'),
+    ).toEqual({ primary_task_id: null });
     sqlite.close();
   });
 });

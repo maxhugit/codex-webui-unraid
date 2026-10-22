@@ -57,6 +57,7 @@ export interface Deliverable {
   finalizedByPersonId: string | null;
   finalizedByName: string | null;
   taskIds: string[];
+  primaryTaskId: string | null;
   conversations: Array<{ type: 'agent' | 'simple'; id: string }>;
   version: number;
   validatedVersionId: string | null;
@@ -93,6 +94,17 @@ export interface DeliverablesBoard {
   resource: ProjectResourceSummary;
   deliverables: Deliverable[];
   assignees: Array<{ id: string; name: string }>;
-  tasks: Array<{ id: string; title: string; resourceId: string }>;
+  taskManagers: Array<{ id: string; name: string }>;
+  tasks: Array<{
+    id: string;
+    title: string;
+    resourceId: string;
+    parentTaskId: string | null;
+    status: string;
+    progress: number;
+    dueAt: number | null;
+    assigneeId: string | null;
+    assigneeName: string | null;
+  }>;
   conversations: Array<{ type: 'agent' | 'simple'; id: string; title: string }>;
 }

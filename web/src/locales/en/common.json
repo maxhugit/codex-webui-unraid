@@ -1399,5 +1399,13 @@
   "lifecycleHistory": "Lifecycle history",
   "renameDeliverable": "Rename deliverable",
   "renameDeliverableDescription": "Choose the name displayed in the deliverables list and detail view.",
-  "deliverableName": "Deliverable name"
+  "deliverableName": "Deliverable name",
+  "planningInheritedFromPrimaryTask": "The responsible person, due date and progress are managed by the primary task.",
+  "onePrimaryTaskPerDeliverable": "Associate one main task. Planning and progress remain managed in the task manager.",
+  "primaryTask": "Primary task",
+  "noPrimaryTask": "No primary task",
+  "associate": "Associate",
+  "newTaskTitle": "New task title",
+  "createTask": "Create task",
+  "noTaskManagerAvailable": "Add a task manager to the project before associating a task."
 }

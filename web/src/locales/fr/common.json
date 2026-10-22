@@ -1399,5 +1399,13 @@
   "lifecycleHistory": "Historique du cycle de vie",
   "renameDeliverable": "Renommer le livrable",
   "renameDeliverableDescription": "Choisissez le nom affiché dans la liste et la fiche du livrable.",
-  "deliverableName": "Nom du livrable"
+  "deliverableName": "Nom du livrable",
+  "planningInheritedFromPrimaryTask": "Le responsable, l’échéance et l’avancement sont gérés par la tâche principale.",
+  "onePrimaryTaskPerDeliverable": "Associez une seule tâche principale. La planification et l’avancement restent gérés dans le gestionnaire de tâches.",
+  "primaryTask": "Tâche principale",
+  "noPrimaryTask": "Aucune tâche principale",
+  "associate": "Associer",
+  "newTaskTitle": "Titre de la nouvelle tâche",
+  "createTask": "Créer la tâche",
+  "noTaskManagerAvailable": "Ajoutez un gestionnaire de tâches au projet avant d’associer une tâche."
 }
