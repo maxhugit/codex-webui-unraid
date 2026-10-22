@@ -272,3 +272,38 @@ it('creates an independent version from the current document file', async () => 
     expectedVersion: 2,
   });
 });
+
+it('uploads selected files before creating their document records', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve({
+      files: [{ path: '/workspaces/p/livrables/d/brief.pdf' }],
+    }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+
+  await setup();
+  fireEvent.click(screen.getByRole('tab', { name: /Documents/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add a document' }));
+  fireEvent.change(screen.getByLabelText('Documents'), {
+    target: { files: [new File(['brief'], 'brief.pdf', { type: 'application/pdf' })] },
+  });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add a document' }).at(-1)!);
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith(
+      '/p/resources/r/deliverables/d/documents',
+      expect.objectContaining({ method: 'POST' }),
+    ),
+  );
+  const request = api.mock.calls.find((call) =>
+    String(call[0]).endsWith('/documents'),
+  )?.[1] as RequestInit;
+  expect(JSON.parse(request.body as string)).toEqual({
+    path: '/workspaces/p/livrables/d/brief.pdf',
+    comment: '',
+  });
+
+  vi.unstubAllGlobals();
+});
