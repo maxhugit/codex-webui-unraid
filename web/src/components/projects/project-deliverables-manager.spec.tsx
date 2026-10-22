@@ -8,7 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ProjectDeliverablesManager } from './project-deliverables-manager';
-import type { Deliverable } from '@/lib/deliverables-api';
+import type { Deliverable, DeliverablesBoard } from '@/lib/deliverables-api';
 const api = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/projects-api', () => ({ projectsApi: api }));
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }));
@@ -44,8 +44,16 @@ const item: Deliverable = {
   snapshots: [],
   lifecycleEvents: [],
 };
-const board = {
-  resource: { name: 'Deliverables' },
+const board: DeliverablesBoard = {
+  resource: {
+    id: 'r',
+    projectId: 'p',
+    type: 'deliverable_board',
+    name: 'Deliverables',
+    config: {},
+    createdAt: 1,
+    updatedAt: 1,
+  },
   deliverables: [item],
   assignees: [],
   taskManagers: [],
