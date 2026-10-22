@@ -12,7 +12,7 @@ concurrency:
 
 permissions:
   contents: read
-  packages: read
+  packages: write
 
 jobs:
   quality:
@@ -75,6 +75,13 @@ jobs:
         run: pnpm --dir web check:bundle
 
   image:
+    # The publication workflow performs its own image build, scan and smoke
+    # test. During a PR, build once and export every reusable layer so that the
+    # exact main commit can be assembled quickly after the merge.
+    if: >-
+      github.event_name != 'workflow_call' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -103,6 +110,7 @@ jobs:
           cache-from: |
             type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
             type=gha
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max,compression=zstd,compression-level=3,oci-mediatypes=true,image-manifest=true
 
       - name: Start the production image and wait for its health check
         run: scripts/smoke-test-image.sh "codex-webui-unraid:quality-${{ github.sha }}"

@@ -65,6 +65,11 @@ ghcr.io/maxhugit/codex-webui-unraid:sha-<commit>
 
 Pour la production, un tag immuable `sha-...` est préférable à `latest`.
 
+Le registre conserve automatiquement les 10 images les plus récentes portant
+uniquement un tag `sha-*`. Les tags `latest`, `buildcache` et les éventuels tags
+de version sont protégés. Le nettoyage est exécuté chaque semaine et peut être
+lancé manuellement en mode simulation depuis GitHub Actions.
+
 ## Évolutions du projet d’origine
 
 La synchronisation automatique avec le projet d’origine est désactivée. Ce fork
