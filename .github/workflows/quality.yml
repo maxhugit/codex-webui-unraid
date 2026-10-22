@@ -133,6 +133,12 @@ jobs:
           jq -r '.Results[]? | select(.Type == "node-pkg") | .Vulnerabilities[]? | [.Severity, .PkgName, .InstalledVersion, .VulnerabilityID, (.FixedVersion // "")] | @tsv' trivy-quality-results.json
           jq -e '[.Results[]? | select(.Type == "node-pkg") | .Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length == 0' trivy-quality-results.json
 
+      - name: Require no HIGH or CRITICAL GitHub CLI dependencies
+        run: |
+          jq -e 'any(.Results[]?; .Type == "gobinary" and (.Target | ltrimstr("/")) == "usr/local/bin/gh")' trivy-quality-results.json
+          jq -r '.Results[]? | select(.Type == "gobinary" and (.Target | ltrimstr("/")) == "usr/local/bin/gh") | .Vulnerabilities[]? | [.Severity, .PkgName, .InstalledVersion, .VulnerabilityID, (.FixedVersion // "")] | @tsv' trivy-quality-results.json
+          jq -e '[.Results[]? | select(.Type == "gobinary" and (.Target | ltrimstr("/")) == "usr/local/bin/gh") | .Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length == 0' trivy-quality-results.json
+
       - name: Upload image security report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

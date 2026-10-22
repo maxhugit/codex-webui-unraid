@@ -16,6 +16,8 @@ show_failure() {
 
 trap cleanup EXIT
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 if ! docker image inspect "${image_ref}" >/dev/null 2>&1; then
   echo "Candidate image is not available locally; pulling ${image_ref}."
   docker pull "${image_ref}"
@@ -42,6 +44,10 @@ docker run --rm --entrypoint /bin/bash "${image_ref}" -euc '
   /opt/office-venv/bin/python -c \
     "from PIL import Image; import docx, openpyxl, pypdf, pptx, reportlab"
 '
+
+# Exercise the installed CLI against a local fixture without GitHub credentials.
+docker run --rm --interactive --entrypoint python3 "${image_ref}" \
+  - < "${script_dir}/smoke-test-gh.py"
 
 docker run --detach \
   --name "${container_name}" \

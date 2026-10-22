@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.7
 
 ARG PNPM_VERSION=10.18.3
-ARG GH_VERSION=2.93.0
-ARG GH_LINUX_AMD64_SHA256=02d1290eba130e0b896f3709ffff22e1c75a51475ddb70476a85abc6b5807af0
+ARG GH_VERSION=2.103.0
+ARG GH_LINUX_AMD64_SHA256=fdd768eb70f6409f80fcfa9f3a1c0adf0fc98d827ab3ce0bed2ac22762c5d786
 ARG PILLOW_VERSION=13.0.0
 
 # ── Stage 1: Frontend build ──────────────────────────────────────────
@@ -81,9 +81,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     xz-utils \
     zstd
 
-# Debian Trixie's GitHub CLI is older than the security fix for
-# GHSA-8xvp-7hj6-mcj9. Install the immutable upstream release and verify its
-# published digest before exposing it in PATH.
+# The upstream release includes fixes in both gh and its compiled Go dependencies.
+# Verify its published digest before exposing the immutable binary in PATH.
 RUN curl --fail --silent --show-error --location \
       "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" \
       --output /tmp/gh.tar.gz \
