@@ -10,7 +10,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ProjectDeliverablesManager } from './project-deliverables-manager';
 import type { Deliverable, DeliverablesBoard } from '@/lib/deliverables-api';
 const api = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/projects-api', () => ({ projectsApi: api }));
+vi.mock('@/lib/projects-api', () => ({
+  projectsApi: api,
+  projectsQueryKey: ['projects'],
+}));
 vi.mock('./project-task-manager', () => ({
   ProjectTaskManager: ({
     initialTaskId,
@@ -109,8 +112,19 @@ it('opens a deep-linked deliverable directly and returns to the list', async () 
     await screen.findByRole('heading', { name: 'Deliverables' }),
   ).toBeInTheDocument();
 });
-async function setup(data = board) {
-  api.mockImplementation((_path, input) => Promise.resolve(input ? {} : data));
+async function setup(
+  data = board,
+  agentThreads: Array<{ threadId: string; title: string }> = [],
+) {
+  api.mockImplementation((_path, input) =>
+    Promise.resolve(
+      _path === undefined
+        ? { projects: [{ id: 'p', agentThreads }] }
+        : input
+          ? {}
+          : data,
+    ),
+  );
   render(
     <QueryClientProvider
       client={
@@ -400,6 +414,110 @@ it('places the title and rename pencil in the shared header and save actions in 
     cleanup();
     slot.remove();
   }
+});
+it('uses the project agent title instead of its identifier', async () => {
+  await setup(
+    {
+      ...board,
+      deliverables: [
+        { ...item, conversations: [{ id: 'agent-id', type: 'agent' }] },
+      ],
+      conversations: [{ id: 'agent-id', type: 'agent', title: 'agent-id' }],
+    },
+    [{ threadId: 'agent-id', title: 'Prepare the design package' }],
+  );
+  expect(
+    await screen.findByRole('link', { name: 'Prepare the design package' }),
+  ).toHaveAttribute('href', '/t/agent-id');
+  expect(screen.queryByText('agent-id')).not.toBeInTheDocument();
+});
+it('shows system metadata in overview instead of the header summary', async () => {
+  await setup({
+    ...board,
+    deliverables: [{ ...item, createdByName: 'Alice', updatedByName: 'Bob' }],
+  });
+  expect(screen.getByText('Alice')).toBeInTheDocument();
+  expect(screen.getByText('Bob')).toBeInTheDocument();
+  expect(screen.getByText('System information')).toBeInTheDocument();
+  expect(screen.queryByText(/documents · Updated/)).not.toBeInTheDocument();
+});
+it('combines lifecycle and validation requirement events in one chronological table', async () => {
+  await setup({
+    ...board,
+    deliverables: [
+      {
+        ...item,
+        lifecycleEvents: [
+          {
+            id: 'l',
+            deliverableId: 'd',
+            fromStatus: null,
+            toStatus: 'draft',
+            snapshotId: null,
+            actorPersonId: null,
+            actorName: 'Alice',
+            createdAt: 100,
+          },
+        ],
+        validationEvents: [
+          {
+            id: 'v',
+            deliverableId: 'd',
+            validationId: null,
+            action: 'enabled',
+            reason: null,
+            actorPersonId: null,
+            actorName: 'Bob',
+            createdAt: 200,
+          },
+        ],
+      },
+    ],
+  });
+  fireEvent.click(screen.getByRole('tab', { name: 'History' }));
+  expect(screen.getAllByRole('table')).toHaveLength(1);
+  const rows = screen.getAllByRole('row');
+  expect(rows[1]).toHaveTextContent('Bob');
+  expect(rows[2]).toHaveTextContent('Alice');
+});
+it('only offers detachment for an associated main task and displays its subtasks', async () => {
+  const task = {
+    id: 'parent',
+    title: 'Prepare report',
+    resourceId: 'tm',
+    parentTaskId: null,
+    status: 'To do',
+    progress: 0,
+    dueAt: null,
+    assigneeId: null,
+    assigneeName: null,
+  };
+  await setup({
+    ...board,
+    taskManagers: [{ id: 'tm', name: 'Tasks' }],
+    tasks: [
+      task,
+      { ...task, id: 'child', title: 'Review figures', parentTaskId: 'parent' },
+    ],
+    deliverables: [{ ...item, primaryTaskId: 'parent' }],
+  });
+  fireEvent.click(screen.getByRole('tab', { name: 'Primary task' }));
+  expect(
+    screen.queryByRole('button', { name: 'Create task' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Associate' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Review figures' }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Detach task' }));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith('/p/resources/r/deliverables/d', {
+      method: 'PATCH',
+      body: JSON.stringify({ primaryTaskId: null, version: 3 }),
+    }),
+  );
 });
 it('renames a deliverable from its header', async () => {
   await setup();
