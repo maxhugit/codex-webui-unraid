@@ -131,6 +131,52 @@ export interface ProjectWorkspaceSummary {
   name: string;
   path: string;
   primary: boolean;
+  readOnly?: boolean;
+  sourceResourceId?: string | null;
+  branch?: string | null;
+  revision?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectWorkspaceResourceSummary {
+  id: string;
+  projectId: string;
+  localWorkspaceId: string | null;
+  name: string;
+  type: 'local' | 'git' | 'ssh' | 'sftp' | 'ftp' | 'ftps';
+  address: string | null;
+  rootPath: string;
+  accessMode: 'read_only' | 'read_write';
+  capabilities: { read: boolean; write: boolean; execute: false };
+  enabled: boolean;
+  connectionState:
+    | 'local'
+    | 'untested'
+    | 'connected'
+    | 'unreachable'
+    | 'disabled';
+  lastCheckedAt: number | null;
+  lastError: string | null;
+  hasSecret: boolean;
+  localPath: string | null;
+}
+
+export interface ProjectWorkspaceCopySummary {
+  id: string;
+  projectId: string;
+  sourceResourceId: string;
+  localWorkspaceId: string;
+  name: string;
+  branch: string | null;
+  revision: string;
+  state: 'ready' | 'revoked' | 'error';
+  lastError: string | null;
+  localPath: string | null;
+  sourceName: string | null;
+  sourceType: string | null;
+  accessMode: 'read_only' | 'read_write' | null;
+  sourceEnabled: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -143,7 +189,7 @@ export interface ActiveFolderSummary {
   resourceName: string | null;
   relativePath: string;
   effectivePath: string | null;
-  state: 'ready' | 'detached' | 'missing' | 'invalid';
+  state: 'ready' | 'detached' | 'missing' | 'invalid' | 'revoked';
 }
 
 export const projectsQueryKey = ['projects'] as const;

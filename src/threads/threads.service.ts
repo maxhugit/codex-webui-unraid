@@ -114,6 +114,7 @@ export class ThreadsService {
       : null;
     const requestParams: ExperimentalThreadStartParams = {
       ...params,
+      ...(projectPolicy?.readOnly ? { sandbox: 'read-only' as const } : {}),
       ...(projectPolicy?.model ? { model: projectPolicy.model } : {}),
       ...(projectConfig
         ? { config: { ...(params.config ?? {}), ...projectConfig } }
@@ -125,6 +126,12 @@ export class ThreadsService {
       'thread/start',
       requestParams,
     );
+    if (projectPolicy && params.cwd)
+      this.projectConnections.recordExecutionContext(
+        projectPolicy,
+        params.cwd,
+        response.thread.id,
+      );
     if (!isPaginatedThread(response.thread)) {
       const cleanupError = await this.deleteUntrackedThread(response.thread.id);
       const message = cleanupError
@@ -436,6 +443,14 @@ export class ThreadsService {
     );
     const effectiveParams: v2.TurnStartParams = {
       ...params,
+      ...(projectPolicy?.readOnly
+        ? {
+            sandboxPolicy: {
+              type: 'readOnly' as const,
+              networkAccess: false,
+            },
+          }
+        : {}),
       ...(sharedKnowledge || deliverableContext
         ? {
             input: [
@@ -456,6 +471,12 @@ export class ThreadsService {
         ? { effort: projectPolicy.reasoningEffort }
         : {}),
     };
+    if (projectPolicy && effectiveCwd)
+      this.projectConnections.recordExecutionContext(
+        projectPolicy,
+        effectiveCwd,
+        params.threadId,
+      );
     const response = await this.codex.request<v2.TurnStartResponse>(
       'turn/start',
       effectiveParams,

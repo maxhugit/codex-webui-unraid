@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { ProjectSummary } from '@/lib/projects-api';
+import { ExternalWorkspaceResources } from './external-workspace-resources';
 
 interface Props {
   project: ProjectSummary | null;
@@ -125,6 +126,7 @@ export function ManageWorkspacesDialog({
               );
             })}
           </div>
+          <ExternalWorkspaceResources project={project} pending={pending} />
           <DialogFooter className="flex-row justify-between sm:justify-between">
             <Button
               variant="outline"

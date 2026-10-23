@@ -15,6 +15,7 @@ import {
   projects,
   projectTasks,
   projectTaskStatuses,
+  projectWorkspaceResources,
   projectWorkspaces,
 } from '../database/schema';
 import { ActiveFoldersService } from './active-folders.service';
@@ -106,6 +107,31 @@ describe('active folders', () => {
         relativePath: '../secondary',
       }),
     ).toThrow('cannot leave');
+  });
+
+  it('requires an explicit local copy before selecting a remote resource', () => {
+    const now = Date.now();
+    database.db
+      .insert(projectWorkspaceResources)
+      .values({
+        id: 'remote',
+        projectId: 'project',
+        name: 'Remote Git',
+        type: 'git',
+        address: 'https://example.test/project.git',
+        rootPath: '/',
+        accessMode: 'read_only',
+        capabilities: { read: true, write: false, execute: false },
+        enabled: true,
+        connectionState: 'untested',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    expect(() =>
+      service.set('project', 'agent', 'agent', { resourceId: 'remote' }),
+    ).toThrow('explicit local working copy');
   });
 
   it('refuses contexts and resources owned by another project', async () => {

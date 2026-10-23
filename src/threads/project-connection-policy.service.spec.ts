@@ -8,6 +8,7 @@ function databaseReturning(...rows: unknown[]): AppDatabase {
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: vi.fn(() => ({ get: vi.fn(() => rows[index++]) })),
+        all: vi.fn(() => []),
       })),
     })),
   } as unknown as AppDatabase;
