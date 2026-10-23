@@ -127,6 +127,7 @@ jobs:
           tags: mergeron:quality-${{ github.sha }}
           cache-from: |
             type=registry,ref=ghcr.io/maxhugit/mergeron:buildcache
+            type=registry,ref=ghcr.io/maxhugit/codex-webui-unraid:buildcache
             type=gha
           cache-to: type=registry,ref=ghcr.io/maxhugit/mergeron:buildcache,mode=max,compression=zstd,compression-level=3,oci-mediatypes=true,image-manifest=true
 

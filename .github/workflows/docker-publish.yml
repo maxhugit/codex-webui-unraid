@@ -78,6 +78,7 @@ jobs:
           # on large toolchain layers while retaining intermediate build stages.
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+            type=registry,ref=ghcr.io/maxhugit/codex-webui-unraid:buildcache
             type=gha
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max,compression=zstd,compression-level=3,oci-mediatypes=true,image-manifest=true
           provenance: mode=max
