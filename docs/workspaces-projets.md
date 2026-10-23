@@ -6,7 +6,7 @@ Chaque projet possède un workspace principal permanent dans `/workspaces/<id-du
 | ---------- | ------------------------------------------------------------------------ |
 | Principal  | Dossier permanent appartenant au projet ; exactement un par projet       |
 | Secondaire | Autre dossier rattaché au projet, détachable sans supprimer ses fichiers |
-| Actif      | Référence stable vers une ressource du projet et un chemin relatif        |
+| Actif      | Référence stable vers une ressource du projet et un chemin relatif       |
 
 Chaque agent, conversation simple, tâche et livrable possède son propre dossier actif. Le choix d'un dossier actif ne change pas le principal du projet. Parcourir un dossier dans l'explorateur ne change pas non plus le contexte d'exécution.
 
@@ -32,7 +32,7 @@ L'onglet **Connaissances** des paramètres du projet permet aux administrateurs 
 
 Les dossiers de premier niveau `documents/`, `sources/` et `livrables/` constituent la structure imposée des projets en version 2. Les opérations génériques ne peuvent pas les renommer, les déplacer, les supprimer ou les remplacer. Leur contenu reste modifiable : création de sous-dossiers, édition, renommage et suppression de fichiers. Les mêmes protections s'appliquent aux chemins résolus par un alias symbolique. L'ancien nom `.webui` reste également réservé pour éviter sa réutilisation comme dossier utilisateur.
 
-La suite de l'évolution distingue le principal, les dossiers actifs et les connexions externes. Son [découpage en cinq PR](evolution-workspaces.md) précise les fonctionnalités restant à développer. Les ressources externes typées et leur synchronisation restent prévues dans les étapes suivantes.
+L'évolution distingue le principal, les dossiers actifs, les connexions externes, leurs copies Git et les transferts explicites. Son [découpage en cinq PR](evolution-workspaces.md) décrit les garanties appliquées à chaque étape. La synchronisation bidirectionnelle reste volontairement hors périmètre.
 
 ## Connaissance partagée entre conversations
 

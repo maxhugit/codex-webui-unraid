@@ -24,6 +24,7 @@ import {
   projectsApi,
   type ProjectResourceSummary,
   type ProjectWorkspaceSummary,
+  type ProjectWorkspaceTransferSummary,
 } from '@/lib/projects-api';
 
 type Automation = {
@@ -34,7 +35,7 @@ type Automation = {
   time: string;
   weekday: number;
   monthday: number;
-  targetType: 'task_board' | 'workspace';
+  targetType: 'task_board' | 'workspace' | 'workspace_transfer';
   targetId: string;
   mode: 'analysis' | 'proposal' | 'action';
   approvalRequired: boolean;
@@ -55,6 +56,7 @@ type Board = {
   resource: ProjectResourceSummary;
   targets: ProjectResourceSummary[];
   workspaces: ProjectWorkspaceSummary[];
+  transfers: ProjectWorkspaceTransferSummary[];
   automations: Automation[];
   runs: Run[];
 };
@@ -148,6 +150,11 @@ export function ProjectAutomationManager({
       id: x.path,
       label: x.name,
       type: 'workspace',
+    })),
+    ...board.transfers.map((x) => ({
+      id: x.id,
+      label: `Transfert · ${x.name}`,
+      type: 'workspace_transfer',
     })),
   ];
   const show = (item?: Automation) => {

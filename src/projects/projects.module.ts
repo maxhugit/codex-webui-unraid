@@ -14,6 +14,7 @@ import { ActiveFoldersModule } from '../active-folders/active-folders.module';
 import { WorkspaceResourcesController } from './workspace-resources.controller';
 import { WorkspaceResourcesService } from './workspace-resources.service';
 import { WorkspaceCopiesService } from './workspace-copies.service';
+import { WorkspaceTransfersService } from './workspace-transfers.service';
 
 @Module({
   imports: [
@@ -36,7 +37,13 @@ import { WorkspaceCopiesService } from './workspace-copies.service';
     ProjectsService,
     WorkspaceResourcesService,
     WorkspaceCopiesService,
+    WorkspaceTransfersService,
   ],
-  exports: [ProjectsService, WorkspaceResourcesService, WorkspaceCopiesService],
+  exports: [
+    ProjectsService,
+    WorkspaceResourcesService,
+    WorkspaceCopiesService,
+    WorkspaceTransfersService,
+  ],
 })
 export class ProjectsModule {}

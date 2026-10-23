@@ -344,6 +344,13 @@
       "when": 1792776368841,
       "tag": "0048_amused_james_howlett",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1792777736736,
+      "tag": "0049_faithful_bastion",
+      "breakpoints": true
     }
   ]
 }

@@ -9,10 +9,10 @@ const budgets = {
   maximumJavaScriptAssetBytes: 1_100_000,
   mainEntryAssetBytes: 350_000,
   totalJavaScriptBytes: 18_000_000,
-  // The platform guide and project agent management are intentionally
-  // localized in the shared catalog. Keep a narrow ceiling around the
-  // reviewed content while preserving regression detection.
-  commonCatalogAssetBytes: 171_000,
+  // The platform guide, project agent management, and workspace transfer UI
+  // are intentionally localized in the shared catalog. Keep a narrow ceiling
+  // around the reviewed content while preserving regression detection.
+  commonCatalogAssetBytes: 173_000,
 };
 
 const entries = await readdir(assetsDirectory, { withFileTypes: true }).catch(

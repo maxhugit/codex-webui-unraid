@@ -11,6 +11,7 @@ import {
   type ProjectWorkspaceCopySummary,
   type ProjectWorkspaceResourceSummary,
 } from '@/lib/projects-api';
+import { WorkspaceTransfers } from './workspace-transfers';
 
 const emptyForm = {
   name: '',
@@ -20,6 +21,7 @@ const emptyForm = {
   accessMode: 'read_only',
   username: '',
   password: '',
+  knownHosts: '',
   allowInsecure: false,
 };
 
@@ -88,8 +90,12 @@ export function ExternalWorkspaceResources({
         accessMode: form.accessMode,
         allowInsecure: form.allowInsecure,
         secret:
-          form.username || form.password
-            ? { username: form.username, password: form.password }
+          form.username || form.password || form.knownHosts
+            ? {
+                username: form.username,
+                password: form.password,
+                knownHosts: form.knownHosts,
+              }
             : undefined,
       }),
     });
@@ -143,6 +149,16 @@ export function ExternalWorkspaceResources({
             value={form.name}
             onChange={(event) => setForm({ ...form, name: event.target.value })}
           />
+          {['ssh', 'sftp'].includes(form.type) && (
+            <textarea
+              className={`${field} min-h-20 sm:col-span-2`}
+              placeholder={t('knownHostsEntry')}
+              value={form.knownHosts}
+              onChange={(event) =>
+                setForm({ ...form, knownHosts: event.target.value })
+              }
+            />
+          )}
           <select
             className={field}
             value={form.type}
@@ -381,6 +397,7 @@ export function ExternalWorkspaceResources({
         </p>
       )}
       {error && <p className="text-xs text-destructive">{error}</p>}
+      <WorkspaceTransfers project={project} />
     </div>
   );
 }
