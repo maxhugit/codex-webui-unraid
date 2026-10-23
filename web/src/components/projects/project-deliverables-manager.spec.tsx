@@ -250,8 +250,8 @@ it('saves the brief with its revision without a separate production status', asy
   });
   fireEvent.click(screen.getByRole('tab', { name: 'Validation' }));
   expect(
-    screen.getByRole('button', { name: 'Submit deliverable for validation' }),
-  ).toBeDisabled();
+    screen.queryByRole('button', { name: 'Submit deliverable for validation' }),
+  ).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() =>
@@ -295,6 +295,8 @@ it('submits the current document snapshot for human validation', async () => {
     ],
   });
   fireEvent.click(screen.getByRole('tab', { name: 'Validation' }));
+  expect(screen.getByText('Required')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Submit deliverable for validation' }).closest('footer')).not.toBeNull();
   fireEvent.click(
     screen.getByRole('button', { name: 'Submit deliverable for validation' }),
   );

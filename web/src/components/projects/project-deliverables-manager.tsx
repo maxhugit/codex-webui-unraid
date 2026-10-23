@@ -417,7 +417,7 @@ function DeliverablesList({
                 }`}
               >
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
-                {t(translationKey(validationStatuses[item.validationStatus]))}
+                {item.validationRequired && item.validationStatus === 'not_required' ? t('required') : t(translationKey(validationStatuses[item.validationStatus]))}
               </span>
               <span className="flex min-w-0 items-center gap-2 text-sm">
                 <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -846,6 +846,12 @@ function DeliverableDetail({
               busy={busy || revisionDirty}
               action={action}
             />
+            {item.lifecycleStatus === 'finalized' && item.validationRequired && item.validationStatus !== 'approved' && !item.validations.some((validation) => validation.effectiveStatus === 'pending') && (
+              <Button disabled={busy || revisionDirty || !item.documents.some((document) => document.deletedAt === null)}
+                onClick={() => action.mutate({ suffix: '/validations', body: { version: item.version } })}>
+                {t('submitDeliverableForValidation')}
+              </Button>
+            )}
             {session.isAdministrator && (
               <Button
                 variant="outline"
@@ -1232,7 +1238,7 @@ function VersionHistory({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-semibold">{t('validationRequirement')}</h2>
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-                {t(translationKey(validationStatuses[item.validationStatus]))}
+                {t(item.validationRequired ? 'required' : 'notRequired')}
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -1272,38 +1278,7 @@ function VersionHistory({
                 : t('enableValidation')}
             </Button>
           </section>
-          <section className="space-y-3 rounded-xl border bg-card p-4">
-            <h2 className="font-semibold">
-              {t('submitDeliverableForValidation')}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {t('submitDeliverableForValidationDescription')}
-            </p>
-            {item.lifecycleStatus !== 'finalized' && (
-              <p className="text-sm text-amber-700 dark:text-amber-300">
-                {t('finalizeBeforeValidation')}
-              </p>
-            )}
-            <Button
-              disabled={
-                busy ||
-                dirty ||
-                !item.validationRequired ||
-                item.lifecycleStatus !== 'finalized' ||
-                item.validationStatus === 'approved' ||
-                !item.documents.length ||
-                !!pendingValidation
-              }
-              onClick={() =>
-                action.mutate({
-                  suffix: '/validations',
-                  body: { version: item.version },
-                })
-              }
-            >
-              {t('submitDeliverableForValidation')}
-            </Button>
-          </section>
+
         </div>
       )}
       <div className="space-y-4">
