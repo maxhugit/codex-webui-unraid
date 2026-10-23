@@ -309,6 +309,13 @@
       "when": 1792736621746,
       "tag": "0043_striped_whirlwind",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1792738387049,
+      "tag": "0044_cold_scourge",
+      "breakpoints": true
     }
   ]
 }

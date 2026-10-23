@@ -3,6 +3,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { FileText, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { onlyOfficeGetConfig } from '@/generated/api/sdk.gen';
+import { getAuthorizationHeader } from '@/auth-token';
+import { withBasePath } from '@/base-path';
 
 interface Props {
   filePath: string;
@@ -10,6 +12,8 @@ interface Props {
 
 interface OnlyOfficeEditor {
   destroyEditor?: () => void;
+  refreshHistory?: (data: Record<string, unknown>) => void;
+  setHistoryData?: (data: Record<string, unknown>) => void;
 }
 
 interface OnlyOfficeApi {
@@ -48,6 +52,27 @@ export function OnlyOfficeViewer({ filePath }: Props) {
         await loadOnlyOfficeScript(data.scriptUrl);
         if (cancelled || !window.DocsAPI) return;
         editorRef.current?.destroyEditor?.();
+        data.config.events = {
+          onRequestHistory: () => {
+            void fetchOnlyOfficeHistory(filePath)
+              .then((history) => editorRef.current?.refreshHistory?.(history))
+              .catch(() =>
+                editorRef.current?.refreshHistory?.({
+                  error: true,
+                }),
+              );
+          },
+          onRequestHistoryData: (event: { data: number }) => {
+            void fetchOnlyOfficeHistoryData(filePath, event.data)
+              .then((history) => editorRef.current?.setHistoryData?.(history))
+              .catch(() =>
+                editorRef.current?.setHistoryData?.({
+                  error: true,
+                  version: event.data,
+                }),
+              );
+          },
+        };
         editorRef.current = new window.DocsAPI.DocEditor(
           elementId,
           data.config,
@@ -78,6 +103,27 @@ export function OnlyOfficeViewer({ filePath }: Props) {
       )}
       <div id={elementId} className="h-full w-full" />
     </div>
+  );
+}
+
+async function fetchOnlyOfficeJson(path: string) {
+  const authorization = getAuthorizationHeader();
+  const response = await fetch(withBasePath(path), {
+    headers: authorization ? { Authorization: authorization } : {},
+  });
+  if (!response.ok) throw new Error('OnlyOffice history request failed');
+  return (await response.json()) as Record<string, unknown>;
+}
+
+function fetchOnlyOfficeHistory(filePath: string) {
+  return fetchOnlyOfficeJson(
+    `/api/onlyoffice/history?path=${encodeURIComponent(filePath)}`,
+  );
+}
+
+function fetchOnlyOfficeHistoryData(filePath: string, version: number) {
+  return fetchOnlyOfficeJson(
+    `/api/onlyoffice/history-data?path=${encodeURIComponent(filePath)}&version=${version}`,
   );
 }
 

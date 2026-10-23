@@ -62,6 +62,11 @@ export interface DeliverableDocumentActor {
   personId: string | null;
   name: string;
 }
+export interface OnlyOfficeVersionMetadata {
+  key: string;
+  changes?: Record<string, unknown>;
+  serverVersion?: string;
+}
 
 const LIFECYCLE_TRANSITIONS: Record<
   DeliverableLifecycleStatus,
@@ -1066,6 +1071,7 @@ export class DeliverablesService {
     },
     actor: DeliverableDocumentActor,
     documentId?: string,
+    trustedOnlyOffice = false,
   ) {
     const deliverable = this.get(projectId, resourceId, deliverableId);
     this.requireDocumentMutable(deliverable);
@@ -1073,7 +1079,7 @@ export class DeliverablesService {
       throw new BadRequestException('Document path is required');
     const comment = this.text(input.comment ?? '', 4000);
     const sourcePath = await this.files.resolveSafePath(input.path);
-    this.identities.requireWorkspacePath(sourcePath);
+    if (!trustedOnlyOffice) this.identities.requireWorkspacePath(sourcePath);
     const workspaces = this.db
       .select()
       .from(projectWorkspaces)
@@ -1259,6 +1265,83 @@ export class DeliverablesService {
       await fs.rm(folder, { recursive: true, force: true });
       throw error;
     }
+  }
+
+  async captureOnlyOfficeVersion(
+    sourcePath: string,
+    actor: DeliverableDocumentActor,
+    metadata: OnlyOfficeVersionMetadata,
+  ) {
+    const linked = this.db
+      .select({
+        document: documents,
+        deliverable: items,
+        resource: projectResources,
+      })
+      .from(documents)
+      .innerJoin(items, eq(documents.deliverableId, items.id))
+      .innerJoin(projectResources, eq(items.resourceId, projectResources.id))
+      .where(eq(documents.sourcePath, sourcePath))
+      .get();
+    if (!linked || linked.document.deletedAt !== null) return null;
+    try {
+      const created = await this.addDocumentVersion(
+        linked.resource.projectId,
+        linked.resource.id,
+        linked.deliverable.id,
+        {
+          path: sourcePath,
+          comment: 'Enregistrement OnlyOffice',
+          expectedVersion: linked.document.currentVersionNumber,
+        },
+        actor,
+        linked.document.id,
+        true,
+      );
+      this.db
+        .update(documentVersions)
+        .set({
+          onlyofficeKey: metadata.key,
+          onlyofficeChanges: metadata.changes,
+          onlyofficeServerVersion: metadata.serverVersion,
+        })
+        .where(eq(documentVersions.id, created.version.id))
+        .run();
+      return created;
+    } catch (error) {
+      if (
+        error instanceof ConflictException &&
+        error.message === 'Document content has not changed'
+      )
+        return null;
+      throw error;
+    }
+  }
+
+  attachOnlyOfficeChanges(versionId: string, changesPath: string) {
+    this.db
+      .update(documentVersions)
+      .set({ onlyofficeChangesPath: changesPath })
+      .where(eq(documentVersions.id, versionId))
+      .run();
+  }
+
+  onlyOfficeHistory(sourcePath: string) {
+    const document = this.db
+      .select()
+      .from(documents)
+      .where(eq(documents.sourcePath, sourcePath))
+      .get();
+    if (!document) return null;
+    return {
+      document,
+      versions: this.db
+        .select()
+        .from(documentVersions)
+        .where(eq(documentVersions.documentId, document.id))
+        .orderBy(documentVersions.number)
+        .all(),
+    };
   }
 
   setDocumentDeleted(

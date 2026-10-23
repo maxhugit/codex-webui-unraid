@@ -11,6 +11,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from '@nestjs/common';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
@@ -24,9 +25,9 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { createHash, randomUUID } from 'node:crypto';
-import { createWriteStream, promises as fs } from 'node:fs';
+import { createReadStream, createWriteStream, promises as fs } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Readable, Transform } from 'node:stream';
@@ -34,6 +35,9 @@ import { sign, verify } from 'jsonwebtoken';
 import { ApiErrorResponseDto } from '../common/dto/api-responses.dto';
 import { FilesService } from '../files/files.service';
 import { AuthService } from '../auth/auth.service';
+import type { IdentityRequest } from '../auth/platform-access.guard';
+import { IdentityService } from '../auth/identity.service';
+import { DeliverablesService } from '../deliverables/deliverables.service';
 import { Public } from '../auth/public.decorator';
 import { GENERAL_SETTING_KEYS } from '../settings/settings.definitions';
 import { SettingsService } from '../settings/settings.service';
@@ -55,8 +59,13 @@ interface OnlyOfficeEditorConfig {
   documentType: OnlyOfficeDocumentType;
   editorConfig: {
     callbackUrl: string;
+    lang: string;
     mode: 'edit' | 'view';
     customization: Record<string, boolean>;
+    user: {
+      id: string;
+      name: string;
+    };
   };
   height: string;
   token?: string;
@@ -76,6 +85,8 @@ export class OnlyOfficeController {
     private readonly filesService: FilesService,
     private readonly settingsService: SettingsService,
     private readonly authService: AuthService,
+    private readonly identities: IdentityService,
+    private readonly deliverables: DeliverablesService,
   ) {}
 
   // ── Config endpoint ─────────────────────────────────────────────────
@@ -96,7 +107,7 @@ export class OnlyOfficeController {
   async getConfig(
     @Query('path') filePath: string,
     @Query('mode') mode?: string,
-    @Req() request?: FastifyRequest,
+    @Req() request?: FastifyRequest & IdentityRequest,
   ): Promise<OnlyOfficeConfigResponseDto> {
     const onlyofficeUrl = this.requireOnlyOfficeUrl();
     const normalizedUrl = this.normalizeHttpBaseUrl(
@@ -148,6 +159,11 @@ export class OnlyOfficeController {
       secret,
       accessSessionId,
     );
+    const identity = request?.platformIdentity;
+    const userName = [identity?.firstName, identity?.lastName]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(' ');
 
     const config: OnlyOfficeEditorConfig = {
       type: 'desktop',
@@ -170,9 +186,15 @@ export class OnlyOfficeController {
       },
       editorConfig: {
         callbackUrl,
+        lang: this.normalizeEditorLanguage(identity?.language),
         mode: editorMode,
+        user: {
+          id: identity?.personId ?? 'service',
+          name: userName || identity?.name?.trim() || 'Utilisateur',
+        },
         customization: {
           compactToolbar: true,
+          forcesave: editorMode === 'edit',
           hideRightMenu: editorMode === 'view',
         },
       },
@@ -189,6 +211,144 @@ export class OnlyOfficeController {
       ),
       config: config as unknown as Record<string, unknown>,
     };
+  }
+
+  /** OnlyOffice accepts ISO language tags; profiles currently store a base language. */
+  private normalizeEditorLanguage(language: string | undefined): string {
+    const normalized = language?.trim().toLowerCase();
+    return normalized && /^[a-z]{2,3}$/.test(normalized) ? normalized : 'en';
+  }
+
+  @Get('history')
+  async getHistory(@Query('path') filePath: string) {
+    await this.filesService.getMetadata(filePath);
+    const history = this.deliverables.onlyOfficeHistory(filePath);
+    if (!history) return { currentVersion: 0, history: [] };
+    return {
+      currentVersion: history.document.currentVersionNumber,
+      history: history.versions.map((version) => ({
+        version: version.number,
+        key: this.versionKey(version),
+        created: new Date(version.createdAt).toISOString(),
+        user: {
+          id: version.authorPersonId ?? 'service',
+          name: version.authorName,
+        },
+        ...(version.onlyofficeChanges
+          ? { changes: version.onlyofficeChanges }
+          : {}),
+        ...(version.onlyofficeServerVersion
+          ? { serverVersion: version.onlyofficeServerVersion }
+          : {}),
+      })),
+    };
+  }
+
+  @Get('history-data')
+  async getHistoryData(
+    @Query('path') filePath: string,
+    @Query('version') rawVersion: string,
+    @Req() request?: FastifyRequest,
+  ) {
+    await this.filesService.getMetadata(filePath);
+    const history = this.deliverables.onlyOfficeHistory(filePath);
+    const number = Number(rawVersion);
+    const version = history?.versions.find((item) => item.number === number);
+    if (!history || !version)
+      return { error: 'Document version is not available.', version: number };
+    const previous = history.versions.find(
+      (item) => item.number === number - 1,
+    );
+    const baseUrl = this.resolveBaseUrl(request);
+    const data: Record<string, unknown> = {
+      fileType: version.fileName.split('.').pop()?.toLowerCase(),
+      key: this.versionKey(version),
+      url: this.historyFileUrl(baseUrl, version.snapshotPath),
+      version: version.number,
+      ...(version.onlyofficeChangesPath
+        ? {
+            changesUrl: this.historyFileUrl(
+              baseUrl,
+              version.onlyofficeChangesPath,
+            ),
+          }
+        : {}),
+      ...(previous
+        ? {
+            previous: {
+              fileType: previous.fileName.split('.').pop()?.toLowerCase(),
+              key: this.versionKey(previous),
+              url: this.historyFileUrl(baseUrl, previous.snapshotPath),
+            },
+          }
+        : {}),
+    };
+    const secret = this.settingsService.getStringSetting(
+      GENERAL_SETTING_KEYS.onlyofficeJwtSecret,
+    );
+    if (secret) data.token = sign(data, secret, { algorithm: 'HS256' });
+    return data;
+  }
+
+  @Get('history-file')
+  @Public()
+  async getHistoryFile(
+    @Query('state') state: string,
+    @Res() reply: FastifyReply,
+  ) {
+    const secret = this.settingsService.getStringSetting(
+      GENERAL_SETTING_KEYS.onlyofficeJwtSecret,
+    );
+    if (!secret)
+      return reply.status(503).send({ error: 'History unavailable' });
+    try {
+      const payload = verify(state, secret, { algorithms: ['HS256'] });
+      if (
+        typeof payload === 'string' ||
+        payload.purpose !== 'onlyoffice-history' ||
+        typeof payload.path !== 'string'
+      )
+        throw new Error('Invalid history state');
+      const resolved = await fs.realpath(payload.path);
+      if (resolved !== payload.path) throw new Error('Invalid history path');
+      return reply
+        .header('Access-Control-Allow-Origin', '*')
+        .type('application/octet-stream')
+        .send(createReadStream(resolved));
+    } catch {
+      return reply.status(403).send({ error: 'Invalid history link' });
+    }
+  }
+
+  private versionKey(version: {
+    onlyofficeKey: string | null;
+    sha256: string;
+    number: number;
+  }) {
+    return (
+      version.onlyofficeKey ??
+      `${version.sha256.slice(0, 48)}-${version.number}`
+    );
+  }
+
+  private historyFileUrl(baseUrl: string, filePath: string) {
+    const secret = this.settingsService.getStringSetting(
+      GENERAL_SETTING_KEYS.onlyofficeJwtSecret,
+    );
+    if (!secret)
+      throw BusinessException.badRequest(
+        ErrorCode.onlyoffice.jwtRequired,
+        'OnlyOffice history requires general.onlyofficeJwtSecret',
+      );
+    const state = sign(
+      { purpose: 'onlyoffice-history', path: filePath },
+      secret,
+      { algorithm: 'HS256', expiresIn: '1h' },
+    );
+    return this.joinUrl(
+      baseUrl,
+      `/api/onlyoffice/history-file?state=${encodeURIComponent(state)}`,
+    );
   }
 
   // ── Save callback endpoint ──────────────────────────────────────────
@@ -267,14 +427,12 @@ export class OnlyOfficeController {
 
       // 2. Verify callback state token (signed path + key)
       const state = this.verifyCallbackState(stateToken, secret);
-      if (
-        !this.authService.verifyDocumentSession(
-          state.accessSessionId,
-          filePath,
-          true,
-        )
-      )
-        return { error: 1 };
+      const documentSession = this.authService.getDocumentSession(
+        state.accessSessionId,
+        filePath,
+        true,
+      );
+      if (!documentSession) return { error: 1 };
       if (state.path !== filePath) {
         this.logger.warn(
           { path: filePath, statePath: state.path },
@@ -313,6 +471,51 @@ export class OnlyOfficeController {
       }
 
       await this.writeAtomically(response, resolved, maxBytes);
+      if (body.status === 2) {
+        const saved = await fs.stat(resolved);
+        const person = documentSession.personId
+          ? this.identities.resolvePerson(documentSession.personId)
+          : null;
+        const created = await this.deliverables.captureOnlyOfficeVersion(
+          resolved,
+          {
+            personId: person?.personId ?? null,
+            name: person?.name ?? 'OnlyOffice',
+          },
+          {
+            key: this.buildDocumentKey(resolved, saved.mtimeMs, saved.size),
+            changes: body.history?.changes,
+            serverVersion: body.history?.serverVersion,
+          },
+        );
+        if (created && body.changesurl) {
+          try {
+            const changesUrl = this.validateDownloadUrl(body.changesurl);
+            const changesResponse = await this.fetchWithTimeout(changesUrl);
+            if (!changesResponse.ok || !changesResponse.body)
+              throw new Error(
+                `OnlyOffice changes download failed (${changesResponse.status})`,
+              );
+            const changesPath = join(
+              dirname(created.version.snapshotPath),
+              'changes.zip',
+            );
+            await this.writeAtomically(changesResponse, changesPath, maxBytes);
+            this.deliverables.attachOnlyOfficeChanges(
+              created.version.id,
+              changesPath,
+            );
+          } catch (error) {
+            this.logger.warn(
+              {
+                path: filePath,
+                error: error instanceof Error ? error.message : String(error),
+              },
+              'OnlyOffice changes archive could not be preserved',
+            );
+          }
+        }
+      }
       this.logger.log(
         { path: filePath, status: body.status },
         'OnlyOffice document saved',

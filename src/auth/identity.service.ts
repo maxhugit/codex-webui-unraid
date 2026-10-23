@@ -32,6 +32,8 @@ export interface PlatformIdentity {
   active: boolean;
   subject?: string;
   email?: string;
+  firstName?: string;
+  lastName?: string;
   theme?: string;
   language?: string;
 }
@@ -141,6 +143,8 @@ export class IdentityService {
         active: person.active,
         subject,
         email,
+        firstName: person.firstName,
+        lastName: person.lastName,
         theme: person.theme,
         language: person.language,
       };
@@ -169,6 +173,8 @@ export class IdentityService {
       role: person.role,
       active: person.active,
       email: person.email ?? undefined,
+      firstName: person.firstName,
+      lastName: person.lastName,
       theme: person.theme,
       language: person.language,
     };
@@ -597,6 +603,15 @@ export class IdentityService {
     } catch {
       return false;
     }
+  }
+
+  getDocumentSession(id: unknown, path: string, writable = false) {
+    if (!this.verifyDocumentSession(id, path, writable)) return null;
+    return this.db
+      .select()
+      .from(documentAccessSessions)
+      .where(eq(documentAccessSessions.id, id as string))
+      .get();
   }
 
   clientConfig() {
