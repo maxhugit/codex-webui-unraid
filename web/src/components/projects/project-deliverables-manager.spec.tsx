@@ -90,6 +90,25 @@ beforeEach(() => {
   api.mockImplementation((_path, input) => Promise.resolve(input ? {} : board));
 });
 afterEach(cleanup);
+it('opens a deep-linked deliverable directly and returns to the list', async () => {
+  const back = vi.fn();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ProjectDeliverablesManager
+        projectId="p"
+        resourceId="r"
+        initialDeliverableId="d"
+        onBackToList={back}
+      />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByLabelText('Title')).toHaveValue('Report');
+  fireEvent.click(screen.getByRole('button', { name: 'Back to deliverables' }));
+  expect(back).toHaveBeenCalledOnce();
+  expect(
+    await screen.findByRole('heading', { name: 'Deliverables' }),
+  ).toBeInTheDocument();
+});
 async function setup(data = board) {
   api.mockImplementation((_path, input) => Promise.resolve(input ? {} : data));
   render(
