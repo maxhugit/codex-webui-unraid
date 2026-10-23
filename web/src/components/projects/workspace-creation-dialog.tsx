@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Folder, GitBranch, KeyRound, Network, Server } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DirectorySelectionTree } from '@/components/files/directory-selection-tree';
@@ -56,14 +56,6 @@ export function WorkspaceCreationDialog({
   const [source, setSource] = useState<SourceType | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [form, setForm] = useState(emptyExternalForm);
-
-  useEffect(() => {
-    if (open) {
-      setSource(null);
-      setSelectedPath(null);
-      setForm(emptyExternalForm);
-    }
-  }, [open]);
 
   const sourceOptions: Array<{
     type: SourceType;

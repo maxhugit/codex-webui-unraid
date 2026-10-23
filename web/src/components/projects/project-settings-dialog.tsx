@@ -533,13 +533,15 @@ export function ProjectSettingsPanel({
           </p>
         )}
       </div>
-      <WorkspaceCreationDialog
-        open={workspaceCreationOpen}
-        pending={addWorkspace.isPending || addExternalWorkspace.isPending}
-        onClose={() => setWorkspaceCreationOpen(false)}
-        onCreateLocal={(path) => addWorkspace.mutate(path)}
-        onCreateExternal={(input) => addExternalWorkspace.mutate(input)}
-      />
+      {workspaceCreationOpen && (
+        <WorkspaceCreationDialog
+          open
+          pending={addWorkspace.isPending || addExternalWorkspace.isPending}
+          onClose={() => setWorkspaceCreationOpen(false)}
+          onCreateLocal={(path) => addWorkspace.mutate(path)}
+          onCreateExternal={(input) => addExternalWorkspace.mutate(input)}
+        />
+      )}
     </>
   );
 }
