@@ -64,7 +64,9 @@ images, tables and a real spreadsheet formula. Eighteen conversions cover:
 DOCX/ODT/DOC, XLSX/ODS/XLS, PPTX/ODP/PPT, with PDF export and modern-format
 roundtrips. PDF page counts, extracted text and embedded images are checked.
 Word table/style/Unicode content, formula preservation and cached value 42, and
-slide content survive roundtrip. Malformed flat XML must fail to produce a PDF.
+slide content survive roundtrip. Strict lxml parsing must reject malformed XML;
+LibreOffice may intentionally import an unknown XML file as plain text, so PDF
+creation alone is not used as a rejection/security assertion.
 These are functional/content checks, not exhaustive visual layout certification.
 
 Both PR and publication workflows retain Office evidence. The gate checks exact

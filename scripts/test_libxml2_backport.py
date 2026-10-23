@@ -16,7 +16,7 @@ class XMLBackportTests(unittest.TestCase):
             office_xml_consumers=['libxsltfilterlo.so'], conversions=[{}]*18,
             pdf_text_pages_images='passed', word_styles_tables_unicode_roundtrip='passed',
             calc_formula_cached_value=42, slides_unicode_roundtrip='passed',
-            malformed_xml_rejected=True, native_python_bindings_installed=False,
+            strict_xml_rejected_in_lxml=True, native_python_bindings_installed=False,
             source_review=dict(patches=module.PATCHES, uri_overflow_guard_preexisting=True,
                 upstream_regressions='passed', focused_xml_regressions='passed', exported_symbols_check='passed'))
         self.finding = dict(PkgName='libxml2', InstalledVersion=module.VERSION,
@@ -38,7 +38,7 @@ class XMLBackportTests(unittest.TestCase):
                 module.audit(self.report,self.evidence)
 
     def test_conversion_xml_or_formula_failure_blocks(self):
-        for change in ({'calc_formula_cached_value':0},{'malformed_xml_rejected':False},
+        for change in ({'calc_formula_cached_value':0},{'strict_xml_rejected_in_lxml':False},
                        {'conversions':[]},{'lxml_system_linkage':[]},{'production_uid':0},{'source_review':{}}):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 module.audit(self.report,{**self.evidence,**change})

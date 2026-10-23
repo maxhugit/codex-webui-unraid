@@ -141,14 +141,15 @@ def main():
         pdf(legacy_slides, ['WebUI XML Impress', 'Second slide marker'], 2, images=True)
         assert len(checks) == 18
 
-        malformed = root / 'malformed.fodt'
-        malformed.write_text('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"><broken>')
-        rejected_dir = root / 'rejected'
-        rejected_dir.mkdir()
-        subprocess.run(['libreoffice', f'-env:UserInstallation={(root / "bad-profile").as_uri()}',
-                        '--headless', '--convert-to', 'pdf', '--outdir', str(rejected_dir), str(malformed)],
-                       capture_output=True, text=True, timeout=30)
-        assert not (rejected_dir / 'malformed.pdf').exists(), 'Malformed XML must not produce a PDF'
+        # LibreOffice may deliberately import unknown XML as plain text. Test
+        # strict XML rejection through the patched lxml parser, not that fallback.
+        strict_rejected = False
+        try:
+            etree.fromstring(b'<root><unclosed>', etree.XMLParser(
+                recover=False, resolve_entities=False, no_network=True))
+        except etree.XMLSyntaxError:
+            strict_rejected = True
+        assert strict_rejected, 'Strict XML parsing must reject malformed input'
 
     print(json.dumps({'package_version': version, 'production_uid': os.getuid(),
                       'lxml_version': '.'.join(map(str, etree.LXML_VERSION)),
@@ -157,7 +158,7 @@ def main():
                       'source_review': source_review, 'native_python_bindings_installed': False,
                       'conversions': checks, 'pdf_text_pages_images': 'passed',
                       'word_styles_tables_unicode_roundtrip': 'passed', 'calc_formula_cached_value': 42,
-                      'slides_unicode_roundtrip': 'passed', 'malformed_xml_rejected': True,
+                      'slides_unicode_roundtrip': 'passed', 'strict_xml_rejected_in_lxml': strict_rejected,
                       'network': 'disabled by Docker wrapper'}, indent=2))
 
 

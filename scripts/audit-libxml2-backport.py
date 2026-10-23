@@ -21,7 +21,7 @@ def audit(report, evidence):
             or evidence.get('word_styles_tables_unicode_roundtrip') != 'passed'
             or evidence.get('calc_formula_cached_value') != 42
             or evidence.get('slides_unicode_roundtrip') != 'passed'
-            or evidence.get('malformed_xml_rejected') is not True
+            or evidence.get('strict_xml_rejected_in_lxml') is not True
             or evidence.get('native_python_bindings_installed') is not False
             or source.get('patches') != PATCHES
             or source.get('uri_overflow_guard_preexisting') is not True
