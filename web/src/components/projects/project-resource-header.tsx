@@ -20,9 +20,14 @@ export function ProjectResourceHeader({
   });
   if (board?.resource.type === 'deliverable_board')
     return (
-      <h1 className="truncate text-lg font-semibold tracking-tight">
-        {board.resource.name}
-      </h1>
+      <div
+        id={`deliverable-header-${projectId}-${resourceId}`}
+        className="min-w-0 flex-1 [&:has([data-deliverable-header])>h1]:hidden"
+      >
+        <h1 className="truncate text-lg font-semibold tracking-tight">
+          {board.resource.name}
+        </h1>
+      </div>
     );
   if (!board || board.resource.type !== 'task_board') {
     return <h1 className="text-lg font-semibold tracking-tight">Mergeron</h1>;
