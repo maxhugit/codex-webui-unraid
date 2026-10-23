@@ -103,6 +103,7 @@ export function ProjectDeliverablesManager({
   const [validation, setValidation] = useState('all');
   const [confidentiality, setConfidentiality] = useState('all');
   const [taskAssociation, setTaskAssociation] = useState('all');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
   const canLeave = () =>
     !dirty || window.confirm(t('discardUnsavedDeliverableChanges'));
@@ -139,6 +140,20 @@ export function ProjectDeliverablesManager({
       }) ?? [],
     [board, confidentiality, search, status, taskAssociation, validation],
   );
+  const activeFilterCount = [
+    search.trim(),
+    status !== 'all',
+    validation !== 'all',
+    confidentiality !== 'all',
+    taskAssociation !== 'all',
+  ].filter(Boolean).length;
+  const resetFilters = () => {
+    setSearch('');
+    setStatus('all');
+    setValidation('all');
+    setConfidentiality('all');
+    setTaskAssociation('all');
+  };
   if (!board)
     return (
       <main className="p-6" role={query.error ? 'alert' : 'status'}>
@@ -194,117 +209,131 @@ export function ProjectDeliverablesManager({
             </Button>
           </form>
         </div>
-        <div className="grid gap-2 rounded-xl border bg-card p-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_auto_auto_auto_auto]">
-          <label className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              aria-label={t('searchDeliverable')}
-              className="pl-9"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={t('searchDeliverable')}
-            />
-          </label>
-          <label className="flex items-center gap-2">
-            <ListFilter className="h-4 w-4 text-muted-foreground" />
-            <select
-              aria-label={t('filterByStatus')}
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              <option value="all">{t('allStatuses')}</option>
-              {Object.entries(lifecycleStatuses).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {t(translationKey(label))}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span className="sr-only">{t('filterByValidation')}</span>
-            <select
-              aria-label={t('filterByValidation')}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              value={validation}
-              onChange={(event) => setValidation(event.target.value)}
-            >
-              <option value="all">{t('allValidationStatuses')}</option>
-              {Object.entries(validationStatuses)
-                .filter(([value]) => value !== 'cancelled')
-                .map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {t(translationKey(label))}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label>
-            <span className="sr-only">{t('filterByConfidentiality')}</span>
-            <select
-              aria-label={t('filterByConfidentiality')}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              value={confidentiality}
-              onChange={(event) => setConfidentiality(event.target.value)}
-            >
-              <option value="all">{t('allConfidentialityLevels')}</option>
-              <option value="standard">{t('standardAccessShort')}</option>
-              <option value="restricted">{t('restrictedAccessShort')}</option>
-            </select>
-          </label>
-          <label>
-            <span className="sr-only">{t('filterByTaskAssociation')}</span>
-            <select
-              aria-label={t('filterByTaskAssociation')}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              value={taskAssociation}
-              onChange={(event) => setTaskAssociation(event.target.value)}
-            >
-              <option value="all">{t('allTaskAssociations')}</option>
-              <option value="linked">{t('withPrimaryTask')}</option>
-              <option value="unlinked">{t('withoutPrimaryTask')}</option>
-            </select>
-          </label>
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={
-              !search &&
-              status === 'all' &&
-              validation === 'all' &&
-              confidentiality === 'all' &&
-              taskAssociation === 'all'
-            }
-            onClick={() => {
-              setSearch('');
-              setStatus('all');
-              setValidation('all');
-              setConfidentiality('all');
-              setTaskAssociation('all');
-            }}
-          >
-            <RotateCcw className="h-4 w-4" />
-            {t('resetFilters')}
-          </Button>
-        </div>
         {create.error && (
           <p role="alert" className="text-sm text-destructive">
             {t('unableToSaveDeliverable')}
           </p>
         )}
-        {!visible.length ? (
-          <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
-            {board.deliverables.length
-              ? t('noDeliverableMatchesFilters')
-              : t('noDeliverablesYet')}
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="border-b bg-muted/20 p-3">
+            <div className="flex gap-2">
+              <label className="relative min-w-0 flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  aria-label={t('searchDeliverable')}
+                  className="bg-background pl-9"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={t('searchDeliverable')}
+                />
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0 md:hidden"
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen((open) => !open)}
+              >
+                <ListFilter className="h-4 w-4" />
+                {t('filters')}
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+            </div>
+            <div
+              className={`${filtersOpen ? 'grid' : 'hidden'} mt-2 gap-2 md:grid md:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]`}
+            >
+              <label>
+                <span className="sr-only">{t('filterByStatus')}</span>
+                <select
+                  aria-label={t('filterByStatus')}
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  value={status}
+                  onChange={(event) => setStatus(event.target.value)}
+                >
+                  <option value="all">{t('allStatuses')}</option>
+                  {Object.entries(lifecycleStatuses).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {t(translationKey(label))}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span className="sr-only">{t('filterByValidation')}</span>
+                <select
+                  aria-label={t('filterByValidation')}
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  value={validation}
+                  onChange={(event) => setValidation(event.target.value)}
+                >
+                  <option value="all">{t('allValidationStatuses')}</option>
+                  {Object.entries(validationStatuses)
+                    .filter(([value]) => value !== 'cancelled')
+                    .map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {t(translationKey(label))}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                <span className="sr-only">{t('filterByConfidentiality')}</span>
+                <select
+                  aria-label={t('filterByConfidentiality')}
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  value={confidentiality}
+                  onChange={(event) => setConfidentiality(event.target.value)}
+                >
+                  <option value="all">{t('allConfidentialityLevels')}</option>
+                  <option value="standard">{t('standardAccessShort')}</option>
+                  <option value="restricted">
+                    {t('restrictedAccessShort')}
+                  </option>
+                </select>
+              </label>
+              <label>
+                <span className="sr-only">{t('filterByTaskAssociation')}</span>
+                <select
+                  aria-label={t('filterByTaskAssociation')}
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  value={taskAssociation}
+                  onChange={(event) => setTaskAssociation(event.target.value)}
+                >
+                  <option value="all">{t('allTaskAssociations')}</option>
+                  <option value="linked">{t('withPrimaryTask')}</option>
+                  <option value="unlinked">{t('withoutPrimaryTask')}</option>
+                </select>
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                className="justify-start xl:justify-center"
+                disabled={activeFilterCount === 0}
+                onClick={resetFilters}
+              >
+                <RotateCcw className="h-4 w-4" />
+                {t('resetFilters')}
+              </Button>
+            </div>
           </div>
-        ) : (
-          <DeliverablesList
-            items={visible}
-            board={board}
-            onSelect={setSelected}
-          />
-        )}
+          {!visible.length ? (
+            <div className="p-10 text-center text-muted-foreground">
+              {board.deliverables.length
+                ? t('noDeliverableMatchesFilters')
+                : t('noDeliverablesYet')}
+            </div>
+          ) : (
+            <DeliverablesList
+              items={visible}
+              board={board}
+              onSelect={setSelected}
+            />
+          )}
+        </div>
       </div>
     </main>
   );
@@ -321,7 +350,7 @@ function DeliverablesList({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div>
       <div className="hidden grid-cols-[minmax(210px,2fr)_80px_130px_130px_minmax(170px,1.2fr)_130px_130px] gap-3 border-b bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground xl:grid">
         <span>{t('title')}</span>
         <span>{t('documents')}</span>

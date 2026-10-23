@@ -131,8 +131,9 @@ export const SETTINGS_DEFINITIONS = [
     type: 'string',
     category: 'general',
     description:
-      'Public base URL of this WebUI instance (e.g. https://mergeron.example.com). Used to build document URLs reachable by OnlyOffice. Auto-detected from request headers when empty.',
+      'Public base URL of this Mergeron instance (e.g. https://mergeron.example.com). Used for OnlyOffice document URLs and MCP OAuth callbacks.',
     defaultValue: GENERAL_SETTING_DEFAULTS.publicBaseUrl,
+    envKey: 'MERGERON_PUBLIC_URL',
   },
   {
     key: TERMINAL_SETTING_KEYS.maxSessions,

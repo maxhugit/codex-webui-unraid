@@ -34,6 +34,11 @@ it('separates server settings from operations and closes the mobile drawer on se
       .getByRole('button', { name: 'Server general settings' })
       .getAttribute('aria-current'),
   ).toBe('page');
+  fireEvent.click(screen.getByRole('button', { name: 'OnlyOffice' }));
+  expect(routing.navigate).toHaveBeenCalledWith({
+    to: '/settings',
+    search: { section: 'onlyOffice' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'File settings' }));
   expect(routing.navigate).toHaveBeenCalledWith({
     to: '/settings',

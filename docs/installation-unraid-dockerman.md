@@ -40,6 +40,15 @@ Appdata porte un autre nom, modifier les chemins dans chaque formulaire avant
 de cliquer sur **Apply**, ainsi que le chemin du profil `seccomp=` dans
 **Extra Parameters** du formulaire `mergeron`.
 
+Dans le formulaire `mergeron-ui`, remplacer **URL publique Mergeron** par le
+domaine HTTPS réellement utilisé (par exemple
+`https://mergeron.hugotlab.fr`). Cette valeur doit correspondre à l’adresse
+WebUI du proxy inverse : elle alimente les callbacks OAuth MCP et les URL
+OnlyOffice. Une ancienne adresse redirigerait encore les connexions MCP vers
+l’ancien domaine. Si **Administration > OnlyOffice > URL publique Mergeron**
+contient une valeur personnalisée, celle-ci reste prioritaire et doit être mise
+à jour elle aussi.
+
 ## 2. Préparer les données et les secrets
 
 Si l'installation Compose existe déjà, conserver le dossier `state` actuel et

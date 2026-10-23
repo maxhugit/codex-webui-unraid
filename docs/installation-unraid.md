@@ -48,9 +48,14 @@ cp /tmp/mergeron-install/deployment/.env.example \
 cd /mnt/pool/appdata/mergeron
 ```
 
-Éditer `images.env`, adapter les trois chemins et remplacer si possible `latest` par
-un tag `sha-...`. Le fichier `.env` de production ne doit jamais être envoyé
-sur GitHub.
+Éditer `images.env`, adapter les trois chemins et renseigner
+`MERGERON_WEBUI_URL` avec l’URL HTTPS réellement utilisée par les navigateurs
+(par exemple `https://mergeron.hugotlab.fr`). Cette valeur fournit aussi le
+domaine par défaut des callbacks OAuth MCP et des URL OnlyOffice. Une valeur
+personnalisée enregistrée dans **Administration > OnlyOffice > URL publique
+Mergeron** reste prioritaire et doit également être corrigée après un renommage.
+Remplacer si possible `latest` par un tag `sha-...`. Le fichier `.env` de
+production ne doit jamais être envoyé sur GitHub.
 
 Vérifier que les fichiers de configuration sont présents :
 

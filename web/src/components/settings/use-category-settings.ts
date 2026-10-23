@@ -15,7 +15,15 @@ import { formatSettingValue, parseDraftValue } from './setting-helpers';
 
 type SettingCategory = SettingDto['category'];
 
-export function useCategorySettings(category: SettingCategory) {
+interface CategorySettingsFilter {
+  includeKeys?: readonly string[];
+  excludeKeys?: readonly string[];
+}
+
+export function useCategorySettings(
+  category: SettingCategory,
+  filter: CategorySettingsFilter = {},
+) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [draftOverrides, setDraftOverrides] = useState<Record<string, string>>(
@@ -33,10 +41,17 @@ export function useCategorySettings(category: SettingCategory) {
     },
   });
 
-  const settings = useMemo(
-    () => settingsQuery.data?.settings ?? [],
-    [settingsQuery.data],
-  );
+  const includeKeys = filter.includeKeys?.join('\0') ?? '';
+  const excludeKeys = filter.excludeKeys?.join('\0') ?? '';
+  const settings = useMemo(() => {
+    const included = new Set(includeKeys ? includeKeys.split('\0') : []);
+    const excluded = new Set(excludeKeys ? excludeKeys.split('\0') : []);
+    return (settingsQuery.data?.settings ?? []).filter(
+      (setting) =>
+        (!included.size || included.has(setting.key)) &&
+        !excluded.has(setting.key),
+    );
+  }, [excludeKeys, includeKeys, settingsQuery.data]);
 
   const drafts = useMemo(() => {
     const base = Object.fromEntries(

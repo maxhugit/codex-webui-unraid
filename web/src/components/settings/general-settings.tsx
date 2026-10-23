@@ -3,10 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { SettingEditor } from './setting-editor';
 import { SettingsSaveBar } from './settings-save-bar';
 import { useCategorySettings } from './use-category-settings';
+import { ONLYOFFICE_SETTING_KEYS } from './settings-sections';
 
 export function GeneralSettings() {
   const { t } = useTranslation();
-  const runtimeSettings = useCategorySettings('general');
+  const runtimeSettings = useCategorySettings('general', {
+    excludeKeys: ONLYOFFICE_SETTING_KEYS,
+  });
 
   return (
     <section className="space-y-4">

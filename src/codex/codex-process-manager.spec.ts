@@ -9,6 +9,7 @@ import {
   isCliNotInstalledStartupFailure,
 } from './codex-process-manager.service';
 import { catalogFixture } from './catalog/catalog.testing';
+import type { SettingsService } from '../settings/settings.service';
 
 const mocks = vi.hoisted(() => ({ spawn: vi.fn() }));
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn }));
@@ -38,7 +39,9 @@ describe('CodexProcessManager unattended start failures', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     fixture = catalogFixture();
-    manager = new CodexProcessManager(fixture.storage);
+    manager = new CodexProcessManager(fixture.storage, {
+      getStringSetting: vi.fn(() => null),
+    } as unknown as SettingsService);
     mocks.spawn.mockImplementation(() => failingChild());
   });
 
@@ -51,6 +54,28 @@ describe('CodexProcessManager unattended start failures', () => {
         ),
       ),
     ).toBe(true);
+  });
+
+  it('overrides a stale persisted MCP callback with the configured public URL', async () => {
+    manager = new CodexProcessManager(fixture.storage, {
+      getStringSetting: vi.fn(() => 'https://mergeron.hugotlab.fr/'),
+    } as unknown as SettingsService);
+
+    await manager.onModuleInit();
+
+    expect(mocks.spawn).toHaveBeenCalledWith(
+      fixture.storage.paths.binary,
+      [
+        'app-server',
+        '--listen',
+        'stdio://',
+        '-c',
+        'mcp_oauth_callback_url="https://mergeron.hugotlab.fr/mcp/oauth/callback"',
+        '-c',
+        'mcp_oauth_callback_port=12345',
+      ],
+      expect.any(Object),
+    );
   });
 
   afterEach(() => {

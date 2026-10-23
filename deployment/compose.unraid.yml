@@ -23,6 +23,7 @@ services:
       CODEX_HOME: /home/codex/.codex
       WEBUI_DB_PATH: /home/codex/.codex/codex-webui.sqlite
       WEBUI_REQUIRE_IDENTITY: 'true'
+      MERGERON_PUBLIC_URL: ${MERGERON_WEBUI_URL:-https://mergeron.example.com}
       WEBUI_PROTECTED_PATHS: /home/codex,/run/secrets,/app,/proc,/sys,/dev,/etc,/root,/appdata/mergeron
       WORKSPACE_ROOTS: /workspaces,/appdata
       LOG_LEVEL: info

@@ -9,6 +9,7 @@ import { catalogFixture } from './catalog.testing';
 import { writeAtomic } from './catalog-files';
 import { CatalogActivityService } from './catalog-activity.service';
 import { CatalogAdmissionService } from './catalog-admission.service';
+import type { SettingsService } from '../../settings/settings.service';
 
 /** Starts an isolated child and holds each model response until the test explicitly completes it. */
 export async function localCatalogProvider() {
@@ -35,7 +36,9 @@ export async function localCatalogProvider() {
     fixture.paths.configFile,
     `model_catalog_json=${JSON.stringify(catalog)}\nmodel="gpt-5.6-sol"\nreview_model="gpt-5.6-sol"\nmodel_provider="catalog_test"\n[model_providers.catalog_test]\nname="Local test"\nbase_url="http://127.0.0.1:${port}/v1"\nwire_api="responses"\nexperimental_bearer_token="test-only"\nrequest_max_retries=0\n`,
   );
-  const manager = new CodexProcessManager(fixture.storage);
+  const manager = new CodexProcessManager(fixture.storage, {
+    getStringSetting: () => null,
+  } as unknown as SettingsService);
   await manager.onModuleInit();
   const client = manager.getClient();
   if (!client) {

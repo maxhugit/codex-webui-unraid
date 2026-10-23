@@ -1,20 +1,29 @@
 /**
  * Settings page shell with tab routing to category sub-components.
  */
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useId, useState } from 'react';
 import { useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { Blocks, PackageOpen, Plug } from 'lucide-react';
 import type { SettingsSection } from './settings-sections';
 import { cn } from '@/lib/utils';
+import { translationKey } from '@/locales/translation-key';
 
-const INTEGRATION_SECTIONS = ['plugins', 'apps', 'mcps'] as const;
-type IntegrationSection = (typeof INTEGRATION_SECTIONS)[number];
+const integrationTabs = [
+  { id: 'plugins', label: 'plugins', Icon: Blocks },
+  { id: 'apps', label: 'apps', Icon: PackageOpen },
+  { id: 'mcps', label: 'mcpServers', Icon: Plug },
+] as const;
+type IntegrationSection = (typeof integrationTabs)[number]['id'];
 
 const GeneralSettings = lazy(() =>
   import('./general-settings').then((module) => ({
     default: module.GeneralSettings,
+  })),
+);
+const OnlyOfficeSettings = lazy(() =>
+  import('./onlyoffice-settings').then((module) => ({
+    default: module.OnlyOfficeSettings,
   })),
 );
 const AccountSettings = lazy(() =>
@@ -86,6 +95,7 @@ export function SettingsPage() {
   });
   const [integrationSection, setIntegrationSection] =
     useState<IntegrationSection>('plugins');
+  const integrationPanelId = useId();
   const usesFullHeightLayout = section === 'database' || section === 'codex';
 
   return (
@@ -111,6 +121,7 @@ export function SettingsPage() {
           }
         >
           {section === 'general' && <GeneralSettings />}
+          {section === 'onlyOffice' && <OnlyOfficeSettings />}
           {section === 'account' && <AccountSettings />}
           {section === 'people' && <PeopleManager showHeading={false} />}
           {section === 'codex' && <CodexSettings />}
@@ -121,31 +132,74 @@ export function SettingsPage() {
           {section === 'database' && <DatabaseSettings />}
           {section === 'security' && <SecuritySettings />}
           {section === 'integrations' && (
-            <div className="space-y-6">
-              <div className="flex flex-wrap gap-2">
-                {INTEGRATION_SECTIONS.map((item) => (
-                  <Button
-                    key={item}
-                    size="sm"
-                    variant={
-                      integrationSection === item ? 'default' : 'outline'
-                    }
-                    onClick={() => setIntegrationSection(item)}
-                  >
-                    {t(
-                      item === 'plugins'
-                        ? 'plugins'
-                        : item === 'apps'
-                          ? 'apps'
-                          : 'mcpServers',
-                    )}
-                  </Button>
-                ))}
+            <div>
+              <div className="flex h-10 min-w-0 items-center border-b bg-background">
+                <div
+                  role="tablist"
+                  aria-label={t('integrations')}
+                  className="flex min-w-0 flex-1 items-center overflow-x-auto"
+                  onKeyDown={(event) => {
+                    if (
+                      !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(
+                        event.key,
+                      )
+                    )
+                      return;
+                    const tabs = [
+                      ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                        '[role="tab"]',
+                      ),
+                    ];
+                    const current = tabs.indexOf(
+                      document.activeElement as HTMLButtonElement,
+                    );
+                    const index =
+                      event.key === 'Home'
+                        ? 0
+                        : event.key === 'End'
+                          ? tabs.length - 1
+                          : (current +
+                              (event.key === 'ArrowRight' ? 1 : -1) +
+                              tabs.length) %
+                            tabs.length;
+                    event.preventDefault();
+                    tabs[index]?.focus();
+                    tabs[index]?.click();
+                  }}
+                >
+                  {integrationTabs.map(({ id, label, Icon }) => (
+                    <button
+                      key={id}
+                      id={`${integrationPanelId}-${id}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={integrationSection === id}
+                      aria-controls={integrationPanelId}
+                      tabIndex={integrationSection === id ? 0 : -1}
+                      onClick={() => setIntegrationSection(id)}
+                      className={cn(
+                        'flex h-10 shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]',
+                        integrationSection === id
+                          ? 'border-primary text-foreground'
+                          : 'border-transparent text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      <Icon aria-hidden="true" className="h-4 w-4" />
+                      <span>{t(translationKey(label))}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <Separator />
-              {integrationSection === 'plugins' && <PluginsTab />}
-              {integrationSection === 'apps' && <AppsTab />}
-              {integrationSection === 'mcps' && <McpsTab />}
+              <div
+                id={integrationPanelId}
+                role="tabpanel"
+                aria-labelledby={`${integrationPanelId}-${integrationSection}`}
+                className="pt-6"
+              >
+                {integrationSection === 'plugins' && <PluginsTab />}
+                {integrationSection === 'apps' && <AppsTab />}
+                {integrationSection === 'mcps' && <McpsTab />}
+              </div>
             </div>
           )}
         </Suspense>
