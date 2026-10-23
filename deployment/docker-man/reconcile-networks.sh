@@ -40,7 +40,7 @@ ensure_connection() {
     return 0
   fi
 
-  if docker network connect "$network" "$container"; then
+  if docker network connect --alias "$legacy_alias" "$network" "$container"; then
     log "Réseau raccordé: $container -> $network"
     return 0
   fi
@@ -52,17 +52,20 @@ ensure_connection() {
 reconcile_container() {
   container_result=0
   case "$1" in
-    codex-webui)
-      ensure_connection codex-webui codex_isolated || container_result=1
-      ensure_connection codex-webui codex_admin || container_result=1
+    mergeron|codex-webui)
+      legacy_alias=codex-webui
+      ensure_connection "$1" codex_isolated || container_result=1
+      ensure_connection "$1" codex_admin || container_result=1
       ;;
-    codex-web-ingress)
-      ensure_connection codex-web-ingress codex_isolated || container_result=1
-      ensure_connection codex-web-ingress net_standard || container_result=1
+    mergeron-ingress|codex-web-ingress)
+      legacy_alias=codex-web-ingress
+      ensure_connection "$1" codex_isolated || container_result=1
+      ensure_connection "$1" net_standard || container_result=1
       ;;
-    codex-web-squid)
-      ensure_connection codex-web-squid codex_isolated || container_result=1
-      ensure_connection codex-web-squid codex_external || container_result=1
+    mergeron-squid|codex-web-squid)
+      legacy_alias=codex-web-squid
+      ensure_connection "$1" codex_isolated || container_result=1
+      ensure_connection "$1" codex_external || container_result=1
       ;;
     *)
       return 0
@@ -73,9 +76,15 @@ reconcile_container() {
 
 reconcile_all() {
   all_result=0
-  reconcile_container codex-web-squid || all_result=1
-  reconcile_container codex-webui || all_result=1
-  reconcile_container codex-web-ingress || all_result=1
+  for pair in 'mergeron-squid:codex-web-squid' 'mergeron:codex-webui' 'mergeron-ingress:codex-web-ingress'; do
+    preferred="${pair%%:*}"
+    legacy="${pair#*:}"
+    if container_exists "$preferred"; then
+      reconcile_container "$preferred" || all_result=1
+    else
+      reconcile_container "$legacy" || all_result=1
+    fi
+  done
   return "$all_result"
 }
 

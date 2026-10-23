@@ -40,14 +40,14 @@ Les fichiers sous `state` ne doivent jamais être ajoutés au dépôt.
 ## Mise à jour recommandée
 
 Avec les formulaires standard, utiliser **Docker > Check for Updates**, puis
-**Update** sur `codex-webui`. Unraid recrée le conteneur à partir de `latest`
+**Update** sur `mergeron`. Unraid recrée le conteneur à partir de `latest`
 sans toucher aux données persistantes de `state`.
 
 Les trois conteneurs restent nécessaires : Nginx porte l'authentification et le
 routage entrant, tandis que Squid contrôle les accès Internet sortants.
 
 Dans ce mode, le formulaire de chaque conteneur est sa configuration de référence.
-Mettre à jour `codex-webui` ne recrée pas automatiquement Nginx ou Squid. Leurs
+Mettre à jour `mergeron` ne recrée pas automatiquement Nginx ou Squid. Leurs
 images sont vérifiées et mises à jour séparément depuis l’onglet **Docker**.
 
 DockerMan recrée un conteneur avec un seul réseau de démarrage. Le

@@ -15,7 +15,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: codex-webui-ghcr-cleanup
+  group: mergeron-ghcr-cleanup
   cancel-in-progress: false
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GHCR_OWNER: ${{ github.repository_owner }}
-      GHCR_PACKAGE: codex-webui-unraid
+      GHCR_PACKAGE: mergeron
       KEEP_SHA_VERSIONS: '10'
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
 

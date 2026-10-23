@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/openai/codex/issues
     about: Utiliser le dépôt OpenAI pour les problèmes reproductibles directement avec Codex CLI.
   - name: Vulnérabilité de sécurité
-    url: https://github.com/maxhugit/codex-webui-unraid/security/advisories/new
+    url: https://github.com/maxhugit/mergeron/security/advisories/new
     about: Ne pas publier une vulnérabilité ou un secret dans une issue publique.

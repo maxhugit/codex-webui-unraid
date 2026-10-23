@@ -111,7 +111,7 @@ peut provisionner la première fiche depuis un fichier JSON **privé, hors Git**
 ```
 
 ```sh
-docker exec -i codex-webui node /app/scripts/provision-person.cjs < personne-privee.json
+docker exec -i mergeron node /app/scripts/provision-person.cjs < personne-privee.json
 ```
 
 Ce programme requiert un accès privilégié au conteneur et réutilise la validation
@@ -177,7 +177,7 @@ Nginx réalise aussi une vérification interne auprès de :
 http://authentik:9000/outpost.goauthentik.io/auth/nginx
 ```
 
-Le conteneur Authentik et `codex-web-ingress` doivent donc partager
+Le conteneur Authentik et `mergeron-ingress` doivent donc partager
 `net_standard`. Après configuration, une fenêtre privée doit être redirigée vers
 Authentik ; aucune page Codex ne doit apparaître avant authentification.
 

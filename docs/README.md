@@ -15,6 +15,9 @@ dans cet ordre :
 
 ## Guide d’utilisation
 
+- [Migration vers Mergeron](migration-mergeron.md) : image GHCR, noms des
+  conteneurs, formulaires Unraid et conservation des données existantes.
+
 - [Droits d'accès aux projets](droits-acces-projets.md) : participants,
   isolation des données, sessions documentaires et migration.
 

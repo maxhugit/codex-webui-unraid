@@ -30,7 +30,7 @@ flowchart LR
 
 ## Conteneurs
 
-### `codex-webui`
+### `mergeron`
 
 Application principale et moteur Codex. Aucun port n’est publié sur l’hôte.
 L’application est joignable uniquement depuis Nginx sur le réseau interne.
@@ -46,7 +46,7 @@ Montages persistants :
 | `/home/codex/.ssh` | clés et configuration SSH | lecture seule |
 | `/run/secrets/*` | jetons internes et clé OpenAI | lecture seule |
 
-### `codex-web-ingress`
+### `mergeron-ingress`
 
 Passerelle Nginx entre Traefik et l’application. Elle effectue une seconde
 vérification Authentik, remplace tout en-tête `Authorization` fourni par le
@@ -55,7 +55,7 @@ client et injecte le jeton interne attendu par Codex.
 Les exceptions machine-à-machine sont limitées au retour OAuth MCP et aux deux
 routes OnlyOffice. Les contrôles applicatifs OnlyOffice restent obligatoires.
 
-### `codex-web-squid`
+### `mergeron-squid`
 
 Proxy Squid utilisé par les variables `HTTP_PROXY`, `HTTPS_PROXY` et
 `ALL_PROXY`. Il refuse les adresses privées et n’autorise qu’une liste définie
@@ -76,9 +76,9 @@ de domaines Internet.
 
 1. Traefik termine TLS pour le domaine public choisi par l’administrateur.
 2. Le middleware Authentik valide la session.
-3. Traefik transmet à `codex-web-ingress:8080`.
+3. Traefik transmet à `mergeron-ingress:8080`.
 4. Nginx contrôle à nouveau Authentik.
-5. Nginx transmet vers `codex-webui:8172` avec le jeton interne.
+5. Nginx transmet vers `mergeron:8172` avec le jeton interne.
 
 ## Flux sortant
 

@@ -12,24 +12,24 @@ du conteneur concerné. Le fichier Compose du dépôt n’est pas utilisé par c
 
 Les trois formulaires conservent l'architecture de sécurité existante :
 
-1. `codex-web-squid` filtre les accès sortants avec Squid ;
-2. `codex-webui` exécute l'application sans publier son port ;
-3. `codex-web-ingress` relie Traefik/Authentik au backend isolé.
+1. `mergeron-squid` filtre les accès sortants avec Squid ;
+2. `mergeron` exécute l'application sans publier son port ;
+3. `mergeron-ingress` relie Traefik/Authentik au backend isolé.
 
 ## 1. Installer les fichiers
 
 Dans le terminal Unraid :
 
 ```bash
-git clone https://github.com/maxhugit/codex-webui-unraid.git /tmp/codex-webui-install
+git clone https://github.com/maxhugit/mergeron.git /tmp/mergeron-install
 mkdir -p /mnt/pool/appdata/codex-web/config
-cp -a /tmp/codex-webui-install/deployment/config/. \
+cp -a /tmp/mergeron-install/deployment/config/. \
   /mnt/pool/appdata/codex-web/config/
-cp /tmp/codex-webui-install/deployment/docker-man/my-*.xml \
+cp /tmp/mergeron-install/deployment/docker-man/my-*.xml \
   /boot/config/plugins/dockerMan/templates-user/
-cp /tmp/codex-webui-install/deployment/docker-man/prepare-networks.sh \
+cp /tmp/mergeron-install/deployment/docker-man/prepare-networks.sh \
   /mnt/pool/appdata/codex-web/prepare-networks.sh
-cp /tmp/codex-webui-install/deployment/docker-man/reconcile-networks.sh \
+cp /tmp/mergeron-install/deployment/docker-man/reconcile-networks.sh \
   /mnt/pool/appdata/codex-web/reconcile-networks.sh
 chmod 700 /mnt/pool/appdata/codex-web/prepare-networks.sh \
   /mnt/pool/appdata/codex-web/reconcile-networks.sh
@@ -38,7 +38,7 @@ chmod 700 /mnt/pool/appdata/codex-web/prepare-networks.sh \
 Les valeurs proposées par les formulaires utilisent `/mnt/pool`. Si le pool
 Appdata porte un autre nom, modifier les chemins dans chaque formulaire avant
 de cliquer sur **Apply**, ainsi que le chemin du profil `seccomp=` dans
-**Extra Parameters** du formulaire `codex-webui`.
+**Extra Parameters** du formulaire `mergeron`.
 
 ## 2. Préparer les données et les secrets
 
@@ -92,9 +92,9 @@ nohup /mnt/pool/appdata/codex-web/reconcile-networks.sh watch \
 Il contrôle périodiquement la topologie Docker. Après chaque création ou mise à
 jour DockerMan, il rattache automatiquement les réseaux secondaires suivants :
 
-- `codex-webui` à `codex_admin` ;
-- `codex-web-ingress` à `net_standard` ;
-- `codex-web-squid` à `codex_external`.
+- `mergeron` à `codex_admin` ;
+- `mergeron-ingress` à `net_standard` ;
+- `mergeron-squid` à `codex_external`.
 
 Les trois conteneurs démarrent volontairement sur `codex_isolated`. Cette
 méthode est nécessaire car Docker n'accepte qu'un réseau de démarrage dans la
@@ -127,9 +127,9 @@ Les volumes persistants ne sont pas supprimés quand un conteneur est retiré.
 Dans **Docker**, cliquer sur **Add Container**, puis sélectionner successivement
 les modèles dans **Template** :
 
-1. `codex-web-squid` ;
-2. `codex-webui` ;
-3. `codex-web-ingress`.
+1. `mergeron-squid` ;
+2. `mergeron` ;
+3. `mergeron-ingress`.
 
 Activer **Advanced View**, vérifier les chemins proposés, puis cliquer sur
 **Apply** pour chacun. Aucun port et aucune option `--network` ne doivent être
@@ -140,37 +140,37 @@ Dans les options d'autostart d'Unraid, conserver le même ordre. Un délai court
 entre les conteneurs est acceptable, mais les contrôles de santé restent la
 référence pour vérifier qu'ils sont prêts.
 
-Adapter enfin l'adresse **WebUI** du formulaire `codex-webui` à l'URL publique
+Adapter enfin l'adresse **WebUI** du formulaire `mergeron` à l'URL publique
 réelle, par exemple `https://codex.example.com`.
 
 ## 6. Vérifier le déploiement
 
 ```bash
-docker inspect codex-web-squid --format '{{.State.Health.Status}}'
-docker inspect codex-webui --format '{{.State.Health.Status}}'
-docker inspect codex-web-ingress --format '{{.State.Health.Status}}'
+docker inspect mergeron-squid --format '{{.State.Health.Status}}'
+docker inspect mergeron --format '{{.State.Health.Status}}'
+docker inspect mergeron-ingress --format '{{.State.Health.Status}}'
 docker network inspect codex_isolated
 /mnt/pool/appdata/codex-web/reconcile-networks.sh once
 curl -I https://codex.example.com
 ```
 
-Le backend `codex-webui` ne doit avoir aucun port publié. Traefik doit joindre
-uniquement `codex-web-ingress:8080` sur `net_standard`.
+Le backend `mergeron` ne doit avoir aucun port publié. Traefik doit joindre
+uniquement `mergeron-ingress:8080` sur `net_standard`.
 
 ## 7. Mettre à jour et revenir en arrière
 
 Le formulaire principal utilise
-`ghcr.io/maxhugit/codex-webui-unraid:latest`. Dans l'onglet **Docker** :
+`ghcr.io/maxhugit/mergeron:latest`. Dans l'onglet **Docker** :
 
 1. lancer **Check for Updates** ;
-2. choisir **Update** sur `codex-webui` ;
+2. choisir **Update** sur `mergeron` ;
 3. attendre que son état redevienne `healthy` ;
 4. tester la connexion, une conversation et les intégrations.
 
 Cette opération télécharge l'image et recrée seulement le conteneur ; les
 données restent dans `/mnt/pool/appdata/codex-web/state`.
 
-Après la recréation, vérifier que le réconciliateur a remis `codex-webui` sur
+Après la recréation, vérifier que le réconciliateur a remis `mergeron` sur
 `codex_admin`. Une mise à jour réussie de l’image ne garantit pas à elle seule
 que les réseaux secondaires sont présents.
 

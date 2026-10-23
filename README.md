@@ -7,11 +7,14 @@ développement actuellement intégré, pas le nom de la plateforme.
 
 L’icône graphite-cuivre est commune au web et à la PWA. Son original vectoriel
 se trouve dans [`web/public/mergeron-icon.svg`](web/public/mergeron-icon.svg).
-Les identifiants techniques historiques (image GHCR, conteneurs, variables,
-volumes et clés de stockage) sont conservés pour les installations existantes.
+L’image officielle est `ghcr.io/maxhugit/mergeron:latest`. Les conteneurs sont
+nommés `mergeron`, `mergeron-ingress` et `mergeron-squid`. Les variables de
+configuration, volumes et clés de stockage existants sont conservés.
+La [migration vers Mergeron](docs/migration-mergeron.md) décrit les changements
+à reporter dans les formulaires Unraid ou une installation Compose existante.
 
 Il s’agit d’une adaptation du projet
-[`LimLLL/codex-webui`](https://github.com/LimLLL/codex-webui), publiée sous
+[`LimLLL/mergeron`](https://github.com/LimLLL/mergeron), publiée sous
 licence AGPL-3.0-or-later.
 
 ## Fonctions principales
@@ -35,17 +38,17 @@ licence AGPL-3.0-or-later.
 
 La plateforme utilise trois conteneurs :
 
-1. `codex-webui` exécute l’interface et le moteur Codex ;
-2. `codex-web-ingress` protège et transmet les requêtes entrantes ;
-3. `codex-web-squid` filtre les accès HTTP/HTTPS sortants.
+1. `mergeron` exécute l’interface et le moteur Codex ;
+2. `mergeron-ingress` protège et transmet les requêtes entrantes ;
+3. `mergeron-squid` filtre les accès HTTP/HTTPS sortants.
 
 ```mermaid
 flowchart LR
     U[Utilisateur] -->|HTTPS| T[Traefik]
     T -->|SSO| A[Authentik]
-    T --> N[codex-web-ingress]
-    N --> C[codex-webui]
-    C --> S[codex-web-squid]
+    T --> N[mergeron-ingress]
+    N --> C[mergeron]
+    C --> S[mergeron-squid]
     S --> I[Internet autorisé]
     C --> H[HA-MCP / Home Assistant]
     C --> X[Unraid et VPS par SSH]
@@ -74,8 +77,8 @@ MCP.
 Chaque modification de la branche `main` construit et publie :
 
 ```text
-ghcr.io/maxhugit/codex-webui-unraid:latest
-ghcr.io/maxhugit/codex-webui-unraid:sha-<commit>
+ghcr.io/maxhugit/mergeron:latest
+ghcr.io/maxhugit/mergeron:sha-<commit>
 ```
 
 Pour la production, un tag immuable `sha-...` est préférable à `latest`.

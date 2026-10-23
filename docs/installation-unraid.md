@@ -37,13 +37,13 @@ Récupérer temporairement le dépôt, puis installer les fichiers dans le dossi
 Appdata unique :
 
 ```bash
-git clone https://github.com/maxhugit/codex-webui-unraid.git /tmp/codex-webui-install
+git clone https://github.com/maxhugit/mergeron.git /tmp/mergeron-install
 mkdir -p /mnt/pool/appdata/codex-web/config
-cp /tmp/codex-webui-install/deployment/compose.unraid.yml \
+cp /tmp/mergeron-install/deployment/compose.unraid.yml \
   /mnt/pool/appdata/codex-web/docker-compose.yml
-cp -a /tmp/codex-webui-install/deployment/config/. \
+cp -a /tmp/mergeron-install/deployment/config/. \
   /mnt/pool/appdata/codex-web/config/
-cp /tmp/codex-webui-install/deployment/.env.example \
+cp /tmp/mergeron-install/deployment/.env.example \
   /mnt/pool/appdata/codex-web/images.env
 cd /mnt/pool/appdata/codex-web
 ```
@@ -175,10 +175,10 @@ Copier `deployment/traefik/codex.yml` dans le dossier dynamique de Traefik. Le
 middleware nommé `authentik` doit déjà exister.
 
 Vérifier que Traefik est attaché à `net_standard` et peut résoudre
-`codex-web-ingress`.
+`mergeron-ingress`.
 
 Recharger Traefik et vérifier dans son tableau de bord que le routeur Codex est
-actif, utilise TLS et pointe vers le port `8080` de `codex-web-ingress`.
+actif, utilise TLS et pointe vers le port `8080` de `mergeron-ingress`.
 
 ## 6. Configurer Authentik
 
@@ -238,10 +238,10 @@ depuis le conteneur sans donner de clé privée en écriture à Codex.
 ## 9. Tests après reconstruction
 
 ```bash
-docker inspect codex-webui --format '{{.State.Health.Status}}'
+docker inspect mergeron --format '{{.State.Health.Status}}'
 curl -I https://codex.example.com
-docker logs --tail 100 codex-web-ingress
-docker logs --tail 100 codex-web-squid
+docker logs --tail 100 mergeron-ingress
+docker logs --tail 100 mergeron-squid
 ```
 
 Tester ensuite : connexion Authentik, création d’une conversation, terminal,
