@@ -130,8 +130,12 @@ export class PlatformAccessGuard implements CanActivate {
         /^\/projects\/[^/]+\/participants(?:\/|$)/.test(url)) ||
       (request.method !== 'GET' &&
         /^\/projects\/[^/]+\/(?:mcp-servers|apps|agent-settings)$/.test(url));
+    const workspaceConnectionMutation =
+      request.method !== 'GET' &&
+      /^\/projects\/[^/]+\/workspace-resources(?:\/|$)/.test(url);
     if (
       admin ||
+      workspaceConnectionMutation ||
       url === '/projects/reconcile-workspaces' ||
       (request.method === 'DELETE' && /^\/projects\/[^/]+$/.test(url))
     )

@@ -135,6 +135,29 @@ export interface ProjectWorkspaceSummary {
   updatedAt: number;
 }
 
+export interface ProjectWorkspaceResourceSummary {
+  id: string;
+  projectId: string;
+  localWorkspaceId: string | null;
+  name: string;
+  type: 'local' | 'git' | 'ssh' | 'sftp' | 'ftp' | 'ftps';
+  address: string | null;
+  rootPath: string;
+  accessMode: 'read_only' | 'read_write';
+  capabilities: { read: boolean; write: boolean; execute: false };
+  enabled: boolean;
+  connectionState:
+    | 'local'
+    | 'untested'
+    | 'connected'
+    | 'unreachable'
+    | 'disabled';
+  lastCheckedAt: number | null;
+  lastError: string | null;
+  hasSecret: boolean;
+  localPath: string | null;
+}
+
 export interface ActiveFolderSummary {
   contextType: 'agent' | 'simple_chat' | 'task' | 'deliverable';
   contextId: string;

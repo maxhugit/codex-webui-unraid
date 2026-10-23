@@ -80,3 +80,13 @@ La table `project_active_folders` stocke le type et l'identifiant du contexte, l
 Le rattrapage au démarrage reprend les chemins absolus des agents, conversations simples, tâches et livrables sans déplacer de fichiers. Il sélectionne uniquement une ressource du même projet contenant déjà le chemin. Le détachement d'un secondaire ne réaffecte aucune activité. Les vues de tâches et de livrables signalent les références qui demandent une correction, et les réponses de l'API exposent la ressource, le chemin relatif, le chemin effectif et l'état.
 
 Les nouvelles opérations des agents résolvent d'abord la tâche liée, puis le défaut de l'agent. Les conversations simples utilisent leur propre référence. La navigation de l'explorateur demeure un état d'interface indépendant. Les ressources distantes, copies locales et transferts restent dans les PR 3 à 5.
+
+## Mise en œuvre de la troisième PR
+
+La table `project_workspace_resources` sépare désormais la définition d'une ressource de son éventuel dossier local. Les workspaces existants sont exposés comme ressources `local` de compatibilité avec le même identifiant. Les nouvelles ressources `git`, `ssh`, `sftp`, `ftp` et `ftps` stockent leur adresse, leur racine autorisée, leur mode d'accès, leurs capacités et leur état de connexion. Aucune ressource distante ne possède la capacité d'exécution ; une connexion SSH ne permet donc pas de lancer une commande distante.
+
+Les secrets de connexion sont chiffrés avec AES-256-GCM dans une table séparée. La clé provient de `WEBUI_CONNECTION_SECRET_KEY`, avec `WEBUI_API_KEY` comme repli pour préserver les installations existantes. L'API ne renvoie jamais les identifiants : elle expose seulement `hasSecret`. Changer la clé sans réenregistrer les secrets les rend illisibles.
+
+La gestion des connexions est réservée aux administrateurs, tandis que les participants du projet peuvent consulter les définitions et leurs états. L'écran des workspaces permet l'ajout, le test, l'activation, la désactivation et le détachement. Le détachement supprime uniquement la définition et son secret local ; il ne supprime aucune donnée distante. Le FTP non chiffré exige une option explicite. Les tests SSH/SFTP vérifient la bannière du serveur sans authentification ni commande, Git utilise `git ls-remote`, FTP peut vérifier la connexion et l'authentification, et FTPS vérifie la session TLS.
+
+Cette étape ne transforme pas encore une ressource distante en dossier actif et ne copie aucun contenu. L'utilisation par les agents, les tâches et les livrables, ainsi que les copies de travail Git, appartient à la PR 4.

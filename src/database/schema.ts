@@ -1033,6 +1033,66 @@ export const projectWorkspaces = sqliteTable(
 export type ProjectWorkspace = typeof projectWorkspaces.$inferSelect;
 export type InsertProjectWorkspace = typeof projectWorkspaces.$inferInsert;
 
+/** A project resource definition, independent from an optional local folder. */
+export const projectWorkspaceResources = sqliteTable(
+  'project_workspace_resources',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    localWorkspaceId: text('local_workspace_id').references(
+      () => projectWorkspaces.id,
+      { onDelete: 'set null' },
+    ),
+    name: text('name').notNull(),
+    type: text('type')
+      .$type<'local' | 'git' | 'ssh' | 'sftp' | 'ftp' | 'ftps'>()
+      .notNull(),
+    address: text('address'),
+    rootPath: text('root_path').notNull().default('/'),
+    accessMode: text('access_mode')
+      .$type<'read_only' | 'read_write'>()
+      .notNull()
+      .default('read_only'),
+    capabilities: text('capabilities', { mode: 'json' })
+      .$type<{ read: boolean; write: boolean; execute: false }>()
+      .notNull(),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    connectionState: text('connection_state')
+      .$type<'local' | 'untested' | 'connected' | 'unreachable' | 'disabled'>()
+      .notNull(),
+    lastCheckedAt: integer('last_checked_at'),
+    lastError: text('last_error'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    index('idx_project_workspace_resources_project').on(table.projectId),
+    uniqueIndex('idx_project_workspace_resources_local').on(
+      table.localWorkspaceId,
+    ),
+  ],
+);
+
+/** Encrypted connection material. Values are never returned by the API. */
+export const projectWorkspaceSecrets = sqliteTable(
+  'project_workspace_secrets',
+  {
+    resourceId: text('resource_id')
+      .primaryKey()
+      .references(() => projectWorkspaceResources.id, { onDelete: 'cascade' }),
+    encryptedValue: text('encrypted_value').notNull(),
+    iv: text('iv').notNull(),
+    authTag: text('auth_tag').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+);
+
+export type ProjectWorkspaceResource =
+  typeof projectWorkspaceResources.$inferSelect;
+
 /**
  * Stable folder selected by one project context.
  *
