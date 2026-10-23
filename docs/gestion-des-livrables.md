@@ -46,6 +46,19 @@ dernière modification. La fiche détaillée est organisée en cinq onglets :
 La séparation entre **Validation** et **Historique** évite de mélanger les
 actions en attente avec la consultation des décisions passées.
 
+La validation est facultative et doit être activée explicitement sur chaque
+livrable. Elle ne peut être demandée que lorsque le livrable est finalisé : la
+demande référence directement l'instantané immuable créé lors de cette
+finalisation. Une demande encore en attente doit être annulée avec un motif
+avant de pouvoir désactiver la validation. L'activation, la désactivation et
+l'annulation restent visibles dans l'historique.
+
+Le dernier instantané approuvé reste référencé séparément de l'instantané
+courant. Après réouverture, une absence de modification conserve donc l'état
+approuvé ; toute divergence documentaire rend la validation obsolète. Un retour
+exact aux versions approuvées restaure l'état approuvé sans créer une décision
+artificielle.
+
 ## Fichiers et versions
 
 Un livrable est composé de documents possédant chacun un identifiant permanent,
@@ -60,7 +73,7 @@ Les fichiers de travail sont dans le workspace principal permanent :
 ne change pas ce chemin. On peut importer/remplacer ces fichiers ou soumettre
 des fichiers existants dans les workspaces rattachés au projet.
 
-La soumission historique crée une copie séparée dans
+La soumission historique héritée crée une copie séparée dans
 `.webui/history/deliverables/<id-livrable>/<id-version>/` du principal.
 Une version comprend de 1 à 10 fichiers, de 100 Mio maximum chacun, avec un total
 de 200 Mio maximum. Une empreinte SHA-256 détecte les modifications extérieures
@@ -88,6 +101,10 @@ instantané immuable composé des identifiants des documents, de leurs versions 
 de leurs empreintes SHA-256. Un livrable finalisé doit être rouvert avant toute
 modification documentaire. Un livrable archivé est en lecture seule ; son
 désarchivage le replace d'abord dans l'état finalisé.
+
+Les états de validation — non requise, en attente, approuvée, refusée ou
+obsolète — restent indépendants du cycle de vie. Une approbation ou un refus ne
+peut être créé que par une décision humaine explicite sur une demande active.
 
 Chaque transition conserve l'état de départ et d'arrivée, l'auteur, la date et
 l'instantané éventuellement créé. Le livrable peut être renommé depuis son

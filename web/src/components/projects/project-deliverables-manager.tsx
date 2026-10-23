@@ -53,10 +53,17 @@ const lifecycleStatuses = {
   archived: 'Archived',
 } as const;
 const validationStatuses = {
+  not_required: 'Not required',
   pending: 'Pending',
   approved: 'Approved',
   rejected: 'Rejected',
+  cancelled: 'Cancelled',
   outdated: 'Outdated',
+} as const;
+const validationRequirementActions = {
+  enabled: 'Validation enabled',
+  disabled: 'Validation disabled',
+  cancelled: 'Validation request cancelled',
 } as const;
 type DetailTab = 'overview' | 'documents' | 'validation' | 'history' | 'links';
 type Draft = {
@@ -626,10 +633,7 @@ function DeliverableDetail({
           <VersionHistory
             mode={tab}
             item={item}
-            busy={
-              busy ||
-              !['draft', 'in_constitution'].includes(item.lifecycleStatus)
-            }
+            busy={busy}
             dirty={revisionDirty}
             action={action}
             download={download}
@@ -956,6 +960,8 @@ function VersionHistory({
 }) {
   const { t } = useTranslation();
   const [decisionComment, setDecisionComment] = useState('');
+  const [requirementReason, setRequirementReason] = useState('');
+  const [cancellationReason, setCancellationReason] = useState('');
   const pendingValidation = item.validations.find(
     (validation) => validation.effectiveStatus === 'pending',
   );
@@ -968,27 +974,84 @@ function VersionHistory({
       }
     >
       {mode === 'validation' && (
-        <section className="space-y-3 rounded-xl border bg-card p-4">
-          <h2 className="font-semibold">
-            {t('submitDeliverableForValidation')}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {t('submitDeliverableForValidationDescription')}
-          </p>
-          <Button
-            disabled={
-              busy || dirty || !item.documents.length || !!pendingValidation
-            }
-            onClick={() =>
-              action.mutate({
-                suffix: '/validations',
-                body: { version: item.version },
-              })
-            }
-          >
-            {t('submitDeliverableForValidation')}
-          </Button>
-        </section>
+        <div className="space-y-4">
+          <section className="space-y-3 rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-semibold">{t('validationRequirement')}</h2>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                {t(translationKey(validationStatuses[item.validationStatus]))}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {item.validationRequired
+                ? t('validationRequirementEnabledDescription')
+                : t('validationRequirementDisabledDescription')}
+            </p>
+            {item.validationRequired && (
+              <Textarea
+                value={requirementReason}
+                onChange={(event) => setRequirementReason(event.target.value)}
+                placeholder={t('validationDisableReason')}
+                disabled={busy || dirty || !!pendingValidation}
+              />
+            )}
+            <Button
+              variant={item.validationRequired ? 'outline' : 'default'}
+              disabled={
+                busy ||
+                dirty ||
+                !!pendingValidation ||
+                (item.validationRequired && !requirementReason.trim())
+              }
+              onClick={() =>
+                action.mutate({
+                  suffix: '/validation-requirement',
+                  body: {
+                    required: !item.validationRequired,
+                    reason: requirementReason,
+                    version: item.version,
+                  },
+                })
+              }
+            >
+              {item.validationRequired
+                ? t('disableValidation')
+                : t('enableValidation')}
+            </Button>
+          </section>
+          <section className="space-y-3 rounded-xl border bg-card p-4">
+            <h2 className="font-semibold">
+              {t('submitDeliverableForValidation')}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t('submitDeliverableForValidationDescription')}
+            </p>
+            {item.lifecycleStatus !== 'finalized' && (
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                {t('finalizeBeforeValidation')}
+              </p>
+            )}
+            <Button
+              disabled={
+                busy ||
+                dirty ||
+                !item.validationRequired ||
+                item.lifecycleStatus !== 'finalized' ||
+                item.validationStatus === 'approved' ||
+                !item.documents.length ||
+                !!pendingValidation
+              }
+              onClick={() =>
+                action.mutate({
+                  suffix: '/validations',
+                  body: { version: item.version },
+                })
+              }
+            >
+              {t('submitDeliverableForValidation')}
+            </Button>
+          </section>
+        </div>
       )}
       <div className="space-y-4">
         {mode === 'validation' && (
@@ -1063,8 +1126,60 @@ function VersionHistory({
                         {t('reject')}
                       </Button>
                     </div>
+                    <Textarea
+                      value={cancellationReason}
+                      onChange={(event) =>
+                        setCancellationReason(event.target.value)
+                      }
+                      placeholder={t('validationCancellationReason')}
+                      disabled={busy || dirty}
+                    />
+                    <Button
+                      variant="ghost"
+                      disabled={busy || dirty || !cancellationReason.trim()}
+                      onClick={() =>
+                        action.mutate({
+                          suffix: `/validations/${validation.id}/cancel`,
+                          body: {
+                            reason: cancellationReason,
+                            version: item.version,
+                          },
+                        })
+                      }
+                    >
+                      {t('cancelValidationRequest')}
+                    </Button>
                   </>
                 )}
+              </div>
+            ))}
+          </section>
+        )}
+        {mode === 'history' && (
+          <section className="space-y-3 rounded-xl border bg-card p-4">
+            <h2 className="font-semibold">
+              {t('validationRequirementHistory')}
+            </h2>
+            {!item.validationEvents.length && (
+              <p className="text-sm text-muted-foreground">
+                {t('noValidationRequirementEvent')}
+              </p>
+            )}
+            {item.validationEvents.map((event) => (
+              <div
+                key={event.id}
+                className="flex flex-wrap justify-between gap-2 border-b pb-2 text-sm last:border-0"
+              >
+                <span>
+                  {t(
+                    translationKey(validationRequirementActions[event.action]),
+                  )}{' '}
+                  · {event.actorName}
+                  {event.reason ? ` — ${event.reason}` : ''}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(event.createdAt).toLocaleString()}
+                </span>
               </div>
             ))}
           </section>

@@ -216,6 +216,32 @@ export class DeliverablesController {
       name: request.platformIdentity?.name ?? 'Utilisateur',
     });
   }
+  @Post(':id/validation-requirement') setValidationRequirement(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Body()
+    body: Parameters<DeliverablesService['setValidationRequirement']>[3],
+    @Req() request: IdentityRequest,
+  ) {
+    return this.service.setValidationRequirement(p, r, id, body, {
+      personId: request.platformIdentity?.personId ?? null,
+      name: request.platformIdentity?.name ?? 'Utilisateur',
+    });
+  }
+  @Post(':id/validations/:validationId/cancel') cancelValidation(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Param('validationId') validationId: string,
+    @Body() body: Parameters<DeliverablesService['cancelValidation']>[4],
+    @Req() request: IdentityRequest,
+  ) {
+    return this.service.cancelValidation(p, r, id, validationId, body, {
+      personId: request.platformIdentity?.personId ?? null,
+      name: request.platformIdentity?.name ?? 'Utilisateur',
+    });
+  }
   @Post(':id/validations/:validationId/decision') decideValidation(
     @Param('projectId') p: string,
     @Param('resourceId') r: string,
