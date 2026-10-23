@@ -302,6 +302,13 @@
       "when": 1792706761271,
       "tag": "0042_silky_squadron_sinister",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1792736621746,
+      "tag": "0043_striped_whirlwind",
+      "breakpoints": true
     }
   ]
 }

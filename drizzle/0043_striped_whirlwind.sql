@@ -1,0 +1,2 @@
+ALTER TABLE `project_deliverables` ADD `confidentiality` text DEFAULT 'standard' NOT NULL;--> statement-breakpoint
+ALTER TABLE `project_deliverables` ADD `authorized_group_ids` text DEFAULT '[]' NOT NULL;

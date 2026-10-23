@@ -610,6 +610,14 @@ export const projectDeliverables = sqliteTable(
     title: text('title').notNull(),
     description: text('description').notNull().default(''),
     criteria: text('criteria').notNull().default(''),
+    confidentiality: text('confidentiality')
+      .$type<'standard' | 'restricted'>()
+      .notNull()
+      .default('standard'),
+    authorizedGroupIds: text('authorized_group_ids', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     assigneeId: text('assignee_id').references(() => people.id, {
       onDelete: 'set null',
     }),

@@ -48,6 +48,8 @@ export interface Deliverable {
   title: string;
   description: string;
   criteria: string;
+  confidentiality: 'standard' | 'restricted';
+  authorizedGroupIds: string[];
   assigneeId: string | null;
   dueAt: number | null;
   status: 'planned' | 'in_progress' | 'review' | 'validated';
@@ -110,6 +112,7 @@ export interface DeliverablesBoard {
   deliverables: Deliverable[];
   assignees: Array<{ id: string; name: string }>;
   taskManagers: Array<{ id: string; name: string }>;
+  personGroups: Array<{ id: string; name: string }>;
   tasks: Array<{
     id: string;
     title: string;
