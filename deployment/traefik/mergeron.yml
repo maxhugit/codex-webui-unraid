@@ -1,6 +1,6 @@
 http:
   middlewares:
-    codex-security-headers:
+    mergeron-security-headers:
       headers:
         contentTypeNosniff: true
         frameDeny: true
@@ -11,32 +11,32 @@ http:
   routers:
     # OnlyOffice Document Server cannot complete an interactive Authentik
     # login. These two machine-to-machine endpoints remain protected by the
-    # Codex ingress credential plus the signed OnlyOffice callback JWT/state.
-    codex-onlyoffice:
-      rule: "Host(`codex.example.com`) && (Path(`/api/files/serve`) || Path(`/api/onlyoffice/callback`))"
+    # Mergeron ingress credential plus the signed OnlyOffice callback JWT/state.
+    mergeron-onlyoffice:
+      rule: "Host(`mergeron.example.com`) && (Path(`/api/files/serve`) || Path(`/api/onlyoffice/callback`))"
       entryPoints:
         - websecure
       priority: 200
       middlewares:
-        - codex-security-headers
-      service: codex-web
+        - mergeron-security-headers
+      service: mergeron-web
       tls:
         certResolver: tls
 
-    codex-web:
-      rule: "Host(`codex.example.com`)"
+    mergeron-web:
+      rule: "Host(`mergeron.example.com`)"
       entryPoints:
         - websecure
       priority: 100
       middlewares:
         - authentik
-        - codex-security-headers
-      service: codex-web
+        - mergeron-security-headers
+      service: mergeron-web
       tls:
         certResolver: tls
 
   services:
-    codex-web:
+    mergeron-web:
       loadBalancer:
         servers:
           - url: "http://mergeron-ingress:8080"

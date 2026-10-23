@@ -65,12 +65,12 @@ de domaines Internet.
 
 | Réseau | Type | Membres | Fonction |
 |---|---|---|---|
-| `codex_isolated` | bridge interne | les trois conteneurs | trafic privé entre les composants |
-| `codex_external` | bridge | Squid | sortie Internet du proxy |
-| `codex_admin` | bridge `/28` | application | SSH, MCP et services administratifs |
+| `mergeron-isolated` | bridge interne | les trois conteneurs | trafic privé entre les composants |
+| `mergeron-external` | bridge | Squid | sortie Internet du proxy |
+| `mergeron-admin` | bridge `/28` | application | SSH, MCP et services administratifs |
 | `net_standard` | bridge externe | Nginx, Traefik, Authentik | entrée HTTPS et SSO |
 
-`codex_isolated` possède `internal: true` : il ne fournit pas de route Internet.
+`mergeron-isolated` possède `internal: true` : il ne fournit pas de route Internet.
 
 ## Flux entrant
 
@@ -85,7 +85,7 @@ de domaines Internet.
 Les logiciels respectant les variables de proxy passent par Squid. Les domaines
 autorisés sont définis dans `deployment/config/squid.conf`.
 
-Le réseau `codex_admin` offre une route directe nécessaire aux connexions SSH et
+Le réseau `mergeron-admin` offre une route directe nécessaire aux connexions SSH et
 aux services locaux. Il s’agit d’un compromis connu : Squid n’est donc pas un
 pare-feu absolu pour un programme qui ignorerait volontairement le proxy.
 

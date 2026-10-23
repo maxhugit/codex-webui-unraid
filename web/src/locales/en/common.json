@@ -116,7 +116,7 @@
   "onlyOfficeDocumentServerBaseUrlLeaveEmptyToUseNativeViewersAndDisablePptxPreview": "OnlyOffice Document Server base URL. Leave empty to use native viewers and disable PPTX preview.",
   "jwtSecretForSigningOnlyOfficeEditorConfigAndVerifyingSaveCallbacksMustMatchTheD28618291": "JWT secret for signing OnlyOffice editor config and verifying save callbacks. Must match the Document Server browser/outbox secret for edit mode.",
   "maximumFileSizeInBytesAcceptedFromOnlyOfficeSaveCallbackIncreaseForLargeOfficeDocuments": "Maximum file size in bytes accepted from OnlyOffice save callback. Increase for large Office documents.",
-  "publicBaseUrlOfThisWebUiInstanceEGHttpsCodexExampleComUsedToBuildDocumentURLsRec43e4a24": "Public base URL of this WebUI instance (e.g. https://codex.example.com). Used to build document URLs reachable by OnlyOffice. Auto-detected from request headers when empty.",
+  "publicBaseUrlOfThisWebUiInstanceEGHttpsCodexExampleComUsedToBuildDocumentURLsRec43e4a24": "Public base URL of this WebUI instance (e.g. https://mergeron.example.com). Used to build document URLs reachable by OnlyOffice. Auto-detected from request headers when empty.",
   "maximumConcurrentTerminalSessionsRetainedByTheServer": "Maximum concurrent terminal sessions retained by the server.",
   "millisecondsToKeepADetachedTerminalAliveBeforeCleanup": "Milliseconds to keep a detached terminal alive before cleanup.",
   "scrollbackLinesRetainedByNewTerminalBuffers": "Scrollback lines retained by new terminal buffers.",

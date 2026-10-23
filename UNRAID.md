@@ -21,7 +21,7 @@ temps.
 ## Emplacements recommandés
 
 ```text
-/mnt/pool/appdata/codex-web
+/mnt/pool/appdata/mergeron
   docker-compose.yml
   images.env
   config/
@@ -65,7 +65,7 @@ Compose sans reporter le changement dans ces fichiers n’est pas durable.
 ### Commandes d'exploitation
 
 ```bash
-cd /mnt/pool/appdata/codex-web
+cd /mnt/pool/appdata/mergeron
 docker compose --env-file images.env -f docker-compose.yml ps
 docker compose --env-file images.env -f docker-compose.yml pull
 docker compose --env-file images.env -f docker-compose.yml up -d
@@ -80,7 +80,7 @@ l’application principale, un lien vers l’interface Web.
 Dans **Docker > Compose**, la stack permet de :
 
 - modifier le fichier Compose ;
-- modifier le fichier d’environnement et le tag `CODEX_APP_IMAGE` ;
+- modifier le fichier d’environnement et le tag `MERGERON_APP_IMAGE` ;
 - démarrer ou arrêter les trois conteneurs ensemble ;
 - utiliser **Update Stack** pour télécharger les images et recréer les trois
   conteneurs dans le bon ordre.

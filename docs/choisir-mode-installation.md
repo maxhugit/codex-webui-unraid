@@ -21,20 +21,20 @@ mêmes données persistantes.
 | Ordre de démarrage           | Squid, application, puis ingress ; les états de santé doivent être contrôlés | `depends_on` et les contrôles de santé décrivent l’ordre                                                |
 | Réseaux secondaires          | Ajoutés par le réconciliateur hôte après chaque recréation                   | Déclarés directement dans le fichier Compose                                                            |
 | Après redémarrage Unraid     | Le réconciliateur doit être relancé avant une future recréation DockerMan    | Compose recrée directement la topologie déclarée                                                        |
-| Mise à jour de l’application | **Check for Updates**, puis **Update** sur `mergeron`                     | Modifier ou conserver `CODEX_APP_IMAGE`, puis **Update Stack**                                          |
+| Mise à jour de l’application | **Check for Updates**, puis **Update** sur `mergeron-ui`                  | Modifier ou conserver `MERGERON_APP_IMAGE`, puis **Update Stack**                                       |
 | Mise à jour Nginx/Squid      | Indépendante, conteneur par conteneur                                        | Incluse dans la mise à jour de la stack si de nouvelles images sont téléchargées                        |
-| Retour arrière               | Remplacer le champ **Repository** par un tag `sha-<commit>`                  | Remplacer `CODEX_APP_IMAGE` dans `images.env` par ce tag                                                |
+| Retour arrière               | Remplacer le champ **Repository** par un tag `sha-<commit>`                  | Remplacer `MERGERON_APP_IMAGE` dans `images.env` par ce tag                                             |
 | Portabilité                  | Très intégrée à l’interface Unraid                                           | Configuration déclarative plus simple à copier et comparer                                              |
 
 ## Architecture commune
 
 Dans les deux modes :
 
-1. `mergeron-squid` démarre sur `codex_isolated` et rejoint
-   `codex_external` pour filtrer les sorties Internet ;
-2. `mergeron` démarre sur `codex_isolated` et rejoint `codex_admin` pour les
+1. `mergeron-squid` démarre sur `mergeron-isolated` et rejoint
+   `mergeron-external` pour filtrer les sorties Internet ;
+2. `mergeron-ui` démarre sur `mergeron-isolated` et rejoint `mergeron-admin` pour les
    services locaux autorisés ;
-3. `mergeron-ingress` démarre sur `codex_isolated` et rejoint `net_standard`
+3. `mergeron-ingress` démarre sur `mergeron-isolated` et rejoint `net_standard`
    pour être joint par Traefik et Authentik.
 
 Le backend `mergeron` ne publie aucun port sur l’hôte. Les répertoires de
