@@ -460,6 +460,20 @@ describe('project deliverables', () => {
       lifecycleStatus: 'in_constitution',
       version: 2,
     });
+    const linkedSource = service.board('p', 'r').deliverables[0].documents[0]
+      .sourcePath;
+    expect(service.onlyOfficeAccess(linkedSource)).toMatchObject({
+      editable: true,
+    });
+
+    service.updateOnlyOfficeSession(linkedSource, 'editing');
+    expect(() =>
+      service.transitionLifecycle('p', 'r', item.id, {
+        target: 'finalized',
+        version: 2,
+      }),
+    ).toThrow('close their editors');
+    service.updateOnlyOfficeSession(linkedSource, 'saved');
 
     const finalized = service.transitionLifecycle('p', 'r', item.id, {
       target: 'finalized',
@@ -471,6 +485,9 @@ describe('project deliverables', () => {
       finalizedByName: 'System',
     });
     expect(finalized.currentSnapshotId).toEqual(expect.any(String));
+    expect(service.onlyOfficeAccess(linkedSource)).toMatchObject({
+      editable: false,
+    });
     const board = service.board('p', 'r').deliverables[0];
     expect(board.snapshots).toHaveLength(1);
     expect(board.snapshots[0].documents).toEqual([

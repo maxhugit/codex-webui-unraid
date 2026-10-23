@@ -117,10 +117,10 @@ export class OnlyOfficeController {
     const secret = this.settingsService.getStringSetting(
       GENERAL_SETTING_KEYS.onlyofficeJwtSecret,
     );
-    const editorMode = mode === 'view' ? 'view' : 'edit';
+    const requestedMode = mode === 'view' ? 'view' : 'edit';
 
     // Edit mode requires JWT secret for secure save callback verification
-    if (editorMode === 'edit' && !secret) {
+    if (requestedMode === 'edit' && !secret) {
       throw BusinessException.badRequest(
         ErrorCode.onlyoffice.jwtRequired,
         'OnlyOffice edit mode requires general.onlyofficeJwtSecret to be configured',
@@ -136,6 +136,11 @@ export class OnlyOfficeController {
     }
 
     const fileType = this.getSupportedFileType(metadata.name);
+    const deliverableAccess = this.deliverables.onlyOfficeAccess(metadata.path);
+    const editorMode =
+      requestedMode === 'view' || deliverableAccess?.editable === false
+        ? 'view'
+        : 'edit';
     const documentType = this.getDocumentType(fileType);
     const documentKey = this.buildDocumentKey(
       metadata.path,
@@ -332,23 +337,12 @@ export class OnlyOfficeController {
   }
 
   private historyFileUrl(baseUrl: string, filePath: string) {
-    const secret = this.settingsService.getStringSetting(
-      GENERAL_SETTING_KEYS.onlyofficeJwtSecret,
-    );
-    if (!secret)
-      throw BusinessException.badRequest(
-        ErrorCode.onlyoffice.jwtRequired,
-        'OnlyOffice history requires general.onlyofficeJwtSecret',
-      );
-    const state = sign(
-      { purpose: 'onlyoffice-history', path: filePath },
-      secret,
-      { algorithm: 'HS256', expiresIn: '1h' },
-    );
-    return this.joinUrl(
-      baseUrl,
-      `/api/onlyoffice/history-file?state=${encodeURIComponent(state)}`,
-    );
+    // Use the same Authentik-exempt, path-bound transfer endpoint as the
+    // current document. A separate public history endpoint is redirected by
+    // the deployment authentication proxy, and OnlyOffice deliberately refuses
+    // to forward the signed URL through that 302 response.
+    const sessionId = this.authService.createDocumentSession(filePath, false);
+    return this.buildDocumentUrl(baseUrl, filePath, sessionId);
   }
 
   // ── Save callback endpoint ──────────────────────────────────────────
@@ -394,24 +388,11 @@ export class OnlyOfficeController {
     @Body() body: OnlyOfficeCallbackDto,
     @Req() request: FastifyRequest,
   ): Promise<{ error: number }> {
-    // Acknowledge non-save statuses (editing, closed without changes, etc.)
-    if (body.status !== 2 && body.status !== 6) {
-      return { error: 0 };
-    }
-
     if (!filePath) {
       this.logger.warn('OnlyOffice callback missing file path');
       return { error: 1 };
     }
-
-    if (!body.url) {
-      this.logger.warn(
-        { key: body.key },
-        'OnlyOffice save callback missing download URL',
-      );
-      return { error: 1 };
-    }
-
+    let callbackTrusted = false;
     try {
       // 1. Require JWT secret
       const secret = this.settingsService.getStringSetting(
@@ -450,6 +431,25 @@ export class OnlyOfficeController {
 
       // 3. Verify OnlyOffice callback JWT (body.token or Authorization header)
       this.verifyOnlyOfficeToken(body, request, secret);
+      callbackTrusted = true;
+
+      if (body.status === 1) {
+        this.deliverables.updateOnlyOfficeSession(filePath, 'editing');
+        return { error: 0 };
+      }
+      if (body.status === 4) {
+        this.deliverables.updateOnlyOfficeSession(filePath, 'saved');
+        return { error: 0 };
+      }
+      if (body.status === 7) {
+        this.deliverables.updateOnlyOfficeSession(filePath, 'error');
+        return { error: 0 };
+      }
+      if (body.status !== 2 && body.status !== 6) return { error: 0 };
+
+      this.deliverables.updateOnlyOfficeSession(filePath, 'saving');
+      if (!body.url)
+        throw new Error('OnlyOffice save callback missing download URL');
 
       // 4. Validate download URL origin matches configured OnlyOffice server
       const downloadUrl = this.validateDownloadUrl(body.url);
@@ -463,15 +463,13 @@ export class OnlyOfficeController {
       );
       const response = await this.fetchWithTimeout(downloadUrl);
       if (!response.ok || !response.body) {
-        this.logger.error(
-          { path: filePath, status: response.status },
-          'Failed to download from OnlyOffice',
+        throw new Error(
+          `Failed to download from OnlyOffice (${response.status})`,
         );
-        return { error: 1 };
       }
 
       await this.writeAtomically(response, resolved, maxBytes);
-      if (body.status === 2) {
+      if (body.status === 2 || body.status === 6) {
         const saved = await fs.stat(resolved);
         const person = documentSession.personId
           ? this.identities.resolvePerson(documentSession.personId)
@@ -520,6 +518,10 @@ export class OnlyOfficeController {
         { path: filePath, status: body.status },
         'OnlyOffice document saved',
       );
+      this.deliverables.updateOnlyOfficeSession(
+        filePath,
+        body.status === 6 ? 'editing' : 'saved',
+      );
       return { error: 0 };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -527,6 +529,8 @@ export class OnlyOfficeController {
         { path: filePath, error: msg },
         'OnlyOffice callback failed',
       );
+      if (callbackTrusted)
+        this.deliverables.updateOnlyOfficeSession(filePath, 'error');
       return { error: 1 };
     }
   }

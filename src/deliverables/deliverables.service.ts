@@ -68,6 +68,13 @@ export interface OnlyOfficeVersionMetadata {
   serverVersion?: string;
 }
 
+export type OnlyOfficeSessionState = 'editing' | 'saving' | 'saved' | 'error';
+
+interface OnlyOfficeSession {
+  state: OnlyOfficeSessionState;
+  updatedAt: number;
+}
+
 const LIFECYCLE_TRANSITIONS: Record<
   DeliverableLifecycleStatus,
   DeliverableLifecycleStatus[]
@@ -81,6 +88,8 @@ const MAX_FILE = 100 * 1024 * 1024;
 
 @Injectable()
 export class DeliverablesService {
+  private readonly onlyOfficeSessions = new Map<string, OnlyOfficeSession>();
+
   constructor(
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
     private readonly files: FilesService,
@@ -716,6 +725,13 @@ export class DeliverablesService {
     let snapshotId: string | null = null;
     let snapshotDocuments: DeliverableSnapshotDocument[] = [];
     if (target === 'finalized' && current.lifecycleStatus !== 'archived') {
+      const blockingSession = this.blockingOnlyOfficeSession(id);
+      if (blockingSession)
+        throw new ConflictException(
+          blockingSession.state === 'error'
+            ? 'Resolve the OnlyOffice save error before finalizing the deliverable'
+            : 'Wait for OnlyOffice documents to finish saving and close their editors before finalizing the deliverable',
+        );
       const activeDocuments = this.db
         .select()
         .from(documents)
@@ -1342,6 +1358,48 @@ export class DeliverablesService {
         .orderBy(documentVersions.number)
         .all(),
     };
+  }
+
+  onlyOfficeAccess(sourcePath: string) {
+    const linked = this.db
+      .select({ document: documents, deliverable: items })
+      .from(documents)
+      .innerJoin(items, eq(documents.deliverableId, items.id))
+      .where(eq(documents.sourcePath, sourcePath))
+      .get();
+    if (!linked || linked.document.deletedAt !== null) return null;
+    return {
+      editable:
+        linked.deliverable.lifecycleStatus === 'draft' ||
+        linked.deliverable.lifecycleStatus === 'in_constitution',
+      lifecycleStatus: linked.deliverable.lifecycleStatus,
+    };
+  }
+
+  updateOnlyOfficeSession(sourcePath: string, state: OnlyOfficeSessionState) {
+    if (state === 'saved') {
+      this.onlyOfficeSessions.delete(sourcePath);
+      return;
+    }
+    this.onlyOfficeSessions.set(sourcePath, { state, updatedAt: Date.now() });
+  }
+
+  private blockingOnlyOfficeSession(deliverableId: string) {
+    const paths = this.db
+      .select({ sourcePath: documents.sourcePath })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.deliverableId, deliverableId),
+          sql`${documents.deletedAt} is null`,
+        ),
+      )
+      .all();
+    for (const { sourcePath } of paths) {
+      const session = this.onlyOfficeSessions.get(sourcePath);
+      if (session) return session;
+    }
+    return null;
   }
 
   setDocumentDeleted(
