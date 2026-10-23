@@ -42,18 +42,20 @@ import { getAuthorizationHeader } from '@/auth-token';
 import { DeliverableDocuments } from './deliverable-documents';
 import { ProjectTaskManager } from './project-task-manager';
 
-const statuses = {
-  planned: 'To produce',
-  in_progress: 'In progress',
-  review: 'Awaiting validation',
-  validated: 'Validated',
-} as const;
 const lifecycleStatuses = {
   draft: 'Draft',
   in_constitution: 'In constitution',
+  awaiting_validation: 'Awaiting validation',
   finalized: 'Finalized',
   archived: 'Archived',
 } as const;
+function displayedLifecycle(item: Deliverable): keyof typeof lifecycleStatuses {
+  return item.lifecycleStatus === 'finalized' &&
+    item.validationRequired &&
+    item.validationStatus !== 'approved'
+    ? 'awaiting_validation'
+    : item.lifecycleStatus;
+}
 const validationStatuses = {
   not_required: 'Not required',
   pending: 'Pending',
@@ -80,7 +82,6 @@ type Draft = {
   criteria: string;
   confidentiality: Deliverable['confidentiality'];
   authorizedGroupIds: string[];
-  status: Deliverable['status'];
   conversations: Deliverable['conversations'];
 };
 type DeliverableAction = {
@@ -132,7 +133,7 @@ export function ProjectDeliverablesManager({
       board?.deliverables.filter((item) => {
         const needle = search.trim().toLocaleLowerCase();
         return (
-          (status === 'all' || item.lifecycleStatus === status) &&
+          (status === 'all' || displayedLifecycle(item) === status) &&
           (validation === 'all' || item.validationStatus === validation) &&
           (confidentiality === 'all' ||
             item.confidentiality === confidentiality) &&
@@ -400,7 +401,7 @@ function DeliverablesList({
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 {count}
               </span>
-              <LifecycleBadge status={item.lifecycleStatus} />
+              <LifecycleBadge status={displayedLifecycle(item)} />
               <span
                 className={`flex w-fit items-center gap-2 rounded-md px-2 py-1 text-xs font-medium ${
                   item.validationStatus === 'approved'
@@ -463,17 +464,19 @@ function DeliverablesList({
 function LifecycleBadge({
   status,
 }: {
-  status: Deliverable['lifecycleStatus'];
+  status: keyof typeof lifecycleStatuses;
 }) {
   const { t } = useTranslation();
   const color =
     status === 'finalized'
       ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-      : status === 'archived'
-        ? 'bg-muted text-muted-foreground'
-        : status === 'in_constitution'
-          ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
-          : 'bg-amber-500/15 text-amber-700 dark:text-amber-300';
+      : status === 'awaiting_validation'
+        ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+        : status === 'archived'
+          ? 'bg-muted text-muted-foreground'
+          : status === 'in_constitution'
+            ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
+            : 'bg-amber-500/15 text-amber-700 dark:text-amber-300';
   return (
     <span
       className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${color}`}
@@ -571,7 +574,6 @@ function DeliverableDetail({
     criteria: item.criteria,
     confidentiality: item.confidentiality,
     authorizedGroupIds: item.authorizedGroupIds,
-    status: item.status,
     conversations: item.conversations,
   });
   const [error, setError] = useState('');
@@ -667,8 +669,8 @@ function DeliverableDetail({
     { id: 'access', label: t('deliverableAccess'), icon: ShieldCheck },
   ];
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="z-10 shrink-0 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto w-full max-w-7xl px-4 pt-4 md:px-6">
           <button
             className="mb-3 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -683,7 +685,7 @@ function DeliverableDetail({
                 <h1 className="truncate text-2xl font-semibold">
                   {item.title}
                 </h1>
-                <LifecycleBadge status={item.lifecycleStatus} />
+                <LifecycleBadge status={displayedLifecycle(item)} />
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
                 {t('deliverableHeaderSummary', {
@@ -693,37 +695,6 @@ function DeliverableDetail({
                   date: new Date(item.updatedAt).toLocaleDateString(),
                 })}
               </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                disabled={
-                  busy || revisionDirty || item.lifecycleStatus === 'archived'
-                }
-                onClick={() => {
-                  setRenameTitle(item.title);
-                  setRenameOpen(true);
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-                {t('renameDeliverable')}
-              </Button>
-              <LifecycleActions
-                item={item}
-                busy={busy || revisionDirty}
-                action={action}
-              />
-              {session.isAdministrator && (
-                <Button
-                  variant="outline"
-                  disabled={
-                    busy || revisionDirty || item.lifecycleStatus === 'archived'
-                  }
-                  onClick={() => agent.mutate()}
-                >
-                  {t('workOnThisDeliverable')}
-                </Button>
-              )}
             </div>
           </div>
           <div
@@ -755,70 +726,107 @@ function DeliverableDetail({
           </div>
         </div>
       </div>
-      <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
-        {tab === 'overview' && (
-          <Overview
-            item={item}
-            board={board}
-            draft={draft}
-            set={set}
-            busy={busy || item.lifecycleStatus === 'archived'}
-            dirty={revisionDirty}
-            action={action}
-            base={base}
-          />
-        )}
-        {tab === 'access' && (
-          <AccessSettings
-            item={item}
-            board={board}
-            draft={draft}
-            set={set}
-            busy={busy || item.lifecycleStatus === 'archived'}
-            dirty={revisionDirty}
-            action={action}
-          />
-        )}
-        {tab === 'documents' && (
-          <div className="rounded-xl border bg-card p-4">
-            <DeliverableDocuments
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
+          {tab === 'overview' && (
+            <Overview
               item={item}
+              board={board}
+              draft={draft}
+              set={set}
+              busy={busy || item.lifecycleStatus === 'archived'}
+              dirty={revisionDirty}
+              action={action}
               base={base}
-              disabled={
-                busy ||
-                revisionDirty ||
-                !['draft', 'in_constitution'].includes(item.lifecycleStatus)
-              }
-              refresh={refresh}
-              onError={fail}
             />
-          </div>
-        )}
-        {(tab === 'validation' || tab === 'history') && (
-          <VersionHistory
-            mode={tab}
-            item={item}
-            busy={busy}
-            dirty={revisionDirty}
-            action={action}
-            download={download}
-          />
-        )}
-        {tab === 'links' && (
-          <Links
-            item={item}
-            board={board}
-            base={base}
-            busy={busy || item.lifecycleStatus === 'archived'}
-            refresh={refresh}
-          />
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
+          )}
+          {tab === 'access' && (
+            <AccessSettings
+              item={item}
+              board={board}
+              draft={draft}
+              set={set}
+              busy={busy || item.lifecycleStatus === 'archived'}
+              dirty={revisionDirty}
+              action={action}
+            />
+          )}
+          {tab === 'documents' && (
+            <div className="rounded-xl border bg-card p-4">
+              <DeliverableDocuments
+                item={item}
+                base={base}
+                disabled={
+                  busy ||
+                  revisionDirty ||
+                  !['draft', 'in_constitution'].includes(item.lifecycleStatus)
+                }
+                refresh={refresh}
+                onError={fail}
+              />
+            </div>
+          )}
+          {(tab === 'validation' || tab === 'history') && (
+            <VersionHistory
+              mode={tab}
+              item={item}
+              busy={busy}
+              dirty={revisionDirty}
+              action={action}
+              download={download}
+            />
+          )}
+          {tab === 'links' && (
+            <Links
+              item={item}
+              board={board}
+              base={base}
+              busy={busy || item.lifecycleStatus === 'archived'}
+              refresh={refresh}
+            />
+          )}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
       </div>
+      <footer className="z-10 shrink-0 border-t bg-background/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:px-6">
+        <div className="mx-auto w-full max-w-7xl">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={
+                busy || revisionDirty || item.lifecycleStatus === 'archived'
+              }
+              onClick={() => {
+                setRenameTitle(item.title);
+                setRenameOpen(true);
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+              {t('renameDeliverable')}
+            </Button>
+            <LifecycleActions
+              item={item}
+              busy={busy || revisionDirty}
+              action={action}
+            />
+            {session.isAdministrator && (
+              <Button
+                variant="outline"
+                disabled={
+                  busy || revisionDirty || item.lifecycleStatus === 'archived'
+                }
+                onClick={() => agent.mutate()}
+              >
+                {t('workOnThisDeliverable')}
+              </Button>
+            )}
+          </div>
+        </div>
+      </footer>
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -926,28 +934,6 @@ function Overview({
             value={draft.criteria}
             onChange={(event) => set('criteria', event.target.value)}
           />
-        </label>
-        <label className="block text-sm">
-          {t('productionProgress')}
-          <select
-            className="mt-1 w-full rounded border bg-background p-2"
-            disabled={busy}
-            value={draft.status}
-            onChange={(event) =>
-              set('status', event.target.value as Draft['status'])
-            }
-          >
-            {Object.entries(statuses)
-              .filter(
-                ([value]) =>
-                  value !== 'validated' || item.status === 'validated',
-              )
-              .map(([value, label]) => (
-                <option key={value} value={value}>
-                  {t(translationKey(label))}
-                </option>
-              ))}
-          </select>
         </label>
         <p className="text-xs text-muted-foreground">
           {t('planningInheritedFromPrimaryTask')}

@@ -180,6 +180,56 @@ it('filters the deliverables list and resets all filters', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
   expect(screen.getByRole('button', { name: /Report/ })).toBeInTheDocument();
 });
+it.each([
+  {
+    required: true,
+    validation: 'pending' as const,
+    expected: 'awaiting_validation',
+  },
+  {
+    required: true,
+    validation: 'not_required' as const,
+    expected: 'awaiting_validation',
+  },
+  {
+    required: true,
+    validation: 'rejected' as const,
+    expected: 'awaiting_validation',
+  },
+  { required: true, validation: 'approved' as const, expected: 'finalized' },
+  {
+    required: false,
+    validation: 'not_required' as const,
+    expected: 'finalized',
+  },
+])(
+  'filters the effective lifecycle for required=$required validation=$validation',
+  async ({ required, validation, expected }) => {
+    await setupList({
+      ...board,
+      deliverables: [
+        {
+          ...item,
+          lifecycleStatus: 'finalized',
+          validationRequired: required,
+          validationStatus: validation,
+        },
+      ],
+    });
+    fireEvent.change(screen.getByLabelText('Filter by status'), {
+      target: { value: expected },
+    });
+    expect(screen.getByRole('button', { name: /Report/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Filter by status'), {
+      target: {
+        value: expected === 'finalized' ? 'awaiting_validation' : 'finalized',
+      },
+    });
+    expect(
+      screen.queryByRole('button', { name: /Report/ }),
+    ).not.toBeInTheDocument();
+  },
+);
 it('keeps the table search visible and exposes filters through a mobile toggle', async () => {
   await setupList();
 
@@ -190,11 +240,11 @@ it('keeps the table search visible and exposes filters through a mobile toggle',
   expect(toggle).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByLabelText('Filter by status')).toBeInTheDocument();
 });
-it('saves the brief with its revision and cannot manually select validated', async () => {
+it('saves the brief with its revision without a separate production status', async () => {
   await setup();
   expect(
-    screen.getByRole('combobox', { name: 'Production progress' }),
-  ).not.toHaveTextContent('Validated');
+    screen.queryByRole('combobox', { name: 'Production progress' }),
+  ).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Validation criteria'), {
     target: { value: 'Checked by owner' },
   });
