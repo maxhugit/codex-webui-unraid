@@ -1,4 +1,7 @@
 {
+  "simpleChatFolderUnresolved": "The active folder is unavailable. Choose a project folder above the message box, then send your message again.",
+  "simpleChatFolderLoadFailed": "Unable to load or change the folder. Check project resources and retry.",
+  "simpleChatChooseFolder": "Choose a project folder",
   "cliVersionChangedRefreshBeforeContinuing": "CLI version changed; refresh before continuing",
   "latestCliVersionChangedRefreshBeforeContinuing": "Latest CLI version changed; refresh before continuing",
   "codexMustBeIdleBeforeACliUpdate": "Codex must be idle before a CLI update",

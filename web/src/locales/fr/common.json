@@ -1,4 +1,7 @@
 {
+  "simpleChatFolderUnresolved": "Le dossier actif est indisponible. Choisissez un dossier du projet au-dessus de la zone de saisie, puis renvoyez votre message.",
+  "simpleChatFolderLoadFailed": "Impossible de charger ou de modifier le dossier. Vérifiez les ressources du projet et réessayez.",
+  "simpleChatChooseFolder": "Choisir un dossier du projet",
   "cliVersionChangedRefreshBeforeContinuing": "La version du CLI a changé ; actualisez avant de continuer",
   "latestCliVersionChangedRefreshBeforeContinuing": "La dernière version du CLI a changé ; actualisez avant de continuer",
   "codexMustBeIdleBeforeACliUpdate": "Codex doit être inactif avant une mise à jour du CLI",

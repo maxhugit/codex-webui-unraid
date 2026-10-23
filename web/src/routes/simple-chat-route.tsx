@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { SimpleChatFolderSelector } from '@/components/chat/simple-chat-folder-selector';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { MarkdownRenderer } from '@/components/chat/markdown-renderer';
 import {
@@ -42,6 +44,7 @@ interface ChatThread {
   title: string;
   model: string;
   cwd: string;
+  projectId?: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -83,6 +86,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function SimpleChatRoute() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const requestedThreadId = useRouterState({
@@ -347,7 +351,14 @@ export function SimpleChatRoute() {
                 <Loader2 className="h-4 w-4 animate-spin" /> Réponse en cours…
               </div>
             )}
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error ===
+                'The active folder is unresolved. Select an available project resource before starting a new operation.'
+                  ? t('simpleChatFolderUnresolved')
+                  : error}
+              </p>
+            )}
           </div>
         </div>
 
@@ -355,6 +366,15 @@ export function SimpleChatRoute() {
           onSubmit={(event) => void send(event)}
           className="shrink-0 bg-background px-3 pt-3 pb-0 sm:pb-3"
         >
+          {status?.backend === 'codex' && activeThread?.projectId && (
+            <SimpleChatFolderSelector
+              key={activeThread.id}
+              projectId={activeThread.projectId}
+              threadId={activeThread.id}
+              disabled={sending || loadingThread}
+              onSelected={() => setError(undefined)}
+            />
+          )}
           <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-lg transition-all duration-200 focus-within:outline-2 focus-within:outline-primary/40">
             <Textarea
               value={input}
