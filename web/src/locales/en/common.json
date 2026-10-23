@@ -1,4 +1,9 @@
 {
+  "deliverableAccess": "Access",
+  "productionProgress": "Production progress",
+  "assignedDeliverableAgent": "Assigned agent",
+  "openDeliverableAgent": "Open agent",
+  "noDeliverableAgent": "No assigned agent",
   "cliVersionChangedRefreshBeforeContinuing": "CLI version changed; refresh before continuing",
   "latestCliVersionChangedRefreshBeforeContinuing": "Latest CLI version changed; refresh before continuing",
   "codexMustBeIdleBeforeACliUpdate": "Codex must be idle before a CLI update",

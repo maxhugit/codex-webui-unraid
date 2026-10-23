@@ -15,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   Search,
+  ShieldCheck,
   UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -66,7 +67,13 @@ const validationRequirementActions = {
   disabled: 'Validation disabled',
   cancelled: 'Validation request cancelled',
 } as const;
-type DetailTab = 'overview' | 'documents' | 'validation' | 'history' | 'links';
+type DetailTab =
+  | 'overview'
+  | 'documents'
+  | 'validation'
+  | 'history'
+  | 'links'
+  | 'access';
 type Draft = {
   title: string;
   description: string;
@@ -619,7 +626,8 @@ function DeliverableDetail({
     { id: 'documents', label: t('documents'), icon: FileText },
     { id: 'validation', label: t('validation'), icon: CheckCircle2 },
     { id: 'history', label: t('history'), icon: History },
-    { id: 'links', label: t('tasksAndConversations'), icon: Link2 },
+    { id: 'links', label: t('primaryTask'), icon: Link2 },
+    { id: 'access', label: t('deliverableAccess'), icon: ShieldCheck },
   ];
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -720,6 +728,18 @@ function DeliverableDetail({
             busy={busy || item.lifecycleStatus === 'archived'}
             dirty={revisionDirty}
             action={action}
+            base={base}
+          />
+        )}
+        {tab === 'access' && (
+          <AccessSettings
+            item={item}
+            board={board}
+            draft={draft}
+            set={set}
+            busy={busy || item.lifecycleStatus === 'archived'}
+            dirty={revisionDirty}
+            action={action}
           />
         )}
         {tab === 'documents' && (
@@ -752,8 +772,6 @@ function DeliverableDetail({
             item={item}
             board={board}
             base={base}
-            draft={draft}
-            set={set}
             busy={busy || item.lifecycleStatus === 'archived'}
             refresh={refresh}
           />
@@ -820,6 +838,7 @@ function Overview({
   busy,
   dirty,
   action,
+  base,
 }: {
   item: Deliverable;
   board: DeliverablesBoard;
@@ -828,14 +847,19 @@ function Overview({
   busy: boolean;
   dirty: boolean;
   action: DeliverableAction;
+  base: string;
 }) {
   const { t } = useTranslation();
+  const [openTask, setOpenTask] = useState(false);
+  const assignedAgents = item.conversations.filter(
+    (link) => link.type === 'agent',
+  );
   const primaryTask = board.tasks.find(
     (task) => task.id === item.primaryTaskId,
   );
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      <section className="space-y-4 rounded-xl border bg-card p-4 lg:col-span-2">
+      <section className="space-y-3 rounded-xl border bg-card p-4 lg:col-span-2">
         <h2 className="font-semibold">{t('generalInformation')}</h2>
         <label className="block text-sm">
           {t('title')}
@@ -850,6 +874,7 @@ function Overview({
           {t('description')}
           <Textarea
             className="mt-1"
+            rows={2}
             disabled={busy}
             value={draft.description}
             onChange={(event) => set('description', event.target.value)}
@@ -859,13 +884,14 @@ function Overview({
           {t('validationCriteria')}
           <Textarea
             className="mt-1"
+            rows={2}
             disabled={busy}
             value={draft.criteria}
             onChange={(event) => set('criteria', event.target.value)}
           />
         </label>
         <label className="block text-sm">
-          {t('status')}
+          {t('productionProgress')}
           <select
             className="mt-1 w-full rounded border bg-background p-2"
             disabled={busy}
@@ -886,55 +912,6 @@ function Overview({
               ))}
           </select>
         </label>
-        <label className="block text-sm">
-          {t('confidentiality')}
-          <select
-            className="mt-1 w-full rounded border bg-background p-2"
-            disabled={busy}
-            value={draft.confidentiality}
-            onChange={(event) =>
-              set(
-                'confidentiality',
-                event.target.value as Draft['confidentiality'],
-              )
-            }
-          >
-            <option value="standard">{t('standardAccess')}</option>
-            <option value="restricted">{t('restrictedAccess')}</option>
-          </select>
-        </label>
-        {draft.confidentiality === 'restricted' && (
-          <fieldset className="space-y-2 rounded-lg border p-3">
-            <legend className="px-1 text-sm font-medium">
-              {t('authorizedGroups')}
-            </legend>
-            {!board.personGroups.length && (
-              <p className="text-sm text-muted-foreground">
-                {t('createAProjectGroupBeforeRestrictingAccess')}
-              </p>
-            )}
-            {board.personGroups.map((group) => (
-              <label className="flex items-center gap-2 text-sm" key={group.id}>
-                <input
-                  type="checkbox"
-                  disabled={busy}
-                  checked={draft.authorizedGroupIds.includes(group.id)}
-                  onChange={(event) =>
-                    set(
-                      'authorizedGroupIds',
-                      event.target.checked
-                        ? [...draft.authorizedGroupIds, group.id]
-                        : draft.authorizedGroupIds.filter(
-                            (id) => id !== group.id,
-                          ),
-                    )
-                  }
-                />
-                {group.name}
-              </label>
-            ))}
-          </fieldset>
-        )}
         <p className="text-xs text-muted-foreground">
           {t('planningInheritedFromPrimaryTask')}
         </p>
@@ -977,7 +954,49 @@ function Overview({
           </Button>
         </div>
       </section>
-      <aside className="space-y-3">
+      <aside className="grid content-start gap-2 sm:grid-cols-2">
+        <div className="rounded-xl border bg-card p-3 text-sm">
+          <p className="mb-1 text-muted-foreground">{t('primaryTask')}</p>
+          {primaryTask ? (
+            <button
+              className="font-medium underline"
+              onClick={() => setOpenTask(true)}
+            >
+              {primaryTask.title}
+            </button>
+          ) : (
+            <span>{t('noPrimaryTask')}</span>
+          )}
+        </div>
+        <div className="rounded-xl border bg-card p-3 text-sm">
+          <p className="mb-1 text-muted-foreground">
+            {t('assignedDeliverableAgent')}
+          </p>
+          {assignedAgents.length ? (
+            assignedAgents.map((agent) => (
+              <a
+                key={agent.id}
+                className="block font-medium underline"
+                href={withBasePath('/t/' + encodeURIComponent(agent.id))}
+              >
+                {board.conversations.find((link) => link.id === agent.id)
+                  ?.title || t('openDeliverableAgent')}
+              </a>
+            ))
+          ) : (
+            <span>{t('noDeliverableAgent')}</span>
+          )}
+        </div>
+        {openTask && primaryTask && (
+          <ProjectTaskManager
+            projectId={base.split('/')[1]}
+            resourceId={primaryTask.resourceId}
+            initialTaskId={primaryTask.id}
+            modalOnly
+            onModalClose={() => setOpenTask(false)}
+          />
+        )}
+
         <Summary
           icon={FileText}
           title={t('documents')}
@@ -1036,6 +1055,97 @@ function Overview({
     </div>
   );
 }
+function AccessSettings({
+  item,
+  board,
+  draft,
+  set,
+  busy,
+  dirty,
+  action,
+}: {
+  item: Deliverable;
+  board: DeliverablesBoard;
+  draft: Draft;
+  set: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
+  busy: boolean;
+  dirty: boolean;
+  action: DeliverableAction;
+}) {
+  const { t } = useTranslation();
+  return (
+    <section className="max-w-3xl space-y-4 rounded-xl border bg-card p-4">
+      <h2 className="font-semibold">{t('deliverableAccess')}</h2>
+      <label className="block text-sm">
+        {t('confidentiality')}
+        <select
+          className="mt-1 w-full rounded border bg-background p-2"
+          disabled={busy}
+          value={draft.confidentiality}
+          onChange={(event) =>
+            set(
+              'confidentiality',
+              event.target.value as Draft['confidentiality'],
+            )
+          }
+        >
+          <option value="standard">{t('standardAccess')}</option>
+          <option value="restricted">{t('restrictedAccess')}</option>
+        </select>
+      </label>
+      {draft.confidentiality === 'restricted' && (
+        <fieldset className="space-y-2 rounded-lg border p-3">
+          <legend className="px-1 text-sm font-medium">
+            {t('authorizedGroups')}
+          </legend>
+          {!board.personGroups.length && (
+            <p className="text-sm text-muted-foreground">
+              {t('createAProjectGroupBeforeRestrictingAccess')}
+            </p>
+          )}
+          {board.personGroups.map((group) => (
+            <label className="flex items-center gap-2 text-sm" key={group.id}>
+              <input
+                type="checkbox"
+                disabled={busy}
+                checked={draft.authorizedGroupIds.includes(group.id)}
+                onChange={(event) =>
+                  set(
+                    'authorizedGroupIds',
+                    event.target.checked
+                      ? [...draft.authorizedGroupIds, group.id]
+                      : draft.authorizedGroupIds.filter(
+                          (id) => id !== group.id,
+                        ),
+                  )
+                }
+              />
+              {group.name}
+            </label>
+          ))}
+        </fieldset>
+      )}
+
+      <Button
+        disabled={
+          busy ||
+          !dirty ||
+          (draft.confidentiality === 'restricted' &&
+            !draft.authorizedGroupIds.length)
+        }
+        onClick={() =>
+          action.mutate({
+            method: 'PATCH',
+            body: { ...draft, version: item.version },
+          })
+        }
+      >
+        {t('save')}
+      </Button>
+    </section>
+  );
+}
+
 function Summary({
   icon: Icon,
   title,
@@ -1046,12 +1156,12 @@ function Summary({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-xl border bg-card p-3">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Icon className="h-4 w-4" />
         {title}
       </div>
-      <strong className="mt-2 block">{value}</strong>
+      <strong className="mt-1 block text-sm">{value}</strong>
     </div>
   );
 }
@@ -1369,16 +1479,12 @@ function Links({
   item,
   board,
   base,
-  draft,
-  set,
   busy,
   refresh,
 }: {
   item: Deliverable;
   board: DeliverablesBoard;
   base: string;
-  draft: Draft;
-  set: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
   busy: boolean;
   refresh: () => Promise<unknown>;
 }) {
@@ -1425,12 +1531,12 @@ function Links({
   return (
     <section className="space-y-4 rounded-xl border bg-card p-4">
       <div>
-        <h2 className="font-semibold">{t('linkedTasksAndConversations')}</h2>
+        <h2 className="font-semibold">{t('primaryTask')}</h2>
         <p className="text-sm text-muted-foreground">
           {t('onePrimaryTaskPerDeliverable')}
         </p>
       </div>
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-4">
         <div className="space-y-3">
           <h3 className="font-medium">{t('primaryTask')}</h3>
           {board.taskManagers.length ? (
@@ -1537,50 +1643,6 @@ function Links({
               onModalClose={() => setOpenTask(null)}
             />
           )}
-        </div>
-        <div className="space-y-2">
-          <h3 className="font-medium">{t('conversations')}</h3>
-          {board.conversations.map((conversation) => (
-            <label
-              key={`${conversation.type}:${conversation.id}`}
-              className="flex gap-2 rounded-lg border p-3 text-sm"
-            >
-              <input
-                type="checkbox"
-                disabled={busy}
-                checked={draft.conversations.some(
-                  (current) =>
-                    current.id === conversation.id &&
-                    current.type === conversation.type,
-                )}
-                onChange={(event) =>
-                  set(
-                    'conversations',
-                    event.target.checked
-                      ? [
-                          ...draft.conversations,
-                          { id: conversation.id, type: conversation.type },
-                        ]
-                      : draft.conversations.filter(
-                          (current) =>
-                            current.id !== conversation.id ||
-                            current.type !== conversation.type,
-                        ),
-                  )
-                }
-              />
-              <a
-                className="break-all underline"
-                href={withBasePath(
-                  conversation.type === 'agent'
-                    ? `/t/${encodeURIComponent(conversation.id)}`
-                    : `/simple-chat?thread=${encodeURIComponent(conversation.id)}`,
-                )}
-              >
-                {conversation.title}
-              </a>
-            </label>
-          ))}
         </div>
       </div>
     </section>

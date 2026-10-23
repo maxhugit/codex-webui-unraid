@@ -170,7 +170,7 @@ it('keeps the table search visible and exposes filters through a mobile toggle',
 it('saves the brief with its revision and cannot manually select validated', async () => {
   await setup();
   expect(
-    screen.getByRole('combobox', { name: 'Status' }),
+    screen.getByRole('combobox', { name: 'Production progress' }),
   ).not.toHaveTextContent('Validated');
   fireEvent.change(screen.getByLabelText('Validation criteria'), {
     target: { value: 'Checked by owner' },
@@ -289,6 +289,35 @@ it('renames a deliverable from its header', async () => {
     }),
   );
 });
+it('keeps access controls in their dedicated tab and shows assignment summaries', async () => {
+  await setup();
+  expect(screen.queryByLabelText('Confidentiality')).not.toBeInTheDocument();
+  expect(screen.getByText('No assigned agent')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: 'Access' }));
+  expect(screen.getByLabelText('Confidentiality')).toBeInTheDocument();
+  expect(
+    screen.queryByRole('tab', { name: 'Tasks and conversations' }),
+  ).not.toBeInTheDocument();
+});
+it('saves restricted access only after choosing an authorized group', async () => {
+  await setup({ ...board, personGroups: [{ id: 'group', name: 'Reviewers' }] });
+  fireEvent.click(screen.getByRole('tab', { name: 'Access' }));
+  fireEvent.change(screen.getByLabelText('Confidentiality'), {
+    target: { value: 'restricted' },
+  });
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  fireEvent.click(screen.getByLabelText('Reviewers'));
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith(
+      '/p/resources/r/deliverables/d',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: expect.stringContaining('"authorizedGroupIds":["group"]'),
+      }),
+    ),
+  );
+});
 it('associates exactly one primary task', async () => {
   await setup({
     ...board,
@@ -307,7 +336,7 @@ it('associates exactly one primary task', async () => {
       },
     ],
   });
-  fireEvent.click(screen.getByRole('tab', { name: 'Tasks and conversations' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Primary task' }));
   fireEvent.change(screen.getByLabelText('Primary task'), {
     target: { value: 'task' },
   });

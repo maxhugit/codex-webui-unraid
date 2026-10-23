@@ -12,7 +12,7 @@ const budgets = {
   // The platform guide, project agent management, and workspace transfer UI
   // are intentionally localized in the shared catalog. Keep a narrow ceiling
   // around the reviewed content while preserving regression detection.
-  commonCatalogAssetBytes: 173_000,
+  commonCatalogAssetBytes: 173_500,
 };
 
 const entries = await readdir(assetsDirectory, { withFileTypes: true }).catch(
