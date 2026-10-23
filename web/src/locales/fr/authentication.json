@@ -16,7 +16,7 @@
     },
     "accounts": {
       "title": "Comptes locaux",
-      "description": "Les mots de passe sont hachés avec Argon2id et ne sont jamais stockés dans le fichier de configuration.",
+      "description": "Seuls les administrateurs actifs sont affichés. Sélectionnez un compte pour ouvrir sa fiche et gérer ses accès.",
       "administrator": "Administrateur",
       "standardUser": "Utilisateur standard",
       "inactive": "Inactif",

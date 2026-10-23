@@ -16,7 +16,7 @@
     },
     "accounts": {
       "title": "Local accounts",
-      "description": "Passwords are hashed with Argon2id and never stored in the configuration file.",
+      "description": "Only active administrators are shown. Select an account to open its profile and manage its access.",
       "administrator": "Administrator",
       "standardUser": "Standard user",
       "inactive": "Inactive",

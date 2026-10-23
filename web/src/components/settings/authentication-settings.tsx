@@ -4,12 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { showSnackbar } from '@/stores/snackbar-store';
-import {
-  authRequest,
-  readLocalAccounts,
-  type LocalAccount,
-} from '@/lib/auth-api';
+import { authRequest } from '@/lib/auth-api';
 import { authenticationErrorMessage } from '@/lib/auth-error-message';
+import { PeopleManager } from '@/components/projects/people-manager';
 
 interface AuthenticationConfiguration {
   version: 1;
@@ -57,28 +54,13 @@ export function AuthenticationSettings() {
   const { t } = useTranslation('authentication');
   const [configuration, setConfiguration] =
     useState<AuthenticationConfiguration | null>(null);
-  const [accounts, setAccounts] = useState<LocalAccount[]>([]);
-  const [drafts, setDrafts] = useState<
-    Record<string, { username: string; password: string }>
-  >({});
   const [saving, setSaving] = useState(false);
   const [oidcClientSecret, setOidcClientSecret] = useState('');
 
   const load = useCallback(async () => {
-    const [nextConfiguration, accountResponse] = await Promise.all([
-      authRequest<AuthenticationConfiguration>('configuration'),
-      readLocalAccounts(),
-    ]);
+    const nextConfiguration =
+      await authRequest<AuthenticationConfiguration>('configuration');
     setConfiguration(nextConfiguration);
-    setAccounts(accountResponse.accounts);
-    setDrafts(
-      Object.fromEntries(
-        accountResponse.accounts.map((account) => [
-          account.personId,
-          { username: account.username ?? '', password: '' },
-        ]),
-      ),
-    );
   }, []);
 
   useEffect(() => {
@@ -116,54 +98,6 @@ export function AuthenticationSettings() {
     } catch (error) {
       showSnackbar(
         authenticationErrorMessage(error, t, 'settings.saveError'),
-        'error',
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveAccount = async (account: LocalAccount) => {
-    const draft = drafts[account.personId];
-    if (!draft) return;
-    setSaving(true);
-    try {
-      await authRequest(
-        `local-accounts/${encodeURIComponent(account.personId)}`,
-        {
-          method: 'PUT',
-          body: JSON.stringify({
-            username: draft.username,
-            ...(draft.password ? { password: draft.password } : {}),
-          }),
-        },
-      );
-      await load();
-      showSnackbar(t('settings.accounts.saved'), 'success');
-    } catch (error) {
-      showSnackbar(
-        authenticationErrorMessage(error, t, 'settings.accounts.saveError'),
-        'error',
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const removeAccount = async (account: LocalAccount) => {
-    setSaving(true);
-    try {
-      await authRequest(
-        `local-accounts/${encodeURIComponent(account.personId)}`,
-        {
-          method: 'DELETE',
-        },
-      );
-      await load();
-      showSnackbar(t('settings.accounts.removed'), 'success');
-    } catch (error) {
-      showSnackbar(
-        authenticationErrorMessage(error, t, 'settings.accounts.removeError'),
         'error',
       );
     } finally {
@@ -253,101 +187,7 @@ export function AuthenticationSettings() {
             {t('settings.accounts.description')}
           </p>
         </div>
-        {accounts.map((account) => {
-          const draft = drafts[account.personId] ?? {
-            username: '',
-            password: '',
-          };
-          return (
-            <div
-              key={account.personId}
-              className="space-y-3 rounded-lg border p-3"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="font-medium">{account.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {account.email} ·{' '}
-                    {t(
-                      account.role === 'administrator'
-                        ? 'settings.accounts.administrator'
-                        : 'settings.accounts.standardUser',
-                    )}
-                    {!account.active
-                      ? ` · ${t('settings.accounts.inactive')}`
-                      : ''}
-                  </div>
-                </div>
-                {account.passwordConfigured && (
-                  <span className="rounded-full border px-2 py-1 text-xs">
-                    {t('settings.accounts.passwordConfigured')}
-                  </span>
-                )}
-                {account.oidcLinked && (
-                  <span className="rounded-full border px-2 py-1 text-xs">
-                    {t('settings.accounts.ssoLinked')}
-                  </span>
-                )}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                  value={draft.username}
-                  placeholder={t('settings.accounts.username')}
-                  autoComplete="off"
-                  disabled={account.oidcLinked}
-                  onChange={(event) =>
-                    setDrafts({
-                      ...drafts,
-                      [account.personId]: {
-                        ...draft,
-                        username: event.target.value,
-                      },
-                    })
-                  }
-                />
-                <Input
-                  type="password"
-                  value={draft.password}
-                  placeholder={
-                    account.passwordConfigured
-                      ? t('settings.accounts.newPassword')
-                      : t('settings.accounts.newPasswordRequired')
-                  }
-                  autoComplete="new-password"
-                  disabled={account.oidcLinked}
-                  onChange={(event) =>
-                    setDrafts({
-                      ...drafts,
-                      [account.personId]: {
-                        ...draft,
-                        password: event.target.value,
-                      },
-                    })
-                  }
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  disabled={saving || account.oidcLinked}
-                  onClick={() => void saveAccount(account)}
-                >
-                  {t('settings.accounts.configure')}
-                </Button>
-                {account.passwordConfigured && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={saving}
-                    onClick={() => void removeAccount(account)}
-                  >
-                    {t('settings.accounts.remove')}
-                  </Button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        <PeopleManager mode="activeAdministrators" showHeading={false} />
       </div>
 
       <div className="space-y-3 rounded-xl border bg-card/50 p-4">

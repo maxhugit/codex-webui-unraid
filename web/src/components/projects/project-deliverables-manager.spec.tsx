@@ -157,6 +157,16 @@ it('filters the deliverables list and resets all filters', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
   expect(screen.getByRole('button', { name: /Report/ })).toBeInTheDocument();
 });
+it('keeps the table search visible and exposes filters through a mobile toggle', async () => {
+  await setupList();
+
+  expect(screen.getByLabelText('Search deliverables')).toBeInTheDocument();
+  const toggle = screen.getByRole('button', { name: 'Filters' });
+  expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByLabelText('Filter by status')).toBeInTheDocument();
+});
 it('saves the brief with its revision and cannot manually select validated', async () => {
   await setup();
   expect(

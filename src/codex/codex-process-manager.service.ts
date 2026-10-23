@@ -14,6 +14,37 @@ import {
 import type { InitializeResponse } from './codex-schema';
 import { CatalogStorageService } from './catalog/catalog-storage.service';
 import type { ServerRequestHandler } from './server-request-owner';
+import { SettingsService } from '../settings/settings.service';
+import { GENERAL_SETTING_KEYS } from '../settings/settings.definitions';
+
+const MCP_OAUTH_CALLBACK_PATH = '/mcp/oauth/callback';
+const MCP_OAUTH_CALLBACK_PORT = 12345;
+
+/** Builds trusted startup overrides from the administrator-owned public URL. */
+export function mcpOauthStartupArgs(publicBaseUrl: string | null): string[] {
+  if (!publicBaseUrl) return [];
+  try {
+    const callback = new URL(publicBaseUrl);
+    if (
+      !['http:', 'https:'].includes(callback.protocol) ||
+      callback.username ||
+      callback.password ||
+      callback.search ||
+      callback.hash
+    ) {
+      return [];
+    }
+    callback.pathname = `${callback.pathname.replace(/\/$/, '')}${MCP_OAUTH_CALLBACK_PATH}`;
+    return [
+      '-c',
+      `mcp_oauth_callback_url=${JSON.stringify(callback.toString())}`,
+      '-c',
+      `mcp_oauth_callback_port=${MCP_OAUTH_CALLBACK_PORT}`,
+    ];
+  } catch {
+    return [];
+  }
+}
 
 export type CodexLifecycleEvent =
   | { type: 'appServerRestarting'; generation: number; delayMs: number }
@@ -82,7 +113,10 @@ export class CodexProcessManager implements OnModuleInit, OnModuleDestroy {
     (event: CodexLifecycleEvent) => void
   >();
 
-  constructor(private readonly storage: CatalogStorageService) {}
+  constructor(
+    private readonly storage: CatalogStorageService,
+    private readonly settings: SettingsService,
+  ) {}
 
   /** Recovers interrupted activation before spawning; errors leave HTTP repair available. */
   async onModuleInit(): Promise<void> {
@@ -238,9 +272,18 @@ export class CodexProcessManager implements OnModuleInit, OnModuleDestroy {
         );
       }
     }
+    const configuredPublicUrl = this.settings.getStringSetting(
+      GENERAL_SETTING_KEYS.publicBaseUrl,
+    );
+    const oauthArgs = mcpOauthStartupArgs(configuredPublicUrl);
+    if (configuredPublicUrl && oauthArgs.length === 0) {
+      this.logger.warn(
+        'Ignoring invalid general.publicBaseUrl for MCP OAuth callback',
+      );
+    }
     const child = spawn(
       this.storage.paths.binary,
-      ['app-server', '--listen', 'stdio://'],
+      ['app-server', '--listen', 'stdio://', ...oauthArgs],
       {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: {

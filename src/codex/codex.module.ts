@@ -18,8 +18,10 @@ import {
 } from './catalog/catalog-admission.service';
 import { CatalogActivityService } from './catalog/catalog-activity.service';
 import { CatalogService } from './catalog/catalog.service';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
+  imports: [SettingsModule],
   controllers: [
     CodexCliController,
     CodexStatusController,

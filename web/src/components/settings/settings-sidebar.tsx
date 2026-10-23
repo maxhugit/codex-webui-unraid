@@ -6,6 +6,7 @@ import {
   Database,
   FolderCog,
   FolderOpen,
+  FileText,
   MessageCircle,
   PackageOpen,
   ScrollText,
@@ -29,6 +30,7 @@ import { SETTINGS_SECTIONS } from './settings-sections';
 
 const sectionIcons = {
   general: ServerCog,
+  onlyOffice: FileText,
   people: UsersRound,
   account: UserCircle,
   codex: Bot,

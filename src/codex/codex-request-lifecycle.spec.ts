@@ -7,6 +7,7 @@ import type {
   OwnedServerRequest,
   ServerRequestRetirement,
 } from './server-request-owner';
+import type { SettingsService } from '../settings/settings.service';
 
 const mocks = vi.hoisted(() => ({ spawn: vi.fn() }));
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn }));
@@ -56,7 +57,9 @@ describe('manager request retirement', () => {
 
   beforeEach(() => {
     fixture = catalogFixture();
-    manager = new CodexProcessManager(fixture.storage);
+    manager = new CodexProcessManager(fixture.storage, {
+      getStringSetting: () => null,
+    } as unknown as SettingsService);
     children = [];
     held = [];
     retirements = [];
