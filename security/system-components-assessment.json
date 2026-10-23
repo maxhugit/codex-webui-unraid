@@ -70,37 +70,5 @@
     "cve": "CVE-2026-16742",
     "component": "systemd-homed",
     "source": "https://github.com/systemd/systemd/security/advisories/GHSA-jm29-p7hh-vjhv"
-  },
-  {
-    "package": "openssh-client",
-    "version": "1:10.0p1-7+deb13u4",
-    "purl": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1",
-    "cve": "CVE-2026-106553",
-    "component": "sshd",
-    "source": "https://security-tracker.debian.org/tracker/CVE-2026-106553"
-  },
-  {
-    "package": "openssh-client",
-    "version": "1:10.0p1-7+deb13u4",
-    "purl": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1",
-    "cve": "CVE-2026-106555",
-    "component": "sshd",
-    "source": "https://security-tracker.debian.org/tracker/CVE-2026-106555"
-  },
-  {
-    "package": "openssh-client",
-    "version": "1:10.0p1-7+deb13u4",
-    "purl": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1",
-    "cve": "CVE-2026-59999",
-    "component": "sshd",
-    "source": "https://security-tracker.debian.org/tracker/CVE-2026-59999"
-  },
-  {
-    "package": "openssh-client",
-    "version": "1:10.0p1-7+deb13u4",
-    "purl": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1",
-    "cve": "CVE-2026-60000",
-    "component": "sshd",
-    "source": "https://security-tracker.debian.org/tracker/CVE-2026-60000"
   }
 ]

@@ -9,13 +9,12 @@ ROOT = Path(__file__).resolve().parent.parent
 ALLOWED = {
     'CVE-2026-24882': {'dirmngr', 'gnupg', 'gnupg-l10n', 'gpg', 'gpg-agent', 'gpgconf', 'gpgsm'},
     'CVE-2026-16742': {'libsystemd0', 'libudev1'},
-    **{c: {'openssh-client'} for c in ('CVE-2026-59999', 'CVE-2026-60000', 'CVE-2026-106553', 'CVE-2026-106555')},
 }
 
 
 def reviewed_keys(vex, assessment, evidence):
     expected_pairs = {(p, c) for c, packages in ALLOWED.items() for p in packages}
-    if len(assessment) != 13 or {(r['package'], r['cve']) for r in assessment} != expected_pairs:
+    if len(assessment) != 9 or {(r['package'], r['cve']) for r in assessment} != expected_pairs:
         raise ValueError('Unexpected assessment scope')
     if (evidence.get('schema_version') != 1 or evidence.get('excluded_implementations_found') != []
             or evidence.get('files_checked', 0) < 100
@@ -36,7 +35,7 @@ def reviewed_keys(vex, assessment, evidence):
         for product in statement['products']:
             actual.add(('debian', product['@id'].split('/')[2].split('@')[0], product['@id'],
                         statement['vulnerability']['name'], 'HIGH'))
-    if actual != expected or len(vex['statements']) != 13:
+    if actual != expected or len(vex['statements']) != 9:
         raise ValueError('VEX differs from exact reviewed package/CVE scope')
     return expected
 

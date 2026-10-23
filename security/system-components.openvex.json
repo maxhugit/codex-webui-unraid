@@ -3,7 +3,7 @@
   "@id": "https://github.com/maxhugit/codex-webui-unraid/security/system-components-2026-10-22",
   "author": "codex-webui-unraid maintainers",
   "timestamp": "2026-10-22T21:58:02Z",
-  "version": 1,
+  "version": 2,
   "statements": [
     {
       "vulnerability": {
@@ -121,58 +121,6 @@
       "status": "not_affected",
       "justification": "vulnerable_code_not_present",
       "impact_statement": "The vulnerable homed authentication implementation is not in libsystemd0 or libudev1. Neither systemd-homed nor systemd-homework is shipped in the reviewed image. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
-    },
-    {
-      "vulnerability": {
-        "name": "CVE-2026-106553"
-      },
-      "products": [
-        {
-          "@id": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1"
-        }
-      ],
-      "status": "not_affected",
-      "justification": "vulnerable_code_not_present",
-      "impact_statement": "Failed GSSAPI credential persistence is in sshd. The reviewed image contains openssh-client, without the SSH server implementation. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
-    },
-    {
-      "vulnerability": {
-        "name": "CVE-2026-106555"
-      },
-      "products": [
-        {
-          "@id": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1"
-        }
-      ],
-      "status": "not_affected",
-      "justification": "vulnerable_code_not_present",
-      "impact_statement": "GSSAPI authentication state persistence is in sshd. The reviewed image contains openssh-client, without the SSH server implementation. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
-    },
-    {
-      "vulnerability": {
-        "name": "CVE-2026-59999"
-      },
-      "products": [
-        {
-          "@id": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1"
-        }
-      ],
-      "status": "not_affected",
-      "justification": "vulnerable_code_not_present",
-      "impact_statement": "The forwarding-option precedence bug is in sshd. The reviewed image contains openssh-client, without the SSH server implementation. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
-    },
-    {
-      "vulnerability": {
-        "name": "CVE-2026-60000"
-      },
-      "products": [
-        {
-          "@id": "pkg:deb/debian/openssh-client@10.0p1-7%2Bdeb13u4?arch=amd64&distro=debian-13.7&epoch=1"
-        }
-      ],
-      "status": "not_affected",
-      "justification": "vulnerable_code_not_present",
-      "impact_statement": "The excessive GSSAPI authentication attempts bug is in sshd. The reviewed image contains openssh-client, without the SSH server implementation. Applies only to the exact package in the immutable WebUI image, conditional on CI component-absence evidence; excludes the host and user-installed tools."
     }
   ]
 }
