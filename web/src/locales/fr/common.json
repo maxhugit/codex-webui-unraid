@@ -2,6 +2,7 @@
   "detachDeliverableTask": "Dissocier la tâche",
   "deliverableCreator": "Créateur",
   "deliverableLastEditor": "Dernier modificateur",
+  "simpleChatFolderLoadFailed": "Impossible de charger ou de modifier le dossier. Vérifiez les ressources du projet et réessayez.",
   "deliverableAccess": "Accès",
   "assignedDeliverableAgent": "Agent affecté",
   "openDeliverableAgent": "Ouvrir l’agent",

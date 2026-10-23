@@ -697,7 +697,13 @@ export class SimpleChatService {
       .where(eq(simpleChatMessages.threadId, threadId))
       .orderBy(asc(simpleChatMessages.createdAt))
       .all();
-    return { thread, messages };
+    return {
+      thread,
+      messages,
+      activeFolder: thread.projectId
+        ? this.activeFolders.get('simple_chat', thread.id)
+        : null,
+    };
   }
 
   updateThread(
