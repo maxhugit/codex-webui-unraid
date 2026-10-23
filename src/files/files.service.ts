@@ -13,6 +13,11 @@ import {
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import { currentAccess } from '../auth/access-context';
 import { projects } from '../database/schema';
+import {
+  PROJECT_SYSTEM_DIRECTORY,
+  LEGACY_PROJECT_SYSTEM_DIRECTORY,
+  PROJECT_CONTENT_DIRECTORIES,
+} from '../projects/workspace-structure';
 import { BusinessException } from '../common/business.exception';
 import { ErrorCode } from '../common/error-codes';
 import {
@@ -967,7 +972,7 @@ export class FilesService implements OnModuleDestroy {
     }
   }
 
-  /** Protect permanent roots and WebUI-owned files from generic file operations. */
+  /** Protect permanent roots, structural folders and application-owned files. */
   assertProjectPathMutable(targetPath: string): void {
     const canonical = (value: string): string => {
       let current = path.resolve(value);
@@ -984,11 +989,23 @@ export class FilesService implements OnModuleDestroy {
     for (const project of this.db?.select().from(projects).all() ?? []) {
       if (project.workspaceLayoutVersion < 1) continue;
       const root = canonical(project.workspacePath);
-      const system = path.join(root, '.webui');
-      if (contains(target, root) || contains(system, target)) {
+      const systemDirectories = [
+        PROJECT_SYSTEM_DIRECTORY,
+        LEGACY_PROJECT_SYSTEM_DIRECTORY,
+      ];
+      if (
+        contains(target, root) ||
+        systemDirectories.some((name) =>
+          contains(path.join(root, name), target),
+        ) ||
+        (project.workspaceLayoutVersion >= 2 &&
+          PROJECT_CONTENT_DIRECTORIES.some((name) =>
+            contains(target, path.join(root, name)),
+          ))
+      ) {
         throw BusinessException.conflict(
           ErrorCode.files.cannotModifyRoot,
-          'The primary workspace is permanent and .webui is reserved for the application',
+          'The primary workspace structure is permanent and .mergeron is reserved for the application',
         );
       }
     }

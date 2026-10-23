@@ -21,7 +21,7 @@ const original = {
     'DECISIONS.md': 'Decisions',
   },
   revision: 'revision-1',
-  path: '/workspaces/id/.webui/knowledge',
+  path: '/workspaces/id/.mergeron/knowledge',
 };
 beforeEach(() => {
   api.mockReset();

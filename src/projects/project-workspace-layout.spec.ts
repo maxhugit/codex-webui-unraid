@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import {
   createTestDatabase,
   type TestDatabase,
@@ -11,12 +13,24 @@ import {
   projectWorkspaces,
   projectAgentThreads,
   simpleChatThreads,
+  projectResources,
+  projectDeliverables,
+  projectDeliverableVersions,
+  projectDeliverableDocuments,
+  projectDeliverableDocumentVersions,
 } from '../database/schema';
 import { ProjectWorkspaceLayout } from './project-workspace-layout';
 import { FilesService } from '../files/files.service';
 import type { SettingsService } from '../settings/settings.service';
 import { SECURITY_SETTING_KEYS } from '../settings/settings.definitions';
 import { ProjectsService } from './projects.service';
+import { DeliverablesService } from '../deliverables/deliverables.service';
+import { IdentityService } from '../auth/identity.service';
+import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
+import {
+  PROJECT_WORKSPACE_INSTRUCTIONS,
+  LEGACY_PROJECT_WORKSPACE_INSTRUCTIONS,
+} from './workspace-structure';
 
 describe('permanent project workspaces', () => {
   let database: TestDatabase;
@@ -93,6 +107,411 @@ describe('permanent project workspaces', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  async function legacyPrimary() {
+    await layout.migrate();
+    const primary = path.join(root, 'project-id');
+    await fs.rename(
+      path.join(primary, '.mergeron'),
+      path.join(primary, '.webui'),
+    );
+    await fs.writeFile(
+      path.join(primary, '.webui/project.json'),
+      JSON.stringify({ projectId: 'project-id', layoutVersion: 1 }),
+    );
+    await fs.writeFile(
+      path.join(primary, 'AGENTS.md'),
+      LEGACY_PROJECT_WORKSPACE_INSTRUCTIONS,
+    );
+    database.db
+      .update(projects)
+      .set({ workspaceLayoutVersion: 1 })
+      .where(eq(projects.id, 'project-id'))
+      .run();
+    return primary;
+  }
+
+  async function historicalDeliverable(primary: string) {
+    const now = Date.now();
+    const sourcePath = path.join(primary, 'documents/report.txt');
+    const snapshotPath = path.join(
+      primary,
+      '.webui/history/deliverables/d/v/0-report.txt',
+    );
+    const documentSnapshot = path.join(
+      primary,
+      '.webui/history/deliverables/d/documents/doc/dv/report.txt',
+    );
+    const changes = path.join(path.dirname(documentSnapshot), 'changes.zip');
+    await fs.mkdir(path.dirname(snapshotPath), { recursive: true });
+    await fs.mkdir(path.dirname(documentSnapshot), { recursive: true });
+    for (const name of [sourcePath, snapshotPath, documentSnapshot])
+      await fs.writeFile(name, 'Preserved report');
+    await fs.writeFile(changes, 'Office history');
+    const sha256 = createHash('sha256')
+      .update('Preserved report')
+      .digest('hex');
+    const size = Buffer.byteLength('Preserved report');
+    database.db
+      .insert(projectResources)
+      .values({
+        id: 'r',
+        projectId: 'project-id',
+        name: 'Deliverables',
+        type: 'deliverable_board',
+        config: {},
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectDeliverables)
+      .values({
+        id: 'd',
+        resourceId: 'r',
+        title: 'Report',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectDeliverableVersions)
+      .values({
+        id: 'v',
+        deliverableId: 'd',
+        number: 1,
+        files: [{ name: 'report.txt', sourcePath, snapshotPath, sha256, size }],
+        createdAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectDeliverableDocuments)
+      .values({
+        id: 'doc',
+        deliverableId: 'd',
+        name: 'report.txt',
+        format: 'txt',
+        sourcePath,
+        currentVersionNumber: 1,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectDeliverableDocumentVersions)
+      .values({
+        id: 'dv',
+        documentId: 'doc',
+        number: 1,
+        fileName: 'report.txt',
+        sourcePath,
+        snapshotPath: documentSnapshot,
+        sha256,
+        size,
+        authorName: 'Maxime',
+        onlyofficeChangesPath: changes,
+        createdAt: now,
+      })
+      .run();
+    return { sourcePath, snapshotPath, documentSnapshot, changes };
+  }
+
+  it('migrates knowledge and downloadable deliverable history without changing source files or active folders', async () => {
+    const primary = await legacyPrimary();
+    const old = await historicalDeliverable(primary);
+    await fs.writeFile(
+      path.join(primary, '.webui/knowledge/DECISIONS.md'),
+      'Keep this decision',
+    );
+    await layout.migrate();
+    const service = new DeliverablesService(
+      database.db,
+      files,
+      new IdentityService(database.db),
+    );
+    const migratedFile = await service.file('project-id', 'r', 'd', 'v', 0);
+    const migratedDocument = await service.documentVersionFile(
+      'project-id',
+      'r',
+      'd',
+      'doc',
+      'dv',
+    );
+    expect(await fs.readFile(migratedFile.snapshotPath, 'utf8')).toBe(
+      'Preserved report',
+    );
+    expect(await fs.readFile(migratedDocument.path, 'utf8')).toBe(
+      'Preserved report',
+    );
+    expect(
+      await fs.readFile(
+        migratedDocument.version.onlyofficeChangesPath!,
+        'utf8',
+      ),
+    ).toBe('Office history');
+    expect(migratedFile.sourcePath).toBe(old.sourcePath);
+    expect(migratedDocument.version.sourcePath).toBe(old.sourcePath);
+    expect(
+      (await new ProjectKnowledgeService(database.db).read('project-id')).files[
+        'DECISIONS.md'
+      ],
+    ).toBe('Keep this decision');
+    expect(await fs.readFile(path.join(primary, 'AGENTS.md'), 'utf8')).toBe(
+      PROJECT_WORKSPACE_INSTRUCTIONS,
+    );
+    expect(
+      database.db.select().from(projectAgentThreads).get()?.workspacePath,
+    ).toBe(legacy);
+    expect(database.db.select().from(simpleChatThreads).get()?.cwd).toBe(
+      legacy,
+    );
+    await expect(fs.lstat(path.join(primary, '.webui'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+    const before = database.db
+      .select()
+      .from(projectDeliverableDocumentVersions)
+      .all();
+    await layout.migrate();
+    expect(
+      database.db.select().from(projectDeliverableDocumentVersions).all(),
+    ).toEqual(before);
+  });
+
+  it('replays the metadata transaction after an interruption following the directory rename', async () => {
+    const primary = await legacyPrimary();
+    await historicalDeliverable(primary);
+    vi.spyOn(database.db, 'transaction').mockImplementationOnce(() => {
+      throw new Error('Interrupted');
+    });
+    await expect(layout.migrate()).rejects.toThrow('Interrupted');
+    expect(
+      database.db.select().from(projects).get()?.workspaceLayoutVersion,
+    ).toBe(1);
+    expect(
+      (await fs.lstat(path.join(primary, '.mergeron'))).isDirectory(),
+    ).toBe(true);
+    expect(
+      database.db.select().from(projectDeliverableVersions).get()?.files[0]
+        .snapshotPath,
+    ).toContain('/.webui/');
+    await layout.migrate();
+    expect(
+      database.db.select().from(projects).get()?.workspaceLayoutVersion,
+    ).toBe(2);
+    const file = database.db.select().from(projectDeliverableVersions).get()!
+      .files[0];
+    expect(file.snapshotPath).toContain('/.mergeron/');
+    expect(await fs.readFile(file.snapshotPath, 'utf8')).toBe(
+      'Preserved report',
+    );
+  });
+
+  it('preserves customized root instructions and similarly named user paths', async () => {
+    const primary = await legacyPrimary();
+    await historicalDeliverable(primary);
+    await fs.writeFile(
+      path.join(primary, 'AGENTS.md'),
+      'Custom instructions mentioning .webui',
+    );
+    const version = database.db
+      .select()
+      .from(projectDeliverableVersions)
+      .get()!;
+    const siblingPath = path.join(primary, '.webui-backup/report.txt');
+    database.db
+      .update(projectDeliverableVersions)
+      .set({
+        files: [
+          ...version.files,
+          { ...version.files[0], snapshotPath: siblingPath },
+        ],
+      })
+      .where(eq(projectDeliverableVersions.id, 'v'))
+      .run();
+    await layout.migrate();
+    expect(await fs.readFile(path.join(primary, 'AGENTS.md'), 'utf8')).toBe(
+      'Custom instructions mentioning .webui',
+    );
+    expect(
+      database.db.select().from(projectDeliverableVersions).get()?.files[1]
+        .snapshotPath,
+    ).toBe(siblingPath);
+  });
+
+  it('does not merge colliding system directories or update the database', async () => {
+    const primary = await legacyPrimary();
+    await fs.mkdir(path.join(primary, '.mergeron'));
+    await fs.writeFile(path.join(primary, '.mergeron/keep.txt'), 'Keep me');
+    await expect(layout.migrate()).rejects.toThrow('Both .webui and .mergeron');
+    expect(
+      await fs.readFile(path.join(primary, '.mergeron/keep.txt'), 'utf8'),
+    ).toBe('Keep me');
+    expect((await fs.lstat(path.join(primary, '.webui'))).isDirectory()).toBe(
+      true,
+    );
+    expect(
+      database.db.select().from(projects).get()?.workspaceLayoutVersion,
+    ).toBe(1);
+  });
+
+  it('does not rewrite history belonging to a different project', async () => {
+    const primary = await legacyPrimary();
+    const old = await historicalDeliverable(primary);
+    database.db
+      .insert(projects)
+      .values({
+        id: 'other',
+        name: 'Other',
+        workspacePath: path.join(root, 'other'),
+        workspaceLayoutVersion: 2,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      .run();
+    database.db
+      .insert(projectResources)
+      .values({
+        id: 'other-resource',
+        projectId: 'other',
+        name: 'Other',
+        type: 'deliverable_board',
+        config: {},
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      .run();
+    database.db
+      .insert(projectDeliverables)
+      .values({
+        id: 'other-deliverable',
+        resourceId: 'other-resource',
+        title: 'Other',
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      .run();
+    const files = database.db.select().from(projectDeliverableVersions).get()!
+      .files;
+    database.db
+      .insert(projectDeliverableVersions)
+      .values({
+        id: 'other-version',
+        deliverableId: 'other-deliverable',
+        number: 1,
+        files,
+        createdAt: 1,
+      })
+      .run();
+    await layout.migrate();
+    expect(
+      database.db
+        .select()
+        .from(projectDeliverableVersions)
+        .where(eq(projectDeliverableVersions.id, 'other-version'))
+        .get()?.files[0].snapshotPath,
+    ).toBe(old.snapshotPath);
+  });
+
+  it('recreates a missing structural folder without moving user folders', async () => {
+    const primary = await legacyPrimary();
+    await fs.rename(
+      path.join(primary, 'documents'),
+      path.join(primary, 'my-documents'),
+    );
+    await fs.writeFile(path.join(primary, 'my-documents/note.md'), 'Keep me');
+    await layout.migrate();
+    expect(
+      (await fs.lstat(path.join(primary, 'documents'))).isDirectory(),
+    ).toBe(true);
+    expect(
+      await fs.readFile(path.join(primary, 'my-documents/note.md'), 'utf8'),
+    ).toBe('Keep me');
+  });
+
+  it('rejects a structural symlink before changing the system directory', async () => {
+    const primary = await legacyPrimary();
+    await fs.rmdir(path.join(primary, 'sources'));
+    await fs.symlink(legacy, path.join(primary, 'sources'));
+    await expect(layout.migrate()).rejects.toThrow('invalid directory');
+    expect((await fs.lstat(path.join(primary, '.webui'))).isDirectory()).toBe(
+      true,
+    );
+    await expect(
+      fs.lstat(path.join(primary, '.mergeron')),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it.each(['system', 'marker', 'knowledge', 'history'] as const)(
+    'rejects a symbolic link in the legacy %s before renaming',
+    async (part) => {
+      const primary = await legacyPrimary();
+      const source = path.join(
+        primary,
+        '.webui',
+        ...{
+          system: [],
+          marker: ['project.json'],
+          knowledge: ['knowledge'],
+          history: ['history'],
+        }[part],
+      );
+      const outside = path.join(root, `outside-${part}`);
+      await fs.rename(source, outside);
+      await fs.symlink(outside, source);
+      await expect(layout.migrate()).rejects.toThrow();
+      await expect(
+        fs.lstat(path.join(primary, '.mergeron')),
+      ).rejects.toMatchObject({ code: 'ENOENT' });
+      expect(
+        database.db.select().from(projects).get()?.workspaceLayoutVersion,
+      ).toBe(1);
+    },
+  );
+
+  it('rejects a legacy marker belonging to another project', async () => {
+    const primary = await legacyPrimary();
+    await fs.writeFile(
+      path.join(primary, '.webui/project.json'),
+      JSON.stringify({ projectId: 'other', layoutVersion: 1 }),
+    );
+    await expect(layout.migrate()).rejects.toThrow('another project');
+    expect((await fs.lstat(path.join(primary, '.webui'))).isDirectory()).toBe(
+      true,
+    );
+    expect(
+      database.db.select().from(projects).get()?.workspaceLayoutVersion,
+    ).toBe(1);
+  });
+
+  it('does not recreate a missing version one principal', async () => {
+    const primary = await legacyPrimary();
+    await fs.rm(primary, { recursive: true });
+    await layout.migrate();
+    await expect(fs.lstat(primary)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(
+      database.db.select().from(projects).get()?.workspaceLayoutVersion,
+    ).toBe(1);
+  });
+
+  it.each(['documents', 'sources', 'livrables'])(
+    'protects the structural %s directory while allowing its contents',
+    async (name) => {
+      await layout.migrate();
+      const directory = path.join(root, 'project-id', name);
+      await expect(files.renamePath(directory, 'renamed')).rejects.toThrow();
+      await expect(
+        files.movePath(directory, path.join(legacy, name)),
+      ).rejects.toThrow();
+      await expect(files.deletePath(directory, true)).rejects.toThrow();
+      await files.writeFile(path.join(directory, 'note.md'), 'Allowed');
+      await files.renamePath(path.join(directory, 'note.md'), 'renamed.md');
+      expect(
+        await fs.readFile(path.join(directory, 'renamed.md'), 'utf8'),
+      ).toBe('Allowed');
+      await files.deletePath(path.join(directory, 'renamed.md'));
+    },
+  );
+
   it('creates a principal from the immutable generated ID and rejects custom primary paths', async () => {
     const prepare = layout.prepare.bind(layout) as (
       id: string,
@@ -113,9 +532,9 @@ describe('permanent project workspaces', () => {
     const project = await service.create('Renamable project');
     expect(project.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(project.workspacePath).toBe(path.join(root, project.id));
-    expect(project.workspaceLayoutVersion).toBe(1);
+    expect(project.workspaceLayoutVersion).toBe(2);
     expect(
-      await fs.stat(path.join(project.workspacePath, '.webui/history')),
+      await fs.stat(path.join(project.workspacePath, '.mergeron/history')),
     ).toMatchObject({});
     await expect(service.create('Custom', legacy)).rejects.toThrow(
       'generated from the project ID',
@@ -125,16 +544,16 @@ describe('permanent project workspaces', () => {
   it('recovers filesystem preparation completed before a database transaction', async () => {
     const primary = await layout.prepare('project-id');
     await fs.writeFile(
-      path.join(primary, '.webui/knowledge/CONNAISSANCES.md'),
+      path.join(primary, '.mergeron/knowledge/CONNAISSANCES.md'),
       'Preserved',
     );
     await layout.migrate();
     expect(
       database.db.select().from(projects).get()?.workspaceLayoutVersion,
-    ).toBe(1);
+    ).toBe(2);
     expect(
       await fs.readFile(
-        path.join(primary, '.webui/knowledge/CONNAISSANCES.md'),
+        path.join(primary, '.mergeron/knowledge/CONNAISSANCES.md'),
         'utf8',
       ),
     ).toBe('Preserved');
@@ -145,7 +564,7 @@ describe('permanent project workspaces', () => {
     const primary = path.join(root, 'project-id');
     expect(database.db.select().from(projects).get()).toMatchObject({
       workspacePath: primary,
-      workspaceLayoutVersion: 1,
+      workspaceLayoutVersion: 2,
     });
     expect(database.db.select().from(projectWorkspaces).all()).toEqual(
       expect.arrayContaining([
@@ -163,14 +582,14 @@ describe('permanent project workspaces', () => {
       'Existing instructions',
     );
     await fs.writeFile(
-      path.join(primary, '.webui/knowledge/DECISIONS.md'),
+      path.join(primary, '.mergeron/knowledge/DECISIONS.md'),
       'A decision',
     );
     await layout.migrate();
     expect(database.db.select().from(projectWorkspaces).all()).toHaveLength(2);
     expect(
       await fs.readFile(
-        path.join(primary, '.webui/knowledge/DECISIONS.md'),
+        path.join(primary, '.mergeron/knowledge/DECISIONS.md'),
         'utf8',
       ),
     ).toBe('A decision');
@@ -235,7 +654,7 @@ describe('permanent project workspaces', () => {
     expect(result.preservedWorkspaces).toContain(path.join(root, 'project-id'));
     expect(database.db.select().from(projects).all()).toHaveLength(0);
     expect(
-      await fs.stat(path.join(root, 'project-id', '.webui')),
+      await fs.stat(path.join(root, 'project-id', '.mergeron')),
     ).toMatchObject({});
   });
 
@@ -290,7 +709,7 @@ describe('permanent project workspaces', () => {
     await expect(files.renamePath(primary, 'renamed')).rejects.toThrow();
     await expect(
       files.writeFile(
-        path.join(primary, '.webui/knowledge/DECISIONS.md'),
+        path.join(primary, '.mergeron/knowledge/DECISIONS.md'),
         'Overwrite',
       ),
     ).rejects.toThrow();

@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ProjectWorkspaceLayout } from './project-workspace-layout';
+import { WORKSPACE_LAYOUT_VERSION } from './workspace-structure';
 import { randomUUID } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import { identityEvents } from '../auth/identity-events';
@@ -1207,7 +1208,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       id,
       name,
       workspacePath,
-      workspaceLayoutVersion: 1,
+      workspaceLayoutVersion: WORKSPACE_LAYOUT_VERSION,
       mcpServerIds: [],
       appIds: [],
       agentModel: null,

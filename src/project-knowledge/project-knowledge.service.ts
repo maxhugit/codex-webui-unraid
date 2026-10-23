@@ -14,6 +14,7 @@ import * as fs from 'node:fs/promises';
 import { constants } from 'node:fs';
 import * as path from 'node:path';
 import { eq } from 'drizzle-orm';
+import { PROJECT_SYSTEM_DIRECTORY } from '../projects/workspace-structure';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
   projects,
@@ -51,7 +52,7 @@ export class ProjectKnowledgeService {
     if (project.workspaceLayoutVersion < 1)
       throw new ConflictException('Project workspace migration is required');
     let directory = project.workspacePath;
-    for (const component of ['', '.webui', 'knowledge']) {
+    for (const component of ['', PROJECT_SYSTEM_DIRECTORY, 'knowledge']) {
       if (component) directory = path.join(directory, component);
       const stat = await fs.lstat(directory);
       if (!stat.isDirectory() || stat.isSymbolicLink())

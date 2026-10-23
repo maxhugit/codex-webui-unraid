@@ -596,7 +596,7 @@ it('does not expose deliverable snapshot metadata or bytes from an unauthorized 
         {
           name: 'confidential-b.txt',
           sourcePath: join(root, 'b', 'document.txt'),
-          snapshotPath: join(root, 'a', '.webui', 'snapshot'),
+          snapshotPath: join(root, 'a', '.mergeron', 'snapshot'),
           size: 14,
           sha256: 'unused',
         },

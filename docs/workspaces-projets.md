@@ -14,15 +14,19 @@ Le choix du workspace actif d'une conversation ne change pas le principal du pro
 
 | Chemin relatif                         | Usage                                                  |
 | -------------------------------------- | ------------------------------------------------------ |
-| `.webui/project.json`                  | Marqueur de propriété et version de structure          |
-| `.webui/knowledge/AGENTS.md`           | Emplacement réservé aux futures instructions partagées |
-| `.webui/knowledge/CONNAISSANCES.md`    | Emplacement réservé aux connaissances                  |
-| `.webui/knowledge/DECISIONS.md`        | Emplacement réservé aux décisions                      |
-| `.webui/history/`                      | Emplacement réservé à l'historique applicatif          |
+| `.mergeron/project.json`               | Marqueur de propriété et version de structure          |
+| `.mergeron/knowledge/AGENTS.md`        | Emplacement réservé aux futures instructions partagées |
+| `.mergeron/knowledge/CONNAISSANCES.md` | Emplacement réservé aux connaissances                  |
+| `.mergeron/knowledge/DECISIONS.md`     | Emplacement réservé aux décisions                      |
+| `.mergeron/history/`                   | Emplacement réservé à l'historique applicatif          |
 | `AGENTS.md`                            | Explication de l'organisation du dossier               |
 | `documents/`, `sources/`, `livrables/` | Contenu de travail utilisateur                         |
 
-L'onglet **Connaissances** des paramètres du projet permet aux administrateurs de consulter et modifier les trois fichiers Markdown avec un seul bouton d'enregistrement. Il contient aussi les propositions de mémoire des conversations. Le contenu de `.webui` reste consultable, mais réservé à l'application pour les écritures via l'API de fichiers générique.
+L'onglet **Connaissances** des paramètres du projet permet aux administrateurs de consulter et modifier les trois fichiers Markdown avec un seul bouton d'enregistrement. Il contient aussi les propositions de mémoire des conversations. Le contenu de `.mergeron` reste consultable, mais réservé à l'application pour les écritures via l'API de fichiers générique.
+
+Les dossiers de premier niveau `documents/`, `sources/` et `livrables/` constituent la structure imposée des projets en version 2. Les opérations génériques ne peuvent pas les renommer, les déplacer, les supprimer ou les remplacer. Leur contenu reste modifiable : création de sous-dossiers, édition, renommage et suppression de fichiers. Les mêmes protections s'appliquent aux chemins résolus par un alias symbolique. L'ancien nom `.webui` reste également réservé pour éviter sa réutilisation comme dossier utilisateur.
+
+La suite de l'évolution distingue le principal, les dossiers actifs et les connexions externes. Son [découpage en cinq PR](evolution-workspaces.md) précise les fonctionnalités restant à développer ; cette première étape ne change pas encore les règles de sélection du workspace actif.
 
 ## Connaissance partagée entre conversations
 
@@ -56,7 +60,7 @@ Une modification locale de la proposition doit être enregistrée avant son acce
 
 Chaque proposition conserve sa version de départ. Si les connaissances ont changé entre-temps, l'acceptation est refusée et la proposition reste en attente. Refuser cette proposition périmée puis demander une nouvelle suggestion dans la conversation, qui recevra les connaissances actuelles au prochain échange. Deux validateurs ne peuvent pas accepter ou refuser silencieusement une même version concurrente. Une proposition déjà traitée ne peut pas être appliquée une seconde fois.
 
-Les fichiers de connaissance restent dans `.webui/knowledge/` du principal. Les versions de départ et les propositions sont des données applicatives conservées dans SQLite, comme les tâches et les conversations simples ; sauvegarder la base avec les workspaces. Les propositions survivent à un redémarrage et sont supprimées avec leur projet. La suppression d'une conversation ne modifie pas la référence historique conservée dans une proposition, mais son lien peut alors ne plus être disponible.
+Les fichiers de connaissance restent dans `.mergeron/knowledge/` du principal. Les versions de départ et les propositions sont des données applicatives conservées dans SQLite, comme les tâches et les conversations simples ; sauvegarder la base avec les workspaces. Les propositions survivent à un redémarrage et sont supprimées avec leur projet. La suppression d'une conversation ne modifie pas la référence historique conservée dans une proposition, mais son lien peut alors ne plus être disponible.
 
 ### Capture et API
 
@@ -72,22 +76,24 @@ Routes réservées aux administrateurs : `GET /api/projects/:id/knowledge/propos
 
 La migration SQL `0031_knowledge_proposals` ajoute les instantanés transmis aux agents et les propositions avec leur historique de validation. Elle ne modifie pas les fichiers de connaissances existants.
 
-Au premier démarrage de cette version, les migrations SQL ajoutent `workspace_layout_version` et imposent au plus un workspace marqué principal par projet. Avant de démarrer les automatisations, le service projets migre les projets de version 0 :
+Les migrations SQL existantes fournissent `workspace_layout_version` et imposent au plus un workspace marqué principal par projet. Aucune nouvelle migration SQL n'est nécessaire pour cette étape. Avant de démarrer les automatisations, le service projets migre les projets de version 0 :
 
 1. Il crée `/workspaces/<id>/` et sa structure réservée.
 2. Il conserve l'ancien dossier comme secondaire, en ajoutant son rattachement s'il manquait.
-3. Une transaction remplace le chemin principal du projet, normalise les rôles et inscrit la version 1.
+3. Une transaction remplace le chemin principal du projet, normalise les rôles et inscrit la version 2.
 
 Aucun fichier existant n'est déplacé ou supprimé. Les chemins des conversations d'agents, des conversations simples et des tâches restent inchangés. Les conversations simples utilisant Codex exécutent désormais dans leur chemin conservé, plutôt que dans le nouveau principal.
 
-La migration peut être relancée : les projets déjà en version 1 sont ignorés et les fichiers ne sont jamais écrasés. Un dossier préexistant sans marqueur de propriété correspondant bloque la migration, avec son chemin dans l'erreur, plutôt que d'être adopté. Une interruption après la préparation des fichiers mais avant la transaction peut être reprise grâce au marqueur. Une erreur arrête le démarrage ; corriger la collision ou les permissions puis relancer.
+Pour un principal existant en version 1, la migration vérifie le marqueur de propriété, les dossiers système et les dossiers structurants, puis renomme `.webui` en `.mergeron` sur le même volume. Elle conserve les connaissances, l'historique et les fichiers utilisateur. Une transaction réécrit les chemins des copies historiques des livrables, des versions de documents et des archives de changements OnlyOffice, uniquement pour le projet concerné, puis inscrit la version 2. Les chemins des fichiers sources, des tâches et des conversations restent inchangés. Le fichier racine `AGENTS.md` est actualisé uniquement s'il correspond exactement au texte ancien généré par l'application ; les instructions personnalisées sont conservées.
+
+La migration peut être relancée, notamment après une interruption entre le renommage sur disque et la transaction en base. Les projets déjà en version 2 sont ignorés. Si `.webui` et `.mergeron` existent simultanément, la migration s'arrête sans fusionner ni écraser leurs contenus. Un marqueur absent, invalide ou appartenant à un autre projet, ainsi qu'un lien symbolique à la place d'un dossier réservé ou du marqueur, bloque également la migration. Les dossiers structurants manquants sont recréés sans toucher aux dossiers utilisateur renommés. Corriger les collisions ou les permissions puis relancer ; ne pas supprimer un dossier système pour forcer la migration sans avoir sauvegardé son contenu.
 
 Un principal déjà migré qui disparaît du disque n'est pas recréé automatiquement : la réconciliation le signale comme non résolu et ne promeut aucun secondaire. Restaurer le dossier depuis la sauvegarde avant de reprendre les opérations concernées.
 
 ## Suppression et exploitation
 
-Le principal ne peut pas être détaché, remplacé, renommé, déplacé ou supprimé seul via les API WebUI. Les opérations génériques sur un dossier parent qui supprimeraient le principal sont également refusées. Cette protection ne remplace pas les permissions système face à un accès direct au serveur.
+Le principal ne peut pas être détaché, remplacé, renommé, déplacé ou supprimé seul via les API Mergeron. Les opérations génériques sur un dossier parent qui supprimeraient le principal sont également refusées. Cette protection ne remplace pas les permissions système face à un accès direct au serveur, ni le confinement des commandes d'un agent disposant d'un accès au disque.
 
 La suppression confirmée du projet conserve le choix existant : préserver ses dossiers ou sélectionner ceux à supprimer physiquement, principal compris. Les secondaires détachés restent sur disque ; leurs conversations encore rattachées au projet basculent vers le principal.
 
-Avant de déployer, sauvegarder la base et le volume `/workspaces` ensemble. Le stockage contenant `/workspaces` doit être persistant et accessible en écriture au serveur. Un retour vers une ancienne version nécessite la restauration cohérente de cette sauvegarde ; ne pas retirer seulement la colonne SQL.
+Avant de déployer, sauvegarder la base et le volume `/workspaces` ensemble. Le stockage contenant `/workspaces` doit être persistant et accessible en écriture au serveur. La migration concerne une seule instance Mergeron : arrêter les autres instances partageant les volumes et éviter les modifications directes sur disque pendant l'opération. Un retour vers une ancienne version nécessite la restauration cohérente de cette sauvegarde, car l'ancienne version attend `.webui` et les anciens chemins d'historique ; un simple renommage du dossier ne suffit pas.

@@ -76,6 +76,12 @@ jobs:
           src/database/pending-request-migration.spec.ts
           src/http-stack.spec.ts
           src/archive
+          src/projects/project-workspace-layout.spec.ts
+          src/project-knowledge/project-knowledge.service.spec.ts
+          src/project-knowledge/knowledge-proposals.service.spec.ts
+          src/deliverables/deliverables.service.spec.ts
+          src/files/files.service.spec.ts
+          src/auth/project-authorization.spec.ts
 
       - name: Run frontend tests
         run: pnpm --dir web test
