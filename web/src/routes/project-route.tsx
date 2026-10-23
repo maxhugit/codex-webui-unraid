@@ -139,8 +139,12 @@ export function ProjectRoute() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="mx-auto max-w-6xl space-y-6">
+      <div
+        className={`min-h-0 flex-1 p-4 md:p-6 ${visibleTab === 'journal' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}
+      >
+        <div
+          className={`mx-auto w-full max-w-6xl ${visibleTab === 'journal' ? 'flex min-h-0 flex-1 flex-col' : 'space-y-6'}`}
+        >
           {visibleTab === 'general' ? (
             <>
               <section className="rounded-xl border bg-card p-5">
@@ -344,8 +348,8 @@ function ProjectJournal({
       </p>
     );
   return (
-    <section className="overflow-hidden rounded-xl border bg-card">
-      <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
+      <div className="flex shrink-0 flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-semibold">{t('projectJournal')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -370,71 +374,78 @@ function ProjectJournal({
           </label>
         )}
       </div>
-      {rows.length === 0 ? (
-        <p className="p-8 text-center text-sm text-muted-foreground">
-          {t('noProjectActivityYet')}
-        </p>
-      ) : filteredRows.length === 0 ? (
-        <p className="p-8 text-center text-sm text-muted-foreground">
-          {t('noActivityForThisPerson')}
-        </p>
-      ) : (
-        <div className="divide-y">
-          {filteredRows.map((row) => {
-            const changes = projectActivityChanges(row.details);
-            return (
-              <div
-                key={row.id}
-                className="grid gap-3 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_auto]"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    {t(translationKey(labels[row.action] ?? row.action))}
-                  </p>
-                  <p
-                    className="truncate text-xs text-muted-foreground"
-                    title={row.label}
-                  >
-                    {row.label}
-                  </p>
-                  {changes.length > 0 && (
-                    <div className="mt-2 space-y-1 text-xs">
-                      {changes.map((change) => (
-                        <div
-                          key={change.label}
-                          className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)]"
-                        >
-                          <span className="font-medium">
-                            {t(translationKey(change.label))}
-                          </span>
-                          <span className="break-words text-muted-foreground">
-                            <span className="line-through opacity-70">
-                              {formatActivityValue(change.before)}
-                            </span>{' '}
-                            →{' '}
-                            <span className="text-foreground">
-                              {formatActivityValue(change.after)}
+      <div
+        role="region"
+        aria-label={t('projectJournal')}
+        tabIndex={0}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
+      >
+        {rows.length === 0 ? (
+          <p className="p-8 text-center text-sm text-muted-foreground">
+            {t('noProjectActivityYet')}
+          </p>
+        ) : filteredRows.length === 0 ? (
+          <p className="p-8 text-center text-sm text-muted-foreground">
+            {t('noActivityForThisPerson')}
+          </p>
+        ) : (
+          <div className="divide-y">
+            {filteredRows.map((row) => {
+              const changes = projectActivityChanges(row.details);
+              return (
+                <div
+                  key={row.id}
+                  className="grid gap-3 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {t(translationKey(labels[row.action] ?? row.action))}
+                    </p>
+                    <p
+                      className="truncate text-xs text-muted-foreground"
+                      title={row.label}
+                    >
+                      {row.label}
+                    </p>
+                    {changes.length > 0 && (
+                      <div className="mt-2 space-y-1 text-xs">
+                        {changes.map((change) => (
+                          <div
+                            key={change.label}
+                            className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)]"
+                          >
+                            <span className="font-medium">
+                              {t(translationKey(change.label))}
                             </span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                            <span className="break-words text-muted-foreground">
+                              <span className="line-through opacity-70">
+                                {formatActivityValue(change.before)}
+                              </span>{' '}
+                              →{' '}
+                              <span className="text-foreground">
+                                {formatActivityValue(change.after)}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground sm:text-right">
+                    <p>
+                      {new Intl.DateTimeFormat(locale, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      }).format(row.createdAt)}
+                    </p>
+                    <p>{t('byName', { name: row.actorName })}</p>
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground sm:text-right">
-                  <p>
-                    {new Intl.DateTimeFormat(locale, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    }).format(row.createdAt)}
-                  </p>
-                  <p>{t('byName', { name: row.actorName })}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
