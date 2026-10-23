@@ -356,6 +356,9 @@ function DeliverablesList({
   onSelect: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const [openTask, setOpenTask] = useState<
+    DeliverablesBoard['tasks'][number] | null
+  >(null);
   return (
     <div>
       <div className="hidden grid-cols-[minmax(210px,2fr)_80px_130px_130px_minmax(170px,1.2fr)_130px_130px] gap-3 border-b bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground xl:grid">
@@ -376,17 +379,20 @@ function DeliverablesList({
             (document) => document.deletedAt === null,
           ).length;
           return (
-            <button
+            <div
               key={item.id}
               className="grid w-full gap-3 px-4 py-4 text-left transition-colors hover:bg-accent/60 xl:grid-cols-[minmax(210px,2fr)_80px_130px_130px_minmax(170px,1.2fr)_130px_130px] xl:items-center"
-              onClick={() => onSelect(item.id)}
             >
-              <span className="min-w-0">
+              <button
+                type="button"
+                className="min-w-0 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => onSelect(item.id)}
+              >
                 <strong className="block truncate">{item.title}</strong>
                 <span className="mt-1 block truncate text-xs text-muted-foreground">
                   {item.description || t('noDescription')}
                 </span>
-              </span>
+              </button>
               <span className="flex items-center gap-2 text-sm">
                 <span className="text-xs text-muted-foreground xl:hidden">
                   {t('documents')}:
@@ -395,19 +401,41 @@ function DeliverablesList({
                 {count}
               </span>
               <LifecycleBadge status={item.lifecycleStatus} />
-              <span className="flex items-center gap-2 text-sm">
-                <CheckCircle2
-                  className={`h-4 w-4 ${item.validationStatus === 'approved' ? 'text-emerald-600' : 'text-muted-foreground'}`}
-                />
+              <span
+                className={`flex w-fit items-center gap-2 rounded-md px-2 py-1 text-xs font-medium ${
+                  item.validationStatus === 'approved'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                    : item.validationStatus === 'rejected'
+                      ? 'bg-red-500/15 text-red-700 dark:text-red-300'
+                      : item.validationStatus === 'pending'
+                        ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                        : item.validationStatus === 'outdated'
+                          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                          : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
                 {t(translationKey(validationStatuses[item.validationStatus]))}
               </span>
               <span className="flex min-w-0 items-center gap-2 text-sm">
                 <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="truncate">
-                  {task?.title ?? t('noPrimaryTask')}
-                </span>
+                {task ? (
+                  <button
+                    type="button"
+                    className="truncate rounded text-left font-medium text-blue-700 underline decoration-blue-500/40 underline-offset-2 hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-blue-300"
+                    onClick={() => setOpenTask(task)}
+                  >
+                    {task.title}
+                  </button>
+                ) : (
+                  <span className="truncate text-muted-foreground">
+                    {t('noPrimaryTask')}
+                  </span>
+                )}
               </span>
-              <span className="text-sm">
+              <span
+                className={`w-fit rounded-md px-2 py-1 text-xs font-medium ${item.confidentiality === 'restricted' ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300' : 'bg-muted text-muted-foreground'}`}
+              >
                 {item.confidentiality === 'restricted'
                   ? t('restrictedAccessShort')
                   : t('standardAccessShort')}
@@ -415,10 +443,19 @@ function DeliverablesList({
               <span className="text-xs text-muted-foreground">
                 {new Date(item.updatedAt).toLocaleDateString()}
               </span>
-            </button>
+            </div>
           );
         })}
       </div>
+      {openTask && (
+        <ProjectTaskManager
+          projectId={board.resource.projectId}
+          resourceId={openTask.resourceId}
+          initialTaskId={openTask.id}
+          modalOnly
+          onModalClose={() => setOpenTask(null)}
+        />
+      )}
     </div>
   );
 }

@@ -11,6 +11,22 @@ import { ProjectDeliverablesManager } from './project-deliverables-manager';
 import type { Deliverable, DeliverablesBoard } from '@/lib/deliverables-api';
 const api = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/projects-api', () => ({ projectsApi: api }));
+vi.mock('./project-task-manager', () => ({
+  ProjectTaskManager: ({
+    initialTaskId,
+    modalOnly,
+    onModalClose,
+  }: {
+    initialTaskId: string;
+    modalOnly: boolean;
+    onModalClose: () => void;
+  }) =>
+    modalOnly ? (
+      <div role="dialog" aria-label={initialTaskId}>
+        <button onClick={onModalClose}>Close task</button>
+      </div>
+    ) : null,
+}));
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('@/lib/platform-session', () => ({
   usePlatformSession: () => ({ isAdministrator: true }),
@@ -152,7 +168,14 @@ it('filters the deliverables list and resets all filters', async () => {
   expect(screen.queryByRole('button', { name: /Report/ })).toBeNull();
   expect(
     screen.getByRole('button', { name: /Restricted architecture/ }),
-  ).toHaveTextContent('Approve architecture');
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Approve architecture' }));
+  expect(screen.getByRole('dialog', { name: 'task' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: 'Deliverables' }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Close task' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
   expect(screen.getByRole('button', { name: /Report/ })).toBeInTheDocument();
