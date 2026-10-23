@@ -367,7 +367,9 @@ function DeliverablesList({
               </span>
               <span className="flex min-w-0 items-center gap-2 text-sm">
                 <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="truncate">{task?.title ?? t('noPrimaryTask')}</span>
+                <span className="truncate">
+                  {task?.title ?? t('noPrimaryTask')}
+                </span>
               </span>
               <span className="text-sm">
                 {item.confidentiality === 'restricted'
@@ -995,6 +997,11 @@ function Overview({
           <p className="break-all font-mono text-xs text-muted-foreground">
             {item.directory}
           </p>
+          {item.activeFolder && item.activeFolder.state !== 'ready' && (
+            <p className="mt-2 text-xs font-medium text-destructive">
+              {t('activeFolderNeedsResolution')}
+            </p>
+          )}
         </div>
       </aside>
     </div>

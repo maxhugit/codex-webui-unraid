@@ -14,6 +14,8 @@ import {
 import { ProjectsService } from './projects.service';
 import type { IdentityRequest } from '../auth/platform-access.guard';
 import type { ProjectActivityActor } from './projects.service';
+import type { ActiveFolderContext } from '../active-folders/active-folders.service';
+import { requireThreadAccess } from '../auth/access-context';
 
 function activityActor(request: IdentityRequest): ProjectActivityActor {
   return {
@@ -71,6 +73,38 @@ export class ProjectsController {
   @Get(':id/activity')
   activity(@Param('id') id: string) {
     return { activity: this.projects.activity(id) };
+  }
+
+  @Put(':id/active-folders/:contextType/:contextId')
+  setActiveFolder(
+    @Param('id') projectId: string,
+    @Param('contextType') contextType: ActiveFolderContext,
+    @Param('contextId') contextId: string,
+    @Body() body: { resourceId?: unknown; relativePath?: unknown },
+  ) {
+    if (!['agent', 'simple_chat', 'task', 'deliverable'].includes(contextType))
+      throw new BadRequestException('Unsupported active-folder context');
+    if (contextType === 'agent') requireThreadAccess(contextId);
+    if (contextType === 'simple_chat') requireThreadAccess(contextId, 'simple');
+    if (typeof body.resourceId !== 'string')
+      throw new BadRequestException('A project resource is required');
+    if (
+      body.relativePath !== undefined &&
+      body.relativePath !== null &&
+      typeof body.relativePath !== 'string'
+    )
+      throw new BadRequestException('Active folder path must be relative');
+    return {
+      activeFolder: this.projects.setActiveFolder(
+        projectId,
+        contextType,
+        contextId,
+        {
+          resourceId: body.resourceId,
+          relativePath: body.relativePath,
+        },
+      ),
+    };
   }
 
   @Post(':id/participants')
@@ -580,13 +614,13 @@ export class ProjectsController {
   }
 
   @Delete(':id/workspaces/:workspaceId')
-  async detachWorkspace(
+  detachWorkspace(
     @Param('id') id: string,
     @Param('workspaceId') workspaceId: string,
     @Req() request: IdentityRequest,
   ) {
     const workspace = this.projects.getWorkspace(id, workspaceId);
-    const result = await this.projects.detachWorkspace(id, workspaceId);
+    const result = this.projects.detachWorkspace(id, workspaceId);
     this.projects.recordActivity(
       id,
       'workspace_detached',
@@ -603,12 +637,20 @@ export class ProjectsController {
   associateAgent(
     @Param('id') id: string,
     @Param('threadId') threadId: string,
-    @Body() body: { workspacePath: string; alreadyAtWorkspace?: boolean },
+    @Body()
+    body: {
+      workspacePath?: string;
+      resourceId?: string;
+      relativePath?: string | null;
+      alreadyAtWorkspace?: boolean;
+    },
   ) {
     return this.projects.associateAgent(
       id,
       threadId,
-      body.workspacePath,
+      body.resourceId
+        ? { resourceId: body.resourceId, relativePath: body.relativePath }
+        : (body.workspacePath ?? ''),
       body.alreadyAtWorkspace === true,
     );
   }

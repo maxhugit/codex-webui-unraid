@@ -6,9 +6,15 @@ Chaque projet possède un workspace principal permanent dans `/workspaces/<id-du
 | ---------- | ------------------------------------------------------------------------ |
 | Principal  | Dossier permanent appartenant au projet ; exactement un par projet       |
 | Secondaire | Autre dossier rattaché au projet, détachable sans supprimer ses fichiers |
-| Actif      | Dossier de travail choisi pour une conversation, principal ou secondaire |
+| Actif      | Référence stable vers une ressource du projet et un chemin relatif        |
 
-Le choix du workspace actif d'une conversation ne change pas le principal du projet. Parcourir un dossier dans l'explorateur ne change pas non plus le contexte d'exécution de la conversation. Les nouvelles conversations utilisent initialement le principal.
+Chaque agent, conversation simple, tâche et livrable possède son propre dossier actif. Le choix d'un dossier actif ne change pas le principal du projet. Parcourir un dossier dans l'explorateur ne change pas non plus le contexte d'exécution.
+
+À la création, un agent ou une conversation simple utilise le principal. Une tâche utilise le dossier explicitement choisi, celui de sa tâche parente, puis le principal. Un livrable utilise son propre sous-dossier dans `livrables/`. Lorsqu'un agent est lié à une tâche, le dossier actif de la tâche est prioritaire sur le défaut de l'agent.
+
+Le serveur résout la ressource et le chemin relatif avant chaque nouvelle opération. Il vérifie leur appartenance au projet, l'existence du dossier, son confinement dans la ressource et l'absence de lien symbolique. Un changement s'applique aux opérations suivantes ; une exécution déjà lancée conserve le contexte résolu à son démarrage.
+
+Une référence dont la ressource a été détachée, dont le dossier a disparu ou dont le chemin est devenu invalide passe à l'état **À résoudre**. Les nouvelles opérations concernées sont bloquées jusqu'à correction. Mergeron ne remplace jamais silencieusement cette référence par le principal.
 
 ## Organisation du principal
 
@@ -26,7 +32,7 @@ L'onglet **Connaissances** des paramètres du projet permet aux administrateurs 
 
 Les dossiers de premier niveau `documents/`, `sources/` et `livrables/` constituent la structure imposée des projets en version 2. Les opérations génériques ne peuvent pas les renommer, les déplacer, les supprimer ou les remplacer. Leur contenu reste modifiable : création de sous-dossiers, édition, renommage et suppression de fichiers. Les mêmes protections s'appliquent aux chemins résolus par un alias symbolique. L'ancien nom `.webui` reste également réservé pour éviter sa réutilisation comme dossier utilisateur.
 
-La suite de l'évolution distingue le principal, les dossiers actifs et les connexions externes. Son [découpage en cinq PR](evolution-workspaces.md) précise les fonctionnalités restant à développer ; cette première étape ne change pas encore les règles de sélection du workspace actif.
+La suite de l'évolution distingue le principal, les dossiers actifs et les connexions externes. Son [découpage en cinq PR](evolution-workspaces.md) précise les fonctionnalités restant à développer. Les ressources externes typées et leur synchronisation restent prévues dans les étapes suivantes.
 
 ## Connaissance partagée entre conversations
 
@@ -76,13 +82,15 @@ Routes réservées aux administrateurs : `GET /api/projects/:id/knowledge/propos
 
 La migration SQL `0031_knowledge_proposals` ajoute les instantanés transmis aux agents et les propositions avec leur historique de validation. Elle ne modifie pas les fichiers de connaissances existants.
 
-Les migrations SQL existantes fournissent `workspace_layout_version` et imposent au plus un workspace marqué principal par projet. Aucune nouvelle migration SQL n'est nécessaire pour cette étape. Avant de démarrer les automatisations, le service projets migre les projets de version 0 :
+Les migrations SQL existantes fournissent `workspace_layout_version` et imposent au plus un workspace marqué principal par projet. Avant de démarrer les automatisations, le service projets migre les projets de version 0 :
 
 1. Il crée `/workspaces/<id>/` et sa structure réservée.
 2. Il conserve l'ancien dossier comme secondaire, en ajoutant son rattachement s'il manquait.
 3. Une transaction remplace le chemin principal du projet, normalise les rôles et inscrit la version 2.
 
 Aucun fichier existant n'est déplacé ou supprimé. Les chemins des conversations d'agents, des conversations simples et des tâches restent inchangés. Les conversations simples utilisant Codex exécutent désormais dans leur chemin conservé, plutôt que dans le nouveau principal.
+
+La migration SQL `0046_graceful_white_queen` ajoute les références de dossiers actifs. Au démarrage, un rattrapage idempotent associe chaque chemin absolu existant à la ressource locale la plus précise du même projet et conserve son chemin relatif. Les agents, conversations simples, tâches et livrables ne sont ni déplacés ni réaffectés. Une référence qui ne peut plus être résolue reste visible à corriger au lieu d'être remplacée.
 
 Pour un principal existant en version 1, la migration vérifie le marqueur de propriété, les dossiers système et les dossiers structurants, puis renomme `.webui` en `.mergeron` sur le même volume. Elle conserve les connaissances, l'historique et les fichiers utilisateur. Une transaction réécrit les chemins des copies historiques des livrables, des versions de documents et des archives de changements OnlyOffice, uniquement pour le projet concerné, puis inscrit la version 2. Les chemins des fichiers sources, des tâches et des conversations restent inchangés. Le fichier racine `AGENTS.md` est actualisé uniquement s'il correspond exactement au texte ancien généré par l'application ; les instructions personnalisées sont conservées.
 
@@ -94,6 +102,6 @@ Un principal déjà migré qui disparaît du disque n'est pas recréé automatiq
 
 Le principal ne peut pas être détaché, remplacé, renommé, déplacé ou supprimé seul via les API Mergeron. Les opérations génériques sur un dossier parent qui supprimeraient le principal sont également refusées. Cette protection ne remplace pas les permissions système face à un accès direct au serveur, ni le confinement des commandes d'un agent disposant d'un accès au disque.
 
-La suppression confirmée du projet conserve le choix existant : préserver ses dossiers ou sélectionner ceux à supprimer physiquement, principal compris. Les secondaires détachés restent sur disque ; leurs conversations encore rattachées au projet basculent vers le principal.
+La suppression confirmée du projet conserve le choix existant : préserver ses dossiers ou sélectionner ceux à supprimer physiquement, principal compris. Les secondaires détachés restent sur disque. Les activités qui les référencent passent à l'état **À résoudre** et ne basculent pas vers le principal.
 
 Avant de déployer, sauvegarder la base et le volume `/workspaces` ensemble. Le stockage contenant `/workspaces` doit être persistant et accessible en écriture au serveur. La migration concerne une seule instance Mergeron : arrêter les autres instances partageant les volumes et éviter les modifications directes sur disque pendant l'opération. Un retour vers une ancienne version nécessite la restauration cohérente de cette sauvegarde, car l'ancienne version attend `.webui` et les anciens chemins d'historique ; un simple renommage du dossier ne suffit pas.

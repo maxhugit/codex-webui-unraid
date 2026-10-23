@@ -9,7 +9,7 @@ import {
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
 import { KnowledgeProposalsService } from '../project-knowledge/knowledge-proposals.service';
 import { DeliverablesService } from '../deliverables/deliverables.service';
-import { asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import {
   chmodSync,
   mkdirSync,
@@ -24,11 +24,13 @@ import { ErrorCode } from '../common/error-codes';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
   projects,
+  projectWorkspaces,
   settings,
   simpleChatMessages,
   simpleChatThreads,
 } from '../database/schema';
 import { ThreadsService } from '../threads/threads.service';
+import { ActiveFoldersService } from '../active-folders/active-folders.service';
 
 const DEFAULT_MODEL = 'gpt-5-mini';
 const MAX_MESSAGE_LENGTH = 6_000;
@@ -99,6 +101,7 @@ export class SimpleChatService {
   constructor(
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
     private readonly threads: ThreadsService,
+    private readonly activeFolders: ActiveFoldersService,
     @Optional() private readonly knowledge?: ProjectKnowledgeService,
     @Optional() private readonly proposals?: KnowledgeProposalsService,
     @Optional() private readonly deliverables?: DeliverablesService,
@@ -657,6 +660,25 @@ export class SimpleChatService {
       updatedAt: now,
     };
     this.db.insert(simpleChatThreads).values(thread).run();
+    const primary = this.db
+      .select()
+      .from(projectWorkspaces)
+      .where(
+        and(
+          eq(projectWorkspaces.projectId, project.id),
+          eq(projectWorkspaces.primary, true),
+        ),
+      )
+      .get();
+    if (!primary)
+      throw BusinessException.conflict(
+        ErrorCode.simpleChat.projectInvalid,
+        'Primary project resource is missing',
+      );
+    this.activeFolders.set(project.id, 'simple_chat', thread.id, {
+      resourceId: primary.id,
+      relativePath: '',
+    });
     const access = currentAccess();
     if (access)
       access.identities.recordConversationOwner(
@@ -762,6 +784,7 @@ export class SimpleChatService {
       .delete(simpleChatThreads)
       .where(eq(simpleChatThreads.id, threadId))
       .run();
+    this.activeFolders.removeContext('simple_chat', threadId);
     return { deleted: true };
   }
 
@@ -904,7 +927,9 @@ export class SimpleChatService {
       .join('\n\n')
       .slice(-30_000);
     return this.threads.runProjectStructuredPrompt({
-      cwd: thread.cwd || project.workspacePath,
+      cwd: thread.projectId
+        ? this.activeFolders.resolve('simple_chat', thread.id)
+        : thread.cwd || project.workspacePath,
       prompt: [
         this.deliverables?.contextForConversation(thread.id, 'simple'),
         transcript,

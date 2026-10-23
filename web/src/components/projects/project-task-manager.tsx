@@ -442,11 +442,6 @@ export function ProjectTaskManager({
       parent?.workspacePath ??
       task.workspacePath ??
       query.data.project.workspacePath;
-    const validWorkspace = query.data.workspaces.some(
-      (workspace) => workspace.path === storedWorkspace,
-    )
-      ? storedWorkspace
-      : query.data.project.workspacePath;
     queueMicrotask(() => {
       setEditing(task);
       setRootTaskId(task.parentTaskId ?? task.id);
@@ -459,7 +454,7 @@ export function ProjectTaskManager({
         dueAt: dateValue(task.dueAt),
         labels: task.labels.join(', '),
         statusId: task.statusId,
-        workspacePath: validWorkspace,
+        workspacePath: storedWorkspace,
         executionMode: task.parentTaskId ? task.executionMode : 'manual',
         estimateHours: task.estimateMinutes
           ? String(task.estimateMinutes / 60)
@@ -632,11 +627,6 @@ export function ProjectTaskManager({
       parent?.workspacePath ??
       task.workspacePath ??
       board.project.workspacePath;
-    const validWorkspace = board.workspaces.some(
-      (workspace) => workspace.path === storedWorkspace,
-    )
-      ? storedWorkspace
-      : board.project.workspacePath;
     setEditing(task);
     setTaskError('');
     setRootTaskId(rootId ?? task.parentTaskId ?? task.id);
@@ -649,7 +639,7 @@ export function ProjectTaskManager({
       dueAt: dateValue(task.dueAt),
       labels: task.labels.join(', '),
       statusId: task.statusId,
-      workspacePath: validWorkspace,
+      workspacePath: storedWorkspace,
       executionMode: task.parentTaskId ? task.executionMode : 'manual',
       estimateHours: task.estimateMinutes
         ? String(task.estimateMinutes / 60)
@@ -2450,6 +2440,12 @@ export function ProjectTaskManager({
                   </span>
                   <ChevronRight className="h-4 w-4" />
                 </button>
+                {editing?.activeFolder &&
+                  editing.activeFolder.state !== 'ready' && (
+                    <span className="text-xs font-medium text-destructive">
+                      {t('activeFolderNeedsResolution')}
+                    </span>
+                  )}
               </label>
             )}
             <div

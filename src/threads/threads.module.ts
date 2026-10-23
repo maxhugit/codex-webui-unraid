@@ -31,9 +31,11 @@ import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.se
 import { WorkspacesManagementController } from './workspaces-management.controller';
 import { WorkspacesManagementService } from './workspaces-management.service';
 import { ProjectConnectionPolicyService } from './project-connection-policy.service';
+import { ActiveFoldersModule } from '../active-folders/active-folders.module';
 
 @Module({
   imports: [
+    ActiveFoldersModule,
     DeliverablesModule,
     ProjectKnowledgeModule,
     AuthModule,

@@ -41,6 +41,7 @@ import { accessContext } from './access-context';
 import { ProjectsController } from '../projects/projects.controller';
 import { ProjectsService } from '../projects/projects.service';
 import { ProjectWorkspaceLayout } from '../projects/project-workspace-layout';
+import { ActiveFoldersService } from '../active-folders/active-folders.service';
 import { WORKSPACE_LAYOUT_VERSION } from '../projects/workspace-structure';
 import { SimpleChatController } from '../simple-chat/simple-chat.controller';
 import { SimpleChatService } from '../simple-chat/simple-chat.service';
@@ -206,6 +207,7 @@ beforeEach(async () => {
       DeliverablesController,
     ],
     providers: [
+      ActiveFoldersService,
       IdentityService,
       AuthService,
       DeliverablesService,
@@ -221,7 +223,7 @@ beforeEach(async () => {
       { provide: SettingsService, useValue: configuration },
       {
         provide: SimpleChatService,
-        useValue: new SimpleChatService(database.db, {} as never),
+        useValue: new SimpleChatService(database.db, {} as never, {} as never),
       },
       { provide: ThreadsService, useValue: {} },
       { provide: APP_GUARD, useClass: ApiKeyGuard },

@@ -6,9 +6,11 @@ import { FilesModule } from '../files/files.module';
 import { SimpleChatController } from './simple-chat.controller';
 import { SimpleChatService } from './simple-chat.service';
 import { ThreadsModule } from '../threads/threads.module';
+import { ActiveFoldersModule } from '../active-folders/active-folders.module';
 
 @Module({
   imports: [
+    ActiveFoldersModule,
     DatabaseModule,
     FilesModule,
     ThreadsModule,

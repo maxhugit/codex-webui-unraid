@@ -1,4 +1,7 @@
-import type { ProjectResourceSummary } from './projects-api';
+import type {
+  ActiveFolderSummary,
+  ProjectResourceSummary,
+} from './projects-api';
 export interface DeliverableFile {
   name: string;
   sourcePath: string;
@@ -72,6 +75,7 @@ export interface Deliverable {
   version: number;
   validatedVersionId: string | null;
   directory: string;
+  activeFolder: ActiveFolderSummary | null;
   createdAt: number;
   updatedAt: number;
   versions: DeliverableVersion[];

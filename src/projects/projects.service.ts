@@ -5,6 +5,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ProjectWorkspaceLayout } from './project-workspace-layout';
 import { WORKSPACE_LAYOUT_VERSION } from './workspace-structure';
@@ -54,6 +55,10 @@ import { ThreadWorkspaceOverridesService } from '../threads/thread-workspace-ove
 import { ThreadsDeletionService } from '../threads/threads-deletion.service';
 import { ThreadsService } from '../threads/threads.service';
 import { SimpleChatService } from '../simple-chat/simple-chat.service';
+import {
+  ActiveFoldersService,
+  type ActiveFolderContext,
+} from '../active-folders/active-folders.service';
 import { summarizeProjects } from './project-dashboard';
 import {
   PROJECT_REPLAN_SCHEMA,
@@ -126,10 +131,16 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     private readonly threads: ThreadsService,
     private readonly simpleChat: SimpleChatService,
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
+    @Optional() private readonly activeFolders?: ActiveFoldersService,
   ) {}
+
+  private get folders(): ActiveFoldersService {
+    return this.activeFolders ?? new ActiveFoldersService(this.db);
+  }
 
   async onModuleInit() {
     await this.ensurePrimaryWorkspaces();
+    this.folders.migrateLegacyReferences();
     this.automationTimer = setInterval(
       () => void this.runDueAutomations(),
       60_000,
@@ -151,6 +162,15 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       .orderBy(desc(projectActivity.createdAt))
       .limit(Math.min(Math.max(limit, 1), 500))
       .all();
+  }
+
+  setActiveFolder(
+    projectId: string,
+    contextType: ActiveFolderContext,
+    contextId: string,
+    input: { resourceId: string; relativePath?: string | null },
+  ) {
+    return this.folders.set(projectId, contextType, contextId, input);
   }
 
   recordActivity(
@@ -876,6 +896,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         agentThreads: Array<{
           threadId: string;
           workspacePath: string;
+          activeFolder: ReturnType<ActiveFoldersService['get']>;
           title: string;
           archived: boolean;
           taskId: string | null;
@@ -890,7 +911,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     const workspaces = this.db.select().from(projectWorkspaces).all();
     const resources = this.db.select().from(projectResources).all();
     const tasks = this.db.select().from(projectTasks).all();
-    let agents = this.db.select().from(projectAgentThreads).all();
+    const agents = this.db.select().from(projectAgentThreads).all();
     const snapshot = await this.metadata.read().catch(() => null);
     const snapshotEntries = snapshot?.entries ?? [];
     const effectiveThreads = this.overrides.applyToThreads(
@@ -902,29 +923,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         { thread: effectiveThreads[index], archived: entry.archived },
       ]),
     );
-    // A thread cwd can also be changed through the generic thread endpoint or
-    // by Codex itself. Keep the explicit project association aligned with the
-    // effective cwd whenever it resolves to another workspace in that project.
-    const workspaceOwners = new Map(
-      workspaces.map((workspace) => [workspace.path, workspace]),
-    );
-    const now = Date.now();
-    for (const agent of agents) {
-      const cwd = threadMetadata.get(agent.threadId)?.thread.cwd;
-      const owner = cwd ? workspaceOwners.get(cwd) : undefined;
-      if (
-        !owner ||
-        owner.projectId !== agent.projectId ||
-        owner.path === agent.workspacePath
-      )
-        continue;
-      this.db
-        .update(projectAgentThreads)
-        .set({ workspacePath: owner.path, updatedAt: now })
-        .where(eq(projectAgentThreads.threadId, agent.threadId))
-        .run();
-    }
-    agents = this.db.select().from(projectAgentThreads).all();
+    // Active folders are explicit choices. Upstream cwd observations never
+    // rewrite them: a running turn retains the snapshot it started with.
     // Codex does not expose empty placeholders as conversations. Keep a short
     // grace period for a freshly-created agent, then discard only its WebUI
     // association when it never became visible or was deleted elsewhere.
@@ -971,6 +971,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
             return {
               threadId,
               workspacePath,
+              activeFolder: this.folders.get('agent', threadId),
               title:
                 metadata.thread.name?.trim() || metadata.thread.preview.trim(),
               archived: metadata.archived,
@@ -986,7 +987,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   async associateAgent(
     projectId: string,
     threadId: string,
-    workspacePath: string,
+    selection: string | { resourceId: string; relativePath?: string | null },
     alreadyAtWorkspace = false,
   ) {
     requireExecutionAccess();
@@ -1000,10 +1001,17 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       throw new ConflictException(
         'Conversations cannot be moved between projects',
       );
-    const workspace = this.requireWorkspace(projectId, workspacePath);
+    const folder =
+      typeof selection === 'string'
+        ? this.folders.validateAbsoluteSelection(projectId, selection)
+        : this.folders.validateSelection(projectId, selection);
+    if (!folder.effectivePath)
+      throw new ConflictException('Active folder is unresolved');
+    const workspace = this.getWorkspace(projectId, folder.resourceId);
+    if (!workspace) throw new NotFoundException('Project resource not found');
     const threadIds = alreadyAtWorkspace
-      ? this.threads.rememberInitialThreadCwd(threadId, workspace.path)
-      : await this.threads.setThreadCwd(threadId, workspace.path);
+      ? this.threads.rememberInitialThreadCwd(threadId, folder.effectivePath)
+      : await this.threads.setThreadCwd(threadId, folder.effectivePath);
     const now = Date.now();
     this.db.transaction((tx) => {
       for (const id of threadIds)
@@ -1021,7 +1029,17 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           })
           .run();
     });
-    return { threadIds, projectId, workspacePath: workspace.path };
+    for (const id of threadIds)
+      this.folders.set(projectId, 'agent', id, {
+        resourceId: folder.resourceId,
+        relativePath: folder.relativePath,
+      });
+    return {
+      threadIds,
+      projectId,
+      workspacePath: folder.effectivePath,
+      activeFolder: this.folders.get('agent', threadId),
+    };
   }
 
   setDefaultWorkspace(projectId: string, workspaceId: string) {
@@ -1044,8 +1062,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     return selected;
   }
 
-  async detachWorkspace(projectId: string, workspaceId: string) {
-    const project = this.get(projectId);
+  detachWorkspace(projectId: string, workspaceId: string) {
+    this.get(projectId);
     const workspace = this.db
       .select()
       .from(projectWorkspaces)
@@ -1061,60 +1079,18 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       throw new ConflictException(
         'The primary workspace can only be removed with its project',
       );
-    const agents = this.db
-      .select()
-      .from(projectAgentThreads)
-      .where(
-        and(
-          eq(projectAgentThreads.projectId, projectId),
-          eq(projectAgentThreads.workspacePath, workspace.path),
-        ),
-      )
-      .all();
-    const movedAgentIds = new Set<string>();
-    for (const agent of agents)
-      for (const threadId of await this.threads.setThreadCwd(
-        agent.threadId,
-        project.workspacePath,
-      ))
-        movedAgentIds.add(threadId);
-    const now = Date.now();
-    this.db.transaction((tx) => {
-      for (const threadId of movedAgentIds)
-        tx.insert(projectAgentThreads)
-          .values({
-            threadId,
-            projectId,
-            workspacePath: project.workspacePath,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .onConflictDoUpdate({
-            target: projectAgentThreads.threadId,
-            set: {
-              projectId,
-              workspacePath: project.workspacePath,
-              updatedAt: now,
-            },
-          })
-          .run();
-      tx.update(simpleChatThreads)
-        .set({ cwd: project.workspacePath, updatedAt: now })
-        .where(
-          and(
-            eq(simpleChatThreads.projectId, projectId),
-            eq(simpleChatThreads.cwd, workspace.path),
-          ),
-        )
-        .run();
-      tx.delete(projectWorkspaces)
-        .where(eq(projectWorkspaces.id, workspaceId))
-        .run();
-    });
-    return { ok: true, preservedPath: workspace.path };
+    this.db
+      .delete(projectWorkspaces)
+      .where(eq(projectWorkspaces.id, workspaceId))
+      .run();
+    return {
+      ok: true,
+      preservedPath: workspace.path,
+      activeReferencesPreserved: true,
+    };
   }
 
-  /** Removes stale workspace rows and safely moves their conversations. */
+  /** Reports missing resources without rewriting active-folder choices. */
   async reconcileMissingWorkspaces(): Promise<{
     removed: string[];
     reassignedAgents: number;
@@ -1123,66 +1099,20 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   }> {
     const removed: string[] = [];
     const unresolved: string[] = [];
-    let reassignedAgents = 0;
-    let reassignedSimpleChats = 0;
+    const reassignedAgents = 0;
+    const reassignedSimpleChats = 0;
     for (const project of this.db.select().from(projects).all()) {
       const attached = this.db
         .select()
         .from(projectWorkspaces)
         .where(eq(projectWorkspaces.projectId, project.id))
         .all();
-      const existing: ProjectWorkspace[] = [];
       const missing: ProjectWorkspace[] = [];
       for (const workspace of attached) {
-        ((await this.files.directoryExists(workspace.path))
-          ? existing
-          : missing
-        ).push(workspace);
+        if (!(await this.files.directoryExists(workspace.path)))
+          missing.push(workspace);
       }
-      if (!missing.length) continue;
-      // Never erase the last reference automatically: without a surviving
-      // destination, conversations cannot be recovered safely.
-      if (!existing.length) {
-        unresolved.push(...missing.map((workspace) => workspace.path));
-        continue;
-      }
-      const fallback = existing.find((workspace) => workspace.primary);
-      if (!fallback) {
-        unresolved.push(...missing.map((workspace) => workspace.path));
-        continue;
-      }
-      for (const workspace of missing) {
-        const reassigned = await this.workspaces.reassignMissingWorkspace(
-          workspace.path,
-          fallback.path,
-        );
-        reassignedAgents += reassigned.agents;
-        reassignedSimpleChats += this.db
-          .update(simpleChatThreads)
-          .set({ cwd: fallback.path, updatedAt: Date.now() })
-          .where(
-            and(
-              eq(simpleChatThreads.projectId, project.id),
-              eq(simpleChatThreads.cwd, workspace.path),
-            ),
-          )
-          .run().changes;
-        this.db
-          .update(projectAgentThreads)
-          .set({ workspacePath: fallback.path, updatedAt: Date.now() })
-          .where(
-            and(
-              eq(projectAgentThreads.projectId, project.id),
-              eq(projectAgentThreads.workspacePath, workspace.path),
-            ),
-          )
-          .run();
-        this.db
-          .delete(projectWorkspaces)
-          .where(eq(projectWorkspaces.id, workspace.id))
-          .run();
-        removed.push(workspace.path);
-      }
+      unresolved.push(...missing.map((workspace) => workspace.path));
     }
     return {
       removed,
@@ -1476,7 +1406,10 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         .where(eq(projectTaskStatuses.resourceId, resourceId))
         .all()
         .sort((a, b) => a.position - b.position),
-      tasks,
+      tasks: tasks.map((task) => ({
+        ...task,
+        activeFolder: this.folders.get('task', task.id),
+      })),
       activity: this.db
         .select()
         .from(projectTaskActivity)
@@ -1703,6 +1636,12 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         true,
         actor,
       );
+    this.folders.setFromAbsolutePath(
+      projectId,
+      'task',
+      task.id,
+      task.workspacePath,
+    );
     return task;
   }
 
@@ -2010,7 +1949,32 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       );
     if (!effectiveParentId)
       this.recalculateParentEstimate(resourceId, task.id, false, actor);
-    return this.requireTask(resourceId, task.id);
+    const saved = this.requireTask(resourceId, task.id);
+    if (
+      input.workspacePath !== undefined ||
+      input.parentTaskId !== undefined ||
+      !this.folders.get('task', task.id)
+    ) {
+      this.folders.setFromAbsolutePath(
+        projectId,
+        'task',
+        task.id,
+        saved.workspacePath,
+      );
+      if (!effectiveParentId && input.workspacePath !== undefined)
+        for (const child of this.db
+          .select()
+          .from(projectTasks)
+          .where(eq(projectTasks.parentTaskId, task.id))
+          .all())
+          this.folders.setFromAbsolutePath(
+            projectId,
+            'task',
+            child.id,
+            saved.workspacePath,
+          );
+    }
+    return saved;
   }
 
   async deleteTask(
@@ -2077,6 +2041,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         .run();
       tx.delete(projectTasks).where(eq(projectTasks.id, task.id)).run();
     });
+    for (const deletedTask of deletedTasks)
+      this.folders.removeContext('task', deletedTask.id);
     if (task.parentTaskId)
       this.recalculateParentEstimate(
         resourceId,

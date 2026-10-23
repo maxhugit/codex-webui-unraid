@@ -17,6 +17,7 @@ export interface ProjectSummary {
   agentThreads?: Array<{
     threadId: string;
     workspacePath: string;
+    activeFolder: ActiveFolderSummary | null;
     title: string;
     archived: boolean;
     taskId: string | null;
@@ -73,6 +74,7 @@ export interface ProjectTaskSummary {
   parentTaskId: string | null;
   subtaskStatus: 'todo' | 'started' | 'review' | 'done' | 'cancelled';
   workspacePath: string | null;
+  activeFolder?: ActiveFolderSummary | null;
   executionMode: 'manual' | 'agent';
   agentState:
     | 'manual'
@@ -133,6 +135,17 @@ export interface ProjectWorkspaceSummary {
   updatedAt: number;
 }
 
+export interface ActiveFolderSummary {
+  contextType: 'agent' | 'simple_chat' | 'task' | 'deliverable';
+  contextId: string;
+  projectId: string;
+  resourceId: string;
+  resourceName: string | null;
+  relativePath: string;
+  effectivePath: string | null;
+  state: 'ready' | 'detached' | 'missing' | 'invalid';
+}
+
 export const projectsQueryKey = ['projects'] as const;
 
 /** Finds the project owning an exact conversation workspace path. */
@@ -142,7 +155,10 @@ export function projectForWorkspace(
 ): ProjectSummary | undefined {
   if (!cwd) return undefined;
   return projects?.find((project) =>
-    project.workspaces.some((workspace) => workspace.path === cwd),
+    project.workspaces.some(
+      (workspace) =>
+        workspace.path === cwd || cwd.startsWith(`${workspace.path}/`),
+    ),
   );
 }
 

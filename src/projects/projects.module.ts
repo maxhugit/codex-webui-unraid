@@ -10,9 +10,11 @@ import { ThreadsModule } from '../threads/threads.module';
 import { SimpleChatModule } from '../simple-chat/simple-chat.module';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
+import { ActiveFoldersModule } from '../active-folders/active-folders.module';
 
 @Module({
   imports: [
+    ActiveFoldersModule,
     AuthModule,
     DeliverablesModule,
     DatabaseModule,
