@@ -14,8 +14,12 @@ import { useTranslation } from 'react-i18next';
 import { PeopleManager } from './people-manager';
 import { ProjectPeopleConfigurationPanel } from './project-people-configuration';
 import { ProjectKnowledgePanel } from './project-knowledge-panel';
+import {
+  WorkspaceCreationDialog,
+  type ExternalWorkspaceInput,
+} from './workspace-creation-dialog';
 import { usePlatformSession } from '@/lib/platform-session';
-import { DirectoryPickerDialog } from '@/components/chat/sidebar/directory-picker-dialog';
+import { ExternalWorkspaceResources } from '@/components/chat/sidebar/external-workspace-resources';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -47,7 +51,7 @@ export function ProjectSettingsPanel({
   const { t } = useTranslation();
   const session = usePlatformSession();
   const client = useQueryClient();
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [workspaceCreationOpen, setWorkspaceCreationOpen] = useState(false);
   const [error, setError] = useState('');
   const [mcpServerIds, setMcpServerIds] = useState<string[]>(
     project.mcpServerIds ?? [],
@@ -97,7 +101,19 @@ export function ProjectSettingsPanel({
         body: JSON.stringify({ path }),
       }),
     onSuccess: async () => {
-      setPickerOpen(false);
+      setWorkspaceCreationOpen(false);
+      await refresh();
+    },
+    onError: fail,
+  });
+  const addExternalWorkspace = useMutation({
+    mutationFn: (input: ExternalWorkspaceInput) =>
+      projectsApi(`/${project.id}/workspace-resources`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    onSuccess: async () => {
+      setWorkspaceCreationOpen(false);
       await refresh();
     },
     onError: fail,
@@ -142,6 +158,7 @@ export function ProjectSettingsPanel({
   });
   const pending =
     addWorkspace.isPending ||
+    addExternalWorkspace.isPending ||
     detachWorkspace.isPending ||
     saveMcpServers.isPending ||
     saveApps.isPending ||
@@ -266,7 +283,7 @@ export function ProjectSettingsPanel({
               <Button
                 variant="outline"
                 disabled={pending}
-                onClick={() => setPickerOpen(true)}
+                onClick={() => setWorkspaceCreationOpen(true)}
               >
                 <FolderPlus className="h-4 w-4" />
                 {t('addAWorkspace')}
@@ -339,6 +356,11 @@ export function ProjectSettingsPanel({
                 </div>
               );
             })}
+            <ExternalWorkspaceResources
+              project={project}
+              pending={pending}
+              allowCreate={false}
+            />
           </section>
         )}
 
@@ -511,10 +533,12 @@ export function ProjectSettingsPanel({
           </p>
         )}
       </div>
-      <DirectoryPickerDialog
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(path) => addWorkspace.mutate(path)}
+      <WorkspaceCreationDialog
+        open={workspaceCreationOpen}
+        pending={addWorkspace.isPending || addExternalWorkspace.isPending}
+        onClose={() => setWorkspaceCreationOpen(false)}
+        onCreateLocal={(path) => addWorkspace.mutate(path)}
+        onCreateExternal={(input) => addExternalWorkspace.mutate(input)}
       />
     </>
   );
