@@ -204,6 +204,31 @@ export class DeliverablesController {
   ) {
     return this.service.submit(p, r, id, body);
   }
+  @Post(':id/validations') requestValidation(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Body() body: { version: number },
+    @Req() request: IdentityRequest,
+  ) {
+    return this.service.requestValidation(p, r, id, body, {
+      personId: request.platformIdentity?.personId ?? null,
+      name: request.platformIdentity?.name ?? 'Utilisateur',
+    });
+  }
+  @Post(':id/validations/:validationId/decision') decideValidation(
+    @Param('projectId') p: string,
+    @Param('resourceId') r: string,
+    @Param('id') id: string,
+    @Param('validationId') validationId: string,
+    @Body() body: Parameters<DeliverablesService['decideValidation']>[4],
+    @Req() request: IdentityRequest,
+  ) {
+    return this.service.decideValidation(p, r, id, validationId, body, {
+      personId: request.platformIdentity?.personId ?? null,
+      name: request.platformIdentity?.name ?? 'Utilisateur',
+    });
+  }
   @Post(':id/versions/:versionId/review') review(
     @Param('projectId') p: string,
     @Param('resourceId') r: string,
