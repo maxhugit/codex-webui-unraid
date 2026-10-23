@@ -100,11 +100,15 @@ export function ProjectDeliverablesManager({
   resourceId,
   initialDeliverableId,
   onBackToList,
+  modalOnly = false,
+  onModalClose,
 }: {
   projectId: string;
   resourceId: string;
   initialDeliverableId?: string;
   onBackToList?: () => void;
+  modalOnly?: boolean;
+  onModalClose?: () => void;
 }) {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -128,6 +132,31 @@ export function ProjectDeliverablesManager({
   const [dirty, setDirty] = useState(false);
   const canLeave = () =>
     !dirty || window.confirm(t('discardUnsavedDeliverableChanges'));
+  const closeModal = () => {
+    if (canLeave()) onModalClose?.();
+  };
+  const wrap = (content: ReactNode) =>
+    modalOnly ? (
+      <Dialog
+        open
+        onOpenChange={(open) => {
+          if (!open) closeModal();
+        }}
+      >
+        <DialogContent
+          aria-describedby={undefined}
+          className="flex h-[90dvh] w-[96vw] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"
+        >
+          <DialogTitle className="sr-only">
+            {query.data?.deliverables.find((item) => item.id === selected)
+              ?.title ?? t('deliverables')}
+          </DialogTitle>
+          {content}
+        </DialogContent>
+      </Dialog>
+    ) : (
+      content
+    );
   const create = useMutation({
     mutationFn: () =>
       projectsApi<Deliverable>(base, {
@@ -176,14 +205,14 @@ export function ProjectDeliverablesManager({
     setTaskAssociation('all');
   };
   if (!board)
-    return (
+    return wrap(
       <main className="p-6" role={query.error ? 'alert' : 'status'}>
         {query.error ? t('unableToLoadDeliverables') : t('loading')}
-      </main>
+      </main>,
     );
   const current = board.deliverables.find((item) => item.id === selected);
   if (current)
-    return (
+    return wrap(
       <DeliverableDetail
         key={`${current.id}:${current.version}`}
         item={current}
@@ -191,14 +220,28 @@ export function ProjectDeliverablesManager({
         base={base}
         refresh={() => client.invalidateQueries({ queryKey: key })}
         onBack={() => {
+          if (modalOnly) {
+            closeModal();
+            return;
+          }
           if (canLeave()) {
             setSelected(null);
             onBackToList?.();
           }
         }}
-        onRemoved={() => setSelected(null)}
+        onRemoved={() => {
+          if (modalOnly) onModalClose?.();
+          else setSelected(null);
+        }}
         onDirty={setDirty}
-      />
+        embedded={modalOnly}
+      />,
+    );
+  if (modalOnly)
+    return wrap(
+      <p role="alert" className="p-6">
+        {t('unableToLoadDeliverables')}
+      </p>,
     );
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -570,11 +613,12 @@ function DeliverableHeaderSlot({
   id,
   children,
 }: {
-  id: string;
+  id?: string;
   children: ReactNode;
 }) {
   const [target, setTarget] = useState<HTMLElement | null>(null);
   useEffect(() => {
+    if (!id) return;
     const update = () => {
       const element = document.getElementById(id);
       setTarget(element);
@@ -587,7 +631,7 @@ function DeliverableHeaderSlot({
   return target ? (
     createPortal(children, target)
   ) : (
-    <div className="shrink-0 px-4 py-2">{children}</div>
+    <div className={`shrink-0 px-4 py-2 ${!id ? 'pr-12' : ''}`}>{children}</div>
   );
 }
 
@@ -599,6 +643,7 @@ function DeliverableDetail({
   onBack,
   onRemoved,
   onDirty,
+  embedded = false,
 }: {
   item: Deliverable;
   board: DeliverablesBoard;
@@ -607,6 +652,7 @@ function DeliverableDetail({
   onBack: () => void;
   onRemoved: () => void;
   onDirty: (dirty: boolean) => void;
+  embedded?: boolean;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -717,21 +763,27 @@ function DeliverableDetail({
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <DeliverableHeaderSlot
-        id={`deliverable-header-${base.split('/')[1]}-${base.split('/')[3]}`}
+        id={
+          embedded
+            ? undefined
+            : `deliverable-header-${base.split('/')[1]}-${base.split('/')[3]}`
+        }
       >
         <div
           data-deliverable-header
           className="flex min-w-0 items-center gap-2"
         >
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label={t('backToDeliverables')}
-            title={t('backToDeliverables')}
-            onClick={onBack}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          {!embedded && (
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={t('backToDeliverables')}
+              title={t('backToDeliverables')}
+              onClick={onBack}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
               <h1 className="truncate text-sm font-semibold sm:text-base">
@@ -1009,9 +1061,28 @@ function Overview({
   const projectAgents = projects.data?.projects?.find(
     (project) => project.id === base.split('/')[1],
   )?.agentThreads;
-  const assignedAgents = item.conversations.filter(
-    (link) => link.type === 'agent',
-  );
+  const agentIds = [
+    ...new Set(
+      item.conversations
+        .filter((link) => link.type === 'agent')
+        .map((link) => link.id),
+    ),
+  ];
+  const assignedAgents = agentIds
+    .map((id) => {
+      const title =
+        projectAgents?.find((agent) => agent.threadId === id)?.title?.trim() ||
+        board.conversations
+          .find((link) => link.type === 'agent' && link.id === id)
+          ?.title?.trim();
+      return { id, title };
+    })
+    .filter(
+      (agent): agent is { id: string; title: string } =>
+        !!agent.title &&
+        agent.title !== agent.id &&
+        agent.title !== t('openDeliverableAgent'),
+    );
   const primaryTask = board.tasks.find(
     (task) => task.id === item.primaryTaskId,
   );
@@ -1081,18 +1152,13 @@ function Overview({
                 className="block font-medium underline"
                 href={withBasePath('/t/' + encodeURIComponent(agent.id))}
               >
-                {projectAgents?.find((thread) => thread.threadId === agent.id)
-                  ?.title ||
-                  (board.conversations.find((link) => link.id === agent.id)
-                    ?.title !== agent.id
-                    ? board.conversations.find((link) => link.id === agent.id)
-                        ?.title
-                    : null) ||
-                  t('openDeliverableAgent')}
+                {agent.title}
               </a>
             ))
           ) : (
-            <span>{t('noDeliverableAgent')}</span>
+            <span>
+              {t(agentIds.length ? 'notDefined' : 'noDeliverableAgent')}
+            </span>
           )}
         </div>
         {openTask && primaryTask && (

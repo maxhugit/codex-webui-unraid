@@ -4,12 +4,16 @@ import { useTranslation } from 'react-i18next';
 import { ClipboardList, Package } from 'lucide-react';
 import { projectsApi, type ProjectSummary } from '@/lib/projects-api';
 import type { DeliverablesBoard } from '@/lib/deliverables-api';
-import { withBasePath } from '@/base-path';
 
 const TaskModal = lazy(() =>
   import('@/components/projects/project-task-manager').then((module) => ({
     default: module.ProjectTaskManager,
   })),
+);
+const DeliverableModal = lazy(() =>
+  import('@/components/projects/project-deliverables-manager').then(
+    (module) => ({ default: module.ProjectDeliverablesManager }),
+  ),
 );
 
 export function AgentContextLinks({
@@ -39,6 +43,9 @@ export function AgentContextLinks({
     id: string;
     resourceId: string;
   } | null>(null);
+  const [openedDeliverable, setOpenedDeliverable] = useState<string | null>(
+    null,
+  );
   const agent = project?.agentThreads?.find(
     (item) => item.threadId === threadId,
   );
@@ -84,17 +91,16 @@ export function AgentContextLinks({
       >
         <span className="text-muted-foreground">{t('agentLinkedTo')}</span>
         {deliverables.map((item) => (
-          <a
+          <button
+            type="button"
             key={item.id}
             className={`${badge} border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300`}
             title={item.title}
-            href={withBasePath(
-              `/projects/${encodeURIComponent(project!.id)}/resources/${encodeURIComponent(resource!.id)}?deliverable=${encodeURIComponent(item.id)}`,
-            )}
+            onClick={() => setOpenedDeliverable(item.id)}
           >
             <Package className="size-3.5 shrink-0" aria-hidden="true" />
             <span className="truncate">{item.title}</span>
-          </a>
+          </button>
         ))}
         {tasks.map((task) => (
           <button
@@ -125,6 +131,18 @@ export function AgentContextLinks({
           <span className="text-muted-foreground">{t('agentNoLinks')}</span>
         )}
       </div>
+      {openedDeliverable && project && resource && (
+        <Suspense fallback={<span role="status">{t('loading')}</span>}>
+          <DeliverableModal
+            key={`${threadId}:${openedDeliverable}`}
+            projectId={project.id}
+            resourceId={resource.id}
+            initialDeliverableId={openedDeliverable}
+            modalOnly
+            onModalClose={() => setOpenedDeliverable(null)}
+          />
+        </Suspense>
+      )}
       {openedTask && project && (
         <Suspense fallback={<span role="status">{t('loading')}</span>}>
           <TaskModal

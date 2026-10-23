@@ -93,6 +93,43 @@ beforeEach(() => {
   api.mockImplementation((_path, input) => Promise.resolve(input ? {} : board));
 });
 afterEach(cleanup);
+it('keeps modal content local and protects unsaved changes when closing', async () => {
+  const slot = document.createElement('div');
+  slot.id = 'deliverable-header-p-r';
+  document.body.append(slot);
+  const close = vi.fn();
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  try {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ProjectDeliverablesManager
+          projectId="p"
+          resourceId="r"
+          initialDeliverableId="d"
+          modalOnly
+          onModalClose={close}
+        />
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByRole('dialog', { name: 'Report' }),
+    ).toBeInTheDocument();
+    expect(slot).toBeEmptyDOMElement();
+    fireEvent.change(screen.getByLabelText('Description'), {
+      target: { value: 'Unsaved changes' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(confirm).toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(close).toHaveBeenCalledOnce();
+  } finally {
+    cleanup();
+    slot.remove();
+    confirm.mockRestore();
+  }
+});
 it('opens a deep-linked deliverable directly and returns to the list', async () => {
   const back = vi.fn();
   render(
@@ -420,7 +457,14 @@ it('uses the project agent title instead of its identifier', async () => {
     {
       ...board,
       deliverables: [
-        { ...item, conversations: [{ id: 'agent-id', type: 'agent' }] },
+        {
+          ...item,
+          conversations: [
+            { id: 'agent-id', type: 'agent' },
+            { id: 'agent-id', type: 'agent' },
+            { id: 'legacy-id', type: 'agent' },
+          ],
+        },
       ],
       conversations: [{ id: 'agent-id', type: 'agent', title: 'agent-id' }],
     },
@@ -430,6 +474,12 @@ it('uses the project agent title instead of its identifier', async () => {
     await screen.findByRole('link', { name: 'Prepare the design package' }),
   ).toHaveAttribute('href', '/t/agent-id');
   expect(screen.queryByText('agent-id')).not.toBeInTheDocument();
+  expect(
+    screen.getAllByRole('link', { name: 'Prepare the design package' }),
+  ).toHaveLength(1);
+  expect(
+    screen.queryByRole('link', { name: 'Open agent' }),
+  ).not.toBeInTheDocument();
 });
 it('shows system metadata in overview instead of the header summary', async () => {
   await setup({
