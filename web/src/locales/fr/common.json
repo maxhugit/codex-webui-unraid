@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 30253)
-Total output lines: 1513
-
 {
   "cliVersionChangedRefreshBeforeContinuing": "La version du CLI a changé ; actualisez avant de continuer",
   "latestCliVersionChangedRefreshBeforeContinuing": "La dernière version du CLI a changé ; actualisez avant de continuer",
@@ -795,7 +792,21 @@ Total output lines: 1513
   "pluginSyncCompletedNoChanges": "Synchronisation du plugin terminée : aucun changement",
   "pluginSyncCompletedCountChanged": "Synchronisation du plugin terminée : {{count}} modifié(s)",
   "pluginUninstalled": "Plugin désinstallé",
-  "popupBlockedUseTheAuthorizatio…253 tokens truncated…nnalisé.",
+  "popupBlockedUseTheAuthorizationLinkBelow": "Popup bloquée. Utilisez le lien d'autorisation ci-dessous.",
+  "previewLimitedToRowsRowsAndColsColumns": "Aperçu limité à {{rows}} lignes et {{cols}} colonnes",
+  "previous": "Précédent",
+  "previousPage": "Page précédente",
+  "previousShellOutputReadOnly": "Sortie shell précédente (lecture seule)",
+  "previousTerminalWasLostReplacementShellShellStartedInCwd": "Le terminal précédent a été perdu. Un shell de remplacement {{shell}} a été démarré dans {{cwd}}.",
+  "previousVersion": "Version précédente",
+  "primaryWindow": "Fenêtre principale",
+  "privacyPolicy": "Politique de confidentialité",
+  "proceed": "Continuer",
+  "processExitedWithCodeCode": "Processus terminé avec le code {{code}}",
+  "prompt": "Invite",
+  "provider": "Fournisseur",
+  "rateLimitsAndCredits": "Limites de débit et crédits",
+  "rateLimitsAreNotShownForApiKeyOrCustomProviderProxyMode": "Les limites de débit ne sont pas affichées pour une clé API ou le mode proxy d'un fournisseur personnalisé.",
   "rateLimitsUnavailable": "Limites de débit indisponibles",
   "reCheck": "Vérifier à nouveau",
   "readOnlyThisConversationIsOpenInAnotherClient": "Lecture seule : cette conversation est ouverte dans un autre client.",
