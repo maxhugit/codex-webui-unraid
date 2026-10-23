@@ -28,9 +28,11 @@ const emptyForm = {
 export function ExternalWorkspaceResources({
   project,
   pending,
+  allowCreate = true,
 }: {
   project: ProjectSummary;
   pending: boolean;
+  allowCreate?: boolean;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -131,15 +133,17 @@ export function ExternalWorkspaceResources({
             {t('externalResourcesDescription')}
           </p>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending || busy}
-          onClick={() => setEditing(!editing)}
-        >
-          <Cable className="h-4 w-4" />
-          {t('addAConnection')}
-        </Button>
+        {allowCreate && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending || busy}
+            onClick={() => setEditing(!editing)}
+          >
+            <Cable className="h-4 w-4" />
+            {t('addAConnection')}
+          </Button>
+        )}
       </div>
       {editing && (
         <div className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-2">
