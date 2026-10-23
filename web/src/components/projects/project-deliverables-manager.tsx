@@ -417,7 +417,12 @@ function DeliverablesList({
                 }`}
               >
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
-                {item.validationRequired && item.validationStatus === 'not_required' ? t('required') : t(translationKey(validationStatuses[item.validationStatus]))}
+                {item.validationRequired &&
+                item.validationStatus === 'not_required'
+                  ? t('required')
+                  : t(
+                      translationKey(validationStatuses[item.validationStatus]),
+                    )}
               </span>
               <span className="flex min-w-0 items-center gap-2 text-sm">
                 <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -846,12 +851,30 @@ function DeliverableDetail({
               busy={busy || revisionDirty}
               action={action}
             />
-            {item.lifecycleStatus === 'finalized' && item.validationRequired && item.validationStatus !== 'approved' && !item.validations.some((validation) => validation.effectiveStatus === 'pending') && (
-              <Button disabled={busy || revisionDirty || !item.documents.some((document) => document.deletedAt === null)}
-                onClick={() => action.mutate({ suffix: '/validations', body: { version: item.version } })}>
-                {t('submitDeliverableForValidation')}
-              </Button>
-            )}
+            {item.lifecycleStatus === 'finalized' &&
+              item.validationRequired &&
+              item.validationStatus !== 'approved' &&
+              !item.validations.some(
+                (validation) => validation.effectiveStatus === 'pending',
+              ) && (
+                <Button
+                  disabled={
+                    busy ||
+                    revisionDirty ||
+                    !item.documents.some(
+                      (document) => document.deletedAt === null,
+                    )
+                  }
+                  onClick={() =>
+                    action.mutate({
+                      suffix: '/validations',
+                      body: { version: item.version },
+                    })
+                  }
+                >
+                  {t('submitDeliverableForValidation')}
+                </Button>
+              )}
             {session.isAdministrator && (
               <Button
                 variant="outline"
@@ -1278,7 +1301,6 @@ function VersionHistory({
                 : t('enableValidation')}
             </Button>
           </section>
-
         </div>
       )}
       <div className="space-y-4">

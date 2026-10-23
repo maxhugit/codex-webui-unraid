@@ -296,7 +296,11 @@ it('submits the current document snapshot for human validation', async () => {
   });
   fireEvent.click(screen.getByRole('tab', { name: 'Validation' }));
   expect(screen.getByText('Required')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Submit deliverable for validation' }).closest('footer')).not.toBeNull();
+  expect(
+    screen
+      .getByRole('button', { name: 'Submit deliverable for validation' })
+      .closest('footer'),
+  ).not.toBeNull();
   fireEvent.click(
     screen.getByRole('button', { name: 'Submit deliverable for validation' }),
   );
