@@ -5,6 +5,22 @@ import { AgentContextLinks } from './agent-context-links';
 import type { ProjectSummary } from '@/lib/projects-api';
 const api = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/projects-api', () => ({ projectsApi: api }));
+vi.mock('@/components/projects/project-deliverables-manager', () => ({
+  ProjectDeliverablesManager: ({
+    initialDeliverableId,
+    modalOnly,
+    onModalClose,
+  }: {
+    initialDeliverableId: string;
+    modalOnly: boolean;
+    onModalClose: () => void;
+  }) =>
+    modalOnly ? (
+      <div role="dialog" aria-label={initialDeliverableId}>
+        <button onClick={onModalClose}>Close deliverable</button>
+      </div>
+    ) : null,
+}));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: globalThis.__testTranslate }),
 }));
@@ -68,9 +84,17 @@ it('opens the exact deliverable and the assigned task in a modal without duplica
   });
   show();
   expect(
-    await screen.findByRole('link', { name: 'Design report' }),
-  ).toHaveAttribute('href', '/projects/p/resources/board?deliverable=report');
-  expect(screen.getAllByRole('button')).toHaveLength(1);
+    await screen.findByRole('button', { name: 'Design report' }),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole('button')).toHaveLength(2);
+  const originalUrl = window.location.href;
+  fireEvent.click(screen.getByRole('button', { name: 'Design report' }));
+  expect(
+    await screen.findByRole('dialog', { name: 'report' }),
+  ).toBeInTheDocument();
+  expect(window.location.href).toBe(originalUrl);
+  fireEvent.click(screen.getByText('Close deliverable'));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Write report/ }));
   expect(
     await screen.findByRole('dialog', { name: 'task' }),
@@ -117,7 +141,7 @@ it('recognizes the parent deliverable of an assigned subtask', async () => {
   });
   show();
   expect(
-    await screen.findByRole('link', { name: 'Report' }),
+    await screen.findByRole('button', { name: 'Report' }),
   ).toBeInTheDocument();
   expect(
     screen.getByRole('button', { name: /Deliverable task: Main task/ }),
