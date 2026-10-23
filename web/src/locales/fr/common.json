@@ -1,4 +1,8 @@
 {
+  "deliverableAccess": "Accès",
+  "assignedDeliverableAgent": "Agent affecté",
+  "openDeliverableAgent": "Ouvrir l’agent",
+  "noDeliverableAgent": "Aucun agent affecté",
   "cliVersionChangedRefreshBeforeContinuing": "La version du CLI a changé ; actualisez avant de continuer",
   "latestCliVersionChangedRefreshBeforeContinuing": "La dernière version du CLI a changé ; actualisez avant de continuer",
   "codexMustBeIdleBeforeACliUpdate": "Codex doit être inactif avant une mise à jour du CLI",

@@ -11,6 +11,22 @@ import { ProjectDeliverablesManager } from './project-deliverables-manager';
 import type { Deliverable, DeliverablesBoard } from '@/lib/deliverables-api';
 const api = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/projects-api', () => ({ projectsApi: api }));
+vi.mock('./project-task-manager', () => ({
+  ProjectTaskManager: ({
+    initialTaskId,
+    modalOnly,
+    onModalClose,
+  }: {
+    initialTaskId: string;
+    modalOnly: boolean;
+    onModalClose: () => void;
+  }) =>
+    modalOnly ? (
+      <div role="dialog" aria-label={initialTaskId}>
+        <button onClick={onModalClose}>Close task</button>
+      </div>
+    ) : null,
+}));
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('@/lib/platform-session', () => ({
   usePlatformSession: () => ({ isAdministrator: true }),
@@ -152,11 +168,68 @@ it('filters the deliverables list and resets all filters', async () => {
   expect(screen.queryByRole('button', { name: /Report/ })).toBeNull();
   expect(
     screen.getByRole('button', { name: /Restricted architecture/ }),
-  ).toHaveTextContent('Approve architecture');
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Approve architecture' }));
+  expect(screen.getByRole('dialog', { name: 'task' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: 'Deliverables' }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Close task' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
   expect(screen.getByRole('button', { name: /Report/ })).toBeInTheDocument();
 });
+it.each([
+  {
+    required: true,
+    validation: 'pending' as const,
+    expected: 'awaiting_validation',
+  },
+  {
+    required: true,
+    validation: 'not_required' as const,
+    expected: 'awaiting_validation',
+  },
+  {
+    required: true,
+    validation: 'rejected' as const,
+    expected: 'awaiting_validation',
+  },
+  { required: true, validation: 'approved' as const, expected: 'finalized' },
+  {
+    required: false,
+    validation: 'not_required' as const,
+    expected: 'finalized',
+  },
+])(
+  'filters the effective lifecycle for required=$required validation=$validation',
+  async ({ required, validation, expected }) => {
+    await setupList({
+      ...board,
+      deliverables: [
+        {
+          ...item,
+          lifecycleStatus: 'finalized',
+          validationRequired: required,
+          validationStatus: validation,
+        },
+      ],
+    });
+    fireEvent.change(screen.getByLabelText('Filter by status'), {
+      target: { value: expected },
+    });
+    expect(screen.getByRole('button', { name: /Report/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Filter by status'), {
+      target: {
+        value: expected === 'finalized' ? 'awaiting_validation' : 'finalized',
+      },
+    });
+    expect(
+      screen.queryByRole('button', { name: /Report/ }),
+    ).not.toBeInTheDocument();
+  },
+);
 it('keeps the table search visible and exposes filters through a mobile toggle', async () => {
   await setupList();
 
@@ -167,18 +240,18 @@ it('keeps the table search visible and exposes filters through a mobile toggle',
   expect(toggle).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByLabelText('Filter by status')).toBeInTheDocument();
 });
-it('saves the brief with its revision and cannot manually select validated', async () => {
+it('saves the brief with its revision without a separate production status', async () => {
   await setup();
   expect(
-    screen.getByRole('combobox', { name: 'Status' }),
-  ).not.toHaveTextContent('Validated');
+    screen.queryByRole('combobox', { name: 'Production progress' }),
+  ).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Validation criteria'), {
     target: { value: 'Checked by owner' },
   });
   fireEvent.click(screen.getByRole('tab', { name: 'Validation' }));
   expect(
-    screen.getByRole('button', { name: 'Submit deliverable for validation' }),
-  ).toBeDisabled();
+    screen.queryByRole('button', { name: 'Submit deliverable for validation' }),
+  ).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() =>
@@ -222,6 +295,12 @@ it('submits the current document snapshot for human validation', async () => {
     ],
   });
   fireEvent.click(screen.getByRole('tab', { name: 'Validation' }));
+  expect(screen.getByText('Required')).toBeInTheDocument();
+  expect(
+    screen
+      .getByRole('button', { name: 'Submit deliverable for validation' })
+      .closest('footer'),
+  ).not.toBeNull();
   fireEvent.click(
     screen.getByRole('button', { name: 'Submit deliverable for validation' }),
   );
@@ -275,6 +354,34 @@ it('changes the lifecycle only through an explicit transition action', async () 
     ),
   );
 });
+it('places the title and rename pencil in the shared header and save actions in the footer', async () => {
+  const slot = document.createElement('div');
+  slot.id = 'deliverable-header-p-r';
+  document.body.appendChild(slot);
+  try {
+    await setup();
+    await waitFor(() =>
+      expect(slot).toContainElement(
+        screen.getByRole('heading', { name: 'Report' }),
+      ),
+    );
+    expect(slot).toContainElement(
+      screen.getByRole('button', { name: 'Back to deliverables' }),
+    );
+    expect(slot).toContainElement(
+      screen.getByRole('button', { name: 'Rename deliverable' }),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Save' }).closest('footer'),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Remove record' }).closest('footer'),
+    ).not.toBeNull();
+  } finally {
+    cleanup();
+    slot.remove();
+  }
+});
 it('renames a deliverable from its header', async () => {
   await setup();
   fireEvent.click(screen.getByRole('button', { name: 'Rename deliverable' }));
@@ -287,6 +394,35 @@ it('renames a deliverable from its header', async () => {
       method: 'PATCH',
       body: JSON.stringify({ title: 'Architecture package', version: 3 }),
     }),
+  );
+});
+it('keeps access controls in their dedicated tab and shows assignment summaries', async () => {
+  await setup();
+  expect(screen.queryByLabelText('Confidentiality')).not.toBeInTheDocument();
+  expect(screen.getByText('No assigned agent')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: 'Access' }));
+  expect(screen.getByLabelText('Confidentiality')).toBeInTheDocument();
+  expect(
+    screen.queryByRole('tab', { name: 'Tasks and conversations' }),
+  ).not.toBeInTheDocument();
+});
+it('saves restricted access only after choosing an authorized group', async () => {
+  await setup({ ...board, personGroups: [{ id: 'group', name: 'Reviewers' }] });
+  fireEvent.click(screen.getByRole('tab', { name: 'Access' }));
+  fireEvent.change(screen.getByLabelText('Confidentiality'), {
+    target: { value: 'restricted' },
+  });
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  fireEvent.click(screen.getByLabelText('Reviewers'));
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith(
+      '/p/resources/r/deliverables/d',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: expect.stringContaining('"authorizedGroupIds":["group"]'),
+      }),
+    ),
   );
 });
 it('associates exactly one primary task', async () => {
@@ -307,7 +443,7 @@ it('associates exactly one primary task', async () => {
       },
     ],
   });
-  fireEvent.click(screen.getByRole('tab', { name: 'Tasks and conversations' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Primary task' }));
   fireEvent.change(screen.getByLabelText('Primary task'), {
     target: { value: 'task' },
   });
