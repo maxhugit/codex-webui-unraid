@@ -1,7 +1,5 @@
 {
-  "simpleChatFolderUnresolved": "Le dossier actif est indisponible. Choisissez un dossier du projet au-dessus de la zone de saisie, puis renvoyez votre message.",
   "simpleChatFolderLoadFailed": "Impossible de charger ou de modifier le dossier. Vérifiez les ressources du projet et réessayez.",
-  "simpleChatChooseFolder": "Choisir un dossier du projet",
   "deliverableAccess": "Accès",
   "assignedDeliverableAgent": "Agent affecté",
   "openDeliverableAgent": "Ouvrir l’agent",

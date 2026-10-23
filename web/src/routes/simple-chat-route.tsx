@@ -355,7 +355,7 @@ export function SimpleChatRoute() {
               <p role="alert" className="text-sm text-destructive">
                 {error ===
                 'The active folder is unresolved. Select an available project resource before starting a new operation.'
-                  ? t('simpleChatFolderUnresolved')
+                  ? t('activeFolderNeedsResolution')
                   : error}
               </p>
             )}

@@ -78,7 +78,7 @@ export function SimpleChatFolderSelector({
           }}
         >
           <option value="" disabled>
-            {t('simpleChatChooseFolder')}
+            {t('chooseAFolder')}
           </option>
           {workspaces.map((workspace) => (
             <option key={workspace.id} value={workspace.id}>

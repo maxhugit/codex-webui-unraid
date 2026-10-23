@@ -1,7 +1,5 @@
 {
-  "simpleChatFolderUnresolved": "The active folder is unavailable. Choose a project folder above the message box, then send your message again.",
   "simpleChatFolderLoadFailed": "Unable to load or change the folder. Check project resources and retry.",
-  "simpleChatChooseFolder": "Choose a project folder",
   "deliverableAccess": "Access",
   "assignedDeliverableAgent": "Assigned agent",
   "openDeliverableAgent": "Open agent",
