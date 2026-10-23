@@ -1,4 +1,5 @@
 {
+  "simpleChatFolderLoadFailed": "Unable to load or change the folder. Check project resources and retry.",
   "deliverableAccess": "Access",
   "assignedDeliverableAgent": "Assigned agent",
   "openDeliverableAgent": "Open agent",
