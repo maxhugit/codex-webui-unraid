@@ -91,6 +91,71 @@ async function setup(data = board) {
   );
   fireEvent.click(await screen.findByRole('button', { name: /Report/ }));
 }
+async function setupList(data = board) {
+  api.mockImplementation((_path, input) => Promise.resolve(input ? {} : data));
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+          },
+        })
+      }
+    >
+      <ProjectDeliverablesManager projectId="p" resourceId="r" />
+    </QueryClientProvider>,
+  );
+  await screen.findByRole('button', { name: /Report/ });
+}
+
+it('filters the deliverables list and resets all filters', async () => {
+  await setupList({
+    ...board,
+    deliverables: [
+      item,
+      {
+        ...item,
+        id: 'restricted',
+        title: 'Restricted architecture',
+        confidentiality: 'restricted',
+        authorizedGroupIds: ['group'],
+        lifecycleStatus: 'finalized',
+        validationRequired: true,
+        validationStatus: 'approved',
+        primaryTaskId: 'task',
+      },
+    ],
+    tasks: [
+      {
+        id: 'task',
+        title: 'Approve architecture',
+        resourceId: 'tm',
+        parentTaskId: null,
+        status: 'Done',
+        progress: 100,
+        dueAt: null,
+        assigneeId: null,
+        assigneeName: null,
+      },
+    ],
+  });
+
+  fireEvent.change(screen.getByLabelText('Filter by confidentiality'), {
+    target: { value: 'restricted' },
+  });
+  fireEvent.change(screen.getByLabelText('Filter by task association'), {
+    target: { value: 'linked' },
+  });
+  expect(screen.queryByRole('button', { name: /Report/ })).toBeNull();
+  expect(
+    screen.getByRole('button', { name: /Restricted architecture/ }),
+  ).toHaveTextContent('Approve architecture');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
+  expect(screen.getByRole('button', { name: /Report/ })).toBeInTheDocument();
+});
 it('saves the brief with its revision and cannot manually select validated', async () => {
   await setup();
   expect(

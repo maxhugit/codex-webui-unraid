@@ -13,6 +13,7 @@ import {
   ListFilter,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   UserRound,
 } from 'lucide-react';
@@ -99,6 +100,9 @@ export function ProjectDeliverablesManager({
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
+  const [validation, setValidation] = useState('all');
+  const [confidentiality, setConfidentiality] = useState('all');
+  const [taskAssociation, setTaskAssociation] = useState('all');
   const [dirty, setDirty] = useState(false);
   const canLeave = () =>
     !dirty || window.confirm(t('discardUnsavedDeliverableChanges'));
@@ -121,12 +125,19 @@ export function ProjectDeliverablesManager({
         const needle = search.trim().toLocaleLowerCase();
         return (
           (status === 'all' || item.lifecycleStatus === status) &&
+          (validation === 'all' || item.validationStatus === validation) &&
+          (confidentiality === 'all' ||
+            item.confidentiality === confidentiality) &&
+          (taskAssociation === 'all' ||
+            (taskAssociation === 'linked'
+              ? item.primaryTaskId !== null
+              : item.primaryTaskId === null)) &&
           (!needle ||
             item.title.toLocaleLowerCase().includes(needle) ||
             item.description.toLocaleLowerCase().includes(needle))
         );
       }) ?? [],
-    [board, search, status],
+    [board, confidentiality, search, status, taskAssociation, validation],
   );
   if (!board)
     return (
@@ -183,7 +194,7 @@ export function ProjectDeliverablesManager({
             </Button>
           </form>
         </div>
-        <div className="flex flex-col gap-2 rounded-xl border bg-card p-3 sm:flex-row">
+        <div className="grid gap-2 rounded-xl border bg-card p-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_auto_auto_auto_auto]">
           <label className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -210,6 +221,71 @@ export function ProjectDeliverablesManager({
               ))}
             </select>
           </label>
+          <label>
+            <span className="sr-only">{t('filterByValidation')}</span>
+            <select
+              aria-label={t('filterByValidation')}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              value={validation}
+              onChange={(event) => setValidation(event.target.value)}
+            >
+              <option value="all">{t('allValidationStatuses')}</option>
+              {Object.entries(validationStatuses)
+                .filter(([value]) => value !== 'cancelled')
+                .map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {t(translationKey(label))}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            <span className="sr-only">{t('filterByConfidentiality')}</span>
+            <select
+              aria-label={t('filterByConfidentiality')}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              value={confidentiality}
+              onChange={(event) => setConfidentiality(event.target.value)}
+            >
+              <option value="all">{t('allConfidentialityLevels')}</option>
+              <option value="standard">{t('standardAccessShort')}</option>
+              <option value="restricted">{t('restrictedAccessShort')}</option>
+            </select>
+          </label>
+          <label>
+            <span className="sr-only">{t('filterByTaskAssociation')}</span>
+            <select
+              aria-label={t('filterByTaskAssociation')}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              value={taskAssociation}
+              onChange={(event) => setTaskAssociation(event.target.value)}
+            >
+              <option value="all">{t('allTaskAssociations')}</option>
+              <option value="linked">{t('withPrimaryTask')}</option>
+              <option value="unlinked">{t('withoutPrimaryTask')}</option>
+            </select>
+          </label>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={
+              !search &&
+              status === 'all' &&
+              validation === 'all' &&
+              confidentiality === 'all' &&
+              taskAssociation === 'all'
+            }
+            onClick={() => {
+              setSearch('');
+              setStatus('all');
+              setValidation('all');
+              setConfidentiality('all');
+              setTaskAssociation('all');
+            }}
+          >
+            <RotateCcw className="h-4 w-4" />
+            {t('resetFilters')}
+          </Button>
         </div>
         {create.error && (
           <p role="alert" className="text-sm text-destructive">
@@ -246,12 +322,13 @@ function DeliverablesList({
   const { t } = useTranslation();
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
-      <div className="hidden grid-cols-[minmax(220px,2fr)_100px_150px_130px_minmax(160px,1fr)_150px] gap-3 border-b bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground lg:grid">
+      <div className="hidden grid-cols-[minmax(210px,2fr)_80px_130px_130px_minmax(170px,1.2fr)_130px_130px] gap-3 border-b bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground xl:grid">
         <span>{t('title')}</span>
         <span>{t('documents')}</span>
         <span>{t('status')}</span>
         <span>{t('validation')}</span>
-        <span>{t('responsiblePerson')}</span>
+        <span>{t('primaryTask')}</span>
+        <span>{t('confidentiality')}</span>
         <span>{t('lastModified')}</span>
       </div>
       <div className="divide-y">
@@ -259,14 +336,13 @@ function DeliverablesList({
           const task = board.tasks.find(
             (candidate) => candidate.id === item.primaryTaskId,
           );
-          const assignee = task?.assigneeName ?? t('unassigned');
           const count = item.documents.filter(
             (document) => document.deletedAt === null,
           ).length;
           return (
             <button
               key={item.id}
-              className="grid w-full gap-3 px-4 py-4 text-left transition-colors hover:bg-accent/60 lg:grid-cols-[minmax(220px,2fr)_100px_150px_130px_minmax(160px,1fr)_150px] lg:items-center"
+              className="grid w-full gap-3 px-4 py-4 text-left transition-colors hover:bg-accent/60 xl:grid-cols-[minmax(210px,2fr)_80px_130px_130px_minmax(170px,1.2fr)_130px_130px] xl:items-center"
               onClick={() => onSelect(item.id)}
             >
               <span className="min-w-0">
@@ -274,28 +350,29 @@ function DeliverablesList({
                 <span className="mt-1 block truncate text-xs text-muted-foreground">
                   {item.description || t('noDescription')}
                 </span>
-                {item.confidentiality === 'restricted' && (
-                  <span className="mt-1 inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
-                    {t('restrictedAccessShort')}
-                  </span>
-                )}
               </span>
               <span className="flex items-center gap-2 text-sm">
+                <span className="text-xs text-muted-foreground xl:hidden">
+                  {t('documents')}:
+                </span>
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 {count}
               </span>
               <LifecycleBadge status={item.lifecycleStatus} />
               <span className="flex items-center gap-2 text-sm">
                 <CheckCircle2
-                  className={`h-4 w-4 ${item.status === 'validated' ? 'text-emerald-600' : 'text-muted-foreground'}`}
+                  className={`h-4 w-4 ${item.validationStatus === 'approved' ? 'text-emerald-600' : 'text-muted-foreground'}`}
                 />
-                {item.status === 'validated'
-                  ? t('validated')
-                  : t('notValidated')}
+                {t(translationKey(validationStatuses[item.validationStatus]))}
               </span>
               <span className="flex min-w-0 items-center gap-2 text-sm">
-                <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="truncate">{assignee}</span>
+                <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{task?.title ?? t('noPrimaryTask')}</span>
+              </span>
+              <span className="text-sm">
+                {item.confidentiality === 'restricted'
+                  ? t('restrictedAccessShort')
+                  : t('standardAccessShort')}
               </span>
               <span className="text-xs text-muted-foreground">
                 {new Date(item.updatedAt).toLocaleDateString()}
