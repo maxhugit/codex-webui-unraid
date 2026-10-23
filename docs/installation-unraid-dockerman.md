@@ -96,16 +96,32 @@ jour DockerMan, il rattache automatiquement les réseaux secondaires suivants :
 - `mergeron-ingress` à `net_standard` ;
 - `mergeron-squid` à `codex_external`.
 
+Il vérifie également les alias DNS sur chaque réseau déjà raccordé. Si
+DockerMan a conservé le réseau mais perdu ses alias lors d'un renommage ou
+d'une recréation, le réconciliateur rétablit notamment `codex-webui`,
+`codex-web-ingress` et `codex-web-squid`. Le nom transitoire `mergeron-ui` est
+également reconnu afin de réparer une installation renommée avant la
+normalisation vers le nom canonique `mergeron`.
+
 Les trois conteneurs démarrent volontairement sur `codex_isolated`. Cette
 méthode est nécessaire car Docker n'accepte qu'un réseau de démarrage dans la
 commande créée par DockerMan. Une connexion ajoutée manuellement avec
 `docker network connect` disparaîtrait à la prochaine recréation du conteneur.
 
-Cette procédure ne modifie jamais la clé USB `/boot`. Le processus reste actif
-jusqu'au prochain redémarrage complet d'Unraid ; après un redémarrage, relancer
-la commande ci-dessus avant la prochaine mise à jour DockerMan. Pour une gestion
-des réseaux entièrement automatique au redémarrage sans script hôte, utiliser
-la variante Compose Manager décrite dans `UNRAID.md`.
+Pour rendre cette surveillance persistante, créer dans le plugin **User
+Scripts** un script nommé `Mergeron network reconciler`, contenant :
+
+```bash
+#!/bin/bash
+nohup /mnt/pool/appdata/codex-web/reconcile-networks.sh watch \
+  >/var/log/mergeron-network-reconciler.log 2>&1 &
+```
+
+Choisir la planification **At Startup of Array**. Le fichier PID empêche le
+lancement de plusieurs surveillances identiques. Après un redémarrage, vérifier
+le journal `/var/log/mergeron-network-reconciler.log` avant une mise à jour
+DockerMan. Cette procédure ajoute uniquement une entrée User Scripts à la clé
+USB ; elle ne modifie pas les données applicatives.
 
 ## 4. Migrer depuis Compose Manager
 
@@ -186,8 +202,8 @@ de nouveau `healthy` et que l'interface publique répond correctement.
 
 Le réconciliateur est installé dans
 `/mnt/pool/appdata/codex-web/reconcile-networks.sh`. Son journal est disponible
-dans `/var/log/codex-webui-network-reconciler.log`. Aucun fichier de la clé USB
-Unraid n'est créé ou modifié par cette procédure.
+dans `/var/log/mergeron-network-reconciler.log`. L'entrée User Scripts est
+enregistrée sur la clé USB par Unraid afin de survivre au redémarrage.
 
 ## 8. Source de vérité et maintenance
 
