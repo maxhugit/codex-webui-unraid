@@ -53,9 +53,15 @@ export class ProjectConnectionPolicyService {
       .get();
     if (!project) return null;
 
+    // Listing apps can initialize connector-backed MCP authentication. Avoid
+    // doing that when the project selects no app: the deny-by-default override
+    // is already sufficient and an unrelated stale OAuth token must not block
+    // starting a turn.
     const [apps, mcpServers] = await Promise.all([
-      this.listApps(),
-      this.listMcpServers(),
+      project.appIds.length > 0 ? this.listApps() : Promise.resolve([]),
+      project.mcpServerIds.length > 0
+        ? this.listMcpServers()
+        : Promise.resolve([]),
     ]);
 
     const selectedApps = new Set(project.appIds);
