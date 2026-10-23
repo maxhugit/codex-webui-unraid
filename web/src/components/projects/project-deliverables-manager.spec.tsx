@@ -41,6 +41,7 @@ const item: Deliverable = {
   conversations: [],
   version: 3,
   validatedVersionId: null,
+  activeFolder: null,
   directory: '/workspaces/p/livrables/d',
   createdAt: 1,
   updatedAt: 2,

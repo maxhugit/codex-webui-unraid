@@ -13,6 +13,7 @@ import { ThreadMetadataService } from './thread-metadata.service';
 import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 import { ProjectConnectionPolicyService } from './project-connection-policy.service';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
+import { ActiveFoldersService } from '../active-folders/active-folders.service';
 
 /** Branch state as the local-only service reports it for an untracked thread. */
 function localBranchState(threadId: string) {
@@ -76,10 +77,12 @@ describe('ThreadsService', () => {
     policyForCwd: vi.fn(),
   };
   const mockKnowledge = { contextForConversation: vi.fn() };
+  const mockActiveFolders = { resolveAgent: vi.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: ActiveFoldersService, useValue: mockActiveFolders },
         { provide: ProjectKnowledgeService, useValue: mockKnowledge },
         ThreadsService,
         { provide: CodexService, useValue: mockCodex },
@@ -111,6 +114,7 @@ describe('ThreadsService', () => {
     service = module.get(ThreadsService);
     mockCodex.request.mockReset();
     mockKnowledge.contextForConversation.mockReset();
+    mockActiveFolders.resolveAgent.mockReset();
     mockKnowledge.contextForConversation.mockResolvedValue(null);
     Object.values(mockResumeRegistry).forEach((mock) => mock.mockReset());
     Object.values(mockBranches).forEach((mock) => mock.mockReset());

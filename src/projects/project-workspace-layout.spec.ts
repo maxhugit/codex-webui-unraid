@@ -27,6 +27,7 @@ import { ProjectsService } from './projects.service';
 import { DeliverablesService } from '../deliverables/deliverables.service';
 import { IdentityService } from '../auth/identity.service';
 import { ProjectKnowledgeService } from '../project-knowledge/project-knowledge.service';
+import { ActiveFoldersService } from '../active-folders/active-folders.service';
 import {
   PROJECT_WORKSPACE_INSTRUCTIONS,
   LEGACY_PROJECT_WORKSPACE_INSTRUCTIONS,
@@ -227,6 +228,7 @@ describe('permanent project workspaces', () => {
       database.db,
       files,
       new IdentityService(database.db),
+      new ActiveFoldersService(database.db),
     );
     const migratedFile = await service.file('project-id', 'r', 'd', 'v', 0);
     const migratedDocument = await service.documentVersionFile(
@@ -744,9 +746,9 @@ describe('permanent project workspaces', () => {
       .from(projectWorkspaces)
       .all()
       .find((w) => w.primary)!;
-    await expect(
-      service.detachWorkspace('project-id', primary.id),
-    ).rejects.toThrow('only be removed with its project');
+    expect(() => service.detachWorkspace('project-id', primary.id)).toThrow(
+      'only be removed with its project',
+    );
     expect(() => service.setDefaultWorkspace('project-id', 'legacy')).toThrow(
       'permanent',
     );

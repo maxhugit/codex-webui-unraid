@@ -26,6 +26,7 @@ import { SECURITY_SETTING_KEYS } from '../settings/settings.definitions';
 import { ProjectsService } from '../projects/projects.service';
 import { IdentityService } from '../auth/identity.service';
 import { accessContext } from '../auth/access-context';
+import { ActiveFoldersService } from '../active-folders/active-folders.service';
 
 describe('project deliverables', () => {
   let database: TestDatabase,
@@ -85,6 +86,7 @@ describe('project deliverables', () => {
       database.db,
       files,
       new IdentityService(database.db),
+      new ActiveFoldersService(database.db),
     );
   });
   it('associates one main task from the project and clears it when the task is deleted', async () => {
@@ -808,7 +810,9 @@ describe('project deliverables', () => {
       title: 'Agent output',
       criteria: 'Publishable',
     });
-    expect(service.agentWorkspace('p', 'r', item.id, 1)).toBe(root);
+    expect(service.agentWorkspace('p', 'r', item.id, 1)).toBe(
+      path.join(root, 'livrables', item.id),
+    );
     service.registerAgent('p', 'r', item.id, 1, 'new-agent');
     expect(service.contextForConversation('new-agent')).toContain(
       'Publishable',

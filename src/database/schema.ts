@@ -1033,6 +1033,37 @@ export const projectWorkspaces = sqliteTable(
 export type ProjectWorkspace = typeof projectWorkspaces.$inferSelect;
 export type InsertProjectWorkspace = typeof projectWorkspaces.$inferInsert;
 
+/**
+ * Stable folder selected by one project context.
+ *
+ * resourceId intentionally has no foreign key: detaching a secondary resource
+ * must keep the reference so the user can repair it instead of silently being
+ * moved to the primary workspace.
+ */
+export const projectActiveFolders = sqliteTable(
+  'project_active_folders',
+  {
+    contextType: text('context_type')
+      .$type<'agent' | 'simple_chat' | 'task' | 'deliverable'>()
+      .notNull(),
+    contextId: text('context_id').notNull(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    resourceId: text('resource_id').notNull(),
+    relativePath: text('relative_path').notNull().default(''),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.contextType, table.contextId] }),
+    index('idx_project_active_folders_project').on(table.projectId),
+    index('idx_project_active_folders_resource').on(table.resourceId),
+  ],
+);
+
+export type ProjectActiveFolder = typeof projectActiveFolders.$inferSelect;
+
 /** Explicit project membership for Codex work-agent conversations. */
 export const projectAgentThreads = sqliteTable(
   'project_agent_threads',

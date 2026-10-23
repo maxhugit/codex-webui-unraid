@@ -407,6 +407,7 @@
   "plannedEnd": "Fin prévue",
   "acceptanceCriteria": "Conditions de validation / recette",
   "workingFolder": "Dossier de travail",
+  "activeFolderNeedsResolution": "À résoudre : sélectionnez un dossier actif disponible avant la prochaine opération.",
   "priority": "Priorité",
   "status": "Statut",
   "subtaskStatus": "Statut de la sous-tâche",

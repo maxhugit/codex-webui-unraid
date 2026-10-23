@@ -56,6 +56,7 @@ import {
 import { ThreadWorkspaceOverridesService } from './thread-workspace-overrides.service';
 import { ThreadMetadataService } from './thread-metadata.service';
 import { ProjectConnectionPolicyService } from './project-connection-policy.service';
+import { ActiveFoldersService } from '../active-folders/active-folders.service';
 
 /** Maximum ancestors walked when a fork chain is not locally tracked. */
 const MAX_FORK_CHAIN_WALK = 32;
@@ -85,6 +86,7 @@ export class ThreadsService {
     private readonly workspaceOverrides: ThreadWorkspaceOverridesService,
     private readonly metadata: ThreadMetadataService,
     private readonly projectConnections: ProjectConnectionPolicyService,
+    private readonly activeFolders: ActiveFoldersService,
     @Optional() private readonly knowledge?: ProjectKnowledgeService,
     @Optional() private readonly deliverables?: DeliverablesService,
   ) {}
@@ -417,9 +419,11 @@ export class ThreadsService {
     // `thread/resume` does not reliably replace the cwd of an app-server
     // session that is already loaded. A sidebar workspace move is persisted
     // independently, so make that persisted choice authoritative for every
-    // subsequent turn as well. This keeps Codex tool execution aligned with
-    // the Explorer and conversation terminals across tabs and reconnects.
-    const workspaceCwd = this.workspaceOverrides.get(params.threadId);
+    // subsequent turn as well. Explorer navigation remains independent from
+    // this execution context.
+    const activeCwd = this.activeFolders.resolveAgent(params.threadId);
+    const workspaceCwd =
+      activeCwd ?? this.workspaceOverrides.get(params.threadId);
     const effectiveCwd = workspaceCwd ?? params.cwd ?? beforeTurn?.cwd ?? null;
     const projectPolicy =
       await this.projectConnections.policyForCwd(effectiveCwd);

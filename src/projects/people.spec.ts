@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import * as fsp from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import {
   createTestDatabase,
   type TestDatabase,
@@ -9,14 +12,19 @@ import {
   projectTaskStatuses,
   projectTasks,
   projectTaskActivity,
+  projectWorkspaces,
 } from '../database/schema';
 import { ProjectsService } from './projects.service';
 
 describe('people and task responsibility', () => {
   let database: TestDatabase;
   let service: ProjectsService;
-  beforeEach(() => {
+  let workspacePath: string;
+  beforeEach(async () => {
     database = createTestDatabase();
+    workspacePath = await fsp.mkdtemp(
+      path.join(os.tmpdir(), 'people-project-'),
+    );
     service = new ProjectsService(
       null as never,
       null as never,
@@ -33,7 +41,19 @@ describe('people and task responsibility', () => {
       .values({
         id: 'p',
         name: 'Test',
-        workspacePath: '/test',
+        workspacePath,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .run();
+    database.db
+      .insert(projectWorkspaces)
+      .values({
+        id: 'workspace',
+        projectId: 'p',
+        name: 'Principal',
+        path: workspacePath,
+        primary: true,
         createdAt: timestamp,
         updatedAt: timestamp,
       })
@@ -65,7 +85,10 @@ describe('people and task responsibility', () => {
       })
       .run();
   });
-  afterEach(() => database.sqlite.close());
+  afterEach(async () => {
+    database.sqlite.close();
+    await fsp.rm(workspacePath, { recursive: true, force: true });
+  });
   const person = (reference = 'MD-001', name = 'Marie Dupont') => ({
     reference,
     firstName: name.split(' ')[0],
@@ -193,8 +216,10 @@ describe('people and task responsibility', () => {
     expect(created.groups).toHaveLength(1);
     expect(created.groups[0]).toMatchObject({
       name: 'Direction',
-      memberIds: [first.id, second.id],
     });
+    expect(new Set(created.groups[0].memberIds)).toEqual(
+      new Set([first.id, second.id]),
+    );
     expect(() =>
       service.savePersonGroup('p', {
         name: 'direction',

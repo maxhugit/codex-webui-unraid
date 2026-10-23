@@ -407,6 +407,7 @@
   "plannedEnd": "Planned end",
   "acceptanceCriteria": "Acceptance criteria",
   "workingFolder": "Working folder",
+  "activeFolderNeedsResolution": "Needs resolution: select an available active folder before the next operation.",
   "priority": "Priority",
   "status": "Status",
   "subtaskStatus": "Subtask status",

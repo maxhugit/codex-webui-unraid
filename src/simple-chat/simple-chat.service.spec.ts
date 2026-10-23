@@ -2,8 +2,8 @@ import { eq } from 'drizzle-orm';
 import { createTestDatabase } from '../database/database.testing';
 import {
   projects,
+  projectWorkspaces,
   simpleChatMessages,
-  simpleChatThreads,
 } from '../database/schema';
 import type { ThreadsService } from '../threads/threads.service';
 import { SimpleChatService } from './simple-chat.service';
@@ -13,9 +13,18 @@ import type { KnowledgeProposalsService } from '../project-knowledge/knowledge-p
 describe('SimpleChatService execution backend', () => {
   const database = createTestDatabase();
   const runProjectStructuredPrompt = vi.fn();
-  const service = new SimpleChatService(database.db, {
-    runProjectStructuredPrompt,
-  } as unknown as ThreadsService);
+  const activeFolders = {
+    set: vi.fn(),
+    get: vi.fn(() => null),
+    resolve: vi.fn(() => '/workspaces/project'),
+  };
+  const service = new SimpleChatService(
+    database.db,
+    {
+      runProjectStructuredPrompt,
+    } as unknown as ThreadsService,
+    activeFolders as never,
+  );
 
   beforeEach(() => {
     database.db.delete(simpleChatMessages).run();
@@ -30,6 +39,19 @@ describe('SimpleChatService execution backend', () => {
         appIds: [],
         agentModel: 'gpt-project',
         agentReasoningEffort: 'high',
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      .onConflictDoNothing()
+      .run();
+    database.db
+      .insert(projectWorkspaces)
+      .values({
+        id: 'workspace-1',
+        projectId: 'project-1',
+        name: 'Primary',
+        path: '/workspaces/project',
+        primary: true,
         createdAt: 1,
         updatedAt: 1,
       })
@@ -95,6 +117,7 @@ describe('SimpleChatService execution backend', () => {
     const simple = new SimpleChatService(
       database.db,
       { runProjectStructuredPrompt } as unknown as ThreadsService,
+      activeFolders as never,
       undefined,
       { capture } as unknown as KnowledgeProposalsService,
     );
@@ -128,6 +151,7 @@ describe('SimpleChatService execution backend', () => {
     const simple = new SimpleChatService(
       database.db,
       { runProjectStructuredPrompt } as unknown as ThreadsService,
+      activeFolders as never,
       { contextForProject } as unknown as ProjectKnowledgeService,
     );
     simple.setBackend('openai');
@@ -165,14 +189,10 @@ describe('SimpleChatService execution backend', () => {
     response.mockRestore();
   });
 
-  it('keeps an existing conversation in its active workspace after the project primary changes', async () => {
+  it('uses the stable active folder after the project primary changes', async () => {
     service.setBackend('codex');
     const created = service.createThread({ projectId: 'project-1' });
-    database.db
-      .update(simpleChatThreads)
-      .set({ cwd: '/workspaces/legacy' })
-      .where(eq(simpleChatThreads.id, created.thread.id))
-      .run();
+    activeFolders.resolve.mockReturnValueOnce('/workspaces/legacy');
     runProjectStructuredPrompt.mockResolvedValue('Réponse');
     await service.respond(created.thread.id, { message: 'Continue' });
     expect(runProjectStructuredPrompt).toHaveBeenCalledWith(

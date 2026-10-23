@@ -39,6 +39,7 @@ import {
 import { FilesService } from '../files/files.service';
 import { IdentityService } from '../auth/identity.service';
 import { PROJECT_SYSTEM_DIRECTORY } from '../projects/workspace-structure';
+import { ActiveFoldersService } from '../active-folders/active-folders.service';
 
 type Item = typeof items.$inferSelect;
 export type DeliverableLifecycleStatus =
@@ -96,6 +97,7 @@ export class DeliverablesService {
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
     private readonly files: FilesService,
     private readonly identities: IdentityService,
+    private readonly activeFolders: ActiveFoldersService,
   ) {}
   contextForConversation(
     threadId: string,
@@ -143,7 +145,9 @@ export class DeliverablesService {
               .filter((item) => this.canAccessDeliverable(projectId, item))
               .map((item) => ({
                 ...item,
-                directory: path.join(item.workspace, 'livrables', item.id),
+                directory:
+                  this.activeFolders.get('deliverable', item.id)
+                    ?.effectivePath ?? null,
               })),
           ) +
           '\n</project_deliverable_context>'
@@ -157,7 +161,7 @@ export class DeliverablesService {
   ) {
     if (this.get(projectId, resourceId, id).version !== version)
       throw new ConflictException('Deliverable changed');
-    return this.resource(projectId, resourceId).project.workspacePath;
+    return this.activeFolders.resolve('deliverable', id);
   }
   registerAgent(
     projectId: string,
@@ -196,6 +200,19 @@ export class DeliverablesService {
           'Deliverable changed during agent creation',
         );
     });
+    const folder = this.activeFolders.get('deliverable', id);
+    if (!folder || folder.state !== 'ready')
+      throw new ConflictException('Deliverable active folder is unresolved');
+    this.activeFolders.set(
+      projectId,
+      'agent',
+      threadId,
+      {
+        resourceId: folder.resourceId,
+        relativePath: folder.relativePath,
+      },
+      { allowUnboundAgent: true },
+    );
   }
   versionFiles(
     projectId: string,
@@ -441,6 +458,7 @@ export class DeliverablesService {
       ...this.options(projectId),
       deliverables: records.map((item) => ({
         ...item,
+        activeFolder: this.activeFolders.get('deliverable', item.id),
         validationStatus: this.effectiveValidationStatus(
           item,
           documentRows.filter(
@@ -453,11 +471,9 @@ export class DeliverablesService {
             (validation) => validation.deliverableId === item.id,
           ),
         ),
-        directory: path.join(
-          context.project.workspacePath,
-          'livrables',
-          item.id,
-        ),
+        directory:
+          this.activeFolders.get('deliverable', item.id)?.effectivePath ??
+          path.join(context.project.workspacePath, 'livrables', item.id),
         versions: history.filter(
           (version) =>
             version.deliverableId === item.id &&
@@ -725,7 +741,7 @@ export class DeliverablesService {
       now = Date.now();
     await this.directory(projectId, ['livrables', id]);
     const actor = this.actor();
-    return this.db.transaction((tx) => {
+    const created = this.db.transaction((tx) => {
       const created = tx
         .insert(items)
         .values({ id, resourceId, ...values, createdAt: now, updatedAt: now })
@@ -744,6 +760,17 @@ export class DeliverablesService {
         .run();
       return created;
     });
+    this.activeFolders.setFromAbsolutePath(
+      projectId,
+      'deliverable',
+      id,
+      path.join(
+        this.resource(projectId, resourceId).project.workspacePath,
+        'livrables',
+        id,
+      ),
+    );
+    return created;
   }
   update(
     projectId: string,
@@ -912,6 +939,7 @@ export class DeliverablesService {
       throw new ConflictException(
         'Deliverable changed. Reload before removing.',
       );
+    this.activeFolders.removeContext('deliverable', id);
     return { ok: true, filesPreserved: true };
   }
   private async hash(file: string) {

@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import * as fsp from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { Test } from '@nestjs/testing';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AccessContextInterceptor } from './access-context.interceptor';
@@ -40,6 +43,7 @@ import { ThreadsService } from '../threads/threads.service';
 
 let app: NestFastifyApplication;
 let database: TestDatabase;
+let workspaceRoot: string;
 const proxyHeaders = (email = 'standard@example.com') => ({
   authorization: 'Bearer isolated-http-test',
   'x-webui-auth-source': 'authentik',
@@ -49,6 +53,23 @@ const proxyHeaders = (email = 'standard@example.com') => ({
 beforeEach(async () => {
   vi.stubEnv('WEBUI_REQUIRE_IDENTITY', 'true');
   database = createTestDatabase();
+  workspaceRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'platform-access-'));
+  const memberWorkspace = path.join(workspaceRoot, 'member');
+  const outsideWorkspace = path.join(workspaceRoot, 'outside');
+  await Promise.all(
+    [
+      [memberWorkspace, 'member-project'],
+      [outsideWorkspace, 'outside-project'],
+    ].map(async ([workspace, projectId]) => {
+      await fsp.mkdir(path.join(workspace, '.mergeron', 'knowledge'), {
+        recursive: true,
+      });
+      await fsp.writeFile(
+        path.join(workspace, '.mergeron', 'project.json'),
+        JSON.stringify({ projectId, layoutVersion: 2 }),
+      );
+    }),
+  );
   database.db
     .insert(people)
     .values(
@@ -74,16 +95,16 @@ beforeEach(async () => {
       {
         id: 'member-project',
         name: 'Member project',
-        workspacePath: '/workspaces/member',
-        workspaceLayoutVersion: 1,
+        workspacePath: memberWorkspace,
+        workspaceLayoutVersion: 2,
         createdAt: 1,
         updatedAt: 1,
       },
       {
         id: 'outside-project',
         name: 'Outside project',
-        workspacePath: '/workspaces/outside',
-        workspaceLayoutVersion: 1,
+        workspacePath: outsideWorkspace,
+        workspaceLayoutVersion: 2,
         createdAt: 1,
         updatedAt: 1,
       },
@@ -181,6 +202,7 @@ it('blocks private deliverable sources, private snapshot downloads and agent exe
 afterEach(async () => {
   await app.close();
   database.sqlite.close();
+  await fsp.rm(workspaceRoot, { recursive: true, force: true });
   vi.unstubAllEnvs();
 });
 

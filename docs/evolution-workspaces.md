@@ -72,3 +72,11 @@ Recette : aperçu conforme au transfert, conflits sans écrasement silencieux, s
 Sauvegarder ensemble la base et les volumes. Exécuter la migration avec une seule instance active, avant les automatisations. Une collision arrête le démarrage ; résoudre le conflit à partir de la sauvegarde, sans fusion automatique. Si une interruption survient après le renommage du dossier et avant la mise à jour de la base, le démarrage suivant reprend la transaction.
 
 La migration v2 ne change pas encore les dossiers actifs, les secondaires ou les permissions des modules. Les protections des API de fichiers ne remplacent pas l'isolation des commandes exécutées directement sur le serveur. Consulter les [règles d'exploitation des workspaces](workspaces-projets.md) pour le retour arrière et les dossiers manquants.
+
+## Mise en œuvre de la deuxième PR
+
+La table `project_active_folders` stocke le type et l'identifiant du contexte, le projet, la ressource locale et le chemin relatif. Le service commun résout cette référence au moment de l'opération et expose les états `ready`, `detached`, `missing` et `invalid`. La référence à une ressource détachée est volontairement conservée afin de rendre le problème réparable.
+
+Le rattrapage au démarrage reprend les chemins absolus des agents, conversations simples, tâches et livrables sans déplacer de fichiers. Il sélectionne uniquement une ressource du même projet contenant déjà le chemin. Le détachement d'un secondaire ne réaffecte aucune activité. Les vues de tâches et de livrables signalent les références qui demandent une correction, et les réponses de l'API exposent la ressource, le chemin relatif, le chemin effectif et l'état.
+
+Les nouvelles opérations des agents résolvent d'abord la tâche liée, puis le défaut de l'agent. Les conversations simples utilisent leur propre référence. La navigation de l'explorateur demeure un état d'interface indépendant. Les ressources distantes, copies locales et transferts restent dans les PR 3 à 5.
