@@ -8,7 +8,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/maxhugit/codex-webui-unraid/issues</Support>
   <Project>https://github.com/maxhugit/codex-webui-unraid</Project>
-  <Overview>Application Codex WebUI. Le backend n'expose aucun port directement et sort sur Internet uniquement par le proxy Squid.</Overview>
+  <Overview>Application Mergeron. Le backend n'expose aucun port directement et sort sur Internet uniquement par le proxy Squid.</Overview>
   <Category>Productivity: Tools:</Category>
   <WebUI>https://codex.example.com</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/deployment/docker-man/my-codex-webui.xml</TemplateURL>

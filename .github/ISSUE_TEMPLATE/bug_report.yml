@@ -1,5 +1,5 @@
 name: Signaler un bug
-description: Signaler un défaut de Codex WebUI ou du déploiement Unraid
+description: Signaler un défaut de Mergeron ou du déploiement Unraid
 title: "[Bug] "
 labels: ["bug"]
 body:

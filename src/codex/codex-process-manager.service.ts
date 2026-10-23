@@ -307,7 +307,7 @@ export class CodexProcessManager implements OnModuleInit, OnModuleDestroy {
       const initialized = await current.initialize({
         clientInfo: {
           name: 'codex_webui',
-          title: 'Codex WebUI',
+          title: 'Mergeron',
           version: '0.1.0',
         },
         capabilities: { experimentalApi: true, requestAttestation: false },

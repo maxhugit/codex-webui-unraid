@@ -8,7 +8,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/maxhugit/codex-webui-unraid/issues</Support>
   <Project>https://github.com/maxhugit/codex-webui-unraid</Project>
-  <Overview>Proxy Squid de sortie de Codex WebUI. Il applique la liste des destinations autorisées et ne publie aucun port sur l'hôte.</Overview>
+  <Overview>Proxy Squid de sortie de Mergeron. Il applique la liste des destinations autorisées et ne publie aucun port sur l'hôte.</Overview>
   <Category>Network:Proxy</Category>
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/deployment/docker-man/my-codex-web-squid.xml</TemplateURL>

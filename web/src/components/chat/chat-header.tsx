@@ -1,4 +1,5 @@
 import { translationKey } from '@/locales/translation-key';
+import { BrandIcon } from '@/components/brand-icon';
 import { useState } from 'react';
 import {
   Check,
@@ -348,8 +349,11 @@ export function ChatHeader() {
               {simpleChatTitle}
             </h1>
           ) : (
-            <h1 className="text-lg font-semibold tracking-tight">
-              {pathname === '/help' ? t('platformGuide') : 'Codex WebUI'}
+            <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              {pathname !== '/help' && (
+                <BrandIcon className="h-7 w-7 shrink-0" />
+              )}
+              {pathname === '/help' ? t('platformGuide') : 'Mergeron'}
             </h1>
           )}
         </div>

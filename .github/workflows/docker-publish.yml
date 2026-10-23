@@ -12,7 +12,8 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Keep updates working for existing installations after the repository rename.
+  IMAGE_NAME: maxhugit/codex-webui-unraid
 
 jobs:
   quality:

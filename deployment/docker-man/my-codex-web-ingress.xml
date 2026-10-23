@@ -8,7 +8,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/maxhugit/codex-webui-unraid/issues</Support>
   <Project>https://github.com/maxhugit/codex-webui-unraid</Project>
-  <Overview>Passerelle Nginx entre Traefik/Authentik et Codex WebUI. Elle injecte le jeton backend sans l'exposer au navigateur.</Overview>
+  <Overview>Passerelle Nginx entre Traefik/Authentik et Mergeron. Elle injecte le jeton backend sans l'exposer au navigateur.</Overview>
   <Category>Network:Proxy</Category>
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/maxhugit/codex-webui-unraid/main/deployment/docker-man/my-codex-web-ingress.xml</TemplateURL>

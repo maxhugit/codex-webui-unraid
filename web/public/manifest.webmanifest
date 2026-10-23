@@ -1,14 +1,14 @@
 {
   "id": "/",
-  "name": "Codex WebUI",
-  "short_name": "Codex",
-  "description": "Accès sécurisé à une instance Codex auto-hébergée",
+  "name": "Mergeron",
+  "short_name": "Mergeron",
+  "description": "Espace collaboratif auto-hébergé pour les projets, le code et les agents IA",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
-  "background_color": "#0b0b10",
-  "theme_color": "#0b0b10",
+  "background_color": "#29282e",
+  "theme_color": "#29282e",
   "orientation": "any",
   "icons": [
     {
@@ -21,7 +21,13 @@
       "src": "/pwa-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [

@@ -25,7 +25,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GHCR_OWNER: ${{ github.repository_owner }}
-      GHCR_PACKAGE: ${{ github.event.repository.name }}
+      GHCR_PACKAGE: codex-webui-unraid
       KEEP_SHA_VERSIONS: '10'
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
 

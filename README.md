@@ -1,7 +1,14 @@
-# Codex WebUI pour le homelab Unraid
+# Mergeron
 
-Ce dépôt contient le code et le déploiement d’une interface Codex auto-hébergée.
-Le moteur Codex s’exécute sur Unraid ; le navigateur sert uniquement d’interface.
+Mergeron est un espace collaboratif auto-hébergé pour piloter les projets,
+les conversations, les documents et les agents de développement. Il s’installe
+avec Docker Compose ou les formulaires Unraid. Codex est le moteur de
+développement actuellement intégré, pas le nom de la plateforme.
+
+L’icône graphite-cuivre est commune au web et à la PWA. Son original vectoriel
+se trouve dans [`web/public/mergeron-icon.svg`](web/public/mergeron-icon.svg).
+Les identifiants techniques historiques (image GHCR, conteneurs, variables,
+volumes et clés de stockage) sont conservés pour les installations existantes.
 
 Il s’agit d’une adaptation du projet
 [`LimLLL/codex-webui`](https://github.com/LimLLL/codex-webui), publiée sous

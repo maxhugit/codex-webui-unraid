@@ -228,7 +228,7 @@ Renseigner l’adresse publique du Document Server :
 https://office.example.com
 ```
 
-Le secret JWT doit être identique dans OnlyOffice et dans Codex WebUI. Le serveur
+Le secret JWT doit être identique dans OnlyOffice et dans Mergeron. Le serveur
 OnlyOffice doit pouvoir rappeler les routes de document autorisées sur le
 domaine public de Codex. Tester l’ouverture puis l’enregistrement d’un document de
 test avant d’utiliser un fichier important.

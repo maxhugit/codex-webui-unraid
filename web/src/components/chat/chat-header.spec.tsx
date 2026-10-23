@@ -73,7 +73,7 @@ describe('ChatHeader', () => {
       screen.getByRole('heading', { name: 'Actualités tech' }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole('heading', { name: 'Codex WebUI' }),
+      screen.queryByRole('heading', { name: 'Mergeron' }),
     ).not.toBeInTheDocument();
   });
 
@@ -81,7 +81,7 @@ describe('ChatHeader', () => {
     renderHeader();
 
     expect(
-      screen.getByRole('heading', { name: 'Codex WebUI' }),
+      screen.getByRole('heading', { name: 'Mergeron' }),
     ).toBeInTheDocument();
     expect(screen.queryByText('Titre conservé')).not.toBeInTheDocument();
   });
@@ -92,7 +92,7 @@ describe('ChatHeader', () => {
 
     expect(screen.getByText('Titre conservé')).toBeInTheDocument();
     expect(
-      screen.queryByRole('heading', { name: 'Codex WebUI' }),
+      screen.queryByRole('heading', { name: 'Mergeron' }),
     ).not.toBeInTheDocument();
   });
 
@@ -108,7 +108,7 @@ describe('ChatHeader', () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole('heading', { name: 'Codex WebUI' }),
+      screen.queryByRole('heading', { name: 'Mergeron' }),
     ).not.toBeInTheDocument();
   });
 });

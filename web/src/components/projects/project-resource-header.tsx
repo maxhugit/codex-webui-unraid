@@ -25,9 +25,7 @@ export function ProjectResourceHeader({
       </h1>
     );
   if (!board || board.resource.type !== 'task_board') {
-    return (
-      <h1 className="text-lg font-semibold tracking-tight">Codex WebUI</h1>
-    );
+    return <h1 className="text-lg font-semibold tracking-tight">Mergeron</h1>;
   }
   const count = countOpenBoardActions(board);
   return (

@@ -60,7 +60,7 @@ it('renders the board name and only open actions in the compact header', () => {
     screen.getByRole('heading', { name: 'Gestionnaire de tâches' }),
   ).toBeInTheDocument();
   expect(screen.getByText('2 open actions')).toBeInTheDocument();
-  expect(screen.queryByText('Codex WebUI')).toBeNull();
+  expect(screen.queryByText('Mergeron')).toBeNull();
 });
 it('updates immediately from the same query cache used by the task manager', async () => {
   const { client } = setup();
@@ -80,7 +80,7 @@ it('keeps the generic header for automation boards', () => {
   automation.resource.type = 'automation_board';
   setup(automation);
   expect(
-    screen.getByRole('heading', { name: 'Codex WebUI' }),
+    screen.getByRole('heading', { name: 'Mergeron' }),
   ).toBeInTheDocument();
   expect(screen.queryByText('2 open actions')).toBeNull();
 });
