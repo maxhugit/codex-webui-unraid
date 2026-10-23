@@ -185,7 +185,7 @@ export function ProjectDeliverablesManager({
     );
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:p-6">
+      <div className="w-full space-y-4 p-4 md:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{t('deliverables')}</h1>
@@ -360,8 +360,8 @@ function DeliverablesList({
     DeliverablesBoard['tasks'][number] | null
   >(null);
   return (
-    <div>
-      <div className="hidden grid-cols-[minmax(210px,2fr)_80px_130px_130px_minmax(170px,1.2fr)_130px_130px] gap-3 border-b bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground xl:grid">
+    <div className="@container">
+      <div className="hidden grid-cols-[minmax(0,2fr)_65px_120px_120px_minmax(0,1.5fr)_120px_95px] gap-3 border-b bg-muted/40 px-4 py-3 text-xs font-medium text-muted-foreground @min-[68rem]:grid">
         <span>{t('title')}</span>
         <span>{t('documents')}</span>
         <span>{t('status')}</span>
@@ -381,11 +381,11 @@ function DeliverablesList({
           return (
             <div
               key={item.id}
-              className="grid w-full gap-3 px-4 py-4 text-left transition-colors hover:bg-accent/60 xl:grid-cols-[minmax(210px,2fr)_80px_130px_130px_minmax(170px,1.2fr)_130px_130px] xl:items-center"
+              className="grid w-full grid-cols-2 items-center gap-x-4 gap-y-2 px-4 py-3 text-left transition-colors hover:bg-accent/60 @min-[36rem]:grid-cols-3 @min-[68rem]:grid-cols-[minmax(0,2fr)_65px_120px_120px_minmax(0,1.5fr)_120px_95px] @min-[68rem]:gap-3"
             >
               <button
                 type="button"
-                className="min-w-0 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="col-span-full min-w-0 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring @min-[68rem]:col-span-1"
                 onClick={() => onSelect(item.id)}
               >
                 <strong className="block truncate">{item.title}</strong>
@@ -394,7 +394,7 @@ function DeliverablesList({
                 </span>
               </button>
               <span className="flex items-center gap-2 text-sm">
-                <span className="text-xs text-muted-foreground xl:hidden">
+                <span className="text-xs text-muted-foreground @min-[68rem]:hidden">
                   {t('documents')}:
                 </span>
                 <FileText className="h-4 w-4 text-muted-foreground" />
