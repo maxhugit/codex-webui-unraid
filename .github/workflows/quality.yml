@@ -49,6 +49,7 @@ jobs:
           python3 scripts/check-markdown-links.py
           python3 -m unittest discover -s scripts -p 'test_*vex.py'
           python3 -m unittest discover -s scripts -p test_openssh_backport.py
+          python3 -m unittest discover -s scripts -p test_libxml2_backport.py
 
       - name: Validate translation catalogs
         run: pnpm --dir web check:i18n
@@ -99,7 +100,7 @@ jobs:
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -181,6 +182,13 @@ jobs:
           jq -r '.Results[]? | select(.Type == "gobinary" and (.Target | ltrimstr("/")) == "usr/local/bin/gh") | .Vulnerabilities[]? | [.Severity, .PkgName, .InstalledVersion, .VulnerabilityID, (.FixedVersion // "")] | @tsv' trivy-quality-results.json
           jq -e '[.Results[]? | select(.Type == "gobinary" and (.Target | ltrimstr("/")) == "usr/local/bin/gh") | .Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length == 0' trivy-quality-results.json
 
+      - name: Verify patched libxml2 and real Office conversions
+        env:
+          IMAGE_REF: codex-webui-unraid:quality-${{ github.sha }}
+        run: |
+          scripts/smoke-test-office-image.sh "$IMAGE_REF" > office-xml-evidence.json
+          python3 scripts/audit-libxml2-backport.py trivy-quality-results.raw.json office-xml-evidence.json
+
       - name: Verify corrected OpenSSH sources and retain raw scan findings
         run: python3 scripts/audit-openssh-backport.py trivy-quality-results.raw.json ssh-client-evidence.json
 
@@ -193,6 +201,8 @@ jobs:
             trivy-quality-results.json
             trivy-quality-results.raw.json
             trivy-quality-results.headers.json
+            office-xml-evidence.json
+            security/libxml2-patches/manifest.json
             ssh-client-evidence.json
             system-component-evidence.json
             image.openvex.json

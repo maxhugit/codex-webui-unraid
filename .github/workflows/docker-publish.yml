@@ -122,6 +122,13 @@ jobs:
           docker buildx build --file Dockerfile.unraid --target ssh-test-server --load --tag webui-ssh-fixture .
           scripts/smoke-test-ssh-image.sh "$IMAGE_REF" webui-ssh-fixture > ssh-client-evidence.json
 
+      - name: Verify patched libxml2 and real Office conversions
+        env:
+          IMAGE_REF: ${{ steps.candidate.outputs.tags }}
+        run: |
+          scripts/smoke-test-office-image.sh "$IMAGE_REF" > office-xml-evidence.json
+          python3 scripts/audit-libxml2-backport.py trivy-results.raw.json office-xml-evidence.json
+
       - name: Verify corrected OpenSSH sources and retain raw scan findings
         run: python3 scripts/audit-openssh-backport.py trivy-results.raw.json ssh-client-evidence.json
 
@@ -154,6 +161,8 @@ jobs:
             trivy-results.json
             trivy-results.raw.json
             trivy-results.headers.json
+            office-xml-evidence.json
+            security/libxml2-patches/manifest.json
             ssh-client-evidence.json
             system-component-evidence.json
             image.openvex.json
