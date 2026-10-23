@@ -115,10 +115,8 @@ jobs:
           trivy image --cache-dir .cache/trivy --skip-db-update --scanners vuln --severity HIGH,CRITICAL --vex image.openvex.json --format json --output trivy-results.json "$IMAGE_REF"
           python3 scripts/audit-system-component-vex.py audit system-component-evidence.json trivy-results.headers.json trivy-results.json
 
-      - name: Require no raw HIGH or CRITICAL OpenSSH findings
-        run: |
-          jq -e 'any(.Results[]?.Packages[]?; .Name == "openssh-client-gssapi")' trivy-results.raw.json
-          jq -e '[.Results[]?.Vulnerabilities[]? | select((.PkgName | startswith("openssh-")) and (.Severity == "HIGH" or .Severity == "CRITICAL"))] | length == 0' trivy-results.raw.json
+      - name: Verify corrected OpenSSH sources and retain raw scan findings
+        run: python3 scripts/audit-openssh-backport.py trivy-results.raw.json ssh-client-evidence.json
 
       - name: Test real SSH and Git transfers against an isolated server
         env:

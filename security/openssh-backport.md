@@ -18,8 +18,16 @@ The old client is replaced through apt/dpkg, not shadowed with another binary.
 This fixes the client-side use-after-free during host-key re-exchange
 (CVE-2026-60002, fixed upstream in 10.4) and unsafe command-line username handling
 (CVE-2026-106583, fixed in 10.6). The four old server-only VEX statements are
-removed; no SSH alert is hidden by an applicability statement. A new gate requires
-zero HIGH or CRITICAL OpenSSH findings in the **raw** Trivy report.
+removed; no SSH alert is hidden by an applicability statement. The raw scan is never filtered for SSH. Trivy's Debian detector treats Trixie
+advisories with no FixedVersion as affecting every source version, including this
+10.6p1 rebuild. Therefore known, source-fixed CVEs can remain in raw and final
+reports. A gate instead binds the exact binary/source package versions to real
+transfer/security test evidence; it fails on unknown SSH CVEs, changed versions,
+or newly available Debian fixed-version metadata. It does not edit either report.
+
+The helper dependency `systemd-standalone-sysusers` creates Debian's _ssh group
+without adding systemd as an init system; its systemd-homed source-family alert
+also remains visible. No VEX is added for this dependency.
 
 The isolated SSH fixture runs only in CI on an internal Docker network, with no
 published port or personal credentials. Ephemeral keys and containers are removed
@@ -36,3 +44,5 @@ Sources:
 - https://security-tracker.debian.org/tracker/CVE-2026-106583
 - https://deb.debian.org/debian/pool/main/o/openssh/openssh_10.6p1-1.dsc
 - https://deb.debian.org/debian/pool/main/o/openssh-gssapi/openssh-gssapi_10.6p1-1.dsc
+
+Detector behavior: https://github.com/aquasecurity/trivy/blob/v0.76.1/pkg/detector/ospkg/debian/debian.go#L103-L107

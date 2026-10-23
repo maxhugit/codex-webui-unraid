@@ -48,6 +48,7 @@ jobs:
           python3 scripts/check-no-chinese.py
           python3 scripts/check-markdown-links.py
           python3 -m unittest discover -s scripts -p 'test_*vex.py'
+          python3 -m unittest discover -s scripts -p test_openssh_backport.py
 
       - name: Validate translation catalogs
         run: pnpm --dir web check:i18n
@@ -180,10 +181,8 @@ jobs:
           jq -r '.Results[]? | select(.Type == "gobinary" and (.Target | ltrimstr("/")) == "usr/local/bin/gh") | .Vulnerabilities[]? | [.Severity, .PkgName, .InstalledVersion, .VulnerabilityID, (.FixedVersion // "")] | @tsv' trivy-quality-results.json
           jq -e '[.Results[]? | select(.Type == "gobinary" and (.Target | ltrimstr("/")) == "usr/local/bin/gh") | .Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length == 0' trivy-quality-results.json
 
-      - name: Require no raw HIGH or CRITICAL OpenSSH findings
-        run: |
-          jq -e 'any(.Results[]?.Packages[]?; .Name == "openssh-client-gssapi")' trivy-quality-results.raw.json
-          jq -e '[.Results[]?.Vulnerabilities[]? | select((.PkgName | startswith("openssh-")) and (.Severity == "HIGH" or .Severity == "CRITICAL"))] | length == 0' trivy-quality-results.raw.json
+      - name: Verify corrected OpenSSH sources and retain raw scan findings
+        run: python3 scripts/audit-openssh-backport.py trivy-quality-results.raw.json ssh-client-evidence.json
 
       - name: Upload image security report
         if: always()
