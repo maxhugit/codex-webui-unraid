@@ -1,78 +1,165 @@
-import { translationKey } from '@/locales/translation-key';
-import { useEffect } from 'react';
-import { BookOpen } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  BookOpen,
+  Bot,
+  ClipboardCheck,
+  FolderCog,
+  LayoutDashboard,
+  ListChecks,
+  Settings,
+  TimerReset,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { translationKey } from '@/locales/translation-key';
+import { cn } from '@/lib/utils';
 import { useTimelineStore } from '@/stores/timeline-store';
 
-const topics = [
+const generalTopics = [
   {
     id: 'projects',
-    title: 'Projects',
-    paragraphs: [
-      'A project brings together conversations, workspaces, shared knowledge and optional managers. Use its + menu to create a work agent, a simple conversation, a task manager, an automation manager or a deliverables manager.',
-      'Home gives you an overview of projects, upcoming deadlines and actions that need attention. Open a project to manage its participants, settings and resources.',
-    ],
+    titleKey: 'guideProjectsTitle',
+    paragraphs: ['guideProjectsOverview', 'guideProjectsResources'],
+  },
+  {
+    id: 'documents',
+    titleKey: 'guideDocumentsTitle',
+    paragraphs: ['guideDocumentsPreview', 'guideDocumentsSafety'],
+  },
+  {
+    id: 'good-practices',
+    titleKey: 'guideGoodPracticesTitle',
+    paragraphs: ['guideGoodPracticesReview', 'guideGoodPracticesPersistence'],
+  },
+] as const;
+
+const guideTabs = [
+  {
+    id: 'general',
+    titleKey: 'generalInformation',
+    icon: LayoutDashboard,
+    topics: generalTopics,
   },
   {
     id: 'conversations',
-    title: 'Conversations and agents',
-    paragraphs: [
-      'Use a simple conversation to ask questions and discuss ideas. A work agent can inspect and modify files and run commands with the tools and permissions available to it. Describe your goal, the expected result and any constraints.',
-      'Each conversation has its own history. Shared project knowledge supplies common context to subsequent messages. Follow the conversation status and respond when the agent requests a decision or approval.',
-    ],
-  },
-  {
-    id: 'workspaces',
-    title: 'Workspaces and files',
-    paragraphs: [
-      'Every project has a permanent primary workspace identified by the project ID. Renaming the project keeps this directory. The primary workspace can only be removed when the project itself is deleted.',
-      'Secondary workspaces attach other working directories to the project. The active workspace is the directory used by a conversation; it can be primary or secondary. User files and the reserved .webui system directory have separate purposes.',
-    ],
-  },
-  {
-    id: 'knowledge',
-    title: 'Shared project knowledge',
-    paragraphs: [
-      'Use the project knowledge tab to manage common instructions, useful facts and decisions. These documents live in the primary workspace and provide shared context to conversations in the project.',
-      'Important information discussed in a conversation is not automatically established as project knowledge. Review memory proposals and accept useful changes, or edit the shared documents directly when your role permits it.',
+    titleKey: 'guideConversationsTitle',
+    icon: Bot,
+    topics: [
+      {
+        id: 'conversations-module',
+        titleKey: 'guideConversationsTitle',
+        paragraphs: [
+          'guideConversationsTypes',
+          'guideConversationsControls',
+          'guideConversationsBranches',
+        ],
+      },
     ],
   },
   {
     id: 'tasks',
-    title: 'Task manager',
-    paragraphs: [
-      'Add a task manager when the project needs action tracking. Create tasks and subtasks, assign participants, set deadlines and estimates, and follow progress through the board and planning views.',
-      'Agent assistance helps carry out work linked to a task. Review the result and its validation criteria before marking the action complete. A project can contain several task managers.',
-    ],
-  },
-  {
-    id: 'automations',
-    title: 'Automations',
-    paragraphs: [
-      'A project can add one automation manager containing several automations. Once it exists, choosing Automations again in the + menu opens that manager.',
-      'Configure what each automation should do, its target and its manual or scheduled execution. Check its run history and results. Server execution and automation management require administrator access.',
+    titleKey: 'taskManagers',
+    icon: ListChecks,
+    topics: [
+      {
+        id: 'tasks-module',
+        titleKey: 'taskManagers',
+        paragraphs: [
+          'guideTasksStructure',
+          'guideTasksViews',
+          'guideTasksAgents',
+        ],
+      },
     ],
   },
   {
     id: 'deliverables',
-    title: 'Deliverables management',
-    paragraphs: [
-      'Add the optional deliverables manager when the project needs identifiable outputs. Each record describes the expected result, responsible person, deadline and validation criteria, and can link tasks and conversations. There is one manager per project.',
-      'Working files live in the primary workspace. Submitting a version creates a separate copy for review. Explicit validation sets the reference version; preparing the next version preserves it. Removing a record or manager preserves the physical files.',
+    titleKey: 'guideDeliverablesTitle',
+    icon: ClipboardCheck,
+    topics: [
+      {
+        id: 'deliverables-module',
+        titleKey: 'guideDeliverablesTitle',
+        paragraphs: [
+          'guideDeliverablesStructure',
+          'guideDeliverablesDocuments',
+          'guideDeliverablesLifecycle',
+        ],
+      },
     ],
   },
   {
-    id: 'access',
-    title: 'Access and settings',
-    paragraphs: [
-      'Available actions depend on your role. Administrators manage platform settings, integrations and server execution. Standard users use the features allowed by their account; project participation also lets you assign work to the right person.',
-      'Project settings enable or disable available apps and MCP servers for that project. Platform Codex settings configure the server defaults, model behaviour and CLI maintenance. Ask an administrator if a feature is unavailable.',
+    id: 'automations',
+    titleKey: 'automations',
+    icon: TimerReset,
+    topics: [
+      {
+        id: 'automations-module',
+        titleKey: 'automations',
+        paragraphs: ['guideAutomationsManager', 'guideAutomationsRuns'],
+      },
     ],
   },
-];
+  {
+    id: 'project-administration',
+    titleKey: 'projectAdministration',
+    icon: FolderCog,
+    topics: [
+      {
+        id: 'project-administration-overview',
+        titleKey: 'projectAdministration',
+        paragraphs: ['guideProjectAdministrationOverview'],
+      },
+      {
+        id: 'people-and-access',
+        titleKey: 'guidePeopleAndAccessTitle',
+        paragraphs: [
+          'guidePeopleAndAccessScope',
+          'guidePeopleAndAccessOrganization',
+        ],
+      },
+      {
+        id: 'workspaces',
+        titleKey: 'guideWorkspacesTitle',
+        paragraphs: ['guideWorkspacesStructure', 'guideWorkspacesViews'],
+      },
+      {
+        id: 'knowledge',
+        titleKey: 'guideKnowledgeTitle',
+        paragraphs: ['guideKnowledgeDocuments', 'guideKnowledgeProposals'],
+      },
+      {
+        id: 'integrations',
+        titleKey: 'guideIntegrationsTitle',
+        paragraphs: [
+          'guideIntegrationsSelection',
+          'guideIntegrationsAuthentication',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'administration',
+    titleKey: 'guideAdministrationTitle',
+    icon: Settings,
+    topics: [
+      {
+        id: 'administration-module',
+        titleKey: 'guideAdministrationTitle',
+        paragraphs: [
+          'guideAdministrationAccount',
+          'guideAdministrationSettings',
+          'guideAdministrationOperations',
+        ],
+      },
+    ],
+  },
+] as const;
+
+type GuideTabId = (typeof guideTabs)[number]['id'];
 
 export function HelpRoute() {
   const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<GuideTabId>('general');
   const selectThread = useTimelineStore((state) => state.selectThread);
   useEffect(() => {
     selectThread(null);
@@ -86,57 +173,110 @@ export function HelpRoute() {
             {t('howThePlatformWorks')}
           </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            {t(
-              'organizeYourProjectsWorkWithCodexAgentsAndKeepTrackOfSharedKnowledgeActionsAndDd1196aee',
-            )}
+            {t('platformGuideIntroduction')}
           </p>
         </header>
-        <section
-          aria-labelledby="getting-started"
-          className="rounded-xl border bg-card p-4 sm:p-6"
-        >
-          <h2 id="getting-started" className="text-lg font-semibold">
-            {t('gettingStarted')}
-          </h2>
-          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed">
-            <li>{t('createAProjectFromTheBesideProjectsAndChooseItsName')}</li>
-            <li>
-              {t(
-                'addSharedInstructionsAndAttachAnySecondaryWorkspacesYouNeedInTheProjectSettings',
-              )}
-            </li>
-            <li>
-              {t(
-                'useTheProjectMenuToStartAConversationOrAddTheManagersYouNeed',
-              )}
-            </li>
-            <li>
-              {t(
-                'giveTheAgentAClearGoalFollowItsWorkThenReviewTheResultAndKeepUsefulDecisionsInScbe7d574',
-              )}
-            </li>
-          </ol>
-        </section>
-        <div className="space-y-4">
-          {topics.map((topic) => (
-            <section
-              key={topic.id}
-              aria-labelledby={topic.id}
-              className="rounded-xl border bg-card p-4 sm:p-6"
-            >
-              <h2 id={topic.id} className="scroll-mt-4 text-lg font-semibold">
-                {t(translationKey(topic.title))}
-              </h2>
-              {topic.paragraphs.map((paragraph) => (
-                <p
-                  key={paragraph}
-                  className="mt-3 text-sm leading-relaxed text-muted-foreground"
+
+        <div className="overflow-hidden rounded-xl border bg-background">
+          <div
+            role="tablist"
+            aria-label={t('guideSections')}
+            className="flex h-10 min-w-0 items-center overflow-x-auto border-b"
+            onKeyDown={(event) => {
+              if (
+                !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)
+              )
+                return;
+              const tabs = [
+                ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                  '[role="tab"]',
+                ),
+              ];
+              const current = tabs.indexOf(
+                document.activeElement as HTMLButtonElement,
+              );
+              const index =
+                event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? tabs.length - 1
+                    : (current +
+                        (event.key === 'ArrowRight' ? 1 : -1) +
+                        tabs.length) %
+                      tabs.length;
+              event.preventDefault();
+              tabs[index]?.focus();
+              tabs[index]?.click();
+            }}
+          >
+            {guideTabs.map(({ id, titleKey, icon: Icon }) => (
+              <button
+                key={id}
+                id={`guide-tab-${id}`}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === id}
+                aria-controls="guide-panel"
+                tabIndex={activeTab === id ? 0 : -1}
+                onClick={() => setActiveTab(id)}
+                className={cn(
+                  'flex h-10 shrink-0 cursor-pointer items-center gap-2 border-b-2 px-3 text-xs transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]',
+                  activeTab === id
+                    ? 'border-primary text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon aria-hidden="true" className="h-4 w-4" />
+                <span>{t(translationKey(titleKey))}</span>
+              </button>
+            ))}
+          </div>
+
+          <div
+            id="guide-panel"
+            role="tabpanel"
+            aria-labelledby={`guide-tab-${activeTab}`}
+            className="space-y-4 bg-muted/20 p-4 sm:p-6"
+          >
+            {activeTab === 'general' && (
+              <section
+                aria-labelledby="getting-started"
+                className="rounded-xl border bg-card p-4 sm:p-6"
+              >
+                <h2 id="getting-started" className="text-lg font-semibold">
+                  {t('gettingStarted')}
+                </h2>
+                <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed">
+                  <li>{t('guideGettingStartedCreate')}</li>
+                  <li>{t('guideGettingStartedOrganize')}</li>
+                  <li>{t('guideGettingStartedConfigure')}</li>
+                  <li>{t('guideGettingStartedWork')}</li>
+                  <li>{t('guideGettingStartedReview')}</li>
+                </ol>
+              </section>
+            )}
+            {guideTabs
+              .find((tab) => tab.id === activeTab)
+              ?.topics.map((topic) => (
+                <section
+                  key={topic.id}
+                  aria-labelledby={topic.id}
+                  className="rounded-xl border bg-card p-4 sm:p-6"
                 >
-                  {t(translationKey(paragraph))}
-                </p>
+                  <h2 id={topic.id} className="text-lg font-semibold">
+                    {t(translationKey(topic.titleKey))}
+                  </h2>
+                  {topic.paragraphs.map((paragraphKey) => (
+                    <p
+                      key={paragraphKey}
+                      className="mt-3 text-sm leading-relaxed text-muted-foreground"
+                    >
+                      {t(translationKey(paragraphKey))}
+                    </p>
+                  ))}
+                </section>
               ))}
-            </section>
-          ))}
+          </div>
         </div>
       </article>
     </main>
