@@ -39,6 +39,9 @@ nouveaux noms. Les paramètres supplémentaires des modèles ajoutent l’alias
 historique sur le réseau principal ; le réconciliateur le conserve aussi sur
 les réseaux secondaires qu’il raccorde. Cela permet aux configurations Nginx,
 Traefik et proxy déjà montées de continuer à utiliser leurs anciennes adresses.
+Il répare aussi les alias manquants sur un réseau encore attaché et reconnaît
+`mergeron-ui`, nom intermédiaire rencontré lorsque seul le formulaire de
+l’application a été renommé.
 
 Recréer dans l’ordre Squid, application puis ingress. Après chaque recréation,
 vérifier les réseaux et la santé du conteneur. À la fin, contrôler que l’interface,

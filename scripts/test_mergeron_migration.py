@@ -15,7 +15,12 @@ PAIRS = {
 FAKE_DOCKER = '''#!/bin/sh
 if [ "$1 $2" = "container inspect" ]; then
   if [ "$3" = "--format" ]; then
-    [ "$ATTACHED" = yes ] && printf 'yes\\n'
+    case "$4" in
+      *Aliases*)
+        [ "$ALIASES" = complete ] && printf '%s\\n' mergeron mergeron-ui codex-webui mergeron-ingress codex-web-ingress mergeron-squid codex-web-squid
+        ;;
+      *) [ "$ATTACHED" = yes ] && printf 'yes\\n';;
+    esac
     exit 0
   fi
   case ",$CONTAINERS," in *",$3,"*) exit 0;; *) exit 1;; esac
@@ -25,12 +30,16 @@ if [ "$1 $2" = "network connect" ]; then
   printf '%s\\n' "$*" >> "$CALLS"
   exit 0
 fi
+if [ "$1 $2" = "network disconnect" ]; then
+  printf '%s\\n' "$*" >> "$CALLS"
+  exit 0
+fi
 exit 1
 '''
 
 
 class MigrationTests(unittest.TestCase):
-    def reconcile(self, containers, attached=False):
+    def reconcile(self, containers, attached=False, aliases="missing"):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
             docker = path / "docker"
@@ -41,7 +50,7 @@ class MigrationTests(unittest.TestCase):
                 ["sh", str(ROOT / "deployment/docker-man/reconcile-networks.sh"), "once"],
                 env={**os.environ, "PATH": f"{directory}:{os.environ['PATH']}",
                      "CONTAINERS": ",".join(containers), "CALLS": str(calls),
-                     "ATTACHED": "yes" if attached else "no"},
+                     "ATTACHED": "yes" if attached else "no", "ALIASES": aliases},
                 capture_output=True, text=True, check=True,
             )
             return calls.read_text().splitlines() if calls.exists() else [], result.stdout
@@ -49,20 +58,31 @@ class MigrationTests(unittest.TestCase):
     def test_new_names_keep_legacy_dns_on_all_required_networks(self):
         calls, _ = self.reconcile(PAIRS)
         self.assertEqual(len(calls), 6)
-        self.assertIn("network connect --alias codex-webui codex_admin mergeron", calls)
-        self.assertIn("network connect --alias codex-web-ingress net_standard mergeron-ingress", calls)
-        self.assertIn("network connect --alias codex-web-squid codex_external mergeron-squid", calls)
+        self.assertIn("network connect --alias mergeron --alias mergeron-ui --alias codex-webui codex_admin mergeron", calls)
+        self.assertIn("network connect --alias mergeron-ingress --alias codex-web-ingress net_standard mergeron-ingress", calls)
+        self.assertIn("network connect --alias mergeron-squid --alias codex-web-squid codex_external mergeron-squid", calls)
 
     def test_existing_installation_still_reconciles(self):
         calls, _ = self.reconcile(PAIRS.values())
         self.assertEqual(len(calls), 6)
-        self.assertIn("network connect --alias codex-webui codex_admin codex-webui", calls)
+        self.assertIn("network connect --alias mergeron --alias mergeron-ui --alias codex-webui codex_admin codex-webui", calls)
 
     def test_mixed_names_and_idempotent_connected_networks(self):
         calls, _ = self.reconcile(["mergeron", "codex-web-ingress", "mergeron-squid"])
         self.assertEqual(len(calls), 6)
-        calls, _ = self.reconcile(PAIRS, attached=True)
+        calls, _ = self.reconcile(PAIRS, attached=True, aliases="complete")
         self.assertEqual(calls, [])
+
+    def test_attached_networks_with_missing_aliases_are_repaired(self):
+        calls, _ = self.reconcile(PAIRS, attached=True)
+        self.assertEqual(len(calls), 12)
+        self.assertIn("network disconnect net_standard mergeron-ingress", calls)
+        self.assertIn("network connect --alias mergeron-ingress --alias codex-web-ingress net_standard mergeron-ingress", calls)
+
+    def test_intermediate_mergeron_ui_name_is_supported(self):
+        calls, _ = self.reconcile(["mergeron-ui", "mergeron-ingress", "mergeron-squid"])
+        self.assertEqual(len(calls), 6)
+        self.assertIn("network connect --alias mergeron --alias mergeron-ui --alias codex-webui codex_isolated mergeron-ui", calls)
 
     def test_templates_keep_primary_network_aliases_and_existing_state(self):
         for name, legacy in PAIRS.items():
@@ -74,6 +94,10 @@ class MigrationTests(unittest.TestCase):
                 configs = {entry.attrib['Target']: entry.text for entry in root.findall('Config')}
                 self.assertEqual(configs['/home/codex'], '/mnt/pool/appdata/codex-web/state/home')
                 self.assertEqual(configs['WEBUI_DB_PATH'], '/home/codex/.codex/codex-webui.sqlite')
+
+        squid = ET.parse(ROOT / "deployment/docker-man/my-mergeron-squid.xml").getroot()
+        self.assertIn("IO::Socket::INET", squid.findtext("ExtraParams"))
+        self.assertNotIn("/dev/tcp/127.0.0.1/3128", squid.findtext("ExtraParams"))
 
 
 if __name__ == "__main__":

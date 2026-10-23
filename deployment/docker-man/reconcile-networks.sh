@@ -22,6 +22,12 @@ container_has_network() {
     "$1" 2>/dev/null | grep -qx yes
 }
 
+container_has_alias() {
+  docker container inspect \
+    --format "{{with index .NetworkSettings.Networks \"$2\"}}{{range .Aliases}}{{println .}}{{end}}{{end}}" \
+    "$1" 2>/dev/null | grep -Fxq "$3"
+}
+
 ensure_connection() {
   container="$1"
   network="$2"
@@ -36,12 +42,31 @@ ensure_connection() {
     return 1
   fi
 
+  aliases_complete=true
+  for alias_name in $required_aliases; do
+    if ! container_has_alias "$container" "$network" "$alias_name"; then
+      aliases_complete=false
+    fi
+  done
+
   if container_has_network "$container" "$network"; then
-    return 0
+    if [ "$aliases_complete" = true ]; then
+      return 0
+    fi
+    if ! docker network disconnect "$network" "$container"; then
+      log "Échec de la correction des alias: $container -> $network"
+      return 1
+    fi
   fi
 
-  if docker network connect --alias "$legacy_alias" "$network" "$container"; then
-    log "Réseau raccordé: $container -> $network"
+  set -- docker network connect
+  for alias_name in $required_aliases; do
+    set -- "$@" --alias "$alias_name"
+  done
+  set -- "$@" "$network" "$container"
+
+  if "$@"; then
+    log "Réseau et alias raccordés: $container -> $network ($required_aliases)"
     return 0
   fi
 
@@ -52,18 +77,18 @@ ensure_connection() {
 reconcile_container() {
   container_result=0
   case "$1" in
-    mergeron|codex-webui)
-      legacy_alias=codex-webui
+    mergeron|mergeron-ui|codex-webui)
+      required_aliases="mergeron mergeron-ui codex-webui"
       ensure_connection "$1" codex_isolated || container_result=1
       ensure_connection "$1" codex_admin || container_result=1
       ;;
     mergeron-ingress|codex-web-ingress)
-      legacy_alias=codex-web-ingress
+      required_aliases="mergeron-ingress codex-web-ingress"
       ensure_connection "$1" codex_isolated || container_result=1
       ensure_connection "$1" net_standard || container_result=1
       ;;
     mergeron-squid|codex-web-squid)
-      legacy_alias=codex-web-squid
+      required_aliases="mergeron-squid codex-web-squid"
       ensure_connection "$1" codex_isolated || container_result=1
       ensure_connection "$1" codex_external || container_result=1
       ;;
@@ -76,15 +101,23 @@ reconcile_container() {
 
 reconcile_all() {
   all_result=0
-  for pair in 'mergeron-squid:codex-web-squid' 'mergeron:codex-webui' 'mergeron-ingress:codex-web-ingress'; do
-    preferred="${pair%%:*}"
-    legacy="${pair#*:}"
-    if container_exists "$preferred"; then
-      reconcile_container "$preferred" || all_result=1
-    else
-      reconcile_container "$legacy" || all_result=1
-    fi
-  done
+  if container_exists mergeron-squid; then
+    reconcile_container mergeron-squid || all_result=1
+  else
+    reconcile_container codex-web-squid || all_result=1
+  fi
+  if container_exists mergeron; then
+    reconcile_container mergeron || all_result=1
+  elif container_exists mergeron-ui; then
+    reconcile_container mergeron-ui || all_result=1
+  else
+    reconcile_container codex-webui || all_result=1
+  fi
+  if container_exists mergeron-ingress; then
+    reconcile_container mergeron-ingress || all_result=1
+  else
+    reconcile_container codex-web-ingress || all_result=1
+  fi
   return "$all_result"
 }
 
