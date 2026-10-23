@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -14,6 +16,7 @@ import type { FastifyReply } from 'fastify';
 import type { IdentityRequest } from '../auth/platform-access.guard';
 import { IdentityService } from '../auth/identity.service';
 import { ThreadsService } from '../threads/threads.service';
+import { ProjectsService } from '../projects/projects.service';
 import {
   DeliverablesService,
   type DeliverableInput,
@@ -24,24 +27,103 @@ export class DeliverablesController {
     private readonly service: DeliverablesService,
     private readonly identities: IdentityService,
     private readonly threads: ThreadsService,
+    private readonly projects: ProjectsService,
   ) {}
   @Post(':id/agent')
   async agent(
     @Param('projectId') p: string,
     @Param('resourceId') r: string,
     @Param('id') id: string,
-    @Body() body: { version: number },
+    @Body()
+    body: { version: number; subtaskId?: string; subtaskTitle?: string },
+    @Req() request: IdentityRequest,
   ) {
+    const deliverable = this.service.get(p, r, id);
     const cwd = this.service.agentWorkspace(p, r, id, body.version);
+    const board = this.service.board(p, r);
+    const primaryTask = deliverable.primaryTaskId
+      ? board.tasks.find((task) => task.id === deliverable.primaryTaskId)
+      : undefined;
+    if (deliverable.primaryTaskId && !primaryTask)
+      throw new BadRequestException('The primary task no longer exists');
+    let createdSubtask = false;
+    let subtask:
+      | {
+          id: string;
+          title: string;
+          resourceId: string;
+          parentTaskId: string | null;
+          linkedThreadId?: string | null;
+        }
+      | undefined = body.subtaskId
+      ? board.tasks.find((task) => task.id === body.subtaskId)
+      : undefined;
+    if (body.subtaskId) {
+      if (!primaryTask || !subtask || subtask.parentTaskId !== primaryTask.id)
+        throw new BadRequestException(
+          'The selected task must be a subtask of the primary task',
+        );
+      if (subtask.linkedThreadId)
+        throw new ConflictException('This subtask already has an agent');
+    } else {
+      const actor = {
+        personId: request.platformIdentity?.personId ?? null,
+        name: request.platformIdentity?.name ?? 'Système',
+      };
+      subtask = primaryTask
+        ? this.projects.createTask(
+            p,
+            primaryTask.resourceId,
+            {
+              parentTaskId: primaryTask.id,
+              title:
+                typeof body.subtaskTitle === 'string' &&
+                body.subtaskTitle.trim()
+                  ? body.subtaskTitle.trim()
+                  : `Produire — ${deliverable.title}`,
+              description: `Produire le livrable « ${deliverable.title} » depuis cette sous-tâche.`,
+              validationCriteria: deliverable.criteria,
+              executionMode: 'agent',
+            },
+            actor,
+          )
+        : this.projects.createDeliverableExecutionSubtask(
+            p,
+            deliverable.id,
+            deliverable.title,
+            deliverable.criteria,
+            actor,
+            typeof body.subtaskTitle === 'string'
+              ? body.subtaskTitle
+              : undefined,
+          );
+      createdSubtask = true;
+    }
+    if (!subtask)
+      throw new BadRequestException('An execution subtask is required');
     const started = await this.threads.startThread({ cwd });
     try {
       this.threads.rememberInitialThreadCwd(started.thread.id, cwd);
-      this.service.registerAgent(p, r, id, body.version, started.thread.id);
+      this.service.registerAgent(
+        p,
+        r,
+        id,
+        body.version,
+        started.thread.id,
+        subtask.id,
+      );
     } catch (error) {
       await this.threads.archiveThread(started.thread.id).catch(() => {});
       throw error;
     }
-    return { threadId: started.thread.id };
+    await this.threads
+      .setThreadName(started.thread.id, subtask.title)
+      .catch(() => {});
+    return {
+      threadId: started.thread.id,
+      taskId: subtask.id,
+      createdSubtask,
+    };
   }
   @Get() list(@Param('projectId') p: string, @Param('resourceId') r: string) {
     return this.service.board(p, r);

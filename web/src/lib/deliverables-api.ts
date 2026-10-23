@@ -152,6 +152,7 @@ export interface DeliverablesBoard {
     dueAt: number | null;
     assigneeId: string | null;
     assigneeName: string | null;
+    linkedThreadId?: string | null;
   }>;
   conversations: Array<{ type: 'agent' | 'simple'; id: string; title: string }>;
 }

@@ -660,6 +660,11 @@ function DeliverableDetail({
   const [tab, setTab] = useState<DetailTab>('overview');
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameTitle, setRenameTitle] = useState(item.title);
+  const [agentDialogOpen, setAgentDialogOpen] = useState(false);
+  const [agentSubtaskId, setAgentSubtaskId] = useState('__new__');
+  const [agentSubtaskTitle, setAgentSubtaskTitle] = useState(
+    t('produceDeliverableSubtask', { title: item.title }),
+  );
   const [draft, setDraft] = useState<Draft>({
     title: item.title,
     description: item.description,
@@ -701,12 +706,16 @@ function DeliverableDetail({
     onError: fail,
   });
   const agent = useMutation({
-    mutationFn: () =>
-      projectsApi<{ threadId: string }>(`${base}/${item.id}/agent`, {
-        method: 'POST',
-        body: JSON.stringify({ version: item.version }),
-      }),
+    mutationFn: (input: { subtaskId?: string; subtaskTitle?: string }) =>
+      projectsApi<{ threadId: string; taskId: string }>(
+        `${base}/${item.id}/agent`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ version: item.version, ...input }),
+        },
+      ),
     onSuccess: async ({ threadId }) => {
+      setAgentDialogOpen(false);
       await refresh();
       await navigate({ to: '/t/$threadId', params: { threadId } });
     },
@@ -728,6 +737,12 @@ function DeliverableDetail({
     onError: fail,
   });
   const busy = action.isPending || agent.isPending || rename.isPending;
+  const primaryTask = board.tasks.find(
+    (task) => task.id === item.primaryTaskId,
+  );
+  const availableSubtasks = board.tasks.filter(
+    (task) => task.parentTaskId === item.primaryTaskId && !task.linkedThreadId,
+  );
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
     setRevisionDirty(true);
@@ -942,9 +957,9 @@ function DeliverableDetail({
                 disabled={
                   busy || revisionDirty || item.lifecycleStatus === 'archived'
                 }
-                onClick={() => agent.mutate()}
+                onClick={() => setAgentDialogOpen(true)}
               >
-                {t('workOnThisDeliverable')}
+                {t('entrustDeliverableToAgent')}
               </Button>
             )}
           </div>{' '}
@@ -1028,6 +1043,81 @@ function DeliverableDetail({
                 }
               >
                 {t('rename')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={agentDialogOpen} onOpenChange={setAgentDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('entrustDeliverableToAgent')}</DialogTitle>
+            <DialogDescription>
+              {primaryTask
+                ? t('deliverableAgentRequiresSubtask')
+                : t('deliverableAgentAutomaticExecution')}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (agentSubtaskId === '__new__') {
+                if (agentSubtaskTitle.trim())
+                  agent.mutate({ subtaskTitle: agentSubtaskTitle.trim() });
+              } else agent.mutate({ subtaskId: agentSubtaskId });
+            }}
+          >
+            <label className="block space-y-1 text-sm">
+              <span>{t('executionSubtask')}</span>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={agentSubtaskId}
+                disabled={agent.isPending}
+                onChange={(event) => setAgentSubtaskId(event.target.value)}
+              >
+                <option value="__new__">
+                  {primaryTask
+                    ? t('createDedicatedSubtask')
+                    : t('createAutomaticExecutionUnit')}
+                </option>
+                {availableSubtasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {agentSubtaskId === '__new__' && (
+              <label className="block space-y-1 text-sm">
+                <span>{t('subtaskTitle')}</span>
+                <Input
+                  value={agentSubtaskTitle}
+                  maxLength={200}
+                  disabled={agent.isPending}
+                  onChange={(event) => setAgentSubtaskTitle(event.target.value)}
+                />
+              </label>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {t('agentDeliverableRoleIsTraceability')}
+            </p>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={agent.isPending}
+                onClick={() => setAgentDialogOpen(false)}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                disabled={
+                  agent.isPending ||
+                  (agentSubtaskId === '__new__' && !agentSubtaskTitle.trim())
+                }
+              >
+                {t('createWorkAgent')}
               </Button>
             </DialogFooter>
           </form>

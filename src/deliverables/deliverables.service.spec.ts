@@ -827,20 +827,160 @@ describe('project deliverables', () => {
     }
   });
   it('registers an agent in the primary workspace and rolls back stale associations', async () => {
+    const now = Date.now();
+    database.db
+      .insert(projectResources)
+      .values({
+        id: 'tasks',
+        projectId: 'p',
+        name: 'Tasks',
+        type: 'task_board',
+        config: {},
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectTaskStatuses)
+      .values({
+        id: 'todo',
+        resourceId: 'tasks',
+        name: 'To do',
+        color: 'slate',
+        kind: 'unassigned',
+        position: 0,
+        system: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectTasks)
+      .values([
+        {
+          id: 'main-task',
+          resourceId: 'tasks',
+          statusId: 'todo',
+          title: 'Main task',
+          position: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'agent-subtask',
+          resourceId: 'tasks',
+          statusId: 'todo',
+          title: 'Produce output',
+          parentTaskId: 'main-task',
+          position: 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
+      .run();
     const item = await service.create('p', 'r', {
       title: 'Agent output',
       criteria: 'Publishable',
+      primaryTaskId: 'main-task',
     });
     expect(service.agentWorkspace('p', 'r', item.id, 1)).toBe(
       path.join(root, 'livrables', item.id),
     );
-    service.registerAgent('p', 'r', item.id, 1, 'new-agent');
+    service.registerAgent('p', 'r', item.id, 1, 'new-agent', 'agent-subtask');
     expect(service.contextForConversation('new-agent')).toContain(
       'Publishable',
     );
+    expect(
+      database.db
+        .select()
+        .from(projectTasks)
+        .where(eq(projectTasks.id, 'agent-subtask'))
+        .get(),
+    ).toMatchObject({
+      linkedThreadId: 'new-agent',
+      executionMode: 'agent',
+      agentState: 'ready',
+    });
     expect(() =>
-      service.registerAgent('p', 'r', item.id, 1, 'stale-agent'),
-    ).toThrow('changed');
+      service.registerAgent(
+        'p',
+        'r',
+        item.id,
+        1,
+        'stale-agent',
+        'agent-subtask',
+      ),
+    ).toThrow('already has an agent');
     expect(service.contextForConversation('stale-agent')).toBeNull();
+  });
+  it('accepts a hidden execution subtask when the deliverable has no task manager', async () => {
+    const now = Date.now();
+    database.db
+      .insert(projectResources)
+      .values({
+        id: 'internal-tasks',
+        projectId: 'p',
+        name: 'Internal executions',
+        type: 'task_board',
+        config: { internal: true, purpose: 'deliverable_execution' },
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectTaskStatuses)
+      .values({
+        id: 'internal-todo',
+        resourceId: 'internal-tasks',
+        name: 'To do',
+        color: 'slate',
+        kind: 'unassigned',
+        position: 0,
+        system: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    const item = await service.create('p', 'r', { title: 'Standalone' });
+    database.db
+      .insert(projectTasks)
+      .values([
+        {
+          id: 'internal-parent',
+          resourceId: 'internal-tasks',
+          statusId: 'internal-todo',
+          title: 'Standalone execution',
+          labels: [`mergeron:deliverable:${item.id}`],
+          position: 0,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'internal-subtask',
+          resourceId: 'internal-tasks',
+          statusId: 'internal-todo',
+          title: 'Produce standalone',
+          parentTaskId: 'internal-parent',
+          position: 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
+      .run();
+    service.registerAgent(
+      'p',
+      'r',
+      item.id,
+      item.version,
+      'internal-agent',
+      'internal-subtask',
+    );
+    expect(service.contextForConversation('internal-agent')).toContain(
+      'Standalone',
+    );
+    expect(service.board('p', 'r')).toMatchObject({
+      taskManagers: [],
+      tasks: [],
+    });
   });
 });

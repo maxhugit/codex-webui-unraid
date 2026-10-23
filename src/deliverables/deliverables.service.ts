@@ -30,6 +30,7 @@ import {
   projectPersonGroupMembers,
   people,
   projectTasks,
+  projectTaskActivity,
   projectTaskStatuses,
   projectAgentThreads,
   simpleChatThreads,
@@ -169,8 +170,43 @@ export class DeliverablesService {
     id: string,
     version: number,
     threadId: string,
+    taskId: string,
   ) {
     const item = this.get(projectId, resourceId, id);
+    const task = this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.id, taskId))
+      .get();
+    const parent = task?.parentTaskId
+      ? this.db
+          .select()
+          .from(projectTasks)
+          .where(eq(projectTasks.id, task.parentTaskId))
+          .get()
+      : null;
+    const taskResource = task
+      ? this.db
+          .select()
+          .from(projectResources)
+          .where(eq(projectResources.id, task.resourceId))
+          .get()
+      : null;
+    const belongsToVisibleTask =
+      Boolean(item.primaryTaskId) && task?.parentTaskId === item.primaryTaskId;
+    const belongsToInternalExecution =
+      !item.primaryTaskId &&
+      taskResource?.projectId === projectId &&
+      taskResource.config.internal === true &&
+      taskResource.config.purpose === 'deliverable_execution' &&
+      parent?.labels.includes(`mergeron:deliverable:${item.id}`);
+    if (!task || (!belongsToVisibleTask && !belongsToInternalExecution))
+      throw new BadRequestException(
+        'The agent must be assigned through an execution subtask associated with the deliverable',
+      );
+    if (task.linkedThreadId)
+      throw new ConflictException('This subtask already has an agent');
+    const now = Date.now();
     this.db.transaction((tx) => {
       tx.insert(projectAgentThreads)
         .values({
@@ -178,8 +214,8 @@ export class DeliverablesService {
           projectId,
           workspacePath: this.resource(projectId, resourceId).project
             .workspacePath,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: now,
+          updatedAt: now,
         })
         .run();
       if (
@@ -192,7 +228,7 @@ export class DeliverablesService {
               { type: 'agent', id: threadId },
             ],
             version: item.version + 1,
-            updatedAt: Date.now(),
+            updatedAt: now,
           })
           .where(and(eq(items.id, id), eq(items.version, version)))
           .run().changes
@@ -200,6 +236,33 @@ export class DeliverablesService {
         throw new ConflictException(
           'Deliverable changed during agent creation',
         );
+      tx.update(projectTasks)
+        .set({
+          linkedThreadId: threadId,
+          executionMode: 'agent',
+          agentState: 'ready',
+          updatedAt: now,
+        })
+        .where(eq(projectTasks.id, task.id))
+        .run();
+      tx.insert(projectTaskActivity)
+        .values({
+          id: randomUUID(),
+          resourceId: task.resourceId,
+          taskId: task.id,
+          taskTitle: task.title,
+          parentTaskId: task.parentTaskId,
+          action: 'updated',
+          changes: {
+            linkedThreadId: { before: null, after: threadId },
+            executionMode: { before: task.executionMode, after: 'agent' },
+            agentState: { before: task.agentState, after: 'ready' },
+          },
+          actorPersonId: currentAccess()?.identity.personId ?? null,
+          actorName: currentAccess()?.identity.name ?? 'Système',
+          createdAt: now,
+        })
+        .run();
     });
     const folder = this.activeFolders.get('deliverable', id);
     if (!folder || folder.state !== 'ready')
@@ -300,7 +363,11 @@ export class DeliverablesService {
         )
         .all(),
       taskManagers: this.db
-        .select({ id: projectResources.id, name: projectResources.name })
+        .select({
+          id: projectResources.id,
+          name: projectResources.name,
+          config: projectResources.config,
+        })
         .from(projectResources)
         .where(
           and(
@@ -308,7 +375,9 @@ export class DeliverablesService {
             eq(projectResources.type, 'task_board'),
           ),
         )
-        .all(),
+        .all()
+        .filter((resource) => resource.config.internal !== true)
+        .map((resource) => ({ id: resource.id, name: resource.name })),
       personGroups: this.db
         .select({ id: projectPersonGroups.id, name: projectPersonGroups.name })
         .from(projectPersonGroups)
@@ -326,6 +395,8 @@ export class DeliverablesService {
           dueAt: projectTasks.dueAt,
           assigneeId: projectTasks.assigneeId,
           assigneeName: people.name,
+          linkedThreadId: projectTasks.linkedThreadId,
+          resourceConfig: projectResources.config,
         })
         .from(projectTasks)
         .innerJoin(
@@ -338,7 +409,20 @@ export class DeliverablesService {
         )
         .leftJoin(people, eq(projectTasks.assigneeId, people.id))
         .where(eq(projectResources.projectId, projectId))
-        .all(),
+        .all()
+        .filter((task) => task.resourceConfig.internal !== true)
+        .map((task) => ({
+          id: task.id,
+          title: task.title,
+          resourceId: task.resourceId,
+          parentTaskId: task.parentTaskId,
+          status: task.status,
+          progress: task.progress,
+          dueAt: task.dueAt,
+          assigneeId: task.assigneeId,
+          assigneeName: task.assigneeName,
+          linkedThreadId: task.linkedThreadId,
+        })),
       conversations: [
         ...this.db
           .select({ id: projectAgentThreads.threadId })
