@@ -4,15 +4,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import {
   Bot,
-  BookOpen,
+  BrainCircuit,
   FolderCog,
   FolderKanban,
   FolderOpen,
   History,
   LayoutDashboard,
   ListTodo,
-  Plug,
-  Settings,
   UsersRound,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -57,8 +55,7 @@ export function ProjectRoute() {
   const canSeePeople = session.isAdministrator || isActiveParticipant;
   const visibleTab: ProjectTab =
     (activeTab === 'participants' && !canSeePeople) ||
-    (!session.isAdministrator &&
-      ['settings', 'workspaces', 'mcps'].includes(activeTab))
+    (!session.isAdministrator && activeTab === 'workspaces')
       ? 'general'
       : activeTab;
   const activity = useQuery({
@@ -125,34 +122,18 @@ export function ProjectRoute() {
             label={t('journal')}
             onClick={() => setActiveTab('journal')}
           />
-          {session.isAdministrator && (
-            <>
-              <ProjectTabButton
-                active={visibleTab === 'settings'}
-                icon={Settings}
-                label={t('generalSettings')}
-                onClick={() => setActiveTab('settings')}
-              />
-              <ProjectTabButton
-                active={visibleTab === 'workspaces'}
-                icon={FolderCog}
-                label={t('workspacesLabel')}
-                onClick={() => setActiveTab('workspaces')}
-              />
-            </>
-          )}
           <ProjectTabButton
-            active={visibleTab === 'knowledge'}
-            icon={BookOpen}
-            label={t('knowledge')}
-            onClick={() => setActiveTab('knowledge')}
+            active={visibleTab === 'agents'}
+            icon={BrainCircuit}
+            label={t('agentManagement')}
+            onClick={() => setActiveTab('agents')}
           />
           {session.isAdministrator && (
             <ProjectTabButton
-              active={visibleTab === 'mcps'}
-              icon={Plug}
-              label={t('projectIntegrations')}
-              onClick={() => setActiveTab('mcps')}
+              active={visibleTab === 'workspaces'}
+              icon={FolderCog}
+              label={t('workspacesLabel')}
+              onClick={() => setActiveTab('workspaces')}
             />
           )}
         </div>

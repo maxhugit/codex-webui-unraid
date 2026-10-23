@@ -18,7 +18,6 @@ import { usePlatformSession } from '@/lib/platform-session';
 import { DirectoryPickerDialog } from '@/components/chat/sidebar/directory-picker-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { modelsListModelsOptions } from '@/generated/api/@tanstack/react-query.gen';
 import type { ModelDto } from '@/generated/api/types.gen';
@@ -34,12 +33,7 @@ import {
   projectMcpServersQueryOptions,
 } from '@/lib/project-integrations-queries';
 
-export type ProjectSettingsSection =
-  | 'settings'
-  | 'workspaces'
-  | 'participants'
-  | 'knowledge'
-  | 'mcps';
+export type ProjectSettingsSection = 'agents' | 'workspaces' | 'participants';
 
 export function ProjectSettingsPanel({
   project,
@@ -53,7 +47,6 @@ export function ProjectSettingsPanel({
   const { t } = useTranslation();
   const session = usePlatformSession();
   const client = useQueryClient();
-  const [name, setName] = useState(project.name);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState('');
   const [mcpServerIds, setMcpServerIds] = useState<string[]>(
@@ -78,11 +71,11 @@ export function ProjectSettingsPanel({
   const effortOptions = selectedModel?.supportedReasoningEfforts ?? [];
   const mcpServers = useQuery({
     ...projectMcpServersQueryOptions(),
-    enabled: section === 'mcps',
+    enabled: section === 'agents',
   });
   const apps = useQuery({
     ...projectAppsQueryOptions(),
-    enabled: section === 'mcps',
+    enabled: section === 'agents',
   });
   const mcpServerRows = (mcpServers.data?.data ??
     []) as unknown as McpServerStatus[];
@@ -97,15 +90,6 @@ export function ProjectSettingsPanel({
       reason instanceof Error ? reason.message : t('unableToSaveProject'),
     );
 
-  const rename = useMutation({
-    mutationFn: (nextName: string) =>
-      projectsApi(`/${project.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ name: nextName }),
-      }),
-    onSuccess: refresh,
-    onError: fail,
-  });
   const addWorkspace = useMutation({
     mutationFn: (path: string) =>
       projectsApi(`/${project.id}/workspaces`, {
@@ -157,7 +141,6 @@ export function ProjectSettingsPanel({
     onError: fail,
   });
   const pending =
-    rename.isPending ||
     addWorkspace.isPending ||
     detachWorkspace.isPending ||
     saveMcpServers.isPending ||
@@ -166,47 +149,21 @@ export function ProjectSettingsPanel({
 
   return (
     <>
-      <div className="rounded-xl border bg-card p-5">
-        {section === 'knowledge' && (
-          <ProjectKnowledgePanel
-            projectId={project.id}
-            readOnly={!session.isAdministrator}
-          />
-        )}
-        {section === 'settings' && (
-          <section className="space-y-6">
-            <div>
-              <h3 className="font-semibold">{t('generalSettings')}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t('changeTheNameDisplayedThroughoutTheApplication')}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="min-w-0 flex-1">
-                <label
-                  htmlFor="project-settings-name"
-                  className="mb-1 block text-sm font-medium"
-                >
-                  {t('projectName')}
-                </label>
-                <Input
-                  id="project-settings-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                />
+      <div className="space-y-6 rounded-xl border bg-card p-5">
+        {section === 'agents' && (
+          <>
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                <Bot className="h-5 w-5" />
               </div>
-              <Button
-                className="mt-auto cursor-pointer"
-                disabled={
-                  pending || !name.trim() || name.trim() === project.name
-                }
-                onClick={() => rename.mutate(name.trim())}
-              >
-                <Save className="h-4 w-4" />
-                {t('save')}
-              </Button>
+              <div>
+                <h2 className="font-semibold">{t('agentManagement')}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t('configureAgentsKnowledgeAndIntegrationsForThisProject')}
+                </p>
+              </div>
             </div>
-            <div className="space-y-4 border-t pt-6">
+            <section className="space-y-4 rounded-lg border p-4">
               <div>
                 <h3 className="font-semibold">{t('agentConfiguration')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -221,7 +178,7 @@ export function ProjectSettingsPanel({
                   <select
                     className="h-9 rounded-md border bg-background px-3 text-sm font-normal text-foreground"
                     value={agentModel}
-                    disabled={models.isPending}
+                    disabled={models.isPending || !session.isAdministrator}
                     onChange={(event) => {
                       const value = event.target.value;
                       const model = (models.data?.data ?? []).find(
@@ -247,6 +204,7 @@ export function ProjectSettingsPanel({
                   <select
                     className="h-9 rounded-md border bg-background px-3 text-sm font-normal text-foreground"
                     value={agentReasoningEffort}
+                    disabled={!session.isAdministrator}
                     onChange={(event) =>
                       setAgentReasoningEffort(event.target.value)
                     }
@@ -263,26 +221,35 @@ export function ProjectSettingsPanel({
                   </select>
                 </label>
               </div>
-              <div className="flex justify-end">
-                <Button
-                  disabled={
-                    pending ||
-                    (agentModel === (project.agentModel ?? '') &&
-                      agentReasoningEffort ===
-                        (project.agentReasoningEffort ?? ''))
-                  }
-                  onClick={() => saveAgentSettings.mutate()}
-                >
-                  {saveAgentSettings.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  {t('save')}
-                </Button>
-              </div>
-            </div>
-          </section>
+              {session.isAdministrator && (
+                <div className="flex justify-end">
+                  <Button
+                    disabled={
+                      pending ||
+                      (agentModel === (project.agentModel ?? '') &&
+                        agentReasoningEffort ===
+                          (project.agentReasoningEffort ?? ''))
+                    }
+                    onClick={() => saveAgentSettings.mutate()}
+                  >
+                    {saveAgentSettings.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {t('save')}
+                  </Button>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-lg border p-4">
+              <ProjectKnowledgePanel
+                projectId={project.id}
+                readOnly={!session.isAdministrator}
+              />
+            </section>
+          </>
         )}
 
         {section === 'workspaces' && (
@@ -387,8 +354,14 @@ export function ProjectSettingsPanel({
             />
           </div>
         )}
-        {section === 'mcps' && (
-          <section className="space-y-6">
+        {section === 'agents' && session.isAdministrator && (
+          <section className="space-y-6 rounded-lg border p-4">
+            <div>
+              <h3 className="font-semibold">{t('projectIntegrations')}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t('selectTheToolsAndApplicationsAvailableToProjectAgents')}
+              </p>
+            </div>
             <div className="space-y-4">
               <div>
                 <h3 className="font-semibold">{t('mcpConnectors')}</h3>
