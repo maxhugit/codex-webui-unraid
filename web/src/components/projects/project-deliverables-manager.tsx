@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -545,6 +546,31 @@ function LifecycleActions({
   );
 }
 
+function DeliverableHeaderSlot({
+  id,
+  children,
+}: {
+  id: string;
+  children: ReactNode;
+}) {
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const element = document.getElementById(id);
+      setTarget(element);
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [id]);
+  return target ? (
+    createPortal(children, target)
+  ) : (
+    <div className="shrink-0 px-4 py-2">{children}</div>
+  );
+}
+
 function DeliverableDetail({
   item,
   board,
@@ -670,33 +696,58 @@ function DeliverableDetail({
   ];
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="z-10 shrink-0 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto w-full max-w-7xl px-4 pt-4 md:px-6">
-          <button
-            className="mb-3 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      <DeliverableHeaderSlot
+        id={`deliverable-header-${base.split('/')[1]}-${base.split('/')[3]}`}
+      >
+        <div
+          data-deliverable-header
+          className="flex min-w-0 items-center gap-2"
+        >
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={t('backToDeliverables')}
+            title={t('backToDeliverables')}
             onClick={onBack}
           >
             <ArrowLeft className="h-4 w-4" />
-            {t('backToDeliverables')}
-          </button>
-          <div className="flex flex-wrap items-start justify-between gap-3 pb-4">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-2xl font-semibold">
-                  {item.title}
-                </h1>
-                <LifecycleBadge status={displayedLifecycle(item)} />
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t('deliverableHeaderSummary', {
-                  documents: item.documents.filter(
-                    (document) => document.deletedAt === null,
-                  ).length,
-                  date: new Date(item.updatedAt).toLocaleDateString(),
-                })}
-              </p>
+          </Button>
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="truncate text-sm font-semibold sm:text-base">
+                {item.title}
+              </h1>{' '}
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t('renameDeliverable')}
+                title={t('renameDeliverable')}
+                disabled={
+                  busy || revisionDirty || item.lifecycleStatus === 'archived'
+                }
+                onClick={() => {
+                  setRenameTitle(item.title);
+                  setRenameOpen(true);
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
             </div>
+            <p className="truncate text-xs text-muted-foreground">
+              {t('deliverableHeaderSummary', {
+                documents: item.documents.filter(
+                  (document) => document.deletedAt === null,
+                ).length,
+                date: new Date(item.updatedAt).toLocaleDateString(),
+              })}
+            </p>
           </div>
+          <LifecycleBadge status={displayedLifecycle(item)} />
+        </div>
+      </DeliverableHeaderSlot>
+
+      <div className="z-10 shrink-0 border-b bg-background/95 backdrop-blur">
+        <div className="w-full px-2 md:px-4">
           <div
             className="flex gap-1 overflow-x-auto"
             role="tablist"
@@ -735,20 +786,15 @@ function DeliverableDetail({
               draft={draft}
               set={set}
               busy={busy || item.lifecycleStatus === 'archived'}
-              dirty={revisionDirty}
-              action={action}
               base={base}
             />
           )}
           {tab === 'access' && (
             <AccessSettings
-              item={item}
               board={board}
               draft={draft}
               set={set}
               busy={busy || item.lifecycleStatus === 'archived'}
-              dirty={revisionDirty}
-              action={action}
             />
           )}
           {tab === 'documents' && (
@@ -793,21 +839,8 @@ function DeliverableDetail({
         </div>
       </div>
       <footer className="z-10 shrink-0 border-t bg-background/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:px-6">
-        <div className="mx-auto w-full max-w-7xl">
+        <div className="mx-auto flex w-full flex-wrap items-center gap-3">
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              disabled={
-                busy || revisionDirty || item.lifecycleStatus === 'archived'
-              }
-              onClick={() => {
-                setRenameTitle(item.title);
-                setRenameOpen(true);
-              }}
-            >
-              <Pencil className="h-4 w-4" />
-              {t('renameDeliverable')}
-            </Button>
             <LifecycleActions
               item={item}
               busy={busy || revisionDirty}
@@ -824,6 +857,45 @@ function DeliverableDetail({
                 {t('workOnThisDeliverable')}
               </Button>
             )}
+          </div>{' '}
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
+            <Button
+              disabled={
+                busy ||
+                item.lifecycleStatus === 'archived' ||
+                !revisionDirty ||
+                !draft.title.trim() ||
+                (draft.confidentiality === 'restricted' &&
+                  !draft.authorizedGroupIds.length)
+              }
+              onClick={() =>
+                action.mutate({
+                  method: 'PATCH',
+                  body: { ...draft, version: item.version },
+                })
+              }
+            >
+              {t('save')}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy || item.lifecycleStatus === 'archived'}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    t(
+                      'removeThisDeliverableRecordAndItsVersionHistoryAllFilesWillBePreserved',
+                    ),
+                  )
+                )
+                  action.mutate({
+                    method: 'DELETE',
+                    body: { version: item.version },
+                  });
+              }}
+            >
+              {t('removeRecord')}
+            </Button>
           </div>
         </div>
       </footer>
@@ -881,8 +953,6 @@ function Overview({
   draft,
   set,
   busy,
-  dirty,
-  action,
   base,
 }: {
   item: Deliverable;
@@ -890,8 +960,6 @@ function Overview({
   draft: Draft;
   set: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
   busy: boolean;
-  dirty: boolean;
-  action: DeliverableAction;
   base: string;
 }) {
   const { t } = useTranslation();
@@ -938,44 +1006,6 @@ function Overview({
         <p className="text-xs text-muted-foreground">
           {t('planningInheritedFromPrimaryTask')}
         </p>
-        <div className="flex gap-2">
-          <Button
-            disabled={
-              busy ||
-              !dirty ||
-              !draft.title.trim() ||
-              (draft.confidentiality === 'restricted' &&
-                !draft.authorizedGroupIds.length)
-            }
-            onClick={() =>
-              action.mutate({
-                method: 'PATCH',
-                body: { ...draft, version: item.version },
-              })
-            }
-          >
-            {t('save')}
-          </Button>
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() => {
-              if (
-                window.confirm(
-                  t(
-                    'removeThisDeliverableRecordAndItsVersionHistoryAllFilesWillBePreserved',
-                  ),
-                )
-              )
-                action.mutate({
-                  method: 'DELETE',
-                  body: { version: item.version },
-                });
-            }}
-          >
-            {t('removeRecord')}
-          </Button>
-        </div>
       </section>
       <aside className="grid content-start gap-2 sm:grid-cols-2">
         <div className="rounded-xl border bg-card p-3 text-sm">
@@ -1079,21 +1109,15 @@ function Overview({
   );
 }
 function AccessSettings({
-  item,
   board,
   draft,
   set,
   busy,
-  dirty,
-  action,
 }: {
-  item: Deliverable;
   board: DeliverablesBoard;
   draft: Draft;
   set: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
   busy: boolean;
-  dirty: boolean;
-  action: DeliverableAction;
 }) {
   const { t } = useTranslation();
   return (
@@ -1148,23 +1172,6 @@ function AccessSettings({
           ))}
         </fieldset>
       )}
-
-      <Button
-        disabled={
-          busy ||
-          !dirty ||
-          (draft.confidentiality === 'restricted' &&
-            !draft.authorizedGroupIds.length)
-        }
-        onClick={() =>
-          action.mutate({
-            method: 'PATCH',
-            body: { ...draft, version: item.version },
-          })
-        }
-      >
-        {t('save')}
-      </Button>
     </section>
   );
 }

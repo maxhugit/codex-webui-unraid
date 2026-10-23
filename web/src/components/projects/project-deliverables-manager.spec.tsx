@@ -348,6 +348,34 @@ it('changes the lifecycle only through an explicit transition action', async () 
     ),
   );
 });
+it('places the title and rename pencil in the shared header and save actions in the footer', async () => {
+  const slot = document.createElement('div');
+  slot.id = 'deliverable-header-p-r';
+  document.body.appendChild(slot);
+  try {
+    await setup();
+    await waitFor(() =>
+      expect(slot).toContainElement(
+        screen.getByRole('heading', { name: 'Report' }),
+      ),
+    );
+    expect(slot).toContainElement(
+      screen.getByRole('button', { name: 'Back to deliverables' }),
+    );
+    expect(slot).toContainElement(
+      screen.getByRole('button', { name: 'Rename deliverable' }),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Save' }).closest('footer'),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Remove record' }).closest('footer'),
+    ).not.toBeNull();
+  } finally {
+    cleanup();
+    slot.remove();
+  }
+});
 it('renames a deliverable from its header', async () => {
   await setup();
   fireEvent.click(screen.getByRole('button', { name: 'Rename deliverable' }));
