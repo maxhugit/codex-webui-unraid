@@ -21,7 +21,11 @@ import { OptionRow } from './option-row';
 import { resolveServiceTier } from '@/lib/service-tier';
 
 /** Displays the supported local tier and lets the user explicitly change it. */
-export function ServiceTierSelector() {
+export function ServiceTierSelector({
+  menuItem = false,
+}: {
+  menuItem?: boolean;
+}) {
   const { t } = useTranslation();
   const serviceTierOverride = useModelStore((s) => s.serviceTierOverride);
   const setServiceTierOverride = useModelStore((s) => s.setServiceTierOverride);
@@ -52,11 +56,14 @@ export function ServiceTierSelector() {
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 gap-1 rounded-lg px-2 text-xs"
+          className={`h-7 gap-1 rounded-lg px-2 text-xs ${menuItem ? 'w-full justify-start' : ''}`}
           title={t('speed')}
         >
           <Zap className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline max-w-[90px] truncate">
+          <span
+            className={`${menuItem ? 'inline' : 'hidden sm:inline'} max-w-[150px] truncate`}
+          >
+            {menuItem && `${t('speed')} · `}
             {activeTier
               ? catalogCopy(activeTier.name)
               : activeTierId === 'default'

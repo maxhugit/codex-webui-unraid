@@ -39,12 +39,13 @@ interface McpRow {
 
 interface Props {
   mode?: Mode;
+  menuItem?: boolean;
 }
 
 const STALE_STARTING_STATUS_MS = 30_000;
 
 /** Header mode only appears for starting/failed; input mode always shows aggregate status. */
-export function McpStatusBadge({ mode = 'input' }: Props) {
+export function McpStatusBadge({ mode = 'input', menuItem = false }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const runtimeStatuses = useMcpStore((s) => s.statuses);
@@ -141,6 +142,7 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
           size="sm"
           className={cn(
             'h-7 gap-1 rounded-lg px-2 text-xs',
+            menuItem && 'w-full justify-start',
             risky && 'text-destructive',
           )}
           title={t('mcpServers8d9a304f')}
@@ -152,7 +154,9 @@ export function McpStatusBadge({ mode = 'input' }: Props) {
           ) : (
             <PlugZap className="h-3.5 w-3.5" />
           )}
-          <span className="hidden sm:inline">{label}</span>
+          <span className={menuItem ? 'inline' : 'hidden sm:inline'}>
+            {menuItem ? `${t('mcpServers')} · ${label}` : label}
+          </span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
