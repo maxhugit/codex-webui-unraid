@@ -10,6 +10,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ProjectDeliverablesManager } from './project-deliverables-manager';
 import type { Deliverable, DeliverablesBoard } from '@/lib/deliverables-api';
 const api = vi.hoisted(() => vi.fn());
+vi.mock('@/components/files/file-viewer', () => ({
+  FileViewer: ({ readOnly }: { readOnly?: boolean }) => (
+    <div data-testid="document-preview" data-read-only={readOnly} />
+  ),
+}));
 vi.mock('@/lib/projects-api', () => ({
   projectsApi: api,
   projectsQueryKey: ['projects'],
@@ -696,9 +701,23 @@ it('opens a detailed document sheet with versions and information', async () => 
     deliverables: [{ ...item, documents: [document] }],
   });
   fireEvent.click(screen.getByRole('tab', { name: /Documents/ }));
+  const menu = screen.getByLabelText('Actions').closest('details')!;
+  menu.open = true;
+  fireEvent.pointerDown(window.document.body);
+  expect(menu.open).toBe(false);
+  menu.open = true;
+  fireEvent.keyDown(window.document, { key: 'Escape' });
+  expect(menu.open).toBe(false);
+  expect(screen.getByLabelText('Actions')).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'History' }));
 
   expect(screen.getByRole('dialog')).toHaveTextContent('Reviewed version');
+  fireEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+  expect(screen.getByTestId('document-preview')).toHaveAttribute(
+    'data-read-only',
+    'true',
+  );
+  fireEvent.click(screen.getByRole('tab', { name: 'Versions' }));
   expect(screen.getByRole('tab', { name: 'Versions' })).toHaveAttribute(
     'aria-selected',
     'true',

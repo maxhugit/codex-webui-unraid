@@ -667,8 +667,15 @@ it('checks live OnlyOffice download and save callbacks, including readonly and r
     expect(response.statusCode).toBe(200);
     return response.json<{
       config: {
-        document: { key: string; url: string };
+        type: string;
+        document: {
+          key: string;
+          url: string;
+          permissions: Record<string, boolean>;
+        };
         editorConfig: {
+          mode: string;
+          embedded?: { autostart: string; toolbarDocked: string };
           callbackUrl: string;
           lang: string;
           user: { id: string; name: string };
@@ -728,6 +735,20 @@ it('checks live OnlyOffice download and save callbacks, including readonly and r
   });
   expect(historyBody.history[1].key).not.toBe(editable.document.key);
   const view = await loadConfig('view');
+  expect(view.type).toBe('embedded');
+  expect(view.editorConfig.mode).toBe('view');
+  expect(view.editorConfig.embedded).toEqual({
+    autostart: 'document',
+    toolbarDocked: 'top',
+  });
+  expect(view.document.permissions).toMatchObject({
+    edit: false,
+    comment: false,
+    review: false,
+    fillForms: false,
+    download: false,
+    print: false,
+  });
   expect(historyBody.history[1].key).toBe(view.document.key);
   expect((await callback(view)).json()).toEqual({ error: 1 });
   expect(fetch).toHaveBeenCalledTimes(2);

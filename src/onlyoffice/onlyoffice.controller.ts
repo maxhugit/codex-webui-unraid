@@ -62,6 +62,7 @@ interface OnlyOfficeEditorConfig {
     lang: string;
     mode: 'edit' | 'view';
     customization: Record<string, boolean>;
+    embedded?: { autostart: 'document'; toolbarDocked: 'top' };
     user: {
       id: string;
       name: string;
@@ -171,7 +172,7 @@ export class OnlyOfficeController {
       .join(' ');
 
     const config: OnlyOfficeEditorConfig = {
-      type: 'desktop',
+      type: editorMode === 'view' ? 'embedded' : 'desktop',
       width: '100%',
       height: '100%',
       documentType,
@@ -183,16 +184,25 @@ export class OnlyOfficeController {
         permissions: {
           comment: editorMode === 'edit',
           copy: true,
-          download: true,
+          download: requestedMode !== 'view',
           edit: editorMode === 'edit',
-          print: true,
+          print: requestedMode !== 'view',
           review: false,
+          fillForms: editorMode === 'edit',
         },
       },
       editorConfig: {
         callbackUrl,
         lang: this.normalizeEditorLanguage(identity?.language),
         mode: editorMode,
+        ...(editorMode === 'view'
+          ? {
+              embedded: {
+                autostart: 'document' as const,
+                toolbarDocked: 'top' as const,
+              },
+            }
+          : {}),
         user: {
           id: identity?.personId ?? 'service',
           name: userName || identity?.name?.trim() || 'Utilisateur',
@@ -201,6 +211,9 @@ export class OnlyOfficeController {
           compactToolbar: true,
           forcesave: editorMode === 'edit',
           hideRightMenu: editorMode === 'view',
+          ...(editorMode === 'view'
+            ? { comments: false, chat: false, plugins: false, help: false }
+            : {}),
         },
       },
     };

@@ -14,7 +14,8 @@ describe('OnlyOfficeViewer', () => {
     editorConfig = {};
     vi.mocked(onlyOfficeGetConfig).mockResolvedValue({
       data: {
-        scriptUrl: 'https://office.example.test/web-apps/apps/api/documents/api.js',
+        scriptUrl:
+          'https://office.example.test/web-apps/apps/api/documents/api.js',
         config: {
           editorConfig: { mode: 'edit' },
         },
@@ -45,5 +46,15 @@ describe('OnlyOfficeViewer', () => {
 
     expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
     expect(screen.getByText('OnlyOffice editor ready')).toBeInTheDocument();
+  });
+
+  it('requests a server-signed view configuration for read-only previews', async () => {
+    render(<OnlyOfficeViewer filePath="/workspace/report.docx" readOnly />);
+    await vi.waitFor(() =>
+      expect(onlyOfficeGetConfig).toHaveBeenCalledWith({
+        query: { path: '/workspace/report.docx', mode: 'view' },
+        throwOnError: true,
+      }),
+    );
   });
 });

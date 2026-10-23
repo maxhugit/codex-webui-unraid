@@ -21,11 +21,13 @@ export function FileViewer({
   documentId,
   viewId,
   active = true,
+  readOnly = false,
 }: {
   filePath: string;
   documentId?: string;
   viewId: string;
   active?: boolean;
+  readOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const selectedFile = filePath;
@@ -85,6 +87,7 @@ export function FileViewer({
           documentId={documentId}
           viewId={viewId}
           active={active}
+          readOnly={readOnly}
         />
       </div>
     </div>
