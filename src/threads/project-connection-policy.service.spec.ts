@@ -93,6 +93,35 @@ describe('ProjectConnectionPolicyService', () => {
       mcp_servers: {},
       plugins: {},
     });
+    expect(request).not.toHaveBeenCalledWith('app/list', expect.anything());
+    expect(request).toHaveBeenCalledWith('mcpServerStatus/list', {
+      limit: 100,
+      cursor: undefined,
+      detail: 'toolsAndAuthOnly',
+    });
+  });
+
+  it('does not query connector catalogs when the project selects none', async () => {
+    const request = vi.fn();
+    const service = new ProjectConnectionPolicyService(
+      { request } as unknown as CodexService,
+      databaseReturning(
+        { projectId: 'project-1' },
+        {
+          appIds: [],
+          mcpServerIds: [],
+          agentModel: null,
+          agentReasoningEffort: null,
+        },
+      ),
+    );
+
+    await expect(service.configForCwd('/workspaces/mail')).resolves.toEqual({
+      apps: { _default: { enabled: false } },
+      mcp_servers: {},
+      plugins: {},
+    });
+    expect(request).not.toHaveBeenCalled();
   });
 
   it('returns the project model and reasoning effort with the connection policy', async () => {
