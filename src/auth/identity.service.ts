@@ -446,7 +446,7 @@ export class IdentityService {
     // or its database through the appdata bind-mount alias.
     const protectedPaths = (
       process.env.WEBUI_PROTECTED_PATHS ??
-      '/home/codex,/run/secrets,/app,/proc,/sys,/dev,/etc,/root,/appdata/codex-web'
+      '/home/codex,/run/secrets,/app,/proc,/sys,/dev,/etc,/root,/appdata/mergeron'
     )
       .split(',')
       .map((p) => p.trim())

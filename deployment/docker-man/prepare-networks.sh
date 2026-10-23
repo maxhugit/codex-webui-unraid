@@ -39,9 +39,9 @@ ensure_network() {
   echo "Réseau créé: $name"
 }
 
-ensure_network codex_isolated true
-ensure_network codex_external false
-ensure_network codex_admin false 172.30.44.0/28
+ensure_network mergeron-isolated true
+ensure_network mergeron-external false
+ensure_network mergeron-admin false 172.30.44.0/28
 
 if ! docker network inspect net_standard >/dev/null 2>&1; then
   echo "Le réseau partagé net_standard est absent." >&2

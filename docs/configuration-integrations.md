@@ -59,7 +59,7 @@ ni les identifiants de connexion. Les requêtes de fichiers standards restent
 limitées aux workspaces des projets, avec vérification des liens symboliques.
 `WEBUI_PROTECTED_PATHS` exclut en plus les répertoires privés du serveur, même
 si un projet référence un parent trop large. Adapter en particulier l’alias
-`/appdata/codex-web` si le dossier d’installation change ; les secrets et la base
+`/appdata/mergeron` si le dossier d’installation change ; les secrets et la base
 ne doivent jamais devenir des fichiers de projet accessibles aux standards.
 
 Sans isolation système par utilisateur, un répertoire de travail n’est pas une
@@ -138,7 +138,7 @@ Code, PKCE, `state` et `nonce`. Créer dans Authentik un fournisseur
 **OAuth2/OpenID**, puis enregistrer exactement l’URI de redirection :
 
 ```text
-https://codex.example.com/api/auth/oidc/callback
+https://mergeron.example.com/api/auth/oidc/callback
 ```
 
 Dans **Administration > Réglages généraux du serveur > Authentification**, saisir

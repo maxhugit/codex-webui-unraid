@@ -1,10 +1,9 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <!-- Legacy DNS aliases keep existing proxy settings working. -->
   <Name>mergeron-squid</Name>
   <Repository>ubuntu/squid:latest</Repository>
   <Registry>https://hub.docker.com/r/ubuntu/squid</Registry>
-  <Network>codex_isolated</Network>
+  <Network>mergeron-isolated</Network>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
   <Support>https://github.com/maxhugit/mergeron/issues</Support>
@@ -14,12 +13,12 @@
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/maxhugit/mergeron/main/deployment/docker-man/my-mergeron-squid.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png</Icon>
-  <ExtraParams>--network-alias=codex-web-squid --read-only --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add SETGID --cap-add SETUID --security-opt no-new-privileges:true --tmpfs /var/log/squid:rw,nosuid,nodev,size=32m,mode=1777 --tmpfs /var/spool/squid:rw,nosuid,nodev,size=32m --tmpfs /run:rw,nosuid,nodev,size=4m --tmpfs /tmp:rw,nosuid,nodev,size=16m --pids-limit 256 --memory 512m --cpus 0.5 --health-cmd "perl -MIO::Socket::INET -e 'exit !IO::Socket::INET::new(q(IO::Socket::INET),q(PeerAddr),q(127.0.0.1),q(PeerPort),3128,q(Proto),q(tcp),q(Timeout),2)'" --health-interval 20s --health-timeout 5s --health-retries 5 --health-start-period 20s --log-opt max-size=10m --log-opt max-file=3</ExtraParams>
+  <ExtraParams>--network-alias=mergeron-squid --read-only --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add SETGID --cap-add SETUID --security-opt no-new-privileges:true --tmpfs /var/log/squid:rw,nosuid,nodev,size=32m,mode=1777 --tmpfs /var/spool/squid:rw,nosuid,nodev,size=32m --tmpfs /run:rw,nosuid,nodev,size=4m --tmpfs /tmp:rw,nosuid,nodev,size=16m --pids-limit 256 --memory 512m --cpus 0.5 --health-cmd "/usr/bin/pidof squid" --health-interval 20s --health-timeout 5s --health-retries 5 --health-start-period 20s --log-opt max-size=10m --log-opt max-file=3</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Requires>Le réconciliateur réseau doit être installé. Les réseaux codex_isolated et codex_external doivent exister.</Requires>
-  <Config Name="Configuration Squid" Target="/etc/squid/squid.conf" Default="/mnt/pool/appdata/codex-web/config/squid.conf" Mode="ro" Description="Liste blanche et règles du proxy sortant." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/codex-web/config/squid.conf</Config>
+  <Requires>Le réconciliateur réseau doit être installé. Les réseaux mergeron-isolated et mergeron-external doivent exister.</Requires>
+  <Config Name="Configuration Squid" Target="/etc/squid/squid.conf" Default="/mnt/pool/appdata/mergeron/config/squid.conf" Mode="ro" Description="Liste blanche et règles du proxy sortant." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/mergeron/config/squid.conf</Config>
 </Container>

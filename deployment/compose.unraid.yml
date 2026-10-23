@@ -1,12 +1,12 @@
 services:
-  app-v4:
-    image: ${CODEX_APP_IMAGE:-ghcr.io/maxhugit/mergeron:latest}
-    container_name: mergeron
+  mergeron-ui:
+    image: ${MERGERON_APP_IMAGE:-ghcr.io/maxhugit/mergeron:latest}
+    container_name: mergeron-ui
     restart: unless-stopped
     labels:
       net.unraid.docker.managed: composeman
-      net.unraid.docker.icon: ${CODEX_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
-      net.unraid.docker.webui: ${CODEX_WEBUI_URL:-https://codex.example.com}
+      net.unraid.docker.icon: ${MERGERON_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
+      net.unraid.docker.webui: ${MERGERON_WEBUI_URL:-https://mergeron.example.com}
       net.unraid.docker.shell: /bin/bash
     init: true
     user: '11002:11002'
@@ -23,7 +23,7 @@ services:
       CODEX_HOME: /home/codex/.codex
       WEBUI_DB_PATH: /home/codex/.codex/codex-webui.sqlite
       WEBUI_REQUIRE_IDENTITY: 'true'
-      WEBUI_PROTECTED_PATHS: /home/codex,/run/secrets,/app,/proc,/sys,/dev,/etc,/root,/appdata/codex-web
+      WEBUI_PROTECTED_PATHS: /home/codex,/run/secrets,/app,/proc,/sys,/dev,/etc,/root,/appdata/mergeron
       WORKSPACE_ROOTS: /workspaces,/appdata
       LOG_LEVEL: info
       OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
@@ -31,11 +31,11 @@ services:
       HTTP_PROXY: http://mergeron-squid:3128
       HTTPS_PROXY: http://mergeron-squid:3128
       ALL_PROXY: http://mergeron-squid:3128
-      NO_PROXY: 127.0.0.1,localhost,mergeron
+      NO_PROXY: 127.0.0.1,localhost,mergeron-ui
       http_proxy: http://mergeron-squid:3128
       https_proxy: http://mergeron-squid:3128
       all_proxy: http://mergeron-squid:3128
-      no_proxy: 127.0.0.1,localhost,mergeron
+      no_proxy: 127.0.0.1,localhost,mergeron-ui
       TZ: Europe/Paris
     volumes:
       - ${STATE_ROOT}/home:/home/codex
@@ -46,10 +46,10 @@ services:
       - ${STATE_ROOT}/openai-api-key.txt:/run/secrets/openai_api_key:ro
       - ${STATE_ROOT}/ssh:/home/codex/.ssh:ro
     networks:
-      codex_isolated:
-        aliases: [codex-webui]
-      codex_admin:
-        aliases: [codex-webui]
+      mergeron-isolated:
+        aliases: [mergeron-ui, mergeron]
+      mergeron-admin:
+        aliases: [mergeron-ui, mergeron]
     group_add:
       - '11001'
     read_only: true
@@ -69,7 +69,7 @@ services:
     cpus: 3.5
     stop_grace_period: 30m
     depends_on:
-      codex-squid:
+      mergeron-squid:
         condition: service_healthy
     healthcheck:
       test:
@@ -87,29 +87,29 @@ services:
         max-size: 20m
         max-file: '5'
 
-  codex-ingress:
-    image: ${CODEX_INGRESS_IMAGE:-nginx:stable}
+  mergeron-ingress:
+    image: ${MERGERON_INGRESS_IMAGE:-nginx:stable}
     container_name: mergeron-ingress
     restart: unless-stopped
     labels:
       net.unraid.docker.managed: composeman
-      net.unraid.docker.icon: ${CODEX_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
+      net.unraid.docker.icon: ${MERGERON_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
       net.unraid.docker.shell: /bin/sh
     depends_on:
-      app-v4:
+      mergeron-ui:
         condition: service_healthy
     command:
       - sh
       - -c
-      - export CODEX_BACKEND_TOKEN="$$(cat /run/secrets/backend_token)"; envsubst '$${CODEX_BACKEND_TOKEN}' < /etc/nginx/templates-secure/nginx.conf.template > /tmp/nginx.conf; exec nginx -c /tmp/nginx.conf -g 'daemon off;'
+      - export MERGERON_BACKEND_TOKEN="$$(cat /run/secrets/backend_token)"; envsubst '$${MERGERON_BACKEND_TOKEN}' < /etc/nginx/templates-secure/nginx.conf.template > /tmp/nginx.conf; exec nginx -c /tmp/nginx.conf -g 'daemon off;'
     volumes:
       - ${DEPLOY_ROOT}/config/nginx.conf.template:/etc/nginx/templates-secure/nginx.conf.template:ro
       - ${STATE_ROOT}/backend-token-nginx.txt:/run/secrets/backend_token:ro
     networks:
-      codex_isolated:
-        aliases: [codex-web-ingress]
+      mergeron-isolated:
+        aliases: [mergeron-ingress]
       net_standard:
-        aliases: [codex-web-ingress]
+        aliases: [mergeron-ingress]
     read_only: true
     tmpfs:
       - /var/cache/nginx:rw,nosuid,nodev,size=32m
@@ -137,21 +137,21 @@ services:
         max-size: 10m
         max-file: '3'
 
-  codex-squid:
-    image: ${CODEX_EGRESS_IMAGE:-ubuntu/squid:latest}
+  mergeron-squid:
+    image: ${MERGERON_EGRESS_IMAGE:-ubuntu/squid:latest}
     container_name: mergeron-squid
     restart: unless-stopped
     labels:
       net.unraid.docker.managed: composeman
-      net.unraid.docker.icon: ${CODEX_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
+      net.unraid.docker.icon: ${MERGERON_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
       net.unraid.docker.shell: /bin/bash
     volumes:
       - ${DEPLOY_ROOT}/config/squid.conf:/etc/squid/squid.conf:ro
     networks:
-      codex_isolated:
-        aliases: [codex-web-squid]
-      codex_external:
-        aliases: [codex-web-squid]
+      mergeron-isolated:
+        aliases: [mergeron-squid]
+      mergeron-external:
+        aliases: [mergeron-squid]
     cap_drop:
       - ALL
     cap_add:
@@ -171,7 +171,7 @@ services:
     mem_limit: 512m
     cpus: 0.5
     healthcheck:
-      test: ['CMD-SHELL', "timeout 2 bash -c '</dev/tcp/127.0.0.1/3128'"]
+      test: ['CMD', '/usr/bin/pidof', 'squid']
       interval: 20s
       timeout: 5s
       retries: 5
@@ -183,15 +183,15 @@ services:
         max-file: '3'
 
 networks:
-  codex_isolated:
-    name: codex_isolated
+  mergeron-isolated:
+    name: mergeron-isolated
     internal: true
     driver: bridge
-  codex_external:
-    name: codex_external
+  mergeron-external:
+    name: mergeron-external
     driver: bridge
-  codex_admin:
-    name: codex_admin
+  mergeron-admin:
+    name: mergeron-admin
     driver: bridge
     ipam:
       config:

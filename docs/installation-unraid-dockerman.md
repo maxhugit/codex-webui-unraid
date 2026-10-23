@@ -22,17 +22,17 @@ Dans le terminal Unraid :
 
 ```bash
 git clone https://github.com/maxhugit/mergeron.git /tmp/mergeron-install
-mkdir -p /mnt/pool/appdata/codex-web/config
+mkdir -p /mnt/pool/appdata/mergeron/config
 cp -a /tmp/mergeron-install/deployment/config/. \
-  /mnt/pool/appdata/codex-web/config/
+  /mnt/pool/appdata/mergeron/config/
 cp /tmp/mergeron-install/deployment/docker-man/my-*.xml \
   /boot/config/plugins/dockerMan/templates-user/
 cp /tmp/mergeron-install/deployment/docker-man/prepare-networks.sh \
-  /mnt/pool/appdata/codex-web/prepare-networks.sh
+  /mnt/pool/appdata/mergeron/prepare-networks.sh
 cp /tmp/mergeron-install/deployment/docker-man/reconcile-networks.sh \
-  /mnt/pool/appdata/codex-web/reconcile-networks.sh
-chmod 700 /mnt/pool/appdata/codex-web/prepare-networks.sh \
-  /mnt/pool/appdata/codex-web/reconcile-networks.sh
+  /mnt/pool/appdata/mergeron/reconcile-networks.sh
+chmod 700 /mnt/pool/appdata/mergeron/prepare-networks.sh \
+  /mnt/pool/appdata/mergeron/reconcile-networks.sh
 ```
 
 Les valeurs proposées par les formulaires utilisent `/mnt/pool`. Si le pool
@@ -48,7 +48,7 @@ passer directement à la section suivante.
 Pour une nouvelle installation :
 
 ```bash
-STATE=/mnt/pool/appdata/codex-web/state
+STATE=/mnt/pool/appdata/mergeron/state
 mkdir -p "$STATE"/{home,workspace,logs,ssh}
 openssl rand -hex 48 > "$STATE/backend-token.txt"
 cp "$STATE/backend-token.txt" "$STATE/backend-token-nginx.txt"
@@ -69,14 +69,14 @@ Traefik et Authentik doivent déjà appartenir au réseau `net_standard`. Exécu
 ensuite le script idempotent :
 
 ```bash
-/mnt/pool/appdata/codex-web/prepare-networks.sh
+/mnt/pool/appdata/mergeron/prepare-networks.sh
 ```
 
 Il crée ou vérifie :
 
-- `codex_isolated`, réseau interne sans accès Internet direct ;
-- `codex_external`, réseau de sortie de Squid ;
-- `codex_admin`, réseau administratif `172.30.44.0/28` ;
+- `mergeron-isolated`, réseau interne sans accès Internet direct ;
+- `mergeron-external`, réseau de sortie de Squid ;
+- `mergeron-admin`, réseau administratif `172.30.44.0/28` ;
 - `net_standard`, réseau partagé existant de Traefik et Authentik.
 
 Le script s'arrête sans modifier un réseau existant si sa configuration ne
@@ -85,25 +85,25 @@ correspond pas à celle attendue.
 Lancer ensuite le réconciliateur depuis l'Appdata :
 
 ```bash
-nohup /mnt/pool/appdata/codex-web/reconcile-networks.sh watch \
-  >> /var/log/codex-webui-network-reconciler.log 2>&1 &
+nohup /mnt/pool/appdata/mergeron/reconcile-networks.sh watch \
+  >> /var/log/mergeron-network-reconciler.log 2>&1 &
 ```
 
 Il contrôle périodiquement la topologie Docker. Après chaque création ou mise à
 jour DockerMan, il rattache automatiquement les réseaux secondaires suivants :
 
-- `mergeron` à `codex_admin` ;
+- `mergeron-ui` à `mergeron-admin` ;
 - `mergeron-ingress` à `net_standard` ;
-- `mergeron-squid` à `codex_external`.
+- `mergeron-squid` à `mergeron-external`.
 
 Il vérifie également les alias DNS sur chaque réseau déjà raccordé. Si
 DockerMan a conservé le réseau mais perdu ses alias lors d'un renommage ou
-d'une recréation, le réconciliateur rétablit notamment `codex-webui`,
-`codex-web-ingress` et `codex-web-squid`. Le nom transitoire `mergeron-ui` est
-également reconnu afin de réparer une installation renommée avant la
-normalisation vers le nom canonique `mergeron`.
+d'une recréation, le réconciliateur rétablit `mergeron-ui`,
+`mergeron-ingress` et `mergeron-squid`. Le nom historique `mergeron` de
+l’application principale reste reconnu pendant la transition vers
+`mergeron-ui`.
 
-Les trois conteneurs démarrent volontairement sur `codex_isolated`. Cette
+Les trois conteneurs démarrent volontairement sur `mergeron-isolated`. Cette
 méthode est nécessaire car Docker n'accepte qu'un réseau de démarrage dans la
 commande créée par DockerMan. Une connexion ajoutée manuellement avec
 `docker network connect` disparaîtrait à la prochaine recréation du conteneur.
@@ -113,7 +113,7 @@ Scripts** un script nommé `Mergeron network reconciler`, contenant :
 
 ```bash
 #!/bin/bash
-nohup /mnt/pool/appdata/codex-web/reconcile-networks.sh watch \
+nohup /mnt/pool/appdata/mergeron/reconcile-networks.sh watch \
   >/var/log/mergeron-network-reconciler.log 2>&1 &
 ```
 
@@ -128,7 +128,7 @@ USB ; elle ne modifie pas les données applicatives.
 Ne pas exécuter simultanément les versions Compose et DockerMan : elles portent
 les mêmes noms de conteneurs et utilisent les mêmes données.
 
-1. sauvegarder `/mnt/pool/appdata/codex-web/state/home` ;
+1. sauvegarder `/mnt/pool/appdata/mergeron/state/home` ;
 2. désactiver l'autostart de l'ancienne stack dans Compose Manager ;
 3. arrêter la stack ;
 4. supprimer uniquement les trois anciens conteneurs, sans supprimer `state` ;
@@ -157,7 +157,7 @@ entre les conteneurs est acceptable, mais les contrôles de santé restent la
 référence pour vérifier qu'ils sont prêts.
 
 Adapter enfin l'adresse **WebUI** du formulaire `mergeron` à l'URL publique
-réelle, par exemple `https://codex.example.com`.
+réelle, par exemple `https://mergeron.example.com`.
 
 ## 6. Vérifier le déploiement
 
@@ -165,9 +165,9 @@ réelle, par exemple `https://codex.example.com`.
 docker inspect mergeron-squid --format '{{.State.Health.Status}}'
 docker inspect mergeron --format '{{.State.Health.Status}}'
 docker inspect mergeron-ingress --format '{{.State.Health.Status}}'
-docker network inspect codex_isolated
-/mnt/pool/appdata/codex-web/reconcile-networks.sh once
-curl -I https://codex.example.com
+docker network inspect mergeron-isolated
+/mnt/pool/appdata/mergeron/reconcile-networks.sh once
+curl -I https://mergeron.example.com
 ```
 
 Le backend `mergeron` ne doit avoir aucun port publié. Traefik doit joindre
@@ -184,10 +184,10 @@ Le formulaire principal utilise
 4. tester la connexion, une conversation et les intégrations.
 
 Cette opération télécharge l'image et recrée seulement le conteneur ; les
-données restent dans `/mnt/pool/appdata/codex-web/state`.
+données restent dans `/mnt/pool/appdata/mergeron/state`.
 
 Après la recréation, vérifier que le réconciliateur a remis `mergeron` sur
-`codex_admin`. Une mise à jour réussie de l’image ne garantit pas à elle seule
+`mergeron-admin`. Une mise à jour réussie de l’image ne garantit pas à elle seule
 que les réseaux secondaires sont présents.
 
 Pour un retour arrière, remplacer temporairement `latest` dans le champ
@@ -201,7 +201,7 @@ jour proposées, lancer **Update**, puis contrôler que les trois conteneurs son
 de nouveau `healthy` et que l'interface publique répond correctement.
 
 Le réconciliateur est installé dans
-`/mnt/pool/appdata/codex-web/reconcile-networks.sh`. Son journal est disponible
+`/mnt/pool/appdata/mergeron/reconcile-networks.sh`. Son journal est disponible
 dans `/var/log/mergeron-network-reconciler.log`. L'entrée User Scripts est
 enregistrée sur la clé USB par Unraid afin de survivre au redémarrage.
 
@@ -209,7 +209,7 @@ enregistrée sur la clé USB par Unraid afin de survivre au redémarrage.
 
 Les modèles XML copiés dans `/boot/config/plugins/dockerMan/templates-user/`
 permettent de recréer les formulaires. Les fichiers réellement persistants de
-l’application restent dans `/mnt/pool/appdata/codex-web`.
+l’application restent dans `/mnt/pool/appdata/mergeron`.
 
 Lorsqu’une nouvelle version du dépôt modifie un modèle XML ou un fichier sous
 `deployment/config/`, comparer puis recopier le fichier concerné avant de

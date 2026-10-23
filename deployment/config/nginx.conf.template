@@ -20,8 +20,8 @@ http {
     server {
         listen 8080;
         client_max_body_size 100m;
-        set $codex_backend http://mergeron:8172;
-        set $codex_oauth_callback http://mergeron:12345;
+        set $mergeron_backend http://mergeron-ui:8172;
+        set $mergeron_oauth_callback http://mergeron-ui:12345;
         set $authentik_backend http://authentik:9000;
 
         # This endpoint is used only by Docker's local healthcheck. It cannot
@@ -29,8 +29,8 @@ http {
         location = /_health {
             allow 127.0.0.1;
             deny all;
-            proxy_pass $codex_backend/api/status;
-            proxy_set_header Authorization "Bearer ${CODEX_BACKEND_TOKEN}";
+            proxy_pass $mergeron_backend/api/status;
+            proxy_set_header Authorization "Bearer ${MERGERON_BACKEND_TOKEN}";
             proxy_set_header X-Webui-Auth-Source service;
             proxy_set_header X-Webui-Auth-Subject "";
             proxy_set_header X-Webui-Auth-Email "";
@@ -57,7 +57,7 @@ http {
         # Public OAuth return endpoint used only while `codex mcp login` is
         # running. OAuth state validation is performed by Codex itself.
         location = /mcp/oauth/callback {
-            proxy_pass $codex_oauth_callback;
+            proxy_pass $mergeron_oauth_callback;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -69,13 +69,13 @@ http {
         # OnlyOffice server-to-server download. Traefik routes this exact path
         # around interactive Authentik; the backend credential stays internal.
         location = /api/files/serve {
-            proxy_pass $codex_backend;
+            proxy_pass $mergeron_backend;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto https;
-            proxy_set_header Authorization "Bearer ${CODEX_BACKEND_TOKEN}";
+            proxy_set_header Authorization "Bearer ${MERGERON_BACKEND_TOKEN}";
             proxy_set_header X-Webui-Auth-Source document;
             proxy_set_header X-Webui-Auth-Subject "";
             proxy_set_header X-Webui-Auth-Email "";
@@ -86,13 +86,13 @@ http {
         # OnlyOffice save callback. Codex additionally verifies the signed
         # state and OnlyOffice JWT before accepting a write.
         location = /api/onlyoffice/callback {
-            proxy_pass $codex_backend;
+            proxy_pass $mergeron_backend;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto https;
-            proxy_set_header Authorization "Bearer ${CODEX_BACKEND_TOKEN}";
+            proxy_set_header Authorization "Bearer ${MERGERON_BACKEND_TOKEN}";
             proxy_set_header X-Webui-Auth-Source service;
             proxy_set_header X-Webui-Auth-Subject "";
             proxy_set_header X-Webui-Auth-Email "";
@@ -105,7 +105,7 @@ http {
             auth_request /_authentik_check;
             auth_request_set $identity_uid $upstream_http_x_authentik_uid;
             auth_request_set $identity_email $upstream_http_x_authentik_email;
-            proxy_pass $codex_backend;
+            proxy_pass $mergeron_backend;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -113,7 +113,7 @@ http {
             proxy_set_header X-Forwarded-Proto https;
             # The application token remains server-side and replaces any
             # Authorization header supplied by the client.
-            proxy_set_header Authorization "Bearer ${CODEX_BACKEND_TOKEN}";
+            proxy_set_header Authorization "Bearer ${MERGERON_BACKEND_TOKEN}";
             proxy_set_header X-Webui-Auth-Source authentik;
             proxy_set_header X-Webui-Auth-Subject $identity_uid;
             proxy_set_header X-Webui-Auth-Email $identity_email;

@@ -1,8 +1,8 @@
 #!/bin/sh
 set -u
 
-PID_FILE="${CODEX_NETWORK_PID_FILE:-/var/run/codex-webui-network-reconciler.pid}"
-RETRY_DELAY="${CODEX_NETWORK_RETRY_DELAY:-5}"
+PID_FILE="${MERGERON_NETWORK_PID_FILE:-/var/run/mergeron-network-reconciler.pid}"
+RETRY_DELAY="${MERGERON_NETWORK_RETRY_DELAY:-5}"
 
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"
@@ -77,20 +77,20 @@ ensure_connection() {
 reconcile_container() {
   container_result=0
   case "$1" in
-    mergeron|mergeron-ui|codex-webui)
-      required_aliases="mergeron mergeron-ui codex-webui"
-      ensure_connection "$1" codex_isolated || container_result=1
-      ensure_connection "$1" codex_admin || container_result=1
+    mergeron|mergeron-ui)
+      required_aliases="mergeron mergeron-ui"
+      ensure_connection "$1" mergeron-isolated || container_result=1
+      ensure_connection "$1" mergeron-admin || container_result=1
       ;;
-    mergeron-ingress|codex-web-ingress)
-      required_aliases="mergeron-ingress codex-web-ingress"
-      ensure_connection "$1" codex_isolated || container_result=1
+    mergeron-ingress)
+      required_aliases="mergeron-ingress"
+      ensure_connection "$1" mergeron-isolated || container_result=1
       ensure_connection "$1" net_standard || container_result=1
       ;;
-    mergeron-squid|codex-web-squid)
-      required_aliases="mergeron-squid codex-web-squid"
-      ensure_connection "$1" codex_isolated || container_result=1
-      ensure_connection "$1" codex_external || container_result=1
+    mergeron-squid)
+      required_aliases="mergeron-squid"
+      ensure_connection "$1" mergeron-isolated || container_result=1
+      ensure_connection "$1" mergeron-external || container_result=1
       ;;
     *)
       return 0
@@ -101,23 +101,13 @@ reconcile_container() {
 
 reconcile_all() {
   all_result=0
-  if container_exists mergeron-squid; then
-    reconcile_container mergeron-squid || all_result=1
-  else
-    reconcile_container codex-web-squid || all_result=1
-  fi
+  reconcile_container mergeron-squid || all_result=1
   if container_exists mergeron; then
     reconcile_container mergeron || all_result=1
   elif container_exists mergeron-ui; then
     reconcile_container mergeron-ui || all_result=1
-  else
-    reconcile_container codex-webui || all_result=1
   fi
-  if container_exists mergeron-ingress; then
-    reconcile_container mergeron-ingress || all_result=1
-  else
-    reconcile_container codex-web-ingress || all_result=1
-  fi
+  reconcile_container mergeron-ingress || all_result=1
   return "$all_result"
 }
 

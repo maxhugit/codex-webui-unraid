@@ -38,14 +38,14 @@ Appdata unique :
 
 ```bash
 git clone https://github.com/maxhugit/mergeron.git /tmp/mergeron-install
-mkdir -p /mnt/pool/appdata/codex-web/config
+mkdir -p /mnt/pool/appdata/mergeron/config
 cp /tmp/mergeron-install/deployment/compose.unraid.yml \
-  /mnt/pool/appdata/codex-web/docker-compose.yml
+  /mnt/pool/appdata/mergeron/docker-compose.yml
 cp -a /tmp/mergeron-install/deployment/config/. \
-  /mnt/pool/appdata/codex-web/config/
+  /mnt/pool/appdata/mergeron/config/
 cp /tmp/mergeron-install/deployment/.env.example \
-  /mnt/pool/appdata/codex-web/images.env
-cd /mnt/pool/appdata/codex-web
+  /mnt/pool/appdata/mergeron/images.env
+cd /mnt/pool/appdata/mergeron
 ```
 
 Éditer `images.env`, adapter les trois chemins et remplacer si possible `latest` par
@@ -64,7 +64,7 @@ test -f config/seccomp-bwrap.json
 ## 2. Préparer l’état persistant
 
 ```bash
-STATE=/mnt/pool/appdata/codex-web/state
+STATE=/mnt/pool/appdata/mergeron/state
 mkdir -p "$STATE"/{home,workspace,logs,ssh}
 ```
 
@@ -155,7 +155,7 @@ Compose Manager affiche alors les trois services et fournit les actions **Up**,
 
 1. ouvrir **Docker > Compose** dans Unraid ;
 2. ouvrir l’éditeur du fichier d’environnement ;
-3. définir `CODEX_APP_IMAGE` avec `latest` ou, de préférence, un tag
+3. définir `MERGERON_APP_IMAGE` avec `latest` ou, de préférence, un tag
    `sha-<commit>` ;
 4. enregistrer ;
 5. cliquer sur **Update Stack** ;
@@ -195,7 +195,7 @@ Le nom Docker `authentik` doit donc être résolvable depuis `net_standard`.
 
 Conserver ce fournisseur proxy pendant la première mise en service du SSO
 applicatif. Créer en parallèle un fournisseur OAuth2/OpenID avec l’URI de retour
-`https://codex.example.com/api/auth/oidc/callback`, puis renseigner ses paramètres
+`https://mergeron.example.com/api/auth/oidc/callback`, puis renseigner ses paramètres
 dans l’administration du WebUI. Tester la connexion SSO et un compte local de
 récupération avant toute suppression du middleware proxy. La procédure détaillée
 et l’ordre de bascule figurent dans `docs/configuration-integrations.md`.
@@ -239,7 +239,7 @@ depuis le conteneur sans donner de clé privée en écriture à Codex.
 
 ```bash
 docker inspect mergeron --format '{{.State.Health.Status}}'
-curl -I https://codex.example.com
+curl -I https://mergeron.example.com
 docker logs --tail 100 mergeron-ingress
 docker logs --tail 100 mergeron-squid
 ```
@@ -270,7 +270,7 @@ problème. Ne pas supprimer l’ancien tag avant validation fonctionnelle.
 
 Procédure de mise à jour reproductible :
 
-1. sauvegarder `state/home` et relever `CODEX_APP_IMAGE` ;
+1. sauvegarder `state/home` et relever `MERGERON_APP_IMAGE` ;
 2. exécuter `docker compose ... config` pour valider les fichiers ;
 3. définir le nouveau tag `sha-<commit>` dans `images.env` ;
 4. utiliser **Update Stack**, ou exécuter `pull` puis `up -d` ;

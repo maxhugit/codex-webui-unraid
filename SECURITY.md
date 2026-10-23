@@ -47,7 +47,7 @@ les conclusions critiques non justifiées restent visibles dans les rapports.
 
 ## Risques résiduels connus
 
-Le réseau `codex_admin` permet au conteneur principal d’atteindre Unraid, le VPS
+Le réseau `mergeron-admin` permet au conteneur principal d’atteindre Unraid, le VPS
 et les services administratifs. Les programmes respectant les variables de
 proxy utilisent Squid, mais ce réseau constitue aussi une route directe. Les
 autorisations SSH et les services accessibles doivent rester strictement limités.

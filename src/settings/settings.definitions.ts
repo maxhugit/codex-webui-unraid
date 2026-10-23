@@ -131,7 +131,7 @@ export const SETTINGS_DEFINITIONS = [
     type: 'string',
     category: 'general',
     description:
-      'Public base URL of this WebUI instance (e.g. https://codex.example.com). Used to build document URLs reachable by OnlyOffice. Auto-detected from request headers when empty.',
+      'Public base URL of this WebUI instance (e.g. https://mergeron.example.com). Used to build document URLs reachable by OnlyOffice. Auto-detected from request headers when empty.',
     defaultValue: GENERAL_SETTING_DEFAULTS.publicBaseUrl,
   },
   {
