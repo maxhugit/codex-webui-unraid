@@ -25,9 +25,9 @@ class SystemApplicabilityTests(unittest.TestCase):
     def report(self, *findings):
         return {'Results': [{'Type': 'debian', 'Vulnerabilities': list(findings)}]}
 
-    def test_thirteen_reviewed_findings_only(self):
+    def test_nine_reviewed_findings_only(self):
         result = module.audit(self.report(*self.findings), self.report(), self.allowed)
-        self.assertEqual(result['reviewed_system_high'], 13)
+        self.assertEqual(result['reviewed_system_high'], 9)
 
     def test_other_findings_must_remain(self):
         for update in ({'PkgName': 'openssh-server'}, {'Severity': 'CRITICAL'},

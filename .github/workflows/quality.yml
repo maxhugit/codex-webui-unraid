@@ -127,6 +127,13 @@ jobs:
             type=gha
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max,compression=zstd,compression-level=3,oci-mediatypes=true,image-manifest=true
 
+      - name: Test real SSH and Git transfers against an isolated server
+        env:
+          IMAGE_REF: codex-webui-unraid:quality-${{ github.sha }}
+        run: |
+          docker buildx build --file Dockerfile.unraid --target ssh-test-server --load --tag webui-ssh-fixture .
+          scripts/smoke-test-ssh-image.sh "$IMAGE_REF" webui-ssh-fixture > ssh-client-evidence.json
+
       - name: Start the production image and wait for its health check
         run: scripts/smoke-test-image.sh "codex-webui-unraid:quality-${{ github.sha }}"
 
@@ -173,6 +180,11 @@ jobs:
           jq -r '.Results[]? | select(.Type == "gobinary" and (.Target | ltrimstr("/")) == "usr/local/bin/gh") | .Vulnerabilities[]? | [.Severity, .PkgName, .InstalledVersion, .VulnerabilityID, (.FixedVersion // "")] | @tsv' trivy-quality-results.json
           jq -e '[.Results[]? | select(.Type == "gobinary" and (.Target | ltrimstr("/")) == "usr/local/bin/gh") | .Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length == 0' trivy-quality-results.json
 
+      - name: Require no raw HIGH or CRITICAL OpenSSH findings
+        run: |
+          jq -e 'any(.Results[]?.Packages[]?; .Name == "openssh-client-gssapi")' trivy-quality-results.raw.json
+          jq -e '[.Results[]?.Vulnerabilities[]? | select((.PkgName | startswith("openssh-")) and (.Severity == "HIGH" or .Severity == "CRITICAL"))] | length == 0' trivy-quality-results.raw.json
+
       - name: Upload image security report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -182,6 +194,7 @@ jobs:
             trivy-quality-results.json
             trivy-quality-results.raw.json
             trivy-quality-results.headers.json
+            ssh-client-evidence.json
             system-component-evidence.json
             image.openvex.json
             security/system-components.openvex.json
