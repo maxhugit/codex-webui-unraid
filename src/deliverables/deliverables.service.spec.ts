@@ -89,6 +89,27 @@ describe('project deliverables', () => {
       new ActiveFoldersService(database.db),
     );
   });
+  it('records creator and last editor when saving a deliverable', async () => {
+    const item = await service.create('p', 'r', { title: 'Audit' });
+    expect(item.createdByName).toBe('System');
+    expect(item.updatedByName).toBe('System');
+    const updated = service.update('p', 'r', item.id, {
+      title: 'Updated audit',
+      version: item.version,
+    });
+    expect(updated.createdByName).toBe(item.createdByName);
+    expect(updated.updatedByName).toBe('System');
+    expect(updated.updatedAt).toBeGreaterThanOrEqual(item.createdAt);
+    const required = service.setValidationRequirement(
+      'p',
+      'r',
+      item.id,
+      { required: true, version: updated.version },
+      { personId: null, name: 'Bob' },
+    );
+    expect(required.createdByName).toBe('System');
+    expect(required.updatedByName).toBe('Bob');
+  });
   it('associates one main task from the project and clears it when the task is deleted', async () => {
     const now = Date.now();
     database.db

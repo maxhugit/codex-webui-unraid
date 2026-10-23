@@ -656,6 +656,8 @@ export const projectDeliverables = sqliteTable(
       .notNull()
       .default([]),
     validatedVersionId: text('validated_version_id'),
+    createdByName: text('created_by_name'),
+    updatedByName: text('updated_by_name'),
     version: integer('version').notNull().default(1),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
