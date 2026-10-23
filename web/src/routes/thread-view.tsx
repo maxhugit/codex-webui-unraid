@@ -119,6 +119,7 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
           sandboxPolicy: {
             ...sandbox,
             writableRoots: project.workspaces
+              .filter((workspace) => !workspace.readOnly)
               .map((workspace) => workspace.path)
               .filter((workspacePath) => workspacePath !== nextCwd),
           },

@@ -26,6 +26,7 @@ import {
 } from '../auth/access-context';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
 import {
+  projectWorkspaceCopies,
   projectWorkspaceResources,
   projectWorkspaceSecrets,
   projectWorkspaces,
@@ -242,11 +243,54 @@ export class WorkspaceResourcesService {
     const resource = this.raw(projectId, id);
     if (resource.type === 'local')
       throw new ConflictException('Detach the corresponding workspace instead');
-    this.db
-      .delete(projectWorkspaceResources)
-      .where(eq(projectWorkspaceResources.id, id))
-      .run();
+    this.db.transaction((tx) => {
+      tx.update(projectWorkspaceCopies)
+        .set({ state: 'revoked', updatedAt: Date.now() })
+        .where(eq(projectWorkspaceCopies.sourceResourceId, id))
+        .run();
+      tx.delete(projectWorkspaceResources)
+        .where(eq(projectWorkspaceResources.id, id))
+        .run();
+    });
     return { ok: true, remoteDataDeleted: false };
+  }
+
+  /** Materializes a Git resource without disclosing its credentials. */
+  async cloneGit(
+    projectId: string,
+    id: string,
+    target: string,
+    branch?: string | null,
+  ): Promise<{ branch: string; revision: string }> {
+    requireExecutionAccess();
+    const resource = this.raw(projectId, id);
+    if (resource.type !== 'git')
+      throw new BadRequestException(
+        'This resource type cannot create a Git working copy',
+      );
+    if (!resource.enabled)
+      throw new ConflictException('Source resource is disabled');
+    if (branch && !this.validGitRef(branch))
+      throw new BadRequestException('Invalid Git branch or tag');
+    const secret = this.readSecret(id);
+    const cloneArgs = ['clone', '--single-branch'];
+    if (branch) cloneArgs.push('--branch', branch);
+    cloneArgs.push('--', resource.address!, target);
+    await this.runGit(cloneArgs, secret, 120_000);
+    const revision = (
+      await this.runGit(['-C', target, 'rev-parse', 'HEAD'], null, 10_000)
+    ).stdout.trim();
+    const effectiveBranch = (
+      await this.runGit(
+        ['-C', target, 'branch', '--show-current'],
+        null,
+        10_000,
+      )
+    ).stdout.trim();
+    return {
+      branch: effectiveBranch || branch || 'detached',
+      revision,
+    };
   }
 
   get(projectId: string, id: string): WorkspaceResourceView {
@@ -483,13 +527,26 @@ export class WorkspaceResourcesService {
     address: string,
     secret: ConnectionSecret | null,
   ): Promise<void> {
+    return this.runGit(['ls-remote', '--heads', address], secret, 10_000).then(
+      () => undefined,
+    );
+  }
+
+  private runGit(
+    args: string[],
+    secret: ConnectionSecret | null,
+    timeoutMs: number,
+  ): Promise<{ stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
       let askpassDirectory: string | null = null;
       const env: NodeJS.ProcessEnv = {
         ...process.env,
         GIT_TERMINAL_PROMPT: '0',
       };
-      if (secret?.token && /^https:\/\//i.test(address)) {
+      if (
+        secret?.token &&
+        args.some((argument) => /^https:\/\//i.test(argument))
+      ) {
         askpassDirectory = mkdtempSync(join(tmpdir(), 'mergeron-git-'));
         const askpass = join(askpassDirectory, 'askpass.sh');
         writeFileSync(
@@ -502,24 +559,33 @@ export class WorkspaceResourcesService {
         env.MERGERON_GIT_USERNAME = secret.username || 'oauth2';
         env.MERGERON_GIT_TOKEN = secret.token;
       }
-      const child = spawn('git', ['ls-remote', '--heads', address], {
+      const child = spawn('git', args, {
         env,
-        stdio: ['ignore', 'ignore', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
+      let output = '';
       let error = '';
+      child.stdout.on('data', (chunk) => {
+        if (output.length < 10_000) output += String(chunk);
+      });
       child.stderr.on('data', (chunk) => {
         if (error.length < 1000) error += String(chunk);
       });
       const timeout = setTimeout(() => {
         child.kill();
-        reject(new Error('Connection timed out'));
-      }, 10_000);
-      child.on('error', reject);
+        reject(new Error('Git operation timed out'));
+      }, timeoutMs);
+      child.on('error', (cause) => {
+        clearTimeout(timeout);
+        if (askpassDirectory)
+          rmSync(askpassDirectory, { recursive: true, force: true });
+        reject(cause);
+      });
       child.on('close', (code) => {
         clearTimeout(timeout);
         if (askpassDirectory)
           rmSync(askpassDirectory, { recursive: true, force: true });
-        if (code === 0) resolve();
+        if (code === 0) resolve({ stdout: output, stderr: error });
         else
           reject(
             new Error(
@@ -530,6 +596,19 @@ export class WorkspaceResourcesService {
           );
       });
     });
+  }
+
+  private validGitRef(value: string): boolean {
+    return (
+      value.length <= 200 &&
+      /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(value) &&
+      !value.endsWith('/') &&
+      !value.endsWith('.') &&
+      !value.includes('..') &&
+      !value.includes('//') &&
+      !value.includes('@{') &&
+      !value.includes('/.')
+    );
   }
 
   private probeBanner(

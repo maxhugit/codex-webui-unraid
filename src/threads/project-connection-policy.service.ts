@@ -1,11 +1,20 @@
 /** Builds per-project Codex app and MCP enablement overrides for new threads. */
-import { Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import * as path from 'node:path';
 import { eq } from 'drizzle-orm';
+import { currentAccess } from '../auth/access-context';
 import { CodexService } from '../codex/codex.service';
 import type { v2 } from '../codex/codex-schema';
 import type { JsonValue } from '../codex/codex-schema/serde_json/JsonValue';
 import { DRIZZLE_DB, type AppDatabase } from '../database/database.constants';
-import { projects, projectWorkspaces } from '../database/schema';
+import {
+  projectActivity,
+  projects,
+  projectWorkspaceCopies,
+  projectWorkspaceResources,
+  projectWorkspaces,
+} from '../database/schema';
 
 type JsonObject = { [key: string]: JsonValue };
 
@@ -14,6 +23,10 @@ export interface ProjectExecutionPolicy {
   config: JsonObject;
   model: string | null;
   reasoningEffort: string | null;
+  workspaceId: string;
+  readOnly: boolean;
+  sourceResourceId: string | null;
+  sourceRevision: string | null;
 }
 
 @Injectable()
@@ -35,12 +48,50 @@ export class ProjectConnectionPolicyService {
     cwd: string | null | undefined,
   ): Promise<ProjectExecutionPolicy | null> {
     if (!cwd) return null;
-    const workspace = this.db
-      .select({ projectId: projectWorkspaces.projectId })
+    let workspace = this.db
+      .select({
+        id: projectWorkspaces.id,
+        projectId: projectWorkspaces.projectId,
+        path: projectWorkspaces.path,
+      })
       .from(projectWorkspaces)
       .where(eq(projectWorkspaces.path, cwd))
       .get();
+    if (!workspace) {
+      const candidate = path.resolve(cwd);
+      workspace = this.db
+        .select({
+          id: projectWorkspaces.id,
+          projectId: projectWorkspaces.projectId,
+          path: projectWorkspaces.path,
+        })
+        .from(projectWorkspaces)
+        .all()
+        .filter((item) => {
+          const root = path.resolve(item.path);
+          return candidate === root || candidate.startsWith(root + path.sep);
+        })
+        .sort((a, b) => b.path.length - a.path.length)[0];
+    }
     if (!workspace) return null;
+    const copy = workspace.id
+      ? this.db
+          .select()
+          .from(projectWorkspaceCopies)
+          .where(eq(projectWorkspaceCopies.localWorkspaceId, workspace.id))
+          .get()
+      : null;
+    const source = copy
+      ? this.db
+          .select()
+          .from(projectWorkspaceResources)
+          .where(eq(projectWorkspaceResources.id, copy.sourceResourceId))
+          .get()
+      : null;
+    if (copy && (!source || !source.enabled || copy.state !== 'ready'))
+      throw new ConflictException(
+        'The source resource for this working copy is no longer available',
+      );
     const project = this.db
       .select({
         appIds: projects.appIds,
@@ -53,9 +104,15 @@ export class ProjectConnectionPolicyService {
       .get();
     if (!project) return null;
 
+    // Listing apps can initialize connector-backed MCP authentication. Avoid
+    // doing that when the project selects no app: the deny-by-default override
+    // is already sufficient and an unrelated stale OAuth token must not block
+    // starting a turn.
     const [apps, mcpServers] = await Promise.all([
-      this.listApps(),
-      this.listMcpServers(),
+      project.appIds.length > 0 ? this.listApps() : Promise.resolve([]),
+      project.mcpServerIds.length > 0
+        ? this.listMcpServers()
+        : Promise.resolve([]),
     ]);
 
     const selectedApps = new Set(project.appIds);
@@ -88,6 +145,10 @@ export class ProjectConnectionPolicyService {
 
     return {
       projectId: workspace.projectId,
+      workspaceId: workspace.id || workspace.path || cwd,
+      readOnly: source?.accessMode === 'read_only',
+      sourceResourceId: copy?.sourceResourceId ?? null,
+      sourceRevision: copy?.revision ?? null,
       model: project.agentModel,
       reasoningEffort: project.agentReasoningEffort,
       config: {
@@ -96,6 +157,35 @@ export class ProjectConnectionPolicyService {
         plugins: pluginConfig,
       },
     };
+  }
+
+  /** Records the exact local and source context used for an operation. */
+  recordExecutionContext(
+    policy: ProjectExecutionPolicy,
+    cwd: string,
+    threadId: string,
+  ): void {
+    const identity = currentAccess()?.identity;
+    this.db
+      .insert(projectActivity)
+      .values({
+        id: randomUUID(),
+        projectId: policy.projectId,
+        action: 'workspace_context_used',
+        entityType: 'agent',
+        entityId: threadId,
+        label: cwd,
+        details: {
+          workspaceId: policy.workspaceId,
+          sourceResourceId: policy.sourceResourceId,
+          sourceRevision: policy.sourceRevision,
+          readOnly: policy.readOnly,
+        },
+        actorPersonId: identity?.personId ?? null,
+        actorName: identity?.name ?? 'Système',
+        createdAt: Date.now(),
+      })
+      .run();
   }
 
   private async listApps(): Promise<v2.AppInfo[]> {

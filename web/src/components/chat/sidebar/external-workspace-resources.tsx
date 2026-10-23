@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Cable, PlugZap, Unlink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   projectsApi,
+  projectsQueryKey,
   type ProjectSummary,
+  type ProjectWorkspaceCopySummary,
   type ProjectWorkspaceResourceSummary,
 } from '@/lib/projects-api';
 
@@ -28,9 +31,13 @@ export function ExternalWorkspaceResources({
   pending: boolean;
 }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [resources, setResources] = useState<ProjectWorkspaceResourceSummary[]>(
     [],
   );
+  const [copies, setCopies] = useState<ProjectWorkspaceCopySummary[]>([]);
+  const [copying, setCopying] = useState<string | null>(null);
+  const [copyBranch, setCopyBranch] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -39,10 +46,12 @@ export function ExternalWorkspaceResources({
     try {
       const result = await projectsApi<{
         resources: ProjectWorkspaceResourceSummary[];
+        copies: ProjectWorkspaceCopySummary[];
       }>(`/${project.id}/workspace-resources`);
       setResources(
         result.resources.filter((resource) => resource.type !== 'local'),
       );
+      setCopies(result.copies);
       setError('');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -59,6 +68,7 @@ export function ExternalWorkspaceResources({
     try {
       await projectsApi(path, init);
       await load();
+      await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
       return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -216,75 +226,153 @@ export function ExternalWorkspaceResources({
       {resources.map((resource) => (
         <div
           key={resource.id}
-          className="flex items-center gap-3 rounded-lg border border-border p-3"
+          className="space-y-2 rounded-lg border border-border p-3"
         >
-          <PlugZap className="h-4 w-4 text-muted-foreground" />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <span className="truncate">{resource.name}</span>
-              <Badge variant="secondary">{resource.type.toUpperCase()}</Badge>
-              <Badge
-                variant={
-                  resource.connectionState === 'connected'
-                    ? 'default'
-                    : 'outline'
+          <div className="flex items-center gap-3">
+            <PlugZap className="h-4 w-4 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <span className="truncate">{resource.name}</span>
+                <Badge variant="secondary">{resource.type.toUpperCase()}</Badge>
+                <Badge
+                  variant={
+                    resource.connectionState === 'connected'
+                      ? 'default'
+                      : 'outline'
+                  }
+                >
+                  {stateLabel(resource.connectionState)}
+                </Badge>
+              </div>
+              <div className="truncate font-mono text-[11px] text-muted-foreground">
+                {resource.address} · {resource.rootPath} ·{' '}
+                {resource.accessMode === 'read_only'
+                  ? t('readOnly')
+                  : t('readAndWrite')}
+              </div>
+              {resource.lastError && (
+                <p className="text-xs text-destructive">{resource.lastError}</p>
+              )}
+            </div>
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy || !resource.enabled}
+                onClick={() =>
+                  void mutate(
+                    `/${project.id}/workspace-resources/${resource.id}/test`,
+                    { method: 'POST' },
+                  )
                 }
               >
-                {stateLabel(resource.connectionState)}
-              </Badge>
+                {t('test')}
+              </Button>
+              {resource.type === 'git' && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy || !resource.enabled}
+                  onClick={() => {
+                    setCopying(copying === resource.id ? null : resource.id);
+                    setCopyBranch('');
+                  }}
+                >
+                  {t('createWorkingCopy')}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() =>
+                  void mutate(
+                    `/${project.id}/workspace-resources/${resource.id}/${resource.enabled ? 'disable' : 'enable'}`,
+                    { method: 'POST' },
+                  )
+                }
+              >
+                {resource.enabled ? t('disable') : t('enable')}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive"
+                disabled={busy}
+                onClick={() =>
+                  void mutate(
+                    `/${project.id}/workspace-resources/${resource.id}`,
+                    { method: 'DELETE' },
+                  )
+                }
+              >
+                <Unlink className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <div className="truncate font-mono text-[11px] text-muted-foreground">
-              {resource.address} · {resource.rootPath} ·{' '}
-              {resource.accessMode === 'read_only'
-                ? t('readOnly')
-                : t('readAndWrite')}
+          </div>
+          {copying === resource.id && (
+            <div className="flex items-center gap-2 border-t border-border pt-2">
+              <input
+                className={`${field} min-w-0 flex-1`}
+                placeholder={t('gitBranchOptional')}
+                value={copyBranch}
+                onChange={(event) => setCopyBranch(event.target.value)}
+              />
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={() =>
+                  void mutate(
+                    `/${project.id}/workspace-resources/${resource.id}/copies`,
+                    {
+                      method: 'POST',
+                      body: JSON.stringify({ branch: copyBranch || undefined }),
+                    },
+                  ).then((created) => created && setCopying(null))
+                }
+              >
+                {t('createCopy')}
+              </Button>
             </div>
-            {resource.lastError && (
-              <p className="text-xs text-destructive">{resource.lastError}</p>
-            )}
-          </div>
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy || !resource.enabled}
-              onClick={() =>
-                void mutate(
-                  `/${project.id}/workspace-resources/${resource.id}/test`,
-                  { method: 'POST' },
-                )
-              }
-            >
-              {t('test')}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              onClick={() =>
-                void mutate(
-                  `/${project.id}/workspace-resources/${resource.id}/${resource.enabled ? 'disable' : 'enable'}`,
-                  { method: 'POST' },
-                )
-              }
-            >
-              {resource.enabled ? t('disable') : t('enable')}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-destructive"
-              disabled={busy}
-              onClick={() =>
-                void mutate(
-                  `/${project.id}/workspace-resources/${resource.id}`,
-                  { method: 'DELETE' },
-                )
-              }
-            >
-              <Unlink className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          )}
+          {copies
+            .filter((copy) => copy.sourceResourceId === resource.id)
+            .map((copy) => (
+              <div
+                key={copy.id}
+                className="ml-7 flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-xs"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">{copy.name}</div>
+                  <div className="truncate font-mono text-muted-foreground">
+                    {copy.branch ?? t('detachedRevision')} ·{' '}
+                    {copy.revision.slice(0, 12)} ·{' '}
+                    {copy.accessMode === 'read_only'
+                      ? t('readOnly')
+                      : t('readAndWrite')}
+                  </div>
+                </div>
+                <Badge
+                  variant={copy.state === 'ready' ? 'secondary' : 'destructive'}
+                >
+                  {copy.state === 'ready' ? t('ready') : t('revoked')}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  disabled={busy}
+                  onClick={() =>
+                    void mutate(
+                      `/${project.id}/workspace-resources/copies/${copy.id}`,
+                      { method: 'DELETE' },
+                    )
+                  }
+                >
+                  <Unlink className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
         </div>
       ))}
       {resources.length === 0 && !editing && (
