@@ -13,6 +13,9 @@ fetch "$base/libxml2_2.12.7+dfsg+really2.9.14-2.1+deb13u3.debian.tar.xz" libxml2
 base=https://security.ubuntu.com/ubuntu/pool/main/libx/libxml2
 fetch "$base/libxml2_2.9.14+dfsg-1.3ubuntu3.10.dsc" ubuntu.dsc 1e2a56b4ae292abd2715b1f411cfa30f1b31ef9013c60d2f906d4a68b165cd4c
 fetch "$base/libxml2_2.9.14+dfsg-1.3ubuntu3.10.debian.tar.xz" ubuntu.debian.tar.xz d2d821830eb60edbcfcbe30e2827420e9e439e98c85c812352969cdda764d60b
+# Debian's DFSG archive omits the regression corpus. Restore only test data from
+# the matching official upstream release; no upstream code replaces Debian code.
+fetch https://download.gnome.org/sources/libxml2/2.9/libxml2-2.9.14.tar.xz upstream-tests.tar.xz 60d74a257d1ccec0475e749cba2f21559e48139efba6ff28224357c7c798dfee
 # Verify each reviewed patch is byte-for-byte the maintained stable backport.
 python3 - <<'PY'
 import hashlib,json,tarfile
@@ -26,6 +29,9 @@ with tarfile.open('ubuntu.debian.tar.xz') as archive:
 PY
 dpkg-source --no-check -x libxml2.dsc libxml2
 cd libxml2
+mkdir -p /tmp/xml-test-corpus
+tar -xJf ../upstream-tests.tar.xz -C /tmp/xml-test-corpus libxml2-2.9.14/test libxml2-2.9.14/result
+cp -a /tmp/xml-test-corpus/libxml2-2.9.14/test /tmp/xml-test-corpus/libxml2-2.9.14/result .
 for patch in /reviewed-patches/*.patch; do
   cp "$patch" debian/patches/
   basename "$patch" >> debian/patches/series

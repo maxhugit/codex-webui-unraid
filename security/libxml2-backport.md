@@ -37,7 +37,9 @@ verify that it actually loads the same system libxml2 instead of a bundled copy.
 source and patch archive, plus Ubuntu's descriptor and stable patch archive.
 Every committed patch is checked byte-for-byte against the Ubuntu archive and its
 manifest digest. Patches apply without fuzz; no Ubuntu binary or repository is
-installed. The existing Debian patch set is retained.
+installed. The existing Debian patch set is retained. The regression corpus omitted by the
+Debian archive is restored only in the builder from the SHA-256-pinned official
+GNOME 2.9.14 release; its code does not replace Debian code.
 
 Debian's exported-symbol check remains enabled and SONAME `libxml2.so.2` is kept.
 The stable entity fix appends fields to public internal-facing structures, as in
