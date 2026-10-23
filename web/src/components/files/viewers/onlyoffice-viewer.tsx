@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 
 interface Props {
   filePath: string;
+  readOnly?: boolean;
 }
 
 interface OnlyOfficeEditor {
@@ -46,7 +47,7 @@ declare global {
   }
 }
 
-export function OnlyOfficeViewer({ filePath }: Props) {
+export function OnlyOfficeViewer({ filePath, readOnly = false }: Props) {
   const { t } = useTranslation();
   const elementId = `onlyoffice-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const editorRef = useRef<OnlyOfficeEditor | null>(null);
@@ -63,7 +64,10 @@ export function OnlyOfficeViewer({ filePath }: Props) {
   useEffect(() => {
     let cancelled = false;
 
-    void onlyOfficeGetConfig({ query: { path: filePath }, throwOnError: true })
+    void onlyOfficeGetConfig({
+      query: { path: filePath, ...(readOnly ? { mode: 'view' as const } : {}) },
+      throwOnError: true,
+    })
       .then(async ({ data }) => {
         await loadOnlyOfficeScript(data.scriptUrl);
         if (cancelled || !window.DocsAPI) return;
@@ -111,7 +115,7 @@ export function OnlyOfficeViewer({ filePath }: Props) {
       editorRef.current?.destroyEditor?.();
       editorRef.current = null;
     };
-  }, [attempt, elementId, filePath]);
+  }, [attempt, elementId, filePath, readOnly]);
 
   return (
     <div className="relative h-full">

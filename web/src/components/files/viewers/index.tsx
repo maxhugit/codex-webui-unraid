@@ -52,6 +52,7 @@ interface Props {
   source?: PreviewSource;
   viewId?: string;
   active?: boolean;
+  readOnly?: boolean;
 }
 
 /** Dispatches to the appropriate viewer component based on file extension. */
@@ -61,6 +62,7 @@ export function FileContentViewer({
   source,
   viewId = `preview:${filePath}`,
   active = true,
+  readOnly = false,
 }: Props) {
   const { t } = useTranslation();
   const previewSource = source ?? filePreviewSource(filePath);
@@ -94,7 +96,7 @@ export function FileContentViewer({
     (category === 'docx' || category === 'xlsx' || category === 'pptx') &&
     canUseOnlyOffice
   ) {
-    viewer = <OnlyOfficeViewer filePath={filePath} />;
+    viewer = <OnlyOfficeViewer filePath={filePath} readOnly={readOnly} />;
   } else {
     switch (category) {
       case 'image':

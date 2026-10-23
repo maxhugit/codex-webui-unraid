@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Download, Eye, FileText, History, Info, MoreVertical, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
@@ -378,7 +378,7 @@ function DocumentDetailDialog({
         )}
         {document && detail?.tab === 'preview' && (
           <div role="tabpanel" className="min-h-0 flex-1 overflow-hidden">
-            <FileViewer filePath={document.sourcePath} viewId={`deliverable:${document.id}`} />
+            <FileViewer filePath={document.sourcePath} viewId={`deliverable:${document.id}`} readOnly />
           </div>
         )}
         {document && detail?.tab === 'information' && (
@@ -430,12 +430,39 @@ function DocumentRow({ document, busy, onView, onHistory, onDownload, onFile, on
 }) {
   const { t } = useTranslation();
   const latest = document.versions.at(-1);
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const closeOutside = (event: Event) => {
+      const menu = menuRef.current;
+      if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      const menu = menuRef.current;
+      if (menu?.open && event.key === 'Escape') {
+        menu.open = false;
+        menu.querySelector('summary')?.focus();
+      }
+    };
+    window.document.addEventListener('pointerdown', closeOutside, true);
+    window.document.addEventListener('focusin', closeOutside);
+    window.document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.document.removeEventListener('pointerdown', closeOutside, true);
+      window.document.removeEventListener('focusin', closeOutside);
+      window.document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, []);
   return (
     <article className="grid gap-2 border-t px-3 py-3 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(12rem,0.7fr)_3rem] sm:items-center sm:gap-3">
-      <button type="button" className="flex min-w-0 items-center gap-2 text-left hover:underline" onClick={onView}>
+      <a
+        href={withBasePath(`/document?path=${encodeURIComponent(document.sourcePath)}`)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex min-w-0 items-center gap-2 text-left hover:underline"
+      >
         <FileText className="h-4 w-4 shrink-0 text-primary" />
         <strong className="truncate">{document.name}</strong>
-      </button>
+      </a>
       <span className="text-sm text-muted-foreground">
         <span className="sm:hidden">{t('versions')}: </span>
         {document.currentVersionNumber}
@@ -444,7 +471,7 @@ function DocumentRow({ document, busy, onView, onHistory, onDownload, onFile, on
         <span className="sm:hidden">{t('lastModified')}: </span>
         {latest ? `${new Date(latest.createdAt).toLocaleDateString()} · ${latest.authorName}` : '—'}
       </span>
-      <details className="relative justify-self-end">
+      <details ref={menuRef} className="relative justify-self-end">
         <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md hover:bg-muted" aria-label={t('actions')}>
           <MoreVertical className="h-4 w-4" />
         </summary>
