@@ -53,6 +53,19 @@ WORKDIR /build
 COPY scripts/build-openssh-backport.sh /tmp/build-openssh-backport.sh
 RUN bash /tmp/build-openssh-backport.sh
 
+# Backport maintained 2.9.14 security fixes without replacing LibreOffice's ABI.
+FROM debian:trixie-slim AS libxml2-builder
+ENV DEBIAN_FRONTEND=noninteractive
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl build-essential dpkg-dev debhelper quilt autoconf automake \
+    libtool liblzma-dev pkg-config rename zlib1g-dev python3
+WORKDIR /build
+COPY security/libxml2-patches/ /reviewed-patches/
+COPY scripts/build-libxml2-backport.sh scripts/smoke-test-libxml2.c /tmp/
+RUN bash /tmp/build-libxml2-backport.sh
+
 # ── Stage 3: Shared runtime system ───────────────────────────────────
 FROM debian:trixie-slim AS runtime-base
 
@@ -97,6 +110,17 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     python3 \
     xz-utils \
     zstd
+
+# Replace the actual Debian libxml2 package; retain the established SONAME and
+# exported-symbol contract. Development headers remain in the Office builder.
+COPY --from=libxml2-builder /out/ /tmp/libxml2-backport/
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+ && apt-get install -y --no-install-recommends /tmp/libxml2-backport/libxml2_*_amd64.deb \
+ && mkdir -p /usr/local/share/libxml2-backport \
+ && cp /tmp/libxml2-backport/*.dsc /tmp/libxml2-backport/*.json /usr/local/share/libxml2-backport/ \
+ && rm -rf /tmp/libxml2-backport
 
 # Install real rebuilt Debian packages, replacing the old client rather than
 # shadowing it in PATH. GSSAPI preserves the capabilities of Trixie's client.
@@ -155,8 +179,15 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # image-decoder vulnerabilities. Direct and transitive pins keep rebuilds stable.
 FROM python-builder-base AS office-builder
 
+COPY --from=libxml2-builder /out/libxml2-dev_*_amd64.deb /tmp/libxml2-dev.deb
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+ && apt-get install -y --no-install-recommends python3-dev libxslt1-dev /tmp/libxml2-dev.deb \
+ && rm /tmp/libxml2-dev.deb
+
 RUN python3 -m venv /opt/office-venv \
- && /opt/office-venv/bin/pip install --no-cache-dir \
+ && /opt/office-venv/bin/pip install --no-cache-dir --no-binary=lxml \
       "Pillow==${PILLOW_VERSION}" \
       "XlsxWriter==3.2.9" \
       "charset-normalizer==3.5.2" \
@@ -169,7 +200,7 @@ RUN python3 -m venv /opt/office-venv \
       "reportlab==5.0.1" \
       "typing_extensions==4.16.0" \
  && /opt/office-venv/bin/python -c \
-      "from PIL import Image; import docx, openpyxl, pypdf, pptx, reportlab; assert Image.__version__ == '${PILLOW_VERSION}'"
+      "from PIL import Image; from lxml import etree; import docx, openpyxl, pypdf, pptx, reportlab; assert etree.LIBXML_VERSION == (2, 9, 14); assert Image.__version__ == '${PILLOW_VERSION}'"
 
 RUN command -v 7za >/dev/null
 

@@ -36,7 +36,7 @@ fi
 docker run --rm --entrypoint /bin/bash "${image_ref}" -euc '
   for package in python3-pip libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev libffi-dev liblzma-dev tk-dev uuid-dev \
-    7zip p7zip-full p7zip; do
+    7zip p7zip-full p7zip libxml2-dev python3-libxml2; do
     if dpkg-query --show "${package}" >/dev/null 2>&1; then
       echo "Unexpected runtime package: ${package}" >&2
       exit 1
