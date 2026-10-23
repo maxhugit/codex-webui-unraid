@@ -18,6 +18,7 @@ import { CatalogActivityService } from './catalog-activity.service';
 import { CatalogAdmissionService } from './catalog-admission.service';
 import { writeAtomic } from './catalog-files';
 import type { v2 } from '../codex-schema';
+import type { SettingsService } from '../../settings/settings.service';
 
 const baseline = readFileSync(
   resolve('docs/upstream/model-catalog-0.153.2.json'),
@@ -31,7 +32,9 @@ describe('pinned catalog parser and lifecycle', () => {
   beforeEach(() => {
     fixture = catalogFixture();
     native = new CatalogNativeService(fixture.paths);
-    manager = new CodexProcessManager(fixture.storage);
+    manager = new CodexProcessManager(fixture.storage, {
+      getStringSetting: () => null,
+    } as unknown as SettingsService);
   });
   afterEach(async () => {
     if (manager.getClient()) {

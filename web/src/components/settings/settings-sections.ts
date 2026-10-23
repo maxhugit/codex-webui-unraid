@@ -1,5 +1,6 @@
 export const SETTINGS_SECTIONS = [
   'general',
+  'onlyOffice',
   'people',
   'account',
   'codex',
@@ -12,3 +13,10 @@ export const SETTINGS_SECTIONS = [
   'integrations',
 ] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+export const ONLYOFFICE_SETTING_KEYS = [
+  'general.onlyofficeUrl',
+  'general.onlyofficeJwtSecret',
+  'general.onlyofficeSaveMaxBytes',
+  'general.publicBaseUrl',
+] as const;

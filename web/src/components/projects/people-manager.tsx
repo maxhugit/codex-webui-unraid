@@ -2,7 +2,14 @@ import { translationKey } from '@/locales/translation-key';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { LogOut, Pencil, Plus, UserRound, UserPlus } from 'lucide-react';
+import {
+  ChevronRight,
+  LogOut,
+  Pencil,
+  Plus,
+  UserRound,
+  UserPlus,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -20,6 +27,7 @@ import {
   authRequest,
   localAccountsKey,
   readLocalAccounts,
+  type LocalAccount,
 } from '@/lib/auth-api';
 import {
   usePeople,
@@ -52,10 +60,12 @@ export function PeopleManager({
   projectId,
   readOnly = false,
   showHeading = true,
+  mode = 'full',
 }: {
   projectId?: string;
   readOnly?: boolean;
   showHeading?: boolean;
+  mode?: 'full' | 'activeAdministrators';
 }) {
   const { t, i18n } = useTranslation();
   const client = useQueryClient();
@@ -154,10 +164,29 @@ export function PeopleManager({
   const rows = (people.data?.people ?? []).filter(
     (person) =>
       (!projectId || !readOnly || participantIds.has(person.id)) &&
+      (mode !== 'activeAdministrators' ||
+        (person.active && person.role === 'administrator')) &&
       `${person.name} ${person.reference} ${person.email ?? ''}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+  const editPerson = (person: Person, account?: LocalAccount) => {
+    mutation.reset();
+    setEditing(person.id);
+    setForm({
+      reference: person.reference,
+      firstName: person.firstName ?? '',
+      lastName: person.lastName ?? '',
+      phone: person.phone ?? '',
+      role: person.role ?? 'standard',
+      email: person.email ?? '',
+      active: person.active,
+    });
+    setLocalAccountDraft({
+      username: account?.username ?? '',
+      password: '',
+    });
+  };
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (form) {
@@ -201,7 +230,7 @@ export function PeopleManager({
             </p>
           </div>
         )}
-        {!projectId && (
+        {!projectId && mode === 'full' && (
           <Button
             className="cursor-pointer"
             onClick={() => {
@@ -224,12 +253,14 @@ export function PeopleManager({
           </Button>
         )}
       </div>
-      <Input
-        aria-label={t('searchPeople')}
-        placeholder={t('searchPeople')}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      {mode === 'full' && (
+        <Input
+          aria-label={t('searchPeople')}
+          placeholder={t('searchPeople')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      )}
       {(people.isError || participants.isError) && (
         <p role="alert" className="text-sm text-destructive">
           {t('unableToLoadPeople')}
@@ -249,9 +280,11 @@ export function PeopleManager({
       {people.data && !rows.length && (
         <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
           {t(
-            projectId
-              ? 'noPeopleFoundCreatePeopleInSettingsPeople'
-              : 'noPeopleFound',
+            mode === 'activeAdministrators'
+              ? 'noActiveAdministratorFound'
+              : projectId
+                ? 'noPeopleFoundCreatePeopleInSettingsPeople'
+                : 'noPeopleFound',
           )}
         </p>
       )}
@@ -269,6 +302,34 @@ export function PeopleManager({
                 { dateStyle: 'short', timeStyle: 'short' },
               ).format(account.connectedSince)
             : null;
+          if (mode === 'activeAdministrators')
+            return (
+              <button
+                type="button"
+                key={person.id}
+                className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-background/60 p-3 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
+                onClick={() => editPerson(person, account)}
+              >
+                <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{person.name}</div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {person.email || t('noEmail')}
+                  </p>
+                </div>
+                {account?.oidcLinked && (
+                  <Badge variant="outline" className="hidden sm:inline-flex">
+                    {t('ssoIdentityLinked')}
+                  </Badge>
+                )}
+                {account?.passwordConfigured && (
+                  <Badge variant="outline" className="hidden sm:inline-flex">
+                    {t('localLogin')}
+                  </Badge>
+                )}
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            );
           return (
             <div
               key={person.id}
@@ -380,23 +441,7 @@ export function PeopleManager({
                     size="sm"
                     variant="outline"
                     className="cursor-pointer"
-                    onClick={() => {
-                      mutation.reset();
-                      setEditing(person.id);
-                      setForm({
-                        reference: person.reference,
-                        firstName: person.firstName ?? '',
-                        lastName: person.lastName ?? '',
-                        phone: person.phone ?? '',
-                        role: person.role ?? 'standard',
-                        email: person.email ?? '',
-                        active: person.active,
-                      });
-                      setLocalAccountDraft({
-                        username: account?.username ?? '',
-                        password: '',
-                      });
-                    }}
+                    onClick={() => editPerson(person, account)}
                   >
                     <Pencil className="mr-1 h-3 w-3" />
                     {t('edit')}

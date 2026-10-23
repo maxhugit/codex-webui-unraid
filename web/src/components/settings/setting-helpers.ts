@@ -55,6 +55,7 @@ export function sectionLabel(section: string): string {
   if (section === 'simpleChat') return 'Simple Chat';
   const labels: Record<string, string> = {
     general: 'General',
+    onlyOffice: 'OnlyOffice',
     people: 'People',
     account: 'Account',
     codex: 'Codex',
@@ -80,6 +81,7 @@ export function settingsPageDescription(section: string): string {
   const descriptions: Record<string, string> = {
     general:
       'Manage server runtime settings. Personal appearance and session logout are available from My account.',
+    onlyOffice: 'onlyOfficeSettingsDescription',
     people:
       'Create people before they connect. The manual reference uniquely identifies each person.',
     account:
@@ -108,7 +110,7 @@ export function settingLabel(key: string): string {
     'general.onlyofficeUrl': 'OnlyOffice server URL',
     'general.onlyofficeJwtSecret': 'OnlyOffice JWT secret',
     'general.onlyofficeSaveMaxBytes': 'OnlyOffice maximum save size',
-    'general.publicBaseUrl': 'Public WebUI URL',
+    'general.publicBaseUrl': 'Public Mergeron URL',
     'terminal.maxSessions': 'Maximum terminal sessions',
     'terminal.graceMs': 'Detached terminal timeout',
     'terminal.scrollback': 'Terminal scrollback lines',
