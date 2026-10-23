@@ -23,6 +23,8 @@ const item: Deliverable = {
   title: 'Report',
   description: '',
   criteria: '',
+  confidentiality: 'standard',
+  authorizedGroupIds: [],
   assigneeId: null,
   dueAt: null,
   status: 'planned',
@@ -58,6 +60,7 @@ const board: DeliverablesBoard = {
   deliverables: [item],
   assignees: [],
   taskManagers: [],
+  personGroups: [],
   tasks: [],
   conversations: [],
 };

@@ -14,6 +14,10 @@ import {
   projectAgentThreads,
   projectTasks,
   projectTaskStatuses,
+  people,
+  projectParticipants,
+  projectPersonGroups,
+  projectPersonGroupMembers,
 } from '../database/schema';
 import { DeliverablesService } from './deliverables.service';
 import { FilesService } from '../files/files.service';
@@ -21,6 +25,7 @@ import type { SettingsService } from '../settings/settings.service';
 import { SECURITY_SETTING_KEYS } from '../settings/settings.definitions';
 import { ProjectsService } from '../projects/projects.service';
 import { IdentityService } from '../auth/identity.service';
+import { accessContext } from '../auth/access-context';
 
 describe('project deliverables', () => {
   let database: TestDatabase,
@@ -140,6 +145,83 @@ describe('project deliverables', () => {
       .where(eq(projectTasks.id, 'main-task'))
       .run();
     expect(service.get('p', 'r', item.id).primaryTaskId).toBeNull();
+  });
+  it('limits restricted deliverables to authorized group members and administrators', async () => {
+    const now = Date.now();
+    const identities = new IdentityService(database.db);
+    for (const id of ['alice', 'bob']) {
+      database.db
+        .insert(people)
+        .values({
+          id,
+          reference: id,
+          name: id,
+          email: `${id}@example.com`,
+          identitySubject: id,
+          role: 'standard',
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      database.db
+        .insert(projectParticipants)
+        .values({ projectId: 'p', personId: id, createdAt: now })
+        .run();
+    }
+    database.db
+      .insert(projectPersonGroups)
+      .values({
+        id: 'reviewers',
+        projectId: 'p',
+        name: 'Reviewers',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    database.db
+      .insert(projectPersonGroupMembers)
+      .values({ groupId: 'reviewers', personId: 'alice', createdAt: now })
+      .run();
+    const item = await service.create('p', 'r', {
+      title: 'Restricted',
+      confidentiality: 'restricted',
+      authorizedGroupIds: ['reviewers'],
+    });
+    const identity = (id: string) => ({
+      kind: 'person' as const,
+      personId: id,
+      name: id,
+      role: 'standard' as const,
+      active: true,
+    });
+    const asPerson = <T>(id: string, action: () => T) =>
+      accessContext.run({ identity: identity(id), identities }, action);
+    expect(
+      asPerson('alice', () => service.board('p', 'r').deliverables),
+    ).toHaveLength(1);
+    expect(
+      asPerson('bob', () => service.board('p', 'r').deliverables),
+    ).toHaveLength(0);
+    expect(() => asPerson('bob', () => service.get('p', 'r', item.id))).toThrow(
+      'not found',
+    );
+    expect(
+      accessContext.run(
+        {
+          identity: { ...identity('bob'), role: 'administrator' as const },
+          identities,
+        },
+        () => service.get('p', 'r', item.id),
+      ).id,
+    ).toBe(item.id);
+    await expect(
+      service.create('p', 'r', {
+        title: 'Invalid',
+        confidentiality: 'restricted',
+        authorizedGroupIds: [],
+      }),
+    ).rejects.toThrow('requires at least one group');
   });
   afterEach(async () => {
     database.sqlite.close();

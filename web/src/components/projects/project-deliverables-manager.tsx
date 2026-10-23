@@ -63,6 +63,8 @@ type Draft = {
   title: string;
   description: string;
   criteria: string;
+  confidentiality: Deliverable['confidentiality'];
+  authorizedGroupIds: string[];
   status: Deliverable['status'];
   conversations: Deliverable['conversations'];
 };
@@ -265,6 +267,11 @@ function DeliverablesList({
                 <span className="mt-1 block truncate text-xs text-muted-foreground">
                   {item.description || t('noDescription')}
                 </span>
+                {item.confidentiality === 'restricted' && (
+                  <span className="mt-1 inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
+                    {t('restrictedAccessShort')}
+                  </span>
+                )}
               </span>
               <span className="flex items-center gap-2 text-sm">
                 <FileText className="h-4 w-4 text-muted-foreground" />
@@ -403,6 +410,8 @@ function DeliverableDetail({
     title: item.title,
     description: item.description,
     criteria: item.criteria,
+    confidentiality: item.confidentiality,
+    authorizedGroupIds: item.authorizedGroupIds,
     status: item.status,
     conversations: item.conversations,
   });
@@ -765,12 +774,67 @@ function Overview({
               ))}
           </select>
         </label>
+        <label className="block text-sm">
+          {t('confidentiality')}
+          <select
+            className="mt-1 w-full rounded border bg-background p-2"
+            disabled={busy}
+            value={draft.confidentiality}
+            onChange={(event) =>
+              set(
+                'confidentiality',
+                event.target.value as Draft['confidentiality'],
+              )
+            }
+          >
+            <option value="standard">{t('standardAccess')}</option>
+            <option value="restricted">{t('restrictedAccess')}</option>
+          </select>
+        </label>
+        {draft.confidentiality === 'restricted' && (
+          <fieldset className="space-y-2 rounded-lg border p-3">
+            <legend className="px-1 text-sm font-medium">
+              {t('authorizedGroups')}
+            </legend>
+            {!board.personGroups.length && (
+              <p className="text-sm text-muted-foreground">
+                {t('createAProjectGroupBeforeRestrictingAccess')}
+              </p>
+            )}
+            {board.personGroups.map((group) => (
+              <label className="flex items-center gap-2 text-sm" key={group.id}>
+                <input
+                  type="checkbox"
+                  disabled={busy}
+                  checked={draft.authorizedGroupIds.includes(group.id)}
+                  onChange={(event) =>
+                    set(
+                      'authorizedGroupIds',
+                      event.target.checked
+                        ? [...draft.authorizedGroupIds, group.id]
+                        : draft.authorizedGroupIds.filter(
+                            (id) => id !== group.id,
+                          ),
+                    )
+                  }
+                />
+                {group.name}
+              </label>
+            ))}
+          </fieldset>
+        )}
         <p className="text-xs text-muted-foreground">
           {t('planningInheritedFromPrimaryTask')}
         </p>
         <div className="flex gap-2">
           <Button
-            disabled={busy || !dirty || !draft.title.trim()}
+            disabled={
+              busy ||
+              !dirty ||
+              !draft.title.trim() ||
+              (draft.confidentiality === 'restricted' &&
+                !draft.authorizedGroupIds.length)
+            }
             onClick={() =>
               action.mutate({
                 method: 'PATCH',
@@ -815,6 +879,15 @@ function Overview({
           title={t('validation')}
           value={
             item.status === 'validated' ? t('validated') : t('notValidated')
+          }
+        />
+        <Summary
+          icon={UserRound}
+          title={t('confidentiality')}
+          value={
+            item.confidentiality === 'restricted'
+              ? t('restrictedAccessShort')
+              : t('standardAccessShort')
           }
         />
         <Summary

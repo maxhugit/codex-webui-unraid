@@ -24,6 +24,9 @@ import {
   projectDeliverableValidations as validations,
   projectWorkspaces,
   projectParticipants,
+  projectManagerAssignments,
+  projectPersonGroups,
+  projectPersonGroupMembers,
   people,
   projectTasks,
   projectTaskStatuses,
@@ -45,6 +48,8 @@ export interface DeliverableInput {
   title?: string;
   description?: string;
   criteria?: string;
+  confidentiality?: 'standard' | 'restricted';
+  authorizedGroupIds?: string[];
   assigneeId?: string | null;
   dueAt?: number | null;
   status?: string;
@@ -100,6 +105,8 @@ export class DeliverablesService {
         description: items.description,
         criteria: items.criteria,
         status: items.status,
+        confidentiality: items.confidentiality,
+        authorizedGroupIds: items.authorizedGroupIds,
         workspace: projects.workspacePath,
         validatedVersionId: items.validatedVersionId,
       })
@@ -116,10 +123,12 @@ export class DeliverablesService {
     return linked.length
       ? '<project_deliverable_context>\nProject deliverables linked to this conversation. Use their goals and validation criteria. Save working files in the indicated directory. Do not claim validation; only a person can validate a submitted version.\n' +
           JSON.stringify(
-            linked.map((item) => ({
-              ...item,
-              directory: path.join(item.workspace, 'livrables', item.id),
-            })),
+            linked
+              .filter((item) => this.canAccessDeliverable(projectId, item))
+              .map((item) => ({
+                ...item,
+                directory: path.join(item.workspace, 'livrables', item.id),
+              })),
           ) +
           '\n</project_deliverable_context>'
       : null;
@@ -210,8 +219,38 @@ export class DeliverablesService {
       .from(items)
       .where(and(eq(items.id, id), eq(items.resourceId, resourceId)))
       .get();
-    if (!item) throw new NotFoundException('Deliverable not found');
+    if (!item || !this.canAccessDeliverable(projectId, item))
+      throw new NotFoundException('Deliverable not found');
     return item;
+  }
+  private canAccessDeliverable(
+    projectId: string,
+    item: Pick<Item, 'confidentiality' | 'authorizedGroupIds'>,
+  ) {
+    if (item.confidentiality !== 'restricted') return true;
+    const access = currentAccess();
+    if (!access || access.identity.role === 'administrator') return true;
+    const personId = access.identity.personId;
+    if (!personId) return false;
+    const manager = this.db
+      .select({ personId: projectManagerAssignments.personId })
+      .from(projectManagerAssignments)
+      .where(eq(projectManagerAssignments.projectId, projectId))
+      .get();
+    if (manager?.personId === personId) return true;
+    if (!item.authorizedGroupIds.length) return false;
+    return Boolean(
+      this.db
+        .select({ groupId: projectPersonGroupMembers.groupId })
+        .from(projectPersonGroupMembers)
+        .where(
+          and(
+            inArray(projectPersonGroupMembers.groupId, item.authorizedGroupIds),
+            eq(projectPersonGroupMembers.personId, personId),
+          ),
+        )
+        .get(),
+    );
   }
   private options(projectId: string) {
     return {
@@ -236,6 +275,12 @@ export class DeliverablesService {
           ),
         )
         .all(),
+      personGroups: this.db
+        .select({ id: projectPersonGroups.id, name: projectPersonGroups.name })
+        .from(projectPersonGroups)
+        .where(eq(projectPersonGroups.projectId, projectId))
+        .all()
+        .sort((a, b) => a.name.localeCompare(b.name)),
       tasks: this.db
         .select({
           id: projectTasks.id,
@@ -283,7 +328,8 @@ export class DeliverablesService {
       .from(items)
       .where(eq(items.resourceId, resourceId))
       .orderBy(desc(items.updatedAt))
-      .all();
+      .all()
+      .filter((item) => this.canAccessDeliverable(projectId, item));
     const history = records.length
       ? this.db
           .select()
@@ -481,6 +527,26 @@ export class DeliverablesService {
         ? (current?.primaryTaskId ?? null)
         : input.primaryTaskId || null;
     const conversations = input.conversations ?? current?.conversations ?? [];
+    const confidentiality =
+      input.confidentiality ?? current?.confidentiality ?? 'standard';
+    if (!['standard', 'restricted'].includes(confidentiality))
+      throw new BadRequestException('Invalid deliverable confidentiality');
+    const authorizedGroupIds = [
+      ...new Set(input.authorizedGroupIds ?? current?.authorizedGroupIds ?? []),
+    ];
+    if (
+      authorizedGroupIds.length > 100 ||
+      authorizedGroupIds.some(
+        (id) =>
+          typeof id !== 'string' ||
+          !options.personGroups.some((group) => group.id === id),
+      )
+    )
+      throw new BadRequestException('Groups must belong to this project');
+    if (confidentiality === 'restricted' && !authorizedGroupIds.length)
+      throw new BadRequestException(
+        'A restricted deliverable requires at least one group',
+      );
     if (
       !Array.isArray(taskIds) ||
       taskIds.length > 100 ||
@@ -533,6 +599,9 @@ export class DeliverablesService {
         input.criteria === undefined
           ? (current?.criteria ?? '')
           : this.text(input.criteria, 10000),
+      confidentiality,
+      authorizedGroupIds:
+        confidentiality === 'restricted' ? authorizedGroupIds : [],
       assigneeId,
       dueAt,
       status,

@@ -37,6 +37,7 @@ import {
   projectManagerAssignments,
   projectPersonGroups,
   projectPersonGroupMembers,
+  projectDeliverables,
   projectActivity,
   documentAccessSessions,
   type Project,
@@ -740,6 +741,31 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       .delete(projectPersonGroups)
       .where(eq(projectPersonGroups.id, groupId))
       .run();
+    const affected = this.db
+      .select({
+        id: projectDeliverables.id,
+        groupIds: projectDeliverables.authorizedGroupIds,
+      })
+      .from(projectDeliverables)
+      .innerJoin(
+        projectResources,
+        eq(projectDeliverables.resourceId, projectResources.id),
+      )
+      .where(eq(projectResources.projectId, projectId))
+      .all()
+      .filter((deliverable) => deliverable.groupIds.includes(groupId));
+    for (const deliverable of affected) {
+      const groupIds = deliverable.groupIds.filter((id) => id !== groupId);
+      this.db
+        .update(projectDeliverables)
+        .set({
+          authorizedGroupIds: groupIds,
+          ...(groupIds.length ? {} : { confidentiality: 'standard' as const }),
+          updatedAt: Date.now(),
+        })
+        .where(eq(projectDeliverables.id, deliverable.id))
+        .run();
+    }
     this.recordActivity(
       projectId,
       'person_group_deleted',
