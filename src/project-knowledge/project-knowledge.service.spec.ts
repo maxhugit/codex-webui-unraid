@@ -30,7 +30,7 @@ describe('shared project knowledge', () => {
     const primary = await new ProjectWorkspaceLayout(database.db, root).prepare(
       'p',
     );
-    directory = path.join(primary, '.webui/knowledge');
+    directory = path.join(primary, '.mergeron/knowledge');
     database.db
       .insert(projects)
       .values({
@@ -147,7 +147,7 @@ describe('shared project knowledge', () => {
       .run();
     await new ProjectWorkspaceLayout(database.db, root).prepare('other');
     await fs.writeFile(
-      path.join(root, 'other/.webui/knowledge/AGENTS.md'),
+      path.join(root, 'other/.mergeron/knowledge/AGENTS.md'),
       'Private to other project',
     );
     expect(

@@ -35,7 +35,7 @@ describe('project deliverables', () => {
   beforeEach(async () => {
     database = createTestDatabase();
     root = await fs.mkdtemp(path.join(os.tmpdir(), 'deliverables-'));
-    await fs.mkdir(path.join(root, '.webui'));
+    await fs.mkdir(path.join(root, '.mergeron'));
     const now = Date.now();
     database.db
       .insert(projects)
@@ -638,7 +638,7 @@ describe('project deliverables', () => {
       service.create('p', 'r', { title: 'Other', assigneeId: 'foreign' }),
     ).rejects.toThrow('active project participant');
     const item = await service.create('p', 'r', { title: 'Output' });
-    const secret = path.join(root, '.webui', 'secret.txt');
+    const secret = path.join(root, '.mergeron', 'secret.txt');
     await fs.writeFile(secret, 'Secret');
     await expect(
       service.submit('p', 'r', item.id, { paths: [secret], version: 1 }),

@@ -74,7 +74,7 @@ ne change pas ce chemin. On peut importer/remplacer ces fichiers ou soumettre
 des fichiers existants dans les workspaces rattachés au projet.
 
 La soumission historique héritée crée une copie séparée dans
-`.webui/history/deliverables/<id-livrable>/<id-version>/` du principal.
+`.mergeron/history/deliverables/<id-livrable>/<id-version>/` du principal.
 Une version comprend de 1 à 10 fichiers, de 100 Mio maximum chacun, avec un total
 de 200 Mio maximum. Une empreinte SHA-256 détecte les modifications extérieures
 avant téléchargement ou validation. Les dossiers réservés et les fichiers hors
@@ -125,4 +125,4 @@ lorsqu’il désigne une tâche principale valide du même projet. Aucun gestion
 de livrables n’est créé automatiquement.
 
 Sauvegarder ensemble la base SQLite et le workspace principal, y compris
-`.webui/history`, pour conserver métadonnées, copies et version de référence.
+`.mergeron/history`, pour conserver métadonnées, copies et version de référence.

@@ -38,6 +38,7 @@ import {
 } from '../database/schema';
 import { FilesService } from '../files/files.service';
 import { IdentityService } from '../auth/identity.service';
+import { PROJECT_SYSTEM_DIRECTORY } from '../projects/workspace-structure';
 
 type Item = typeof items.$inferSelect;
 export type DeliverableLifecycleStatus =
@@ -955,7 +956,7 @@ export class DeliverablesService {
     );
     const versionId = randomUUID();
     const folder = await this.directory(projectId, [
-      '.webui',
+      PROJECT_SYSTEM_DIRECTORY,
       'history',
       'deliverables',
       id,
@@ -1235,7 +1236,7 @@ export class DeliverablesService {
     const versionId = randomUUID();
     const number = (latest?.number ?? 0) + 1;
     const folder = await this.directory(projectId, [
-      '.webui',
+      PROJECT_SYSTEM_DIRECTORY,
       'history',
       'deliverables',
       deliverableId,
@@ -1544,7 +1545,7 @@ export class DeliverablesService {
     const folder = await this.directory(
       projectId,
       [
-        '.webui',
+        PROJECT_SYSTEM_DIRECTORY,
         'history',
         'deliverables',
         deliverableId,
@@ -1642,7 +1643,7 @@ export class DeliverablesService {
       );
     const folder = await this.directory(
       projectId,
-      ['.webui', 'history', 'deliverables', id, versionId],
+      [PROJECT_SYSTEM_DIRECTORY, 'history', 'deliverables', id, versionId],
       false,
     );
     const resolved = await fs.realpath(file.snapshotPath);
