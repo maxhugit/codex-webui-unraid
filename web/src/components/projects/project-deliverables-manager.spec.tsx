@@ -629,6 +629,18 @@ it('creates an independent version from the current document file', async () => 
   fireEvent.change(screen.getByLabelText('Version comment'), {
     target: { value: 'After review' },
   });
+  expect(screen.getByRole('link', { name: 'report.docx' })).toHaveAttribute(
+    'href',
+    '/document?path=%2Fworkspaces%2Fp%2Flivrables%2Fd%2Freport.docx',
+  );
+  expect(screen.getByRole('link', { name: 'report.docx' })).toHaveAttribute(
+    'target',
+    '_blank',
+  );
+  expect(screen.getByRole('link', { name: 'report.docx' })).toHaveAttribute(
+    'rel',
+    'noopener noreferrer',
+  );
   fireEvent.click(
     screen.getByRole('button', {
       name: 'Create a version from the current file',

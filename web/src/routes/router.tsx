@@ -44,6 +44,10 @@ const FilesRoute = lazyRouteComponent(
   () => import('./files-route'),
   'FilesRoute',
 );
+const DocumentRoute = lazyRouteComponent(
+  () => import('./document-route'),
+  'DocumentRoute',
+);
 const TerminalRoute = lazyRouteComponent(
   () => import('./terminal-route'),
   'TerminalRoute',
@@ -151,6 +155,21 @@ const filesRoute = createRoute({
   component: FilesRoute,
 });
 
+/** Standalone authenticated document tab. */
+const documentRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/document',
+  validateSearch: (search: Record<string, unknown>): { path?: string } => ({
+    path:
+      typeof search.path === 'string' &&
+      search.path.startsWith('/') &&
+      !search.path.includes('\0')
+        ? search.path
+        : undefined,
+  }),
+  component: DocumentRoute,
+});
+
 /** Global terminal view. */
 const terminalRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
@@ -236,6 +255,7 @@ const routeTree = rootRoute.addChildren([
     helpRoute,
     threadRoute,
     filesRoute,
+    documentRoute,
     terminalRoute,
     diagnosticsRoute,
     logsRoute,

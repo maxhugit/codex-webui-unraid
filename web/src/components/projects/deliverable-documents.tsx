@@ -432,10 +432,15 @@ function DocumentRow({ document, busy, onView, onHistory, onDownload, onFile, on
   const latest = document.versions.at(-1);
   return (
     <article className="grid gap-2 border-t px-3 py-3 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(12rem,0.7fr)_3rem] sm:items-center sm:gap-3">
-      <button type="button" className="flex min-w-0 items-center gap-2 text-left hover:underline" onClick={onView}>
+      <a
+        href={withBasePath(`/document?path=${encodeURIComponent(document.sourcePath)}`)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex min-w-0 items-center gap-2 text-left hover:underline"
+      >
         <FileText className="h-4 w-4 shrink-0 text-primary" />
         <strong className="truncate">{document.name}</strong>
-      </button>
+      </a>
       <span className="text-sm text-muted-foreground">
         <span className="sm:hidden">{t('versions')}: </span>
         {document.currentVersionNumber}
