@@ -7,7 +7,7 @@ describe('deliverable document migration', () => {
     const sqlite = new Database(':memory:');
     sqlite.pragma('foreign_keys = ON');
     const migrations = readMigrationFiles({ migrationsFolder: 'drizzle' });
-    for (const migration of migrations.slice(0, -3))
+    for (const migration of migrations.slice(0, -6))
       for (const statement of migration.sql) sqlite.exec(statement);
 
     sqlite
@@ -76,7 +76,7 @@ describe('deliverable document migration', () => {
       20,
     );
 
-    for (const migration of migrations.slice(-3))
+    for (const migration of migrations.slice(-6))
       for (const statement of migration.sql) sqlite.exec(statement);
 
     const documents = sqlite
@@ -126,7 +126,7 @@ describe('deliverable document migration', () => {
     const sqlite = new Database(':memory:');
     sqlite.pragma('foreign_keys = ON');
     const migrations = readMigrationFiles({ migrationsFolder: 'drizzle' });
-    for (const migration of migrations.slice(0, -1))
+    for (const migration of migrations.slice(0, -4))
       for (const statement of migration.sql) sqlite.exec(statement);
     sqlite.exec(`
       INSERT INTO projects (id, name, workspace_path, workspace_layout_version, mcp_server_ids, app_ids, sidebar_order, created_at, updated_at)
@@ -141,7 +141,7 @@ describe('deliverable document migration', () => {
       INSERT INTO project_deliverables (id, resource_id, title, task_ids, conversations, created_at, updated_at)
       VALUES ('d', 'dboard', 'Package', '["task"]', '[]', 1, 1);
     `);
-    for (const statement of migrations.at(-1)!.sql) sqlite.exec(statement);
+    for (const statement of migrations.at(-4)!.sql) sqlite.exec(statement);
     expect(
       sqlite
         .prepare(

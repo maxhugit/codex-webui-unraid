@@ -52,6 +52,10 @@ export class AuthService {
     return this.identities.verifyDocumentSession(id, path, writable);
   }
 
+  getDocumentSession(id: unknown, path: string, writable = false) {
+    return this.identities.getDocumentSession(id, path, writable);
+  }
+
   signFileAccess(
     path: string,
     sessionId = this.createDocumentSession(path),

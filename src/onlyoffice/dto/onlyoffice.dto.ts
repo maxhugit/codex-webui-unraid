@@ -34,4 +34,13 @@ export class OnlyOfficeCallbackDto {
   /** Array of user IDs who edited the document. */
   @ApiPropertyOptional({ type: [String] })
   users?: string[];
+
+  @ApiPropertyOptional()
+  changesurl?: string;
+
+  @ApiPropertyOptional({ type: Object })
+  history?: {
+    changes?: Record<string, unknown>;
+    serverVersion?: string;
+  };
 }

@@ -605,6 +605,15 @@ export class IdentityService {
     }
   }
 
+  getDocumentSession(id: unknown, path: string, writable = false) {
+    if (!this.verifyDocumentSession(id, path, writable)) return null;
+    return this.db
+      .select()
+      .from(documentAccessSessions)
+      .where(eq(documentAccessSessions.id, id as string))
+      .get();
+  }
+
   clientConfig() {
     const row = this.db
       .select()

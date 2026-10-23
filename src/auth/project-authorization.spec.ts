@@ -624,6 +624,38 @@ it('does not expose deliverable snapshot metadata or bytes from an unauthorized 
 it('checks live OnlyOffice download and save callbacks, including readonly and revoked sessions', async () => {
   const path = join(root, 'a', 'office.docx');
   writeFileSync(path, 'original');
+  database.db
+    .insert(projectResources)
+    .values({
+      id: 'office-board',
+      projectId: 'a',
+      type: 'deliverable_board',
+      name: 'Deliverables',
+      config: {},
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    .run();
+  database.db
+    .insert(projectDeliverables)
+    .values({
+      id: 'office-deliverable',
+      resourceId: 'office-board',
+      title: 'Office document',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    .run();
+  expect(
+    (
+      await app.inject({
+        method: 'POST',
+        url: '/api/projects/a/resources/office-board/deliverables/office-deliverable/documents',
+        headers: headers(),
+        payload: { path },
+      })
+    ).statusCode,
+  ).toBe(201);
   const loadConfig = async (mode: string) => {
     const response = await app.inject({
       url: `/api/onlyoffice/config?path=${encodeURIComponent(path)}&mode=${mode}`,
@@ -646,6 +678,11 @@ it('checks live OnlyOffice download and save callbacks, including readonly and r
       key: editor.document.key,
       status: 2,
       url: 'http://office.test/saved.docx',
+      changesurl: 'http://office.test/changes.zip',
+      history: {
+        changes: { serverVersion: '10.0', changes: [] },
+        serverVersion: '10.0.0',
+      },
     };
     const url = new URL(editor.editorConfig.callbackUrl);
     return app.inject({
@@ -662,12 +699,35 @@ it('checks live OnlyOffice download and save callbacks, including readonly and r
   });
   const fetch = vi
     .spyOn(globalThis, 'fetch')
-    .mockResolvedValueOnce(new Response('edited'));
+    .mockResolvedValueOnce(new Response('edited'))
+    .mockResolvedValueOnce(new Response('changes'));
   expect((await callback(editable)).json()).toEqual({ error: 0 });
   expect(readFileSync(path, 'utf8')).toBe('edited');
+  const history = await app.inject({
+    url: `/api/onlyoffice/history?path=${encodeURIComponent(path)}`,
+    headers: headers(),
+  });
+  expect(history.statusCode).toBe(200);
+  const historyBody = history.json<{
+    currentVersion: number;
+    history: Array<{ key: string }>;
+  }>();
+  expect(historyBody).toMatchObject({
+    currentVersion: 2,
+    history: [
+      { version: 1 },
+      {
+        version: 2,
+        serverVersion: '10.0.0',
+        user: { id: 'alice', name: 'alice' },
+      },
+    ],
+  });
+  expect(historyBody.history[1].key).not.toBe(editable.document.key);
   const view = await loadConfig('view');
+  expect(historyBody.history[1].key).toBe(view.document.key);
   expect((await callback(view)).json()).toEqual({ error: 1 });
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledTimes(2);
   const url = new URL(editable.document.url);
   const transferHeaders = {
     authorization: 'Bearer project-isolation-test',
@@ -695,6 +755,6 @@ it('checks live OnlyOffice download and save callbacks, including readonly and r
     ).statusCode,
   ).toBe(403);
   expect((await callback(editable)).json()).toEqual({ error: 1 });
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledTimes(2);
   expect(readFileSync(path, 'utf8')).toBe('edited');
 });

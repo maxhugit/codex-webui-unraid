@@ -732,6 +732,12 @@ export const projectDeliverableDocumentVersions = sqliteTable(
     authorName: text('author_name').notNull(),
     comment: text('comment').notNull().default(''),
     restoredFromVersionId: text('restored_from_version_id'),
+    onlyofficeKey: text('onlyoffice_key'),
+    onlyofficeChangesPath: text('onlyoffice_changes_path'),
+    onlyofficeChanges: text('onlyoffice_changes', { mode: 'json' }).$type<
+      Record<string, unknown>
+    >(),
+    onlyofficeServerVersion: text('onlyoffice_server_version'),
     createdAt: integer('created_at').notNull(),
   },
   (table) => [
