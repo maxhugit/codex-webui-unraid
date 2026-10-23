@@ -75,6 +75,7 @@ describe('ThreadsService', () => {
   const mockProjectConnections = {
     configForCwd: vi.fn(),
     policyForCwd: vi.fn(),
+    recordExecutionContext: vi.fn(),
   };
   const mockKnowledge = { contextForConversation: vi.fn() };
   const mockActiveFolders = { resolveAgent: vi.fn() };
@@ -129,6 +130,7 @@ describe('ThreadsService', () => {
     mockProjectConnections.configForCwd.mockResolvedValue(null);
     mockProjectConnections.policyForCwd.mockReset();
     mockProjectConnections.policyForCwd.mockResolvedValue(null);
+    mockProjectConnections.recordExecutionContext.mockReset();
     mockBranches.hasKnownDescendants.mockReturnValue(false);
     mockBranches.hasForkEdge.mockReturnValue(false);
     mockBranches.listKnownTreeThreadIds.mockImplementation(

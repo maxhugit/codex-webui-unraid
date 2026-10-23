@@ -16,6 +16,8 @@ import {
   projectDeliverables,
   projectResources,
   projectTasks,
+  projectWorkspaceCopies,
+  projectWorkspaceResources,
   projectWorkspaces,
   simpleChatThreads,
   type ProjectActiveFolder,
@@ -27,7 +29,12 @@ export type ActiveFolderContext =
   | 'simple_chat'
   | 'task'
   | 'deliverable';
-export type ActiveFolderState = 'ready' | 'detached' | 'missing' | 'invalid';
+export type ActiveFolderState =
+  | 'ready'
+  | 'detached'
+  | 'missing'
+  | 'invalid'
+  | 'revoked';
 
 export interface ActiveFolderView {
   contextType: ActiveFolderContext;
@@ -284,6 +291,13 @@ export class ActiveFoldersService {
         effectivePath: null,
         state: 'detached',
       };
+    if (!this.copySourceIsAvailable(workspace.id))
+      return {
+        ...reference,
+        resourceName: workspace.name,
+        effectivePath: null,
+        state: 'revoked',
+      };
     return {
       ...reference,
       resourceName: workspace.name,
@@ -349,8 +363,53 @@ export class ActiveFoldersService {
         ),
       )
       .get();
-    if (!workspace) throw new NotFoundException('Project resource not found');
+    if (!workspace) {
+      const remote = this.db
+        .select({ id: projectWorkspaceResources.id })
+        .from(projectWorkspaceResources)
+        .where(
+          and(
+            eq(projectWorkspaceResources.id, resourceId),
+            eq(projectWorkspaceResources.projectId, projectId),
+          ),
+        )
+        .get();
+      if (remote)
+        throw new ConflictException(
+          'A remote resource cannot be an execution folder. Create an explicit local working copy first.',
+        );
+      throw new NotFoundException('Project resource not found');
+    }
+    if (!this.copySourceIsAvailable(workspace.id))
+      throw new ConflictException(
+        'The source resource for this working copy is disabled or detached',
+      );
     return workspace;
+  }
+
+  private copySourceIsAvailable(localWorkspaceId: string): boolean {
+    const copy = this.db
+      .select({
+        sourceResourceId: projectWorkspaceCopies.sourceResourceId,
+        state: projectWorkspaceCopies.state,
+      })
+      .from(projectWorkspaceCopies)
+      .where(eq(projectWorkspaceCopies.localWorkspaceId, localWorkspaceId))
+      .get();
+    if (!copy) return true;
+    if (copy.state !== 'ready') return false;
+    return Boolean(
+      this.db
+        .select({ id: projectWorkspaceResources.id })
+        .from(projectWorkspaceResources)
+        .where(
+          and(
+            eq(projectWorkspaceResources.id, copy.sourceResourceId),
+            eq(projectWorkspaceResources.enabled, true),
+          ),
+        )
+        .get(),
+    );
   }
 
   private primary(projectId: string): ProjectWorkspace {

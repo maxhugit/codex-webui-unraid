@@ -1532,5 +1532,11 @@
   "connectionName": "Connection name",
   "localResource": "Local resource",
   "notTested": "Not tested",
-  "unreachable": "Unreachable"
+  "unreachable": "Unreachable",
+  "createWorkingCopy": "Working copy",
+  "gitBranchOptional": "Git branch or tag (optional)",
+  "createCopy": "Create copy",
+  "detachedRevision": "Detached revision",
+  "ready": "Ready",
+  "revoked": "Revoked"
 }

@@ -145,9 +145,18 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
     queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
   });
   const project = projectForWorkspace(projectsQuery.data?.projects, threadCwd);
+  const currentWorkspace = project?.workspaces
+    .filter(
+      (workspace) =>
+        workspace.path === threadCwd ||
+        Boolean(threadCwd?.startsWith(`${workspace.path}/`)),
+    )
+    .sort((a, b) => b.path.length - a.path.length)[0];
+  const policyReadOnly = readOnly || currentWorkspace?.readOnly === true;
   const projectWorkspacePaths =
-    project?.workspaces.map((workspace) => workspace.path) ??
-    (threadCwd ? [threadCwd] : []);
+    project?.workspaces
+      .filter((workspace) => !workspace.readOnly)
+      .map((workspace) => workspace.path) ?? (threadCwd ? [threadCwd] : []);
   const desiredAdditionalRoots = projectWorkspacePaths.filter(
     (workspacePath) => workspacePath !== threadCwd,
   );
@@ -160,7 +169,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
     const sandbox = policy.observed?.sandboxPolicy;
     if (
       !threadId ||
-      readOnly ||
+      policyReadOnly ||
       !project ||
       sandbox?.type !== 'workspaceWrite' ||
       policy.pending ||
@@ -183,7 +192,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
     desiredAdditionalRoots,
     policy,
     project,
-    readOnly,
+    policyReadOnly,
     reconciliationKey,
     threadId,
   ]);
@@ -296,7 +305,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
               active={observedApproval === option}
               requested={policy.pending?.approvalPolicy === option}
               risky={option === 'never'}
-              disabled={readOnly || policy.isSettling}
+              disabled={policyReadOnly || policy.isSettling}
               onClick={() => policy.apply({ approvalPolicy: option })}
             />
           ))}
@@ -307,7 +316,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
             {t('sandbox')}
           </div>
           {sandboxOptions(
-            threadCwd,
+            policyReadOnly ? null : threadCwd,
             observedNetworkAccess(policy.observed?.sandboxPolicy),
             projectWorkspacePaths,
           ).map((option) => (
@@ -322,7 +331,7 @@ export function SecurityPolicyBadge({ threadId, readOnly = false }: Props) {
                 policy.pending?.sandboxPolicy?.type === option.value.type
               }
               risky={option.risky}
-              disabled={readOnly || policy.isSettling}
+              disabled={policyReadOnly || policy.isSettling}
               onClick={() => policy.apply({ sandboxPolicy: option.value })}
             />
           ))}

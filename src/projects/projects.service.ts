@@ -33,6 +33,8 @@ import {
   projectTaskStatuses,
   projectAgentThreads,
   projectWorkspaces,
+  projectWorkspaceCopies,
+  projectWorkspaceResources,
   simpleChatThreads,
   people,
   projectParticipants,
@@ -891,7 +893,14 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   async list(): Promise<
     Array<
       Project & {
-        workspaces: ProjectWorkspace[];
+        workspaces: Array<
+          ProjectWorkspace & {
+            readOnly: boolean;
+            sourceResourceId: string | null;
+            branch: string | null;
+            revision: string | null;
+          }
+        >;
         resources: ProjectResource[];
         agentThreads: Array<{
           threadId: string;
@@ -909,6 +918,11 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
   > {
     await this.ensurePrimaryWorkspaces();
     const workspaces = this.db.select().from(projectWorkspaces).all();
+    const workspaceCopies = this.db.select().from(projectWorkspaceCopies).all();
+    const workspaceResources = this.db
+      .select()
+      .from(projectWorkspaceResources)
+      .all();
     const resources = this.db.select().from(projectResources).all();
     const tasks = this.db.select().from(projectTasks).all();
     const agents = this.db.select().from(projectAgentThreads).all();
@@ -952,6 +966,23 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         ...project,
         workspaces: workspaces
           .filter((workspace) => workspace.projectId === project.id)
+          .map((workspace) => {
+            const copy = workspaceCopies.find(
+              (item) => item.localWorkspaceId === workspace.id,
+            );
+            const source = copy
+              ? workspaceResources.find(
+                  (item) => item.id === copy.sourceResourceId,
+                )
+              : null;
+            return {
+              ...workspace,
+              readOnly: copy ? source?.accessMode !== 'read_write' : false,
+              sourceResourceId: copy?.sourceResourceId ?? null,
+              branch: copy?.branch ?? null,
+              revision: copy?.revision ?? null,
+            };
+          })
           .sort((a, b) => Number(b.primary) - Number(a.primary)),
         resources: resources.filter(
           (resource) => resource.projectId === project.id,

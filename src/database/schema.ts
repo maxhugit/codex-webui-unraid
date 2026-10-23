@@ -1093,6 +1093,37 @@ export const projectWorkspaceSecrets = sqliteTable(
 export type ProjectWorkspaceResource =
   typeof projectWorkspaceResources.$inferSelect;
 
+/** Explicit local snapshot of an external resource, suitable for activities. */
+export const projectWorkspaceCopies = sqliteTable(
+  'project_workspace_copies',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    sourceResourceId: text('source_resource_id').notNull(),
+    localWorkspaceId: text('local_workspace_id')
+      .notNull()
+      .references(() => projectWorkspaces.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    branch: text('branch'),
+    revision: text('revision').notNull(),
+    state: text('state').$type<'ready' | 'revoked' | 'error'>().notNull(),
+    lastError: text('last_error'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    index('idx_project_workspace_copies_project').on(table.projectId),
+    index('idx_project_workspace_copies_source').on(table.sourceResourceId),
+    uniqueIndex('idx_project_workspace_copies_local').on(
+      table.localWorkspaceId,
+    ),
+  ],
+);
+
+export type ProjectWorkspaceCopy = typeof projectWorkspaceCopies.$inferSelect;
+
 /**
  * Stable folder selected by one project context.
  *
