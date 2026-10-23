@@ -1,7 +1,7 @@
 {
   "@context": "https://openvex.dev/ns/v0.2.0",
-  "@id": "https://github.com/maxhugit/codex-webui-unraid/security/linux-libc-dev-6.12.113-1",
-  "author": "codex-webui-unraid maintainers",
+  "@id": "https://github.com/maxhugit/mergeron/security/linux-libc-dev-6.12.113-1",
+  "author": "mergeron maintainers",
   "timestamp": "2026-10-22T21:08:06Z",
   "version": 1,
   "statements": [

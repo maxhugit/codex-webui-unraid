@@ -7,13 +7,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: codex-webui-unraid-${{ github.ref }}
+  group: mergeron-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
-  # Keep updates working for existing installations after the repository rename.
-  IMAGE_NAME: maxhugit/codex-webui-unraid
+  # Publish under the canonical repository name: ghcr.io/maxhugit/mergeron.
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   quality:

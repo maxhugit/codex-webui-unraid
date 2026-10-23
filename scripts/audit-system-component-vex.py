@@ -67,7 +67,7 @@ def main():
     allowed = reviewed_keys(vex, assessment, read(evidence_path))
     if mode == 'prepare':
         combined = read(ROOT / 'security/linux-libc-dev.openvex.json')
-        combined['@id'] = 'https://github.com/maxhugit/codex-webui-unraid/security/image-applicability-2026-10-22'
+        combined['@id'] = 'https://github.com/maxhugit/mergeron/security/image-applicability-2026-10-22'
         combined['statements'] += vex['statements']
         Path(reports[0]).write_text(json.dumps(combined, indent=2) + '\n')
     elif mode == 'audit':

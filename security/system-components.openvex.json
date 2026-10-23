@@ -1,7 +1,7 @@
 {
   "@context": "https://openvex.dev/ns/v0.2.0",
-  "@id": "https://github.com/maxhugit/codex-webui-unraid/security/system-components-2026-10-22",
-  "author": "codex-webui-unraid maintainers",
+  "@id": "https://github.com/maxhugit/mergeron/security/system-components-2026-10-22",
+  "author": "mergeron maintainers",
   "timestamp": "2026-10-22T21:58:02Z",
   "version": 2,
   "statements": [

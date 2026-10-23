@@ -39,4 +39,4 @@ http:
     codex-web:
       loadBalancer:
         servers:
-          - url: "http://codex-web-ingress:8080"
+          - url: "http://mergeron-ingress:8080"
