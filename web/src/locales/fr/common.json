@@ -1,4 +1,8 @@
 {
+  "agentLinkedTo": "Lié à",
+  "agentDirectTask": "Tâche affectée",
+  "agentDeliverableTask": "Tâche du livrable",
+  "agentNoLinks": "Aucun livrable ni tâche associé",
   "detachDeliverableTask": "Dissocier la tâche",
   "deliverableCreator": "Créateur",
   "deliverableLastEditor": "Dernier modificateur",
@@ -1489,8 +1493,6 @@
   "deliverableSections": "Sections du livrable",
   "notDefined": "Non défini",
   "location": "Emplacement",
-  "linkedItemsDescription": "Conservez les tâches et conversations utiles à portée de ce livrable.",
-  "saveOverviewToApplyLinkedItems": "Enregistrez depuis l’onglet Vue générale pour appliquer ces liens.",
   "deliverables": "Livrables",
   "documents": "Documents",
   "validation": "Validation",

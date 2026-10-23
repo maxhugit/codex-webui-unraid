@@ -188,9 +188,15 @@ export const simpleChatRoute = createRoute({
 const projectResourceRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/projects/$projectId/resources/$resourceId',
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { task?: string; deliverable?: string } => ({
     task:
       typeof search.task === 'string' && search.task ? search.task : undefined,
+    deliverable:
+      typeof search.deliverable === 'string' && search.deliverable
+        ? search.deliverable
+        : undefined,
   }),
   component: ProjectResourceRoute,
 });

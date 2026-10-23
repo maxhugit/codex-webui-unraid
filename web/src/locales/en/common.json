@@ -1,4 +1,8 @@
 {
+  "agentLinkedTo": "Linked to",
+  "agentDirectTask": "Assigned task",
+  "agentDeliverableTask": "Deliverable task",
+  "agentNoLinks": "No linked deliverable or task",
   "detachDeliverableTask": "Detach task",
   "deliverableCreator": "Creator",
   "deliverableLastEditor": "Last editor",
@@ -1489,8 +1493,6 @@
   "deliverableSections": "Deliverable sections",
   "notDefined": "Not defined",
   "location": "Location",
-  "linkedItemsDescription": "Keep the useful tasks and conversations within easy reach of this deliverable.",
-  "saveOverviewToApplyLinkedItems": "Save from the Overview tab to apply these links.",
   "deliverables": "Deliverables",
   "documents": "Documents",
   "validation": "Validation",

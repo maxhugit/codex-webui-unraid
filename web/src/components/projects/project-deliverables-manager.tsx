@@ -98,9 +98,13 @@ type DeliverableAction = {
 export function ProjectDeliverablesManager({
   projectId,
   resourceId,
+  initialDeliverableId,
+  onBackToList,
 }: {
   projectId: string;
   resourceId: string;
+  initialDeliverableId?: string;
+  onBackToList?: () => void;
 }) {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -112,7 +116,9 @@ export function ProjectDeliverablesManager({
     refetchOnWindowFocus: false,
   });
   const [title, setTitle] = useState('');
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(
+    initialDeliverableId ?? null,
+  );
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [validation, setValidation] = useState('all');
@@ -185,7 +191,10 @@ export function ProjectDeliverablesManager({
         base={base}
         refresh={() => client.invalidateQueries({ queryKey: key })}
         onBack={() => {
-          if (canLeave()) setSelected(null);
+          if (canLeave()) {
+            setSelected(null);
+            onBackToList?.();
+          }
         }}
         onRemoved={() => setSelected(null)}
         onDirty={setDirty}

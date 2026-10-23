@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ChatHeader } from '@/components/chat/chat-header';
 import { ConversationFrame } from '@/components/chat/conversation-frame';
 import { WorkspaceControls } from '@/components/chat/workspace-controls';
+import { AgentContextLinks } from '@/components/chat/agent-context-links';
 import { WorkspaceTree } from '@/components/chat/workspace-tree';
 import { useWorkspaceClose } from '@/components/chat/workspace-close-dialog';
 import { FileViewer } from '@/components/files/file-viewer';
@@ -290,6 +291,17 @@ function ConversationWorkspace({ threadId }: { threadId: string }) {
                   )
               : setMobileTree(true)
           }
+        />
+        <AgentContextLinks
+          key={threadId}
+          threadId={threadId}
+          project={
+            projectsQuery.data?.projects.find((item) =>
+              item.agentThreads?.some((agent) => agent.threadId === threadId),
+            ) ?? project
+          }
+          loading={projectsQuery.isPending}
+          failed={projectsQuery.isError}
         />
         <div
           className="relative min-h-0 flex-1"
