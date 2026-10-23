@@ -4,7 +4,17 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      validate_image:
+        description: Build and validate the production image
+        type: boolean
+        default: true
   workflow_call:
+    inputs:
+      validate_image:
+        description: Build an image in addition to source checks
+        type: boolean
+        default: false
 
 concurrency:
   group: mergeron-quality-${{ github.ref }}
@@ -15,7 +25,11 @@ permissions:
   packages: write
 
 jobs:
-  quality:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [backend, frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -40,10 +54,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pnpm install --frozen-lockfile
-          pnpm --dir web install --frozen-lockfile
+          if [[ "${{ matrix.part }}" == backend ]]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm --dir web install --frozen-lockfile
+          fi
 
       - name: Validate repository content
+        if: matrix.part == 'backend'
         run: |
           python3 scripts/check-no-chinese.py
           python3 scripts/check-markdown-links.py
@@ -53,9 +71,11 @@ jobs:
           python3 -m unittest discover -s scripts -p test_mergeron_migration.py
 
       - name: Validate translation catalogs
+        if: matrix.part == 'frontend'
         run: pnpm --dir web check:i18n
 
       - name: Install reviewed 7-Zip for archive tests
+        if: matrix.part == 'backend'
         run: |
           version="$(sed -n 's/^ARG SEVENZIP_VERSION=//p' Dockerfile.unraid)"
           checksum="$(sed -n 's/^ARG SEVENZIP_LINUX_X64_SHA256=//p' Dockerfile.unraid)"
@@ -64,11 +84,15 @@ jobs:
 
       - name: Lint
         run: |
-          pnpm ensure:codex-schema
-          pnpm exec eslint "{src,apps,libs}/**/*.ts" "codex_probe/**/*.ts"
-          pnpm --dir web lint
+          if [[ "${{ matrix.part }}" == backend ]]; then
+            pnpm ensure:codex-schema
+            pnpm exec eslint "{src,apps,libs}/**/*.ts" "codex_probe/**/*.ts"
+          else
+            pnpm --dir web lint
+          fi
 
       - name: Test backend startup and migrations
+        if: matrix.part == 'backend'
         run: >-
           pnpm exec vitest run
           src/app.controller.spec.ts
@@ -84,26 +108,41 @@ jobs:
           src/auth/project-authorization.spec.ts
 
       - name: Run frontend tests
+        if: matrix.part == 'frontend'
         run: pnpm --dir web test
 
       - name: Build backend
+        if: matrix.part == 'backend'
         run: pnpm build
 
       - name: Test built archive adapters with real 7-Zip
+        if: matrix.part == 'backend'
         run: node scripts/smoke-test-archives.cjs
 
       - name: Build frontend
+        if: matrix.part == 'frontend'
         run: pnpm --dir web build
 
       - name: Check frontend bundle budgets
+        if: matrix.part == 'frontend'
         run: pnpm --dir web check:bundle
+
+  quality:
+    needs: checks
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every source check
+        env:
+          RESULT: ${{ needs.checks.result }}
+        run: test "$RESULT" = success
 
   image:
     # The publication workflow performs its own image build, scan and smoke
     # test. During a PR, build once and export every reusable layer so that the
     # exact main commit can be assembled quickly after the merge.
     if: >-
-      github.event_name != 'workflow_call' &&
+      (github.event_name == 'pull_request' || inputs.validate_image == true) &&
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
@@ -141,7 +180,7 @@ jobs:
         env:
           IMAGE_REF: mergeron:quality-${{ github.sha }}
         run: |
-          docker buildx build --file Dockerfile.unraid --target ssh-test-server --load --tag webui-ssh-fixture .
+          docker buildx build --file Dockerfile.unraid --target ssh-test-server --cache-from type=registry,ref=ghcr.io/maxhugit/mergeron:buildcache --load --tag webui-ssh-fixture .
           scripts/smoke-test-ssh-image.sh "$IMAGE_REF" webui-ssh-fixture > ssh-client-evidence.json
 
       - name: Start the production image and wait for its health check
