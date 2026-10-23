@@ -10,7 +10,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { eq } from 'drizzle-orm';
 import {
   mkdtempSync,
-  mkdirSync,
   writeFileSync,
   readFileSync,
   rmSync,
@@ -42,6 +41,7 @@ import { accessContext } from './access-context';
 import { ProjectsController } from '../projects/projects.controller';
 import { ProjectsService } from '../projects/projects.service';
 import { ProjectWorkspaceLayout } from '../projects/project-workspace-layout';
+import { WORKSPACE_LAYOUT_VERSION } from '../projects/workspace-structure';
 import { SimpleChatController } from '../simple-chat/simple-chat.controller';
 import { SimpleChatService } from '../simple-chat/simple-chat.service';
 import { FilesController } from '../files/files.controller';
@@ -97,8 +97,9 @@ beforeEach(async () => {
       })
       .run();
   for (const id of ['a', 'b']) {
-    const path = join(root, id);
-    mkdirSync(path);
+    const path = await new ProjectWorkspaceLayout(database.db, root).prepare(
+      id,
+    );
     writeFileSync(join(path, 'document.txt'), `confidential-${id}`);
     database.db
       .insert(projects)
@@ -106,7 +107,7 @@ beforeEach(async () => {
         id,
         name: `Project ${id}`,
         workspacePath: path,
-        workspaceLayoutVersion: 1,
+        workspaceLayoutVersion: WORKSPACE_LAYOUT_VERSION,
         createdAt: now,
         updatedAt: now,
       })
