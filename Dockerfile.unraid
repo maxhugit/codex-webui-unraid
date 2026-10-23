@@ -101,7 +101,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # Install real rebuilt Debian packages, replacing the old client rather than
 # shadowing it in PATH. GSSAPI preserves the capabilities of Trixie's client.
 COPY --from=openssh-builder /out/ /tmp/openssh-backport/
-RUN apt-get install -y --no-install-recommends /tmp/openssh-backport/*.deb \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+ && apt-get install -y --no-install-recommends systemd-standalone-sysusers /tmp/openssh-backport/*.deb \
  && mkdir -p /usr/local/share/openssh-backport \
  && cp /tmp/openssh-backport/*.dsc /usr/local/share/openssh-backport/ \
  && rm -rf /tmp/openssh-backport \
