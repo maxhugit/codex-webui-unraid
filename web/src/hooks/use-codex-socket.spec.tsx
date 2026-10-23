@@ -208,3 +208,24 @@ it('coalesces hints during a pending read into one trailing read and ignores pos
   });
   expect(useTimelineStore.getState().getThreadRuntime('background')).toBeNull();
 });
+
+it('coalesces recursive transport recovery events while a wake refetch is running', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let finishRecovery!: () => void;
+  const recovery = new Promise<void>((resolve) => { finishRecovery = resolve; });
+  const refetch = vi.spyOn(client, 'refetchQueries').mockReturnValue(recovery);
+  const view = renderHook(() => useCodexSocket(), {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  });
+  await waitFor(() => expect(transport.read).toHaveBeenCalled());
+  act(() => {
+    window.dispatchEvent(new Event('codex-webui:transport-recover'));
+    window.dispatchEvent(new Event('codex-webui:transport-recover'));
+    window.dispatchEvent(new Event('focus'));
+  });
+  expect(refetch).toHaveBeenCalledTimes(1);
+  await act(async () => finishRecovery());
+  act(() => window.dispatchEvent(new Event('codex-webui:transport-recover')));
+  expect(refetch).toHaveBeenCalledTimes(1);
+  view.unmount(); client.clear();
+});

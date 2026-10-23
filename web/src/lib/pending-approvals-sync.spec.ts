@@ -55,6 +55,16 @@ beforeEach(() => {
 });
 
 describe('pending request recovery', () => {
+  it('does not surface a local wake-up network failure as a server error', async () => {
+    read.mockResolvedValueOnce({
+      error: new TypeError('Failed to fetch'),
+      response: undefined,
+    } as unknown as Reply);
+    await syncPendingApprovals();
+    expect(useSnackbarStore.getState().visible).toHaveLength(0);
+    expect(useSnackbarStore.getState().queue).toHaveLength(0);
+  });
+
   it.each(['approval', 'userInput'])('preserves a %s raised while the list was in flight', async (kind) => {
     add(request('old', 't', kind));
     const finish = holdRead();

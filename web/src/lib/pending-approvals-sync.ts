@@ -90,12 +90,14 @@ export async function syncPendingApprovals(
     });
     if (signal?.aborted) return;
     if (!data) {
-      // Guard conflicts are an expected temporary inability to read, not a
-      // failed user action. Other errors remain visible through the usual UI.
+      // Guard conflicts and browser-local wake failures are temporary
+      // inability to read, not failed user actions. HTTP failures remain
+      // visible through the usual UI.
       if (
         error &&
+        response &&
         error.errorCode !== 'threads.delete_in_progress' &&
-        response?.status !== 401
+        response.status !== 401
       ) {
         showSnackbar(getApiErrorMessage(error), 'error');
       }
