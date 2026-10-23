@@ -1,10 +1,12 @@
-const STATIC_CACHE = 'codex-webui-static-v2';
+const STATIC_CACHE = 'mergeron-static-v3';
 const STATIC_FILES = [
   './manifest.webmanifest',
   './favicon.svg',
   './pwa-icon-180.png',
   './pwa-icon-192.png',
   './pwa-icon-512.png',
+  './pwa-icon-maskable-512.png',
+  './mergeron-icon.svg',
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,7 +37,7 @@ self.addEventListener('fetch', (event) => {
   // eligible for caching.
   const isStaticAsset =
     url.pathname.includes('/assets/') ||
-    /\/(?:favicon\.svg|manifest\.webmanifest|pwa-icon-(?:180|192|512)\.png)$/.test(url.pathname);
+    /\/(?:favicon\.svg|mergeron-icon\.svg|manifest\.webmanifest|pwa-icon-(?:180|192|512|maskable-512)\.png)$/.test(url.pathname);
   if (!isStaticAsset) return;
 
   event.respondWith(

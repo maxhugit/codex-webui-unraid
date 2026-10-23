@@ -66,7 +66,7 @@ export function DiagnosticsPanel() {
     const { data: bundle } = await logsExportDiagnostics({
       throwOnError: true,
     });
-    downloadJson(bundle, `codex-webui-diagnostics-${bundle.exportedAt}.json`);
+    downloadJson(bundle, `mergeron-diagnostics-${bundle.exportedAt}.json`);
   };
 
   /**

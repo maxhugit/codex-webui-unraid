@@ -1,4 +1,4 @@
-/** Drizzle table declarations for Codex WebUI persistence. */
+/** Drizzle table declarations for Mergeron persistence. */
 import { sql } from 'drizzle-orm';
 import {
   index,

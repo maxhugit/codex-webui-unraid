@@ -23,7 +23,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
         className="truncate text-sm font-semibold tracking-tight sm:text-base"
         title={project?.name}
       >
-        {project?.name ?? 'Codex WebUI'}
+        {project?.name ?? 'Mergeron'}
       </h1>
     </div>
   );

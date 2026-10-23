@@ -9,7 +9,7 @@ flowchart LR
     T[Traefik]
     A[Authentik]
     N[Nginx ingress]
-    C[Codex WebUI]
+    C[Mergeron]
     S[Squid egress]
     O[OpenAI / GitHub / PyPI]
     H[HA-MCP]
