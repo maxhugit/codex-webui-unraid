@@ -41,7 +41,7 @@ it('offers local, Git, SSH and FTP workspace sources from one action', () => {
   expect(screen.getByRole('button', { name: /^SSH/ })).toBeVisible();
   expect(screen.getByRole('button', { name: /^SFTP/ })).toBeVisible();
   expect(screen.getByRole('button', { name: /^FTPS/ })).toBeVisible();
-  expect(screen.getByRole('button', { name: /^FTP/ })).toBeVisible();
+  expect(screen.getByRole('button', { name: /^FTP(?!S)/ })).toBeVisible();
 });
 
 it('keeps the existing directory picker for a local workspace', () => {
