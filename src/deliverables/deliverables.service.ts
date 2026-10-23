@@ -1791,7 +1791,11 @@ export class DeliverablesService {
       throw new ConflictException('Deliverable changed. Reload before saving.');
     if (typeof input.required !== 'boolean')
       throw new BadRequestException('Validation requirement is invalid');
-    if (input.required === deliverable.validationRequired) return deliverable;
+    // Keep the runtime validation result in a local primitive. TypeScript does
+    // not preserve property narrowing through the transaction callback because
+    // the input object could theoretically be mutated before it runs.
+    const required = input.required;
+    if (required === deliverable.validationRequired) return deliverable;
     const pending = this.db
       .select()
       .from(validations)
@@ -1802,12 +1806,12 @@ export class DeliverablesService {
         ),
       )
       .get();
-    if (!input.required && pending)
+    if (!required && pending)
       throw new ConflictException(
         'Cancel the pending validation request before disabling validation',
       );
     const reason = this.text(input.reason ?? '', 4_000);
-    if (!input.required && !reason.trim())
+    if (!required && !reason.trim())
       throw new BadRequestException(
         'A reason is required to disable validation',
       );
@@ -1816,7 +1820,7 @@ export class DeliverablesService {
       const changed = tx
         .update(items)
         .set({
-          validationRequired: input.required,
+          validationRequired: required,
           validationStatus: 'not_required',
           version: deliverable.version + 1,
           updatedAt: now,
@@ -1832,7 +1836,7 @@ export class DeliverablesService {
         .values({
           id: randomUUID(),
           deliverableId: id,
-          action: input.required ? 'enabled' : 'disabled',
+          action: required ? 'enabled' : 'disabled',
           reason: reason || null,
           actorPersonId: actor.personId,
           actorName: actor.name,

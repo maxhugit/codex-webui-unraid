@@ -104,13 +104,22 @@ export function useCodexSocket(enabled = true) {
     };
     const handleDisconnect = () => setConnected(false);
     let lastTransportRecovery = 0;
+    let transportRecoveryRunning = false;
     const recoverTransport = () => {
       if (document.visibilityState === 'hidden' || !navigator.onLine) return;
+      // A failed fetch dispatches the same recovery event as focus/pageshow.
+      // Without a single-flight guard, the refetch started here can fail and
+      // recursively start another full refetch forever while a sleeping tab's
+      // network process is coming back.
+      if (transportRecoveryRunning) return;
       const now = Date.now();
-      if (now - lastTransportRecovery < 1_000) return;
+      if (now - lastTransportRecovery < 10_000) return;
       lastTransportRecovery = now;
       if (!socket.connected) socket.connect();
-      void queryClient.refetchQueries({ type: 'active' });
+      transportRecoveryRunning = true;
+      void queryClient.refetchQueries({ type: 'active' }).finally(() => {
+        transportRecoveryRunning = false;
+      });
       refreshPending();
       refreshOverview();
     };
