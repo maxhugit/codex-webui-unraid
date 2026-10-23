@@ -34,6 +34,7 @@ import { sign, verify } from 'jsonwebtoken';
 import { ApiErrorResponseDto } from '../common/dto/api-responses.dto';
 import { FilesService } from '../files/files.service';
 import { AuthService } from '../auth/auth.service';
+import type { IdentityRequest } from '../auth/platform-access.guard';
 import { Public } from '../auth/public.decorator';
 import { GENERAL_SETTING_KEYS } from '../settings/settings.definitions';
 import { SettingsService } from '../settings/settings.service';
@@ -55,8 +56,13 @@ interface OnlyOfficeEditorConfig {
   documentType: OnlyOfficeDocumentType;
   editorConfig: {
     callbackUrl: string;
+    lang: string;
     mode: 'edit' | 'view';
     customization: Record<string, boolean>;
+    user: {
+      id: string;
+      name: string;
+    };
   };
   height: string;
   token?: string;
@@ -96,7 +102,7 @@ export class OnlyOfficeController {
   async getConfig(
     @Query('path') filePath: string,
     @Query('mode') mode?: string,
-    @Req() request?: FastifyRequest,
+    @Req() request?: FastifyRequest & IdentityRequest,
   ): Promise<OnlyOfficeConfigResponseDto> {
     const onlyofficeUrl = this.requireOnlyOfficeUrl();
     const normalizedUrl = this.normalizeHttpBaseUrl(
@@ -148,6 +154,11 @@ export class OnlyOfficeController {
       secret,
       accessSessionId,
     );
+    const identity = request?.platformIdentity;
+    const userName = [identity?.firstName, identity?.lastName]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(' ');
 
     const config: OnlyOfficeEditorConfig = {
       type: 'desktop',
@@ -170,7 +181,12 @@ export class OnlyOfficeController {
       },
       editorConfig: {
         callbackUrl,
+        lang: this.normalizeEditorLanguage(identity?.language),
         mode: editorMode,
+        user: {
+          id: identity?.personId ?? 'service',
+          name: userName || identity?.name?.trim() || 'Utilisateur',
+        },
         customization: {
           compactToolbar: true,
           hideRightMenu: editorMode === 'view',
@@ -189,6 +205,12 @@ export class OnlyOfficeController {
       ),
       config: config as unknown as Record<string, unknown>,
     };
+  }
+
+  /** OnlyOffice accepts ISO language tags; profiles currently store a base language. */
+  private normalizeEditorLanguage(language: string | undefined): string {
+    const normalized = language?.trim().toLowerCase();
+    return normalized && /^[a-z]{2,3}$/.test(normalized) ? normalized : 'en';
   }
 
   // ── Save callback endpoint ──────────────────────────────────────────

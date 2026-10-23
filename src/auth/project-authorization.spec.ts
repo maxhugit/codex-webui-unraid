@@ -86,6 +86,8 @@ beforeEach(async () => {
         id,
         reference: id,
         name: id,
+        firstName: id === 'alice' ? 'Alice' : id,
+        lastName: 'Example',
         email: `${id}@example.com`,
         identitySubject: id,
         role: id === 'admin' ? 'administrator' : 'standard',
@@ -631,7 +633,11 @@ it('checks live OnlyOffice download and save callbacks, including readonly and r
     return response.json<{
       config: {
         document: { key: string; url: string };
-        editorConfig: { callbackUrl: string };
+        editorConfig: {
+          callbackUrl: string;
+          lang: string;
+          user: { id: string; name: string };
+        };
       };
     }>().config;
   };
@@ -649,6 +655,11 @@ it('checks live OnlyOffice download and save callbacks, including readonly and r
     });
   };
   const editable = await loadConfig('edit');
+  expect(editable.editorConfig.lang).toBe('fr');
+  expect(editable.editorConfig.user).toEqual({
+    id: 'alice',
+    name: 'Alice Example',
+  });
   const fetch = vi
     .spyOn(globalThis, 'fetch')
     .mockResolvedValueOnce(new Response('edited'));
