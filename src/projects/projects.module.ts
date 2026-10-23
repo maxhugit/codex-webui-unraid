@@ -11,6 +11,8 @@ import { SimpleChatModule } from '../simple-chat/simple-chat.module';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 import { ActiveFoldersModule } from '../active-folders/active-folders.module';
+import { WorkspaceResourcesController } from './workspace-resources.controller';
+import { WorkspaceResourcesService } from './workspace-resources.service';
 
 @Module({
   imports: [
@@ -27,8 +29,9 @@ import { ActiveFoldersModule } from '../active-folders/active-folders.module';
     ProjectsController,
     ProjectKnowledgeController,
     DeliverablesController,
+    WorkspaceResourcesController,
   ],
-  providers: [ProjectsService],
-  exports: [ProjectsService],
+  providers: [ProjectsService, WorkspaceResourcesService],
+  exports: [ProjectsService, WorkspaceResourcesService],
 })
 export class ProjectsModule {}

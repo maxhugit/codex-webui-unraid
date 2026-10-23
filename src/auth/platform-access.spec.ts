@@ -252,6 +252,8 @@ it.each([
   '/projects/project-1/mcp-servers',
   '/projects/project-1/apps',
   '/projects/project-1/agent-settings',
+  '/projects/project-1/workspace-resources',
+  '/projects/project-1/workspace-resources/resource-1/test',
   '/projects/project-1/participants',
   '/projects/project-1/participants/person-1',
 ])('blocks standard project configuration writes to %s', (path) => {
