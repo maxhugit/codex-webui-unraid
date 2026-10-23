@@ -57,6 +57,7 @@ import { ThreadWorkspaceOverridesService } from '../threads/thread-workspace-ove
 import { ThreadsDeletionService } from '../threads/threads-deletion.service';
 import { ThreadsService } from '../threads/threads.service';
 import { SimpleChatService } from '../simple-chat/simple-chat.service';
+import { WorkspaceTransfersService } from './workspace-transfers.service';
 import {
   ActiveFoldersService,
   type ActiveFolderContext,
@@ -89,7 +90,7 @@ export type ProjectAutomation = {
   time: string;
   weekday: number;
   monthday: number;
-  targetType: 'task_board' | 'workspace';
+  targetType: 'task_board' | 'workspace' | 'workspace_transfer';
   targetId: string;
   mode: 'analysis' | 'proposal' | 'action';
   approvalRequired: boolean;
@@ -113,6 +114,7 @@ export type AutomationRun = {
   error: string;
   startedAt: number;
   finishedAt: number | null;
+  transferRunId?: string | null;
 };
 
 export type ProjectActivityActor = {
@@ -134,6 +136,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     private readonly simpleChat: SimpleChatService,
     @Inject(DRIZZLE_DB) private readonly db: AppDatabase,
     @Optional() private readonly activeFolders?: ActiveFoldersService,
+    @Optional() private readonly workspaceTransfers?: WorkspaceTransfersService,
   ) {}
 
   private get folders(): ActiveFoldersService {
@@ -1390,6 +1393,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           .where(eq(projectResources.projectId, projectId))
           .all()
           .filter((item) => item.type === 'task_board'),
+        transfers: this.workspaceTransfers?.list(projectId).transfers ?? [],
         ...this.automationConfig(resource),
       };
     return this.readTaskBoard(projectId, resourceId);
@@ -2827,7 +2831,11 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         1,
         Math.min(28, Number(input.monthday ?? existing?.monthday ?? 1)),
       ),
-      targetType: input.targetType === 'workspace' ? 'workspace' : 'task_board',
+      targetType: ['workspace', 'workspace_transfer'].includes(
+        String(input.targetType),
+      )
+        ? (input.targetType as 'workspace' | 'workspace_transfer')
+        : 'task_board',
       targetId: String(input.targetId ?? existing?.targetId ?? '').trim(),
       mode: ['proposal', 'action'].includes(String(input.mode))
         ? (input.mode as 'proposal' | 'action')
@@ -2883,6 +2891,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
       error: '',
       startedAt: Date.now(),
       finishedAt: null,
+      transferRunId: null,
     };
     this.saveAutomationConfig(resource, config.automations, [
       run,
@@ -2897,14 +2906,34 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           tasks: board.tasks,
           dependencies: board.dependencies,
         });
-      } else {
+      } else if (item.targetType === 'workspace') {
         const workspace = this.requireWorkspace(projectId, item.targetId);
         context = `Workspace autorisé : ${workspace.path}. Aucun contenu de fichier n'est transmis automatiquement.`;
+      } else {
+        if (!this.workspaceTransfers)
+          throw new ConflictException('Workspace transfers are unavailable');
+        const preview = await this.workspaceTransfers.preview(
+          projectId,
+          item.targetId,
+        );
+        run.transferRunId = preview.id;
+        context = `Aperçu du transfert : ${JSON.stringify(preview.summary)}.`;
+        if (item.mode === 'action' && !item.approvalRequired) {
+          const applied = await this.workspaceTransfers.execute(
+            projectId,
+            item.targetId,
+            preview.id,
+          );
+          run.result = `Transfert exécuté : ${JSON.stringify(applied.run.summary)}.`;
+          run.status = 'success';
+        }
       }
-      run.result = await this.simpleChat.runProjectAutomation(
-        `Automatisation du projet « ${this.get(projectId).name} ».\nMode : ${item.mode}.\nInstruction : ${item.instructions}\nContexte : ${context}\nProduis un rapport clair en français. Ne prétends pas avoir appliqué de modification.`,
-      );
-      run.status = item.mode === 'analysis' ? 'success' : 'pending_approval';
+      if (!run.result) {
+        run.result = await this.simpleChat.runProjectAutomation(
+          `Automatisation du projet « ${this.get(projectId).name} ».\nMode : ${item.mode}.\nInstruction : ${item.instructions}\nContexte : ${context}\nProduis un rapport clair en français. Ne prétends pas avoir appliqué de modification.`,
+        );
+        run.status = item.mode === 'analysis' ? 'success' : 'pending_approval';
+      }
     } catch (error) {
       run.status = 'error';
       run.error = error instanceof Error ? error.message : 'Automation failed';
@@ -2925,7 +2954,7 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     return { run };
   }
 
-  reviewAutomationRun(
+  async reviewAutomationRun(
     projectId: string,
     resourceId: string,
     runId: string,
@@ -2939,6 +2968,22 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
     if (!run) throw new NotFoundException('Automation run not found');
     if (run.status !== 'pending_approval')
       throw new ConflictException('Automation run is not awaiting approval');
+    const automation = automations.find((item) => item.id === run.automationId);
+    if (
+      decision === 'approved' &&
+      run.transferRunId &&
+      automation?.targetType === 'workspace_transfer' &&
+      automation.mode === 'action'
+    ) {
+      if (!this.workspaceTransfers)
+        throw new ConflictException('Workspace transfers are unavailable');
+      const applied = await this.workspaceTransfers.execute(
+        projectId,
+        automation.targetId,
+        run.transferRunId,
+      );
+      run.result = `${run.result}\nTransfert exécuté : ${JSON.stringify(applied.run.summary)}.`;
+    }
     run.status = decision;
     this.saveAutomationConfig(resource, automations, runs);
     return { run };

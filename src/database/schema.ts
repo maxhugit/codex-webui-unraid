@@ -1124,6 +1124,104 @@ export const projectWorkspaceCopies = sqliteTable(
 
 export type ProjectWorkspaceCopy = typeof projectWorkspaceCopies.$inferSelect;
 
+/** Reusable one-way copy rule. Synchronization is always explicit. */
+export const projectWorkspaceTransfers = sqliteTable(
+  'project_workspace_transfers',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    sourceResourceId: text('source_resource_id').notNull(),
+    destinationWorkspaceId: text('destination_workspace_id')
+      .notNull()
+      .references(() => projectWorkspaces.id, { onDelete: 'cascade' }),
+    sourcePath: text('source_path').notNull().default(''),
+    destinationPath: text('destination_path').notNull().default(''),
+    exclusions: text('exclusions', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    conflictPolicy: text('conflict_policy')
+      .$type<'skip' | 'overwrite'>()
+      .notNull()
+      .default('skip'),
+    propagateDeletes: integer('propagate_deletes', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    index('idx_project_workspace_transfers_project').on(table.projectId),
+    index('idx_project_workspace_transfers_source').on(table.sourceResourceId),
+    index('idx_project_workspace_transfers_destination').on(
+      table.destinationWorkspaceId,
+    ),
+  ],
+);
+
+export type ProjectWorkspaceTransfer =
+  typeof projectWorkspaceTransfers.$inferSelect;
+
+/** Immutable preview and result of one transfer attempt. */
+export const projectWorkspaceTransferRuns = sqliteTable(
+  'project_workspace_transfer_runs',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    transferId: text('transfer_id')
+      .notNull()
+      .references(() => projectWorkspaceTransfers.id, { onDelete: 'cascade' }),
+    status: text('status')
+      .$type<
+        | 'previewed'
+        | 'running'
+        | 'success'
+        | 'completed_with_conflicts'
+        | 'error'
+      >()
+      .notNull(),
+    planHash: text('plan_hash').notNull(),
+    changes: text('changes', { mode: 'json' })
+      .$type<
+        Array<{
+          path: string;
+          action: 'create' | 'update' | 'conflict' | 'delete' | 'unchanged';
+          size: number;
+          sourceHash: string | null;
+          destinationHash: string | null;
+        }>
+      >()
+      .notNull(),
+    summary: text('summary', { mode: 'json' })
+      .$type<Record<string, number>>()
+      .notNull(),
+    stagingPath: text('staging_path'),
+    error: text('error'),
+    actorPersonId: text('actor_person_id'),
+    actorName: text('actor_name').notNull(),
+    startedAt: integer('started_at').notNull(),
+    finishedAt: integer('finished_at'),
+  },
+  (table) => [
+    index('idx_workspace_transfer_runs_transfer').on(
+      table.transferId,
+      table.startedAt,
+    ),
+    index('idx_workspace_transfer_runs_project').on(
+      table.projectId,
+      table.startedAt,
+    ),
+  ],
+);
+
+export type ProjectWorkspaceTransferRun =
+  typeof projectWorkspaceTransferRuns.$inferSelect;
+
 /**
  * Stable folder selected by one project context.
  *

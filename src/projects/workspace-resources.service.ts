@@ -35,12 +35,13 @@ import {
 
 export type WorkspaceResourceType = ProjectWorkspaceResource['type'];
 export type WorkspaceAccessMode = ProjectWorkspaceResource['accessMode'];
-type ConnectionSecret = {
+export type ConnectionSecret = {
   username?: string;
   password?: string;
   token?: string;
   privateKey?: string;
   passphrase?: string;
+  knownHosts?: string;
 };
 
 export interface WorkspaceResourceView extends Omit<
@@ -297,6 +298,12 @@ export class WorkspaceResourcesService {
     return this.view(this.raw(projectId, id));
   }
 
+  /** Server-only transfer material. Never expose this result from a controller. */
+  resolveForTransfer(projectId: string, id: string) {
+    const resource = this.raw(projectId, id);
+    return { resource, secret: this.readSecret(id) };
+  }
+
   private raw(projectId: string, id: string): ProjectWorkspaceResource {
     requireProjectAccess(projectId);
     this.ensureLocalResources(projectId);
@@ -437,6 +444,7 @@ export class WorkspaceResourcesService {
       'token',
       'privateKey',
       'passphrase',
+      'knownHosts',
     ] as const;
     const result: ConnectionSecret = {};
     for (const key of allowed) {

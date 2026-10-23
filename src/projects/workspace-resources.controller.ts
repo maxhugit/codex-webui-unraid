@@ -9,12 +9,14 @@ import {
 } from '@nestjs/common';
 import { WorkspaceResourcesService } from './workspace-resources.service';
 import { WorkspaceCopiesService } from './workspace-copies.service';
+import { WorkspaceTransfersService } from './workspace-transfers.service';
 
 @Controller('projects/:projectId/workspace-resources')
 export class WorkspaceResourcesController {
   constructor(
     private readonly resources: WorkspaceResourcesService,
     private readonly copies: WorkspaceCopiesService,
+    private readonly transfers: WorkspaceTransfersService,
   ) {}
 
   @Get()
@@ -22,7 +24,41 @@ export class WorkspaceResourcesController {
     return {
       resources: this.resources.list(projectId),
       copies: this.copies.list(projectId),
+      ...this.transfers.list(projectId),
     };
+  }
+
+  @Post('transfers')
+  createTransfer(
+    @Param('projectId') projectId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return { transfer: this.transfers.create(projectId, body) };
+  }
+
+  @Delete('transfers/:transferId')
+  removeTransfer(
+    @Param('projectId') projectId: string,
+    @Param('transferId') transferId: string,
+  ) {
+    return this.transfers.remove(projectId, transferId);
+  }
+
+  @Post('transfers/:transferId/preview')
+  previewTransfer(
+    @Param('projectId') projectId: string,
+    @Param('transferId') transferId: string,
+  ) {
+    return this.transfers.preview(projectId, transferId);
+  }
+
+  @Post('transfers/:transferId/runs/:runId/execute')
+  executeTransfer(
+    @Param('projectId') projectId: string,
+    @Param('transferId') transferId: string,
+    @Param('runId') runId: string,
+  ) {
+    return this.transfers.execute(projectId, transferId, runId);
   }
 
   @Post(':resourceId/copies')

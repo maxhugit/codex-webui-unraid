@@ -181,6 +181,46 @@ export interface ProjectWorkspaceCopySummary {
   updatedAt: number;
 }
 
+export interface ProjectWorkspaceTransferSummary {
+  id: string;
+  projectId: string;
+  name: string;
+  sourceResourceId: string;
+  destinationWorkspaceId: string;
+  sourcePath: string;
+  destinationPath: string;
+  exclusions: string[];
+  conflictPolicy: 'skip' | 'overwrite';
+  propagateDeletes: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectWorkspaceTransferRunSummary {
+  id: string;
+  projectId: string;
+  transferId: string;
+  status:
+    | 'previewed'
+    | 'running'
+    | 'success'
+    | 'completed_with_conflicts'
+    | 'error';
+  planHash: string;
+  changes: Array<{
+    path: string;
+    action: 'create' | 'update' | 'conflict' | 'delete' | 'unchanged';
+    size: number;
+    sourceHash: string | null;
+    destinationHash: string | null;
+  }>;
+  summary: Record<string, number>;
+  error: string | null;
+  actorName: string;
+  startedAt: number;
+  finishedAt: number | null;
+}
+
 export interface ActiveFolderSummary {
   contextType: 'agent' | 'simple_chat' | 'task' | 'deliverable';
   contextId: string;
