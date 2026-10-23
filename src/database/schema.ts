@@ -628,6 +628,16 @@ export const projectDeliverables = sqliteTable(
       .notNull()
       .default('draft'),
     currentSnapshotId: text('current_snapshot_id'),
+    lastApprovedSnapshotId: text('last_approved_snapshot_id'),
+    validationRequired: integer('validation_required', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    validationStatus: text('validation_status')
+      .$type<
+        'not_required' | 'pending' | 'approved' | 'rejected' | 'outdated'
+      >()
+      .notNull()
+      .default('not_required'),
     finalizedAt: integer('finalized_at'),
     finalizedByPersonId: text('finalized_by_person_id').references(
       () => people.id,
@@ -825,7 +835,7 @@ export const projectDeliverableValidations = sqliteTable(
       onDelete: 'set null',
     }),
     status: text('status')
-      .$type<'pending' | 'approved' | 'rejected'>()
+      .$type<'pending' | 'approved' | 'rejected' | 'cancelled'>()
       .notNull()
       .default('pending'),
     requestedByPersonId: text('requested_by_person_id').references(
@@ -845,6 +855,35 @@ export const projectDeliverableValidations = sqliteTable(
   (table) => [
     index('idx_deliverable_validations_deliverable').on(table.deliverableId),
     index('idx_deliverable_validations_snapshot').on(table.snapshotId),
+  ],
+);
+
+/** Audit trail for enabling, disabling and cancelling deliverable validation. */
+export const projectDeliverableValidationEvents = sqliteTable(
+  'project_deliverable_validation_events',
+  {
+    id: text('id').primaryKey(),
+    deliverableId: text('deliverable_id')
+      .notNull()
+      .references(() => projectDeliverables.id, { onDelete: 'cascade' }),
+    action: text('action')
+      .$type<'enabled' | 'disabled' | 'cancelled'>()
+      .notNull(),
+    validationId: text('validation_id').references(
+      () => projectDeliverableValidations.id,
+      { onDelete: 'set null' },
+    ),
+    reason: text('reason'),
+    actorPersonId: text('actor_person_id').references(() => people.id, {
+      onDelete: 'set null',
+    }),
+    actorName: text('actor_name').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    index('idx_deliverable_validation_events_deliverable').on(
+      table.deliverableId,
+    ),
   ],
 );
 

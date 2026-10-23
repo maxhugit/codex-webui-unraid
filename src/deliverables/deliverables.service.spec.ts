@@ -370,11 +370,22 @@ describe('project deliverables', () => {
       { path: source },
       { personId: null, name: 'Alice' },
     );
+    service.setValidationRequirement(
+      'p',
+      'r',
+      item.id,
+      { required: true, version: 2 },
+      { personId: null, name: 'Alice' },
+    );
+    service.transitionLifecycle('p', 'r', item.id, {
+      target: 'finalized',
+      version: 3,
+    });
     const firstRequest = service.requestValidation(
       'p',
       'r',
       item.id,
-      { version: 2 },
+      { version: 4 },
       { personId: null, name: 'Alice' },
     );
     expect(
@@ -382,6 +393,10 @@ describe('project deliverables', () => {
     ).toMatchObject({ id: firstRequest.id, effectiveStatus: 'pending' });
 
     const document = service.documents('p', 'r', item.id)[0];
+    service.transitionLifecycle('p', 'r', item.id, {
+      target: 'in_constitution',
+      version: 5,
+    });
     await fs.writeFile(source, 'Version 2');
     await service.addDocumentVersion(
       'p',
@@ -394,22 +409,29 @@ describe('project deliverables', () => {
     expect(
       service.board('p', 'r').deliverables[0].validations[0].effectiveStatus,
     ).toBe('outdated');
+    expect(service.board('p', 'r').deliverables[0].validationStatus).toBe(
+      'outdated',
+    );
     expect(() =>
       service.decideValidation(
         'p',
         'r',
         item.id,
         firstRequest.id,
-        { action: 'approve', version: 4 },
+        { action: 'approve', version: 7 },
         { personId: null, name: 'Bob' },
       ),
     ).toThrow('outdated');
 
+    service.transitionLifecycle('p', 'r', item.id, {
+      target: 'finalized',
+      version: 7,
+    });
     const secondRequest = service.requestValidation(
       'p',
       'r',
       item.id,
-      { version: 4 },
+      { version: 8 },
       { personId: null, name: 'Alice' },
     );
     expect(() =>
@@ -418,7 +440,7 @@ describe('project deliverables', () => {
         'r',
         item.id,
         secondRequest.id,
-        { action: 'reject', version: 5 },
+        { action: 'reject', version: 9 },
         { personId: null, name: 'Bob' },
       ),
     ).toThrow('reason');
@@ -427,7 +449,7 @@ describe('project deliverables', () => {
       'r',
       item.id,
       secondRequest.id,
-      { action: 'approve', comment: 'Conforme', version: 5 },
+      { action: 'approve', comment: 'Conforme', version: 9 },
       { personId: null, name: 'Bob' },
     );
     expect(decision).toMatchObject({
@@ -436,6 +458,77 @@ describe('project deliverables', () => {
       decisionComment: 'Conforme',
     });
     expect(service.get('p', 'r', item.id).status).toBe('validated');
+    const approved = service.board('p', 'r').deliverables[0];
+    expect(approved).toMatchObject({
+      validationRequired: true,
+      validationStatus: 'approved',
+    });
+    expect(approved.lastApprovedSnapshotId).toEqual(expect.any(String));
+  });
+  it('cancels an active request before validation can be disabled', async () => {
+    const item = await service.create('p', 'r', { title: 'Optional review' });
+    const source = path.join(root, 'livrables', item.id, 'report.docx');
+    await fs.writeFile(source, 'Version 1');
+    await service.addDocumentVersion(
+      'p',
+      'r',
+      item.id,
+      { path: source },
+      { personId: null, name: 'Alice' },
+    );
+    service.setValidationRequirement(
+      'p',
+      'r',
+      item.id,
+      { required: true, version: 2 },
+      { personId: null, name: 'Alice' },
+    );
+    service.transitionLifecycle('p', 'r', item.id, {
+      target: 'finalized',
+      version: 3,
+    });
+    const request = service.requestValidation(
+      'p',
+      'r',
+      item.id,
+      { version: 4 },
+      { personId: null, name: 'Alice' },
+    );
+    expect(() =>
+      service.setValidationRequirement(
+        'p',
+        'r',
+        item.id,
+        { required: false, reason: 'Plus nécessaire', version: 5 },
+        { personId: null, name: 'Alice' },
+      ),
+    ).toThrow('Cancel the pending');
+    service.cancelValidation(
+      'p',
+      'r',
+      item.id,
+      request.id,
+      { reason: 'Périmètre réduit', version: 5 },
+      { personId: null, name: 'Alice' },
+    );
+    service.setValidationRequirement(
+      'p',
+      'r',
+      item.id,
+      { required: false, reason: 'Plus nécessaire', version: 6 },
+      { personId: null, name: 'Alice' },
+    );
+    const disabled = service.board('p', 'r').deliverables[0];
+    expect(disabled).toMatchObject({
+      validationRequired: false,
+      validationStatus: 'not_required',
+    });
+    expect(disabled.validations.map((entry) => entry.status)).toContain(
+      'cancelled',
+    );
+    expect(disabled.validationEvents.map((event) => event.action)).toEqual(
+      expect.arrayContaining(['disabled', 'cancelled', 'enabled']),
+    );
   });
   it('enforces the deliverable lifecycle and preserves immutable finalization snapshots', async () => {
     const item = await service.create('p', 'r', { title: 'Lifecycle' });

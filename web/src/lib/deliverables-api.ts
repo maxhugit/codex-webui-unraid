@@ -55,6 +55,14 @@ export interface Deliverable {
   status: 'planned' | 'in_progress' | 'review' | 'validated';
   lifecycleStatus: 'draft' | 'in_constitution' | 'finalized' | 'archived';
   currentSnapshotId: string | null;
+  lastApprovedSnapshotId: string | null;
+  validationRequired: boolean;
+  validationStatus:
+    | 'not_required'
+    | 'pending'
+    | 'approved'
+    | 'rejected'
+    | 'outdated';
   finalizedAt: number | null;
   finalizedByPersonId: string | null;
   finalizedByName: string | null;
@@ -96,8 +104,13 @@ export interface Deliverable {
     deliverableId: string;
     snapshotId: string;
     taskId: string | null;
-    status: 'pending' | 'approved' | 'rejected';
-    effectiveStatus: 'pending' | 'approved' | 'rejected' | 'outdated';
+    status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+    effectiveStatus:
+      | 'pending'
+      | 'approved'
+      | 'rejected'
+      | 'cancelled'
+      | 'outdated';
     requestedByPersonId: string | null;
     requestedByName: string;
     requestedAt: number;
@@ -105,6 +118,16 @@ export interface Deliverable {
     decidedByName: string | null;
     decisionComment: string | null;
     decidedAt: number | null;
+  }>;
+  validationEvents: Array<{
+    id: string;
+    deliverableId: string;
+    action: 'enabled' | 'disabled' | 'cancelled';
+    validationId: string | null;
+    reason: string | null;
+    actorPersonId: string | null;
+    actorName: string;
+    createdAt: number;
   }>;
 }
 export interface DeliverablesBoard {

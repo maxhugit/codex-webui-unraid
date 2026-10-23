@@ -7,7 +7,7 @@ describe('deliverable document migration', () => {
     const sqlite = new Database(':memory:');
     sqlite.pragma('foreign_keys = ON');
     const migrations = readMigrationFiles({ migrationsFolder: 'drizzle' });
-    for (const migration of migrations.slice(0, -6))
+    for (const migration of migrations.slice(0, -7))
       for (const statement of migration.sql) sqlite.exec(statement);
 
     sqlite
@@ -76,7 +76,7 @@ describe('deliverable document migration', () => {
       20,
     );
 
-    for (const migration of migrations.slice(-6))
+    for (const migration of migrations.slice(-7))
       for (const statement of migration.sql) sqlite.exec(statement);
 
     const documents = sqlite
@@ -126,7 +126,7 @@ describe('deliverable document migration', () => {
     const sqlite = new Database(':memory:');
     sqlite.pragma('foreign_keys = ON');
     const migrations = readMigrationFiles({ migrationsFolder: 'drizzle' });
-    for (const migration of migrations.slice(0, -4))
+    for (const migration of migrations.slice(0, -5))
       for (const statement of migration.sql) sqlite.exec(statement);
     sqlite.exec(`
       INSERT INTO projects (id, name, workspace_path, workspace_layout_version, mcp_server_ids, app_ids, sidebar_order, created_at, updated_at)
@@ -141,7 +141,7 @@ describe('deliverable document migration', () => {
       INSERT INTO project_deliverables (id, resource_id, title, task_ids, conversations, created_at, updated_at)
       VALUES ('d', 'dboard', 'Package', '["task"]', '[]', 1, 1);
     `);
-    for (const statement of migrations.at(-4)!.sql) sqlite.exec(statement);
+    for (const statement of migrations.at(-5)!.sql) sqlite.exec(statement);
     expect(
       sqlite
         .prepare(
@@ -157,6 +157,39 @@ describe('deliverable document migration', () => {
         )
         .get('d'),
     ).toEqual({ primary_task_id: null });
+    sqlite.close();
+  });
+  it('preserves existing human validation state when optional validation is introduced', () => {
+    const sqlite = new Database(':memory:');
+    sqlite.pragma('foreign_keys = ON');
+    const migrations = readMigrationFiles({ migrationsFolder: 'drizzle' });
+    for (const migration of migrations.slice(0, -1))
+      for (const statement of migration.sql) sqlite.exec(statement);
+    sqlite.exec(`
+      INSERT INTO projects (id, name, workspace_path, workspace_layout_version, mcp_server_ids, app_ids, sidebar_order, created_at, updated_at)
+      VALUES ('p', 'Project', '/project', 1, '[]', '[]', '[]', 1, 1);
+      INSERT INTO project_resources (id, project_id, type, name, config, created_at, updated_at)
+      VALUES ('r', 'p', 'deliverable_board', 'Deliverables', '{}', 1, 1);
+      INSERT INTO project_deliverables (id, resource_id, title, task_ids, conversations, created_at, updated_at)
+      VALUES ('d', 'r', 'Package', '[]', '[]', 1, 1);
+      INSERT INTO project_deliverable_snapshots (id, deliverable_id, documents, created_by_name, created_at)
+      VALUES ('s', 'd', '[]', 'Alice', 2);
+      INSERT INTO project_deliverable_validations
+        (id, deliverable_id, snapshot_id, status, requested_by_name, requested_at, decided_by_name, decided_at)
+      VALUES ('v', 'd', 's', 'approved', 'Alice', 3, 'Bob', 4);
+    `);
+    for (const statement of migrations.at(-1)!.sql) sqlite.exec(statement);
+    expect(
+      sqlite
+        .prepare(
+          `SELECT validation_required AS required,
+                  validation_status AS status,
+                  last_approved_snapshot_id AS snapshot
+           FROM project_deliverables WHERE id = 'd'`,
+        )
+        .get(),
+    ).toEqual({ required: 1, status: 'approved', snapshot: 's' });
+    expect(sqlite.pragma('foreign_key_check')).toEqual([]);
     sqlite.close();
   });
 });

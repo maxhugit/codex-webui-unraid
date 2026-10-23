@@ -22,6 +22,7 @@ import {
   projectDeliverableSnapshots as snapshots,
   projectDeliverableLifecycleEvents as lifecycleEvents,
   projectDeliverableValidations as validations,
+  projectDeliverableValidationEvents as validationEvents,
   projectWorkspaces,
   projectParticipants,
   projectManagerAssignments,
@@ -421,11 +422,36 @@ export class DeliverablesService {
           .orderBy(desc(validations.requestedAt))
           .all()
       : [];
+    const validationEventHistory = records.length
+      ? this.db
+          .select()
+          .from(validationEvents)
+          .where(
+            inArray(
+              validationEvents.deliverableId,
+              records.map((row) => row.id),
+            ),
+          )
+          .orderBy(desc(validationEvents.createdAt))
+          .all()
+      : [];
     return {
       ...context,
       ...this.options(projectId),
       deliverables: records.map((item) => ({
         ...item,
+        validationStatus: this.effectiveValidationStatus(
+          item,
+          documentRows.filter(
+            (document) =>
+              document.deliverableId === item.id && document.deletedAt === null,
+          ),
+          documentHistory,
+          snapshotHistory,
+          validationHistory.filter(
+            (validation) => validation.deliverableId === item.id,
+          ),
+        ),
         directory: path.join(
           context.project.workspacePath,
           'livrables',
@@ -469,8 +495,48 @@ export class DeliverablesService {
                 ? ('outdated' as const)
                 : validation.status,
           })),
+        validationEvents: validationEventHistory.filter(
+          (event) => event.deliverableId === item.id,
+        ),
       })),
     };
+  }
+
+  private effectiveValidationStatus(
+    item: Item,
+    currentDocuments: Array<typeof documents.$inferSelect>,
+    versionHistory: Array<typeof documentVersions.$inferSelect>,
+    snapshotHistory: Array<typeof snapshots.$inferSelect>,
+    validationHistory: Array<typeof validations.$inferSelect>,
+  ): Item['validationStatus'] {
+    if (!item.validationRequired) return 'not_required';
+    const pending =
+      item.validationStatus === 'pending'
+        ? validationHistory.find(
+            (validation) => validation.status === 'pending',
+          )
+        : undefined;
+    if (pending)
+      return this.snapshotIsCurrent(
+        pending.snapshotId,
+        currentDocuments,
+        versionHistory,
+        snapshotHistory,
+      )
+        ? 'pending'
+        : 'outdated';
+    if (
+      item.lastApprovedSnapshotId &&
+      this.snapshotIsCurrent(
+        item.lastApprovedSnapshotId,
+        currentDocuments,
+        versionHistory,
+        snapshotHistory,
+      )
+    )
+      return 'approved';
+    if (item.lastApprovedSnapshotId) return 'outdated';
+    return item.validationStatus;
   }
 
   private snapshotIsCurrent(
@@ -1614,60 +1680,29 @@ export class DeliverablesService {
     const deliverable = this.get(projectId, resourceId, id);
     if (input.version !== deliverable.version)
       throw new ConflictException('Deliverable changed before validation');
-    const currentDocuments = this.db
-      .select()
-      .from(documents)
-      .where(
-        and(
-          eq(documents.deliverableId, id),
-          sql`${documents.deletedAt} is null`,
-        ),
-      )
-      .all();
-    if (!currentDocuments.length)
-      throw new BadRequestException(
-        'A deliverable without documents cannot be validated',
-      );
+    if (!deliverable.validationRequired)
+      throw new ConflictException('Validation is not enabled');
     if (
-      this.board(projectId, resourceId)
-        .deliverables.find((entry) => entry.id === id)
-        ?.validations.some((entry) => entry.effectiveStatus === 'pending')
+      deliverable.lifecycleStatus !== 'finalized' ||
+      !deliverable.currentSnapshotId
+    )
+      throw new ConflictException(
+        'Only a finalized deliverable can be submitted for validation',
+      );
+    const boardItem = this.board(projectId, resourceId).deliverables.find(
+      (entry) => entry.id === id,
+    );
+    if (!boardItem) throw new NotFoundException('Deliverable not found');
+    if (boardItem.validationStatus === 'approved')
+      throw new ConflictException('The current snapshot is already approved');
+    if (
+      boardItem.validations.some((entry) => entry.effectiveStatus === 'pending')
     )
       throw new ConflictException('A validation request is already pending');
-    const currentVersions = currentDocuments.map((document) => {
-      const version = this.db
-        .select()
-        .from(documentVersions)
-        .where(
-          and(
-            eq(documentVersions.documentId, document.id),
-            eq(documentVersions.number, document.currentVersionNumber),
-          ),
-        )
-        .get();
-      if (!version)
-        throw new ConflictException('A document version is missing');
-      return version;
-    });
     const now = Date.now();
-    const snapshotId = randomUUID();
+    const snapshotId = deliverable.currentSnapshotId;
     const validationId = randomUUID();
     return this.db.transaction((tx) => {
-      tx.insert(snapshots)
-        .values({
-          id: snapshotId,
-          deliverableId: id,
-          documents: currentDocuments.map((document, index) => ({
-            documentId: document.id,
-            documentVersionId: currentVersions[index].id,
-            versionNumber: currentVersions[index].number,
-            sha256: currentVersions[index].sha256,
-          })),
-          createdByPersonId: actor.personId,
-          createdByName: actor.name,
-          createdAt: now,
-        })
-        .run();
       let taskId: string | null = null;
       if (deliverable.primaryTaskId) {
         const parent = tx
@@ -1730,6 +1765,7 @@ export class DeliverablesService {
         .update(items)
         .set({
           status: 'review',
+          validationStatus: 'pending',
           version: deliverable.version + 1,
           updatedAt: now,
         })
@@ -1740,6 +1776,145 @@ export class DeliverablesService {
           'Deliverable changed during validation request',
         );
       return validation;
+    });
+  }
+
+  setValidationRequirement(
+    projectId: string,
+    resourceId: string,
+    id: string,
+    input: { required?: unknown; reason?: unknown; version?: unknown },
+    actor: DeliverableDocumentActor,
+  ) {
+    const deliverable = this.get(projectId, resourceId, id);
+    if (input.version !== deliverable.version)
+      throw new ConflictException('Deliverable changed. Reload before saving.');
+    if (typeof input.required !== 'boolean')
+      throw new BadRequestException('Validation requirement is invalid');
+    if (input.required === deliverable.validationRequired) return deliverable;
+    const pending = this.db
+      .select()
+      .from(validations)
+      .where(
+        and(
+          eq(validations.deliverableId, id),
+          eq(validations.status, 'pending'),
+        ),
+      )
+      .get();
+    if (!input.required && pending)
+      throw new ConflictException(
+        'Cancel the pending validation request before disabling validation',
+      );
+    const reason = this.text(input.reason ?? '', 4_000);
+    if (!input.required && !reason.trim())
+      throw new BadRequestException(
+        'A reason is required to disable validation',
+      );
+    const now = Date.now();
+    return this.db.transaction((tx) => {
+      const changed = tx
+        .update(items)
+        .set({
+          validationRequired: input.required,
+          validationStatus: 'not_required',
+          version: deliverable.version + 1,
+          updatedAt: now,
+        })
+        .where(and(eq(items.id, id), eq(items.version, deliverable.version)))
+        .returning()
+        .get();
+      if (!changed)
+        throw new ConflictException(
+          'Deliverable changed while updating validation',
+        );
+      tx.insert(validationEvents)
+        .values({
+          id: randomUUID(),
+          deliverableId: id,
+          action: input.required ? 'enabled' : 'disabled',
+          reason: reason || null,
+          actorPersonId: actor.personId,
+          actorName: actor.name,
+          createdAt: now,
+        })
+        .run();
+      return changed;
+    });
+  }
+
+  cancelValidation(
+    projectId: string,
+    resourceId: string,
+    id: string,
+    validationId: string,
+    input: { reason?: unknown; version?: unknown },
+    actor: DeliverableDocumentActor,
+  ) {
+    const deliverable = this.get(projectId, resourceId, id);
+    if (input.version !== deliverable.version)
+      throw new ConflictException('Deliverable changed before cancellation');
+    const reason = this.text(input.reason ?? '', 4_000, true);
+    const validation = this.db
+      .select()
+      .from(validations)
+      .where(
+        and(
+          eq(validations.id, validationId),
+          eq(validations.deliverableId, id),
+        ),
+      )
+      .get();
+    if (!validation || validation.status !== 'pending')
+      throw new ConflictException('Validation request is no longer pending');
+    const now = Date.now();
+    return this.db.transaction((tx) => {
+      tx.update(validations)
+        .set({
+          status: 'cancelled',
+          decidedByPersonId: actor.personId,
+          decidedByName: actor.name,
+          decisionComment: reason,
+          decidedAt: now,
+        })
+        .where(eq(validations.id, validationId))
+        .run();
+      if (validation.taskId)
+        tx.update(projectTasks)
+          .set({ subtaskStatus: 'cancelled', updatedAt: now })
+          .where(eq(projectTasks.id, validation.taskId))
+          .run();
+      tx.insert(validationEvents)
+        .values({
+          id: randomUUID(),
+          deliverableId: id,
+          action: 'cancelled',
+          validationId,
+          reason,
+          actorPersonId: actor.personId,
+          actorName: actor.name,
+          createdAt: now,
+        })
+        .run();
+      const changed = tx
+        .update(items)
+        .set({
+          validationStatus: 'not_required',
+          status: 'in_progress',
+          version: deliverable.version + 1,
+          updatedAt: now,
+        })
+        .where(and(eq(items.id, id), eq(items.version, deliverable.version)))
+        .run();
+      if (!changed.changes)
+        throw new ConflictException(
+          'Deliverable changed during validation cancellation',
+        );
+      return tx
+        .select()
+        .from(validations)
+        .where(eq(validations.id, validationId))
+        .get();
     });
   }
 
@@ -1777,6 +1952,10 @@ export class DeliverablesService {
       ?.validations.find((entry) => entry.id === validationId)?.effectiveStatus;
     if (effective === 'outdated')
       throw new ConflictException('The submitted snapshot is outdated');
+    if (deliverable.lifecycleStatus !== 'finalized')
+      throw new ConflictException(
+        'The deliverable must be finalized before a validation decision',
+      );
     const now = Date.now();
     return this.db.transaction((tx) => {
       tx.update(validations)
@@ -1802,6 +1981,11 @@ export class DeliverablesService {
         .update(items)
         .set({
           status: input.action === 'approve' ? 'validated' : 'in_progress',
+          validationStatus:
+            input.action === 'approve' ? 'approved' : 'rejected',
+          ...(input.action === 'approve'
+            ? { lastApprovedSnapshotId: validation.snapshotId }
+            : {}),
           version: deliverable.version + 1,
           updatedAt: now,
         })

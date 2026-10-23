@@ -30,6 +30,9 @@ const item: Deliverable = {
   status: 'planned',
   lifecycleStatus: 'draft',
   currentSnapshotId: null,
+  lastApprovedSnapshotId: null,
+  validationRequired: false,
+  validationStatus: 'not_required',
   finalizedAt: null,
   finalizedByPersonId: null,
   finalizedByName: null,
@@ -46,6 +49,7 @@ const item: Deliverable = {
   snapshots: [],
   lifecycleEvents: [],
   validations: [],
+  validationEvents: [],
 };
 const board: DeliverablesBoard = {
   resource: {
@@ -121,6 +125,9 @@ it('submits the current document snapshot for human validation', async () => {
     deliverables: [
       {
         ...item,
+        lifecycleStatus: 'finalized',
+        currentSnapshotId: 'snapshot',
+        validationRequired: true,
         documents: [
           {
             id: 'document',
