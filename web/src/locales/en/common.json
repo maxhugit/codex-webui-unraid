@@ -883,6 +883,7 @@
   "size": "Size",
   "skill": "Skill",
   "skills": "Skills",
+  "chatCapabilities": "Chat controls",
   "someOlderMessagesCouldNotBeRefreshedReopenTheConversationToRetry": "Some older messages could not be refreshed. Reopen the conversation to retry.",
   "speed": "Speed",
   "split": "Split",

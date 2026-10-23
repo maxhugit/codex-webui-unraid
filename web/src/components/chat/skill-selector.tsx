@@ -39,9 +39,15 @@ interface Props {
   cwd: string | null;
   disabled?: boolean;
   onSelect: (skill: SkillSelection) => void;
+  menuItem?: boolean;
 }
 
-export function SkillSelector({ cwd, disabled, onSelect }: Props) {
+export function SkillSelector({
+  cwd,
+  disabled,
+  onSelect,
+  menuItem = false,
+}: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -102,12 +108,17 @@ export function SkillSelector({ cwd, disabled, onSelect }: Props) {
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 gap-1.5 rounded-lg px-2.5 text-xs"
+          className={cn(
+            'h-7 gap-1.5 rounded-lg px-2.5 text-xs',
+            menuItem && 'w-full justify-start',
+          )}
           disabled={disabled || !cwd}
           title={t('addSkill')}
         >
           <Zap className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{t('skill')}</span>
+          <span className={menuItem ? 'inline' : 'hidden sm:inline'}>
+            {t('skills')}
+          </span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start" side="top">

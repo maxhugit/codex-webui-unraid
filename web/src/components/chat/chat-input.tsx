@@ -44,10 +44,8 @@ import { PlanModeBadge } from './plan-mode-badge';
 import { useThreadSecurityPolicy } from '@/hooks/use-thread-security-policy';
 import { SecurityPolicyBadge } from './security-policy-badge';
 import { ModelSelector } from './model-selector';
-import { ServiceTierSelector } from './service-tier-selector';
 import { TokenUsageRing } from './token-usage-ring';
-import { McpStatusBadge } from './mcp-status-badge';
-import { SkillSelector } from './skill-selector';
+import { CapabilitiesMenu } from './capabilities-menu';
 import { AttachmentChips } from './attachment-chips';
 import { MentionPopover } from './mention-popover';
 import { VoiceDictationButton } from './voice-dictation-button';
@@ -497,16 +495,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                 onToggle={slashDispatch.togglePlanMode}
               />
               <SecurityPolicyBadge threadId={threadId} readOnly={readOnly} />
-              <McpStatusBadge />
-              <SkillSelector
+              <CapabilitiesMenu
                 cwd={threadCwd}
                 disabled={!threadId || readOnly}
-                onSelect={handleSkillSelect}
+                onSelectSkill={handleSkillSelect}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <ServiceTierSelector />
               <TokenUsageRing />
               <VoiceDictationButton
                 disabled={!threadId || readOnly || policySettling}

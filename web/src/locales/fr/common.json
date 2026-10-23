@@ -883,6 +883,7 @@
   "size": "Taille",
   "skill": "Compétence",
   "skills": "Compétences",
+  "chatCapabilities": "Capacités",
   "someOlderMessagesCouldNotBeRefreshedReopenTheConversationToRetry": "Certains anciens messages n'ont pas pu être rafraîchis. Rouvrez la conversation pour réessayer.",
   "speed": "Vitesse",
   "split": "Diviser",
