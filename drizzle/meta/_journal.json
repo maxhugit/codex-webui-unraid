@@ -351,6 +351,13 @@
       "when": 1792777736736,
       "tag": "0049_faithful_bastion",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1792793078716,
+      "tag": "0050_deliverable_authors",
+      "breakpoints": true
     }
   ]
 }

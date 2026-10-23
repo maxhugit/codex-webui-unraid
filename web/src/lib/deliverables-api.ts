@@ -76,6 +76,8 @@ export interface Deliverable {
   validatedVersionId: string | null;
   directory: string;
   activeFolder: ActiveFolderSummary | null;
+  createdByName?: string | null;
+  updatedByName?: string | null;
   createdAt: number;
   updatedAt: number;
   versions: DeliverableVersion[];

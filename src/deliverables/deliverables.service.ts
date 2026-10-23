@@ -186,6 +186,7 @@ export class DeliverablesService {
         !tx
           .update(items)
           .set({
+            updatedByName: this.actor().name,
             conversations: [
               ...item.conversations,
               { type: 'agent', id: threadId },
@@ -744,7 +745,15 @@ export class DeliverablesService {
     const created = this.db.transaction((tx) => {
       const created = tx
         .insert(items)
-        .values({ id, resourceId, ...values, createdAt: now, updatedAt: now })
+        .values({
+          id,
+          resourceId,
+          ...values,
+          createdByName: actor.name,
+          updatedByName: actor.name,
+          createdAt: now,
+          updatedAt: now,
+        })
         .returning()
         .get();
       tx.insert(lifecycleEvents)
@@ -786,6 +795,7 @@ export class DeliverablesService {
     const changed = this.db
       .update(items)
       .set({
+        updatedByName: this.actor().name,
         ...this.changes(projectId, input, current),
         version: current.version + 1,
         updatedAt: Date.now(),
@@ -879,6 +889,7 @@ export class DeliverablesService {
       const changed = tx
         .update(items)
         .set({
+          updatedByName: actor.name,
           lifecycleStatus: target,
           ...(snapshotId
             ? {
@@ -1113,6 +1124,7 @@ export class DeliverablesService {
           !tx
             .update(items)
             .set({
+              updatedByName: this.actor().name,
               status: 'review',
               ...(current.lifecycleStatus === 'draft'
                 ? { lifecycleStatus: 'in_constitution' as const }
@@ -1339,6 +1351,7 @@ export class DeliverablesService {
         const changed = tx
           .update(items)
           .set({
+            updatedByName: actor.name,
             ...(deliverable.lifecycleStatus === 'draft'
               ? { lifecycleStatus: 'in_constitution' as const }
               : {}),
@@ -1522,11 +1535,21 @@ export class DeliverablesService {
     if (!document) throw new NotFoundException('Document not found');
     if (document.currentVersionNumber !== expectedVersion)
       throw new ConflictException('Document changed. Reload before saving.');
-    this.db
-      .update(documents)
-      .set({ deletedAt: deleted ? Date.now() : null, updatedAt: Date.now() })
-      .where(eq(documents.id, documentId))
-      .run();
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      tx.update(documents)
+        .set({ deletedAt: deleted ? now : null, updatedAt: now })
+        .where(eq(documents.id, documentId))
+        .run();
+      tx.update(items)
+        .set({
+          updatedByName: this.actor().name,
+          updatedAt: now,
+          version: sql`${items.version} + 1`,
+        })
+        .where(eq(items.id, deliverableId))
+        .run();
+    });
     return { ok: true };
   }
 
@@ -1793,6 +1816,7 @@ export class DeliverablesService {
       const changed = tx
         .update(items)
         .set({
+          updatedByName: actor.name,
           status: 'review',
           validationStatus: 'pending',
           version: deliverable.version + 1,
@@ -1849,6 +1873,7 @@ export class DeliverablesService {
       const changed = tx
         .update(items)
         .set({
+          updatedByName: actor.name,
           validationRequired: required,
           validationStatus: 'not_required',
           version: deliverable.version + 1,
@@ -1932,6 +1957,7 @@ export class DeliverablesService {
       const changed = tx
         .update(items)
         .set({
+          updatedByName: actor.name,
           validationStatus: 'not_required',
           status: 'in_progress',
           version: deliverable.version + 1,
@@ -2013,6 +2039,7 @@ export class DeliverablesService {
       const changed = tx
         .update(items)
         .set({
+          updatedByName: actor.name,
           status: input.action === 'approve' ? 'validated' : 'in_progress',
           validationStatus:
             input.action === 'approve' ? 'approved' : 'rejected',
@@ -2057,6 +2084,7 @@ export class DeliverablesService {
         !tx
           .update(items)
           .set({
+            updatedByName: this.actor().name,
             status: input.action === 'validate' ? 'validated' : 'in_progress',
             ...(input.action === 'validate'
               ? { validatedVersionId: versionId }

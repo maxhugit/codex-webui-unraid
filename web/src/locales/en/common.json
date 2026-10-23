@@ -1,4 +1,7 @@
 {
+  "detachDeliverableTask": "Detach task",
+  "deliverableCreator": "Creator",
+  "deliverableLastEditor": "Last editor",
   "deliverableAccess": "Access",
   "assignedDeliverableAgent": "Assigned agent",
   "openDeliverableAgent": "Open agent",

@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
+  Bot,
+  ListTodo,
   CalendarDays,
   CheckCircle2,
   FileText,
@@ -30,7 +32,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { projectsApi } from '@/lib/projects-api';
+import {
+  projectsApi,
+  projectsQueryKey,
+  type ProjectSummary,
+} from '@/lib/projects-api';
 import type {
   Deliverable,
   DeliverablesBoard,
@@ -738,14 +744,6 @@ function DeliverableDetail({
                 <Pencil className="h-4 w-4" />
               </Button>
             </div>
-            <p className="truncate text-xs text-muted-foreground">
-              {t('deliverableHeaderSummary', {
-                documents: item.documents.filter(
-                  (document) => document.deletedAt === null,
-                ).length,
-                date: new Date(item.updatedAt).toLocaleDateString(),
-              })}
-            </p>
           </div>
           <LifecycleBadge status={displayedLifecycle(item)} />
         </div>
@@ -783,7 +781,7 @@ function DeliverableDetail({
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
+        <div className="w-full space-y-4 p-4 md:p-6">
           {tab === 'overview' && (
             <Overview
               item={item}
@@ -817,14 +815,16 @@ function DeliverableDetail({
               />
             </div>
           )}
-          {(tab === 'validation' || tab === 'history') && (
+          {tab === 'history' && (
+            <DeliverableHistory item={item} download={download} />
+          )}
+          {tab === 'validation' && (
             <VersionHistory
               mode={tab}
               item={item}
               busy={busy}
               dirty={revisionDirty}
               action={action}
-              download={download}
             />
           )}
           {tab === 'links' && (
@@ -993,6 +993,13 @@ function Overview({
 }) {
   const { t } = useTranslation();
   const [openTask, setOpenTask] = useState(false);
+  const projects = useQuery({
+    queryKey: projectsQueryKey,
+    queryFn: () => projectsApi<{ projects: ProjectSummary[] }>(),
+  });
+  const projectAgents = projects.data?.projects?.find(
+    (project) => project.id === base.split('/')[1],
+  )?.agentThreads;
   const assignedAgents = item.conversations.filter(
     (link) => link.type === 'agent',
   );
@@ -1000,8 +1007,8 @@ function Overview({
     (task) => task.id === item.primaryTaskId,
   );
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <section className="space-y-3 rounded-xl border bg-card p-4 lg:col-span-2">
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+      <section className="min-w-0 space-y-3 rounded-xl border bg-card p-4">
         <h2 className="font-semibold">{t('generalInformation')}</h2>
         <label className="block text-sm">
           {t('title')}
@@ -1036,9 +1043,12 @@ function Overview({
           {t('planningInheritedFromPrimaryTask')}
         </p>
       </section>
-      <aside className="grid content-start gap-2 sm:grid-cols-2">
+      <aside className="grid min-w-0 content-start gap-2 sm:grid-cols-2">
         <div className="rounded-xl border bg-card p-3 text-sm">
-          <p className="mb-1 text-muted-foreground">{t('primaryTask')}</p>
+          <p className="mb-1 flex items-center gap-2 text-muted-foreground">
+            <ListTodo className="h-4 w-4 shrink-0" />
+            {t('primaryTask')}
+          </p>
           {primaryTask ? (
             <button
               className="font-medium underline"
@@ -1051,7 +1061,8 @@ function Overview({
           )}
         </div>
         <div className="rounded-xl border bg-card p-3 text-sm">
-          <p className="mb-1 text-muted-foreground">
+          <p className="mb-1 flex items-center gap-2 text-muted-foreground">
+            <Bot className="h-4 w-4 shrink-0" />
             {t('assignedDeliverableAgent')}
           </p>
           {assignedAgents.length ? (
@@ -1061,8 +1072,14 @@ function Overview({
                 className="block font-medium underline"
                 href={withBasePath('/t/' + encodeURIComponent(agent.id))}
               >
-                {board.conversations.find((link) => link.id === agent.id)
-                  ?.title || t('openDeliverableAgent')}
+                {projectAgents?.find((thread) => thread.threadId === agent.id)
+                  ?.title ||
+                  (board.conversations.find((link) => link.id === agent.id)
+                    ?.title !== agent.id
+                    ? board.conversations.find((link) => link.id === agent.id)
+                        ?.title
+                    : null) ||
+                  t('openDeliverableAgent')}
               </a>
             ))
           ) : (
@@ -1079,14 +1096,6 @@ function Overview({
           />
         )}
 
-        <Summary
-          icon={FileText}
-          title={t('documents')}
-          value={String(
-            item.documents.filter((document) => document.deletedAt === null)
-              .length,
-          )}
-        />
         <Summary
           icon={CheckCircle2}
           title={t('validation')}
@@ -1119,7 +1128,7 @@ function Overview({
               : t('notDefined')
           }
         />
-        <div className="rounded-xl border bg-card p-4">
+        <div className="col-span-full min-w-0 rounded-xl border bg-card p-4">
           <div className="mb-2 flex items-center gap-2 font-medium">
             <FolderOpen className="h-4 w-4" />
             {t('location')}
@@ -1134,6 +1143,29 @@ function Overview({
           )}
         </div>
       </aside>
+      <section className="col-span-full rounded-xl border bg-card p-4">
+        <h2 className="mb-3 font-semibold">{t('systemInformation')}</h2>
+        <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <dt className="text-muted-foreground">{t('deliverableCreator')}</dt>
+            <dd>{item.createdByName ?? t('notDefined')}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">{t('createdOn')}</dt>
+            <dd>{new Date(item.createdAt).toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">
+              {t('deliverableLastEditor')}
+            </dt>
+            <dd>{item.updatedByName ?? t('notDefined')}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">{t('lastModified')}</dt>
+            <dd>{new Date(item.updatedAt).toLocaleString()}</dd>
+          </div>
+        </dl>
+      </section>
     </div>
   );
 }
@@ -1150,7 +1182,7 @@ function AccessSettings({
 }) {
   const { t } = useTranslation();
   return (
-    <section className="max-w-3xl space-y-4 rounded-xl border bg-card p-4">
+    <section className="w-full space-y-4 rounded-xl border bg-card p-4">
       <h2 className="font-semibold">{t('deliverableAccess')}</h2>
       <label className="block text-sm">
         {t('confidentiality')}
@@ -1231,14 +1263,12 @@ function VersionHistory({
   busy,
   dirty,
   action,
-  download,
 }: {
   mode: 'validation' | 'history';
   item: Deliverable;
   busy: boolean;
   dirty: boolean;
   action: DeliverableAction;
-  download: (version: DeliverableVersion, index: number) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const [decisionComment, setDecisionComment] = useState('');
@@ -1405,100 +1435,133 @@ function VersionHistory({
             ))}
           </section>
         )}
-        {mode === 'history' && (
-          <section className="space-y-3 rounded-xl border bg-card p-4">
-            <h2 className="font-semibold">
-              {t('validationRequirementHistory')}
-            </h2>
-            {!item.validationEvents.length && (
-              <p className="text-sm text-muted-foreground">
-                {t('noValidationRequirementEvent')}
-              </p>
-            )}
-            {item.validationEvents.map((event) => (
-              <div
-                key={event.id}
-                className="flex flex-wrap justify-between gap-2 border-b pb-2 text-sm last:border-0"
-              >
-                <span>
-                  {t(
-                    translationKey(validationRequirementActions[event.action]),
-                  )}{' '}
-                  · {event.actorName}
-                  {event.reason ? ` — ${event.reason}` : ''}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(event.createdAt).toLocaleString()}
-                </span>
-              </div>
-            ))}
-          </section>
-        )}
-        {mode === 'history' && (
-          <section className="space-y-3 rounded-xl border bg-card p-4">
-            <h2 className="font-semibold">{t('lifecycleHistory')}</h2>
-            {item.lifecycleEvents.map((event) => (
-              <div
-                key={event.id}
-                className="flex flex-wrap justify-between gap-2 border-b pb-2 text-sm last:border-0"
-              >
-                <span>
-                  {event.fromStatus
-                    ? `${t(translationKey(lifecycleStatuses[event.fromStatus]))} → `
-                    : ''}
-                  {t(translationKey(lifecycleStatuses[event.toStatus]))} ·{' '}
-                  {event.actorName}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(event.createdAt).toLocaleString()}
-                </span>
-              </div>
-            ))}
-          </section>
-        )}
-        {mode === 'history' && (
-          <section className="space-y-3 rounded-xl border bg-card p-4">
-            <h2 className="font-semibold">{t('versionHistory')}</h2>
-            {!item.versions.length && (
-              <p className="text-sm text-muted-foreground">
-                {t('noSubmittedVersions')}
-              </p>
-            )}
-            {item.versions.map((version) => (
-              <div className="space-y-2 rounded-lg border p-3" key={version.id}>
-                <div className="flex justify-between gap-2">
-                  <strong>
-                    V{version.number} ·{' '}
-                    {t(
-                      version.status === 'validated'
-                        ? 'validated'
-                        : version.status === 'rejected'
-                          ? 'rejected'
-                          : 'awaitingValidation',
-                    )}
-                  </strong>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(version.createdAt).toLocaleString()}
-                  </span>
-                </div>
-                <p className="text-sm">{version.note}</p>
-                <div className="flex flex-wrap gap-2">
-                  {version.files.map((file, index) => (
-                    <Button
-                      key={index}
-                      variant="ghost"
-                      onClick={() => void download(version, index)}
-                    >
-                      {file.name}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </section>
-        )}
       </div>
     </div>
+  );
+}
+
+function DeliverableHistory({
+  item,
+  download,
+}: {
+  item: Deliverable;
+  download: (version: DeliverableVersion, index: number) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const events: Array<{
+    id: string;
+    date: number;
+    author: string | null;
+    content: ReactNode;
+  }> = [
+    ...item.lifecycleEvents.map((event) => ({
+      id: `life:${event.id}`,
+      date: event.createdAt,
+      author: event.actorName,
+      content: `${event.fromStatus ? t(translationKey(lifecycleStatuses[event.fromStatus])) + ' → ' : ''}${t(translationKey(lifecycleStatuses[event.toStatus]))}`,
+    })),
+    ...item.validationEvents.map((event) => ({
+      id: `requirement:${event.id}`,
+      date: event.createdAt,
+      author: event.actorName,
+      content: (
+        <>
+          {t(translationKey(validationRequirementActions[event.action]))}
+          {event.reason ? ` — ${event.reason}` : ''}
+        </>
+      ),
+    })),
+    ...item.validations.flatMap((validation) => [
+      {
+        id: `request:${validation.id}`,
+        date: validation.requestedAt,
+        author: validation.requestedByName,
+        content: t('submitDeliverableForValidation'),
+      },
+      ...(validation.decidedAt
+        ? [
+            {
+              id: `decision:${validation.id}`,
+              date: validation.decidedAt,
+              author: validation.decidedByName,
+              content: (
+                <>
+                  {t(translationKey(validationStatuses[validation.status]))}
+                  {validation.decisionComment
+                    ? ` — ${validation.decisionComment}`
+                    : ''}
+                </>
+              ),
+            },
+          ]
+        : []),
+    ]),
+    ...item.versions.map((version) => ({
+      id: `version:${version.id}`,
+      date: version.createdAt,
+      author: null,
+      content: (
+        <>
+          <strong>V{version.number}</strong> ·{' '}
+          {t(
+            version.status === 'validated'
+              ? 'validated'
+              : version.status === 'rejected'
+                ? 'rejected'
+                : 'awaitingValidation',
+          )}{' '}
+          {version.note}
+          <div className="flex flex-wrap gap-2">
+            {version.files.map((file, index) => (
+              <Button
+                key={index}
+                variant="ghost"
+                onClick={() => void download(version, index)}
+              >
+                {file.name}
+              </Button>
+            ))}
+          </div>
+        </>
+      ),
+    })),
+  ];
+  events.sort((a, b) => b.date - a.date || a.id.localeCompare(b.id));
+  return (
+    <section className="overflow-x-auto rounded-xl border bg-card">
+      <table className="w-full text-left text-sm">
+        <caption className="p-4 text-left font-semibold">
+          {t('history')}
+        </caption>
+        <thead className="border-y bg-muted/40">
+          <tr>
+            <th className="px-4 py-2">{t('date')}</th>
+            <th className="px-4 py-2">{t('author')}</th>
+            <th className="px-4 py-2">{t('history')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((event) => (
+            <tr key={event.id} className="border-b last:border-0">
+              <td className="whitespace-nowrap px-4 py-3 align-top">
+                {new Date(event.date).toLocaleString()}
+              </td>
+              <td className="px-4 py-3 align-top">
+                {event.author ?? t('notDefined')}
+              </td>
+              <td className="px-4 py-3">{event.content}</td>
+            </tr>
+          ))}
+          {!events.length && (
+            <tr>
+              <td colSpan={3} className="p-4 text-muted-foreground">
+                {t('noSubmittedVersions')}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </section>
   );
 }
 
@@ -1566,7 +1629,15 @@ function Links({
       <div className="grid gap-4">
         <div className="space-y-3">
           <h3 className="font-medium">{t('primaryTask')}</h3>
-          {board.taskManagers.length ? (
+          {item.primaryTaskId ? (
+            <Button
+              variant="outline"
+              disabled={busy || link.isPending}
+              onClick={() => link.mutate(null)}
+            >
+              {t('detachDeliverableTask')}
+            </Button>
+          ) : board.taskManagers.length ? (
             <>
               <div className="flex gap-2">
                 <select

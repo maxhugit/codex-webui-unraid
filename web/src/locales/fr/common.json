@@ -1,4 +1,7 @@
 {
+  "detachDeliverableTask": "Dissocier la tâche",
+  "deliverableCreator": "Créateur",
+  "deliverableLastEditor": "Dernier modificateur",
   "deliverableAccess": "Accès",
   "assignedDeliverableAgent": "Agent affecté",
   "openDeliverableAgent": "Ouvrir l’agent",
