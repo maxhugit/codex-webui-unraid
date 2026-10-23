@@ -9,7 +9,9 @@ const budgets = {
   maximumJavaScriptAssetBytes: 1_100_000,
   mainEntryAssetBytes: 350_000,
   totalJavaScriptBytes: 18_000_000,
-  commonCatalogAssetBytes: 160_000,
+  // The expanded platform guide is intentionally localized in the shared
+  // catalog. Keep a narrow ceiling while allowing the reviewed documentation.
+  commonCatalogAssetBytes: 170_000,
 };
 
 const entries = await readdir(assetsDirectory, { withFileTypes: true }).catch(
