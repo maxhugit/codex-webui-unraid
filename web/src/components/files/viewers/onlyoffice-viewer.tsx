@@ -91,7 +91,7 @@ export function OnlyOfficeViewer({ filePath }: Props) {
                 }),
               );
           },
-          onReady: () =>
+          onDocumentReady: () =>
             setStatus(editorConfig?.mode === 'view' ? 'view' : 'ready'),
           onDocumentStateChange: (event: { data: boolean }) =>
             setStatus(event.data ? 'editing' : 'saved'),
