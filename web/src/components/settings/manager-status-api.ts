@@ -29,6 +29,7 @@ export interface ManagerComponent {
   containerId: string | null;
   containerName: string | null;
   image: string | null;
+  imageId?: string | null;
   imageRepositoryAllowed: boolean | null;
   health: string | null;
   restartCount: number;

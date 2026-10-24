@@ -14,9 +14,15 @@ import {
   requestServerRelease,
   serverReleaseQueryKey,
 } from './server-release-api';
+import { ManagerUpdateControls } from './manager-update-controls';
+import {
+  managerStatusQueryKey,
+  requestManagerStatus,
+} from './manager-status-api';
 
 export function ServerVersionCard() {
   const { t, i18n } = useTranslation();
+  const { t: tm } = useTranslation('manager');
   const client = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
@@ -24,6 +30,14 @@ export function ServerVersionCard() {
     queryKey: serverReleaseQueryKey,
     queryFn: () => requestServerRelease(),
     staleTime: 15 * 60_000,
+    retry: false,
+    refetchInterval: 60_000,
+  });
+  const manager = useQuery({
+    queryKey: managerStatusQueryKey,
+    queryFn: requestManagerStatus,
+    refetchInterval: 20_000,
+    staleTime: 10_000,
     retry: false,
   });
   const data = query.data;
@@ -50,7 +64,7 @@ export function ServerVersionCard() {
         <div className="space-y-1">
           <h2 className="text-sm font-semibold">{t('mergeronVersion')}</h2>
           <p className="text-xs text-muted-foreground">
-            {t('compareInstalledMergeronWithTheLatestPublishedStableVersion')}
+            {tm('managerAutomaticDetection')}
           </p>
         </div>
         <Button
@@ -64,7 +78,7 @@ export function ServerVersionCard() {
             aria-hidden="true"
             className={cn('h-4 w-4', refreshing && 'animate-spin')}
           />
-          {t('checkForUpdates')}
+          {tm('managerRefreshDetection')}
         </Button>
       </div>
 
@@ -99,10 +113,20 @@ export function ServerVersionCard() {
             </div>
             <div className="rounded-lg border border-border bg-background/60 p-3 sm:col-span-2">
               <dt className="text-xs text-muted-foreground">
-                {t('latestStableVersion')}
+                {tm('managerAvailableImage')}
               </dt>
               <dd className="mt-1 flex flex-wrap items-center gap-2 font-medium">
                 <span>{data.latestVersion ?? t('unknown')}</span>
+                {data.targetImage && (
+                  <span className="break-all font-mono text-xs">
+                    {data.targetImage}
+                  </span>
+                )}
+                {data.latestRevision && (
+                  <span className="font-mono text-xs">
+                    {data.latestRevision.slice(0, 7)}
+                  </span>
+                )}
                 {data.latestUrl && (
                   <a
                     href={data.latestUrl}
@@ -142,15 +166,15 @@ export function ServerVersionCard() {
                 />
               )}
               <span>
-                {t(
-                  data.versionStatus === 'update_available'
-                    ? 'aMergeronUpdateIsAvailable'
-                    : data.versionStatus === 'current'
-                      ? 'mergeronIsUpToDate'
-                      : data.versionStatus === 'edge'
-                        ? 'thisServerFollowsEdgeAndMayContainUnpublishedChanges'
-                        : 'installedVersionIsNewerThanLatestPublishedStableVersion',
-                )}
+                {data.versionStatus === 'update_available'
+                  ? tm('managerNewImageAvailable')
+                  : t(
+                      data.versionStatus === 'current'
+                        ? 'mergeronIsUpToDate'
+                        : data.versionStatus === 'edge'
+                          ? 'thisServerFollowsEdgeAndMayContainUnpublishedChanges'
+                          : 'installedVersionIsNewerThanLatestPublishedStableVersion',
+                    )}
               </span>
             </div>
           )}
@@ -173,6 +197,16 @@ export function ServerVersionCard() {
         </p>
       )}
 
+      {data?.updateAvailable && data.changesError && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {tm('managerChangesUnavailable')}
+        </p>
+      )}
+      {data?.changesTruncated && (
+        <p className="text-sm text-muted-foreground">
+          {tm('managerChangesTruncated')}
+        </p>
+      )}
       {data?.updateAvailable && data.releases.length > 0 && (
         <section className="space-y-3 border-t border-border pt-4">
           <div className="space-y-1">
@@ -180,7 +214,7 @@ export function ServerVersionCard() {
               {t('availableImprovements')}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {t('cumulativeChangesBetweenInstalledAndLatestVersion')}
+              {tm('managerImageChangesDescription')}
             </p>
           </div>
           {data.releases.map((release) => (
@@ -223,6 +257,9 @@ export function ServerVersionCard() {
             </article>
           ))}
         </section>
+      )}
+      {manager.data?.available && manager.data.update && (
+        <ManagerUpdateControls status={manager.data} />
       )}
     </section>
   );

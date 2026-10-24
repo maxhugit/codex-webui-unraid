@@ -25,6 +25,11 @@ export interface ServerReleaseStatus {
   releases: ServerReleaseNote[];
   checkedAt: string;
   checkError: string | null;
+  targetImage?: string;
+  targetDigest?: string | null;
+  latestRevision?: string | null;
+  changesError?: boolean;
+  changesTruncated?: boolean;
 }
 
 export const serverReleaseQueryKey = ['administration', 'server-release'];

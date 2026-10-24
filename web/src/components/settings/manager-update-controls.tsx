@@ -51,11 +51,12 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
   const release = useQuery({
     queryKey: serverReleaseQueryKey,
     queryFn: () => requestServerRelease(),
-    enabled: status.environment !== 'development',
+    enabled: true,
     staleTime: 15 * 60_000,
     retry: false,
   });
   const [imageOverride, setImage] = useState<string | null>(null);
+  const [manualSelection, setManualSelection] = useState(false);
   const image =
     imageOverride ?? defaultManagerUpdateImage(status, release.data);
   const [plan, setPlan] = useState<ManagerUpdatePlan | null>(null);
@@ -71,7 +72,9 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
     }) => requestManagerUpdate(action, input),
     onSuccess: (result, variables) => {
       setPlan(variables.action === 'plan' ? result : null);
-      setConfirm(null);
+      setConfirm(
+        variables.action === 'plan' && result.applicable ? 'apply' : null,
+      );
       void client.invalidateQueries({ queryKey: managerStatusQueryKey });
     },
   });
@@ -79,9 +82,7 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
   const blocked = operation?.status === 'recoveryRequired';
   return (
     <div className="space-y-3 border-t border-border pt-4">
-      <h3 className="text-sm font-semibold">
-        {t('managerTransactionalUpdate')}
-      </h3>
+      <h3 className="text-sm font-semibold">{t('managerUpdateAction')}</h3>
       <p className="text-xs text-muted-foreground">
         {t('managerUpdateSafetyDescription')}
       </p>
@@ -156,31 +157,59 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
         </div>
       )}
       <div className="space-y-2">
-        <label htmlFor="manager-update-image" className="text-sm">
-          {t('managerTargetApplicationImage')}
-        </label>
-        <Input
-          id="manager-update-image"
-          value={image}
-          disabled={busy || blocked}
-          onChange={(event) => {
-            setImage(event.target.value);
-            setPlan(null);
-          }}
-        />
+        <p className="text-xs text-muted-foreground">
+          {t('managerUpdateSeparateFromSettings')}
+        </p>
+        <p className="break-all font-mono text-xs">{image}</p>
+        <details>
+          <summary className="cursor-pointer text-xs text-muted-foreground">
+            {t('managerAdvancedImage')}
+          </summary>
+          <div className="mt-2 space-y-2">
+            <label htmlFor="manager-update-image" className="text-sm">
+              {t('managerTargetApplicationImage')}
+            </label>
+            <Input
+              id="manager-update-image"
+              value={image}
+              disabled={busy || blocked}
+              onChange={(event) => {
+                setManualSelection(true);
+                setImage(event.target.value);
+                setPlan(null);
+              }}
+            />
+          </div>
+        </details>
         <Button
-          variant="outline"
-          disabled={busy || blocked || !image.trim()}
+          type="button"
+          disabled={
+            busy ||
+            blocked ||
+            !image.trim() ||
+            (!manualSelection &&
+              (!release.data ||
+                release.isError ||
+                (!!release.data.targetImage && !release.data.updateAvailable)))
+          }
           onClick={() => {
             // Keep the reviewed target fixed if release discovery finishes later.
             setImage(image.trim());
+            const target =
+              !manualSelection &&
+              release.data?.targetDigest &&
+              release.data.targetImage === image
+                ? `ghcr.io/maxhugit/mergeron@${release.data.targetDigest}`
+                : image.trim();
             mutation.mutate({
               action: 'plan',
-              input: { images: { application: image.trim() } },
+              input: { images: { application: target } },
             });
           }}
         >
-          {t('managerPreviewUpdate')}
+          {mutation.isPending
+            ? t('managerCheckingPrerequisites')
+            : t('managerPrepareUpdate')}
         </Button>
       </div>
       {plan && (
@@ -194,12 +223,6 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
               <span className="text-xs">{plan.blockers.join(', ')}</span>
             </p>
           )}
-          <Button
-            disabled={busy || !plan.applicable}
-            onClick={() => setConfirm('apply')}
-          >
-            {t('managerStartUpdate')}
-          </Button>
         </div>
       )}
       {mutation.error && (
@@ -223,6 +246,11 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
               )}
             </AlertDialogTitle>
             <AlertDialogDescription>
+              {confirm === 'apply' && plan && (
+                <span className="mb-2 block break-all font-mono text-xs">
+                  {plan.images.application}
+                </span>
+              )}
               {t(
                 confirm === 'rollback'
                   ? 'managerRollbackDataWarning'
@@ -254,7 +282,9 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
                   });
               }}
             >
-              {common('confirm')}
+              {confirm === 'apply'
+                ? t('managerConfirmUpdate')
+                : common('confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

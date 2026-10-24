@@ -14,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { translationKey } from '@/locales/translation-key';
-import { ManagerUpdateControls } from './manager-update-controls';
 import {
   managerStatusQueryKey,
   requestManagerAdoption,
@@ -244,7 +243,6 @@ export function ManagerStatusCard() {
               {t(translationKey(adoption.error.message))}
             </p>
           )}
-          {data.update && <ManagerUpdateControls status={data} />}
         </>
       )}
 

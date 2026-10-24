@@ -135,6 +135,38 @@ aucun domaine propre à une installation.
 
 ## Mise à jour transactionnelle et retour arrière
 
+### Détection et confirmation dans l’interface
+
+La carte de version constitue l’unique point d’entrée pour les mises à jour.
+Elle vérifie automatiquement le canal `edge` (recette) ou `latest` (stable),
+avec un cache de cinq minutes et un rafraîchissement manuel possible. La
+détection lit les métadonnées OCI du registre GHCR, sans télécharger les
+couches d’image ni modifier Docker. L’identité de l’image installée est
+comparée à celle de la plateforme publiée, y compris à numéro de version
+identique. Avec un ancien Manager, la comparaison utilise l’empreinte de
+l’image déjà épinglée ou, à défaut, la révision embarquée. Mettre également
+le Manager à jour permet la comparaison précise par identité d’image.
+
+Les notes de version stables ou les commits GitHub entre les deux révisions
+sont affichés avant confirmation. Les listes longues sont limitées à 100
+commits avec un lien vers la comparaison complète. Une erreur de consultation
+des descriptions ne masque pas une image détectée ; une erreur du registre
+ne présente jamais l’installation comme étant à jour.
+
+« Mettre à jour » vérifie les prérequis, puis ouvre une confirmation
+« Installer et redémarrer ». La cible détectée est épinglée par digest dans
+le plan afin qu’un déplacement ultérieur du tag ne change pas l’image
+confirmée. La sélection manuelle reste accessible dans les options avancées.
+Le bouton « Enregistrer les paramètres de fonctionnement » est indépendant
+et n’apparaît que lorsque ces paramètres ont été modifiés.
+
+Le proxy sortant doit autoriser `ghcr.io`, en plus de GitHub et des domaines
+`githubusercontent.com` déjà utilisés. Le modèle Squid livré inclut cette
+règle. Les installations existantes conservent volontairement leur configuration :
+ajouter `acl allowed_domains dstdomain ghcr.io` avant de tester la détection
+avec cette nouvelle version, puis recharger Squid. Aucun élargissement vers
+les réseaux privés ou vers tous les domaines n’est nécessaire.
+
 Les réglages généraux du serveur proposent un aperçu puis une confirmation de
 mise à jour. L'opération continue dans le Manager lorsque l'application est
 arrêtée ; son suivi reste disponible sur le socket local. Seuls les

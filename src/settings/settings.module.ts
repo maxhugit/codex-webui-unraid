@@ -6,11 +6,17 @@ import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 import { ServerReleaseService } from './server-release.service';
 import { ManagerStatusService } from './manager-status.service';
+import { ImageUpdateService } from './image-update.service';
 
 @Module({
   imports: [ConfigModule, DatabaseModule],
   controllers: [SettingsController],
-  providers: [SettingsService, ServerReleaseService, ManagerStatusService],
+  providers: [
+    SettingsService,
+    ServerReleaseService,
+    ManagerStatusService,
+    ImageUpdateService,
+  ],
   exports: [SettingsService, ServerReleaseService, ManagerStatusService],
 })
 export class SettingsModule {}
