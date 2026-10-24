@@ -304,7 +304,13 @@ export class TransactionalUpdater {
         const root = this.configuration.stateRoot;
         if (
           !(
-            mount.Source.startsWith(`${root}/`) ||
+            dataEntries.some(
+              (name) =>
+                mount.Source === `${root}/${name}` ||
+                mount.Source.startsWith(`${root}/${name}/`),
+            ) ||
+            (mount.Source === `${root}/manager-run` &&
+              mount.Destination === '/run/mergeron-manager') ||
             (mount.Destination === '/appdata' &&
               mount.Source === this.configuration.appdataRoot)
           )

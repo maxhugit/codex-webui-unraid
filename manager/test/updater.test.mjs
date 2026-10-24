@@ -327,6 +327,21 @@ test('Docker mount and object key order does not invalidate an unchanged plan', 
   assert.equal((await updater.plan(images)).fingerprint, first.fingerprint);
 });
 
+test('blocks additional writable state mounts that are not covered by the backup', async (t) => {
+  const { updater, docker, root } = await fixture(t);
+  docker.values
+    .get('original-application')
+    .Mounts.push({
+      Type: 'bind',
+      Source: `${root}/uncovered-data`,
+      Destination: '/custom',
+      RW: true,
+    });
+  const plan = await updater.plan(images);
+  assert.equal(plan.applicable, false);
+  assert.ok(plan.blockers.includes('application:updateMountOutsideState'));
+});
+
 test('a failed backup restarts all original services without changing their data', async (t) => {
   const { updater, docker, root } = await fixture(t);
   const stop = docker.stopContainer.bind(docker);
