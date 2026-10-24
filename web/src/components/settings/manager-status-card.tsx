@@ -183,7 +183,7 @@ export function ManagerStatusCard() {
             </div>
           )}
 
-          {data.adoption?.state === 'drifted' && (
+          {data.adoption?.state === 'drifted' && !data.update?.busy && (
             <div
               role="alert"
               className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"

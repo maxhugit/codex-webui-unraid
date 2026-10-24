@@ -82,7 +82,18 @@ async function refresh() {
   refreshing = (async () => {
     const previous = snapshot;
     try {
-      const inventory = await collectInventory(manifest, docker);
+      const inventory = await collectInventory(manifest, {
+        listContainers: async () =>
+          (await docker.listContainers()).filter(
+            (container) =>
+              !updater.current?.containers?.some(
+                (item) =>
+                  item.id === container.Id &&
+                  container.Names?.includes(`/${item.backupName}`),
+              ),
+          ),
+        inspectContainer: (id) => docker.inspectContainer(id),
+      });
       snapshot = evaluateAdoption(
         inventory,
         await readAdoptionRecord(adoptionPath),
