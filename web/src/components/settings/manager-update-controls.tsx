@@ -40,7 +40,8 @@ const statuses: Record<string, string> = {
 };
 
 export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
-  const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation('manager');
+  const { t: common } = useTranslation();
   const client = useQueryClient();
   const [image, setImage] = useState('ghcr.io/maxhugit/mergeron:edge');
   const [plan, setPlan] = useState<ManagerUpdatePlan | null>(null);
@@ -214,7 +215,7 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={busy}
               onClick={() => {
@@ -237,7 +238,7 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
                   });
               }}
             >
-              {t('confirm')}
+              {common('confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

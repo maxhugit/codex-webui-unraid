@@ -167,6 +167,11 @@ administrateurs accèdent aux routes applicatives `/api/settings/manager/update`
 Une erreur avant validation déclenche la restauration des données et le
 redémarrage des anciens conteneurs. Les données écrites par la version rejetée
 sont déplacées dans `quarantine`, jamais supprimées. Le journal privé `0600`
+conserve leur référence : les dossiers retenus restent en réalité sous des noms
+cachés `.manager-quarantine-<opération>-<entrée>` dans `STATE_ROOT`, avec des
+liens relatifs depuis `quarantine`. Les renommages restent dans le même dossier
+parent pour conserver les permissions privées sans capacité supplémentaire.
+Le journal
 permet de reprendre la récupération au redémarrage du Manager, y compris si
 Docker a créé un conteneur juste avant l'interruption. Après le point de
 validation, le redémarrage termine seulement le nettoyage. Si la récupération

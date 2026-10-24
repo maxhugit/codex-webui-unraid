@@ -96,6 +96,7 @@ function ComponentRow({ component }: { component: ManagerComponent }) {
 
 export function ManagerStatusCard() {
   const { t, i18n } = useTranslation();
+  const { t: tm } = useTranslation('manager');
   const queryClient = useQueryClient();
   const [confirmAdoption, setConfirmAdoption] = useState(false);
   const query = useQuery({
@@ -121,15 +122,17 @@ export function ManagerStatusCard() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">Mergeron Manager</h2>
           <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-            {t(data?.update ? 'managerTransactionalUpdate' : 'observationOnly')}
+            {data?.update
+              ? tm('managerTransactionalUpdate')
+              : t('observationOnly')}
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          {t(
-            data?.update
-              ? 'managerUpdateSafetyDescription'
-              : 'managerObservesTheExistingStackWithoutChangingContainersOrData',
-          )}
+          {data?.update
+            ? tm('managerUpdateSafetyDescription')
+            : t(
+                'managerObservesTheExistingStackWithoutChangingContainersOrData',
+              )}
         </p>
       </div>
 

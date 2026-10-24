@@ -16,7 +16,7 @@ import {
   symlink,
   utimes,
 } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { collectInventory } from './inventory.mjs';
 import {
   evaluateAdoption,
@@ -155,6 +155,28 @@ async function treeSize(path) {
     return total;
   }
   return value.isFile() ? value.size : 0;
+}
+
+export async function restorePersistentEntry(stateRoot, base, id, name) {
+  const source = join(stateRoot, name);
+  // Linux requires write permission on a directory when changing its parent.
+  // Same-parent renames keep UID-11002 private directories intact without
+  // CAP_DAC_OVERRIDE, temporary chmod/chown, or permission-changing crash windows.
+  const retained = join(stateRoot, `.manager-quarantine-${id}-${name}`);
+  const restore = join(stateRoot, `.manager-restore-${id}-${name}`);
+  const quarantined = join(base, 'quarantine', name);
+  await mkdir(dirname(quarantined), { recursive: true, mode: 0o700 });
+  if (!(await exists(retained))) {
+    if (!(await exists(restore))) {
+      const temporary = `${restore}.partial-${randomUUID()}`;
+      await copyPersistentTree(join(base, 'backup', name), temporary);
+      await durableRename(temporary, restore);
+    }
+    await durableRename(source, retained);
+  }
+  if (!(await exists(quarantined)))
+    await symlink(relative(dirname(quarantined), retained), quarantined);
+  if (!(await exists(source))) await durableRename(restore, source);
 }
 
 function specification(inspect, image) {
@@ -612,20 +634,12 @@ export class TransactionalUpdater {
       await mkdir(join(base, 'quarantine'), { recursive: true, mode: 0o700 });
       for (const name of dataEntries) {
         if (this.current.restored.includes(name)) continue;
-        const source = join(this.configuration.hostStatePath, name);
-        const quarantined = join(base, 'quarantine', name);
-        const restore = join(base, 'restore', name);
-        await mkdir(dirname(restore), { recursive: true, mode: 0o700 });
-        // Resume after either rename, without removing any version of the data.
-        if (!(await exists(quarantined))) {
-          if (!(await exists(restore))) {
-            const temporary = `${restore}.partial-${randomUUID()}`;
-            await copyPersistentTree(join(base, 'backup', name), temporary);
-            await durableRename(temporary, restore);
-          }
-          await durableRename(source, quarantined);
-        }
-        if (!(await exists(source))) await durableRename(restore, source);
+        await restorePersistentEntry(
+          this.configuration.hostStatePath,
+          base,
+          this.current.id,
+          name,
+        );
         this.current.restored.push(name);
         await this.save('rollingBack');
       }
