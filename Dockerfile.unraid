@@ -352,13 +352,23 @@ is_root_seedable() {
 }
 
 # ── Phase 1: Root seed restore ──────────────────────────────────────
+restore_missing_seed() {
+  for seed_path in .local .local/bin .local/share .local/share/mise .local/state .config .config/mise .codex; do
+    if [ -L "/home/codex/${seed_path}" ]; then
+      echo "[entrypoint] Refusing seed restore through symlink: ${seed_path}" >&2
+      exit 1
+    fi
+  done
+  tar -C /home/codex --zstd --skip-old-files -xf "${ROOT_SEED}"
+  if [ ! -e "${ROOT_MARKER}" ]; then touch "${ROOT_MARKER}"; fi
+}
+
 if is_root_seedable; then
   echo "[entrypoint] /home/codex is fresh, restoring seed data..."
-  tar -C /home/codex --zstd -xf "${ROOT_SEED}"
-  touch "${ROOT_MARKER}"
-elif [ ! -e "${ROOT_MARKER}" ] && [ ! -d /home/codex/.local/share/mise ]; then
-  echo "[entrypoint] /home/codex has data but mise seed is missing; leaving unchanged."
-  echo "[entrypoint] Clear the host volume and restart if this is unintended."
+  restore_missing_seed
+elif [ ! -e "${ROOT_MARKER}" ] || ! command -v node >/dev/null 2>&1; then
+  echo "[entrypoint] /home/codex has data; restoring missing runtime files without replacing existing files."
+  restore_missing_seed
 else
   echo "[entrypoint] /home/codex already initialized."
 fi
