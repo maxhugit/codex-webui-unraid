@@ -1,0 +1,177 @@
+import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
+import { translationKey } from '@/locales/translation-key';
+import {
+  managerStatusQueryKey,
+  requestManagerStatus,
+  type ManagerComponent,
+} from './manager-status-api';
+
+const stateLabels = {
+  missing: 'managerStateMissing',
+  conflict: 'transferActionConflict',
+  created: 'created',
+  stopped: 'managerStateStopped',
+  running: 'running',
+  starting: 'managerStateStarting',
+  healthy: 'managerStateHealthy',
+  unhealthy: 'managerStateUnhealthy',
+} as const;
+
+const adoptionLabels = {
+  managed: 'managerAdoptionManaged',
+  adoptable: 'managerAdoptionAdoptable',
+  missing: 'notInstalled',
+  conflict: 'managerAdoptionConflict',
+} as const;
+
+function ComponentRow({ component }: { component: ManagerComponent }) {
+  const { t } = useTranslation();
+  const healthy = component.state === 'healthy';
+  const warning = ['unhealthy', 'stopped', 'conflict', 'missing'].includes(
+    component.state,
+  );
+  return (
+    <li className="space-y-2 rounded-lg border border-border bg-background/60 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            aria-hidden="true"
+            className={cn(
+              'h-2.5 w-2.5 shrink-0 rounded-full',
+              healthy
+                ? 'bg-emerald-500'
+                : warning
+                  ? 'bg-destructive'
+                  : 'bg-amber-500',
+            )}
+          />
+          <span className="truncate text-sm font-medium">
+            {component.displayName}
+          </span>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {t(translationKey(stateLabels[component.state]))}
+        </span>
+      </div>
+      <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+        <span>
+          {t('managerAdoption')}:{' '}
+          {t(translationKey(adoptionLabels[component.adoption]))}
+        </span>
+        {component.containerName && (
+          <span className="truncate sm:text-right">
+            {component.containerName}
+          </span>
+        )}
+      </div>
+      {component.missingNetworks.length > 0 && (
+        <p className="text-xs text-amber-600 dark:text-amber-300">
+          {t('missingNetworks')}: {component.missingNetworks.join(', ')}
+        </p>
+      )}
+    </li>
+  );
+}
+
+export function ManagerStatusCard() {
+  const { t, i18n } = useTranslation();
+  const query = useQuery({
+    queryKey: managerStatusQueryKey,
+    queryFn: requestManagerStatus,
+    refetchInterval: 20_000,
+    staleTime: 10_000,
+    retry: false,
+  });
+  const data = query.data;
+  const error = query.error?.message ?? data?.error;
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border bg-card/50 p-4">
+      <div className="space-y-1">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">Mergeron Manager</h2>
+          <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+            {t('observationOnly')}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {t('managerObservesTheExistingStackWithoutChangingContainersOrData')}
+        </p>
+      </div>
+
+      {query.isLoading && (
+        <p className="text-sm text-muted-foreground">{t('loadingb04ba49f')}</p>
+      )}
+
+      {error && (
+        <div className="space-y-1 rounded-lg border border-border bg-background/60 p-3">
+          <p role="status" className="text-sm font-medium">
+            {t('managerNotConnected')}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t('theCurrentInstallationContinuesToRunWithoutManager')}
+          </p>
+          {query.error && (
+            <p role="alert" className="text-xs text-destructive">
+              {t(translationKey(error))}
+            </p>
+          )}
+        </div>
+      )}
+
+      {data?.available && (
+        <>
+          <div
+            role="status"
+            className={cn(
+              'rounded-lg border p-3 text-sm',
+              data.dataSafety.status === 'protected'
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                : 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+            )}
+          >
+            {t(
+              data.dataSafety.status === 'protected'
+                ? 'persistentDataMountsAreProtected'
+                : 'managerWillNotModifyThisInstallationBecauseDataProtectionChecksFailed',
+            )}
+          </div>
+
+          <ul className="grid gap-3 sm:grid-cols-3">
+            {data.components.map((component) => (
+              <ComponentRow key={component.id} component={component} />
+            ))}
+          </ul>
+
+          {data.dataSafety.protectedMounts.length > 0 && (
+            <details className="rounded-lg border border-border bg-background/60 p-3 text-xs">
+              <summary className="cursor-pointer font-medium">
+                {t('protectedPersistentData')}
+              </summary>
+              <ul className="mt-2 space-y-2 text-muted-foreground">
+                {data.dataSafety.protectedMounts.map((mount) => (
+                  <li key={`${mount.component}:${mount.target}`}>
+                    <span className="font-mono">{mount.target}</span>
+                    {' → '}
+                    <span className="break-all font-mono">
+                      {mount.source ?? t('missing')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+
+          {data.observedAt && (
+            <p className="text-xs text-muted-foreground">
+              {t('lastChecked')}:{' '}
+              {new Date(data.observedAt).toLocaleString(i18n.language)}
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}

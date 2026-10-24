@@ -13,6 +13,7 @@ dans cet ordre :
 7. [Sauvegarde et restauration](sauvegarde-restauration.md)
 8. [Exploitation et dépannage](exploitation-depannage.md)
 9. [Versions et publications](publications.md)
+10. [Mergeron Manager](mergeron-manager.md)
 
 ## Guide d’utilisation
 

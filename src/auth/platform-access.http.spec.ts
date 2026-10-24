@@ -24,6 +24,7 @@ import {
 } from '../database/schema';
 import { SettingsController } from '../settings/settings.controller';
 import { ServerReleaseService } from '../settings/server-release.service';
+import { ManagerStatusService } from '../settings/manager-status.service';
 import { SettingsService } from '../settings/settings.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -172,6 +173,10 @@ beforeEach(async () => {
         provide: ServerReleaseService,
         useValue: { status: () => ({ installed: { version: '0.1.0' } }) },
       },
+      {
+        provide: ManagerStatusService,
+        useValue: { status: () => ({ available: true, mode: 'observe' }) },
+      },
       { provide: APP_GUARD, useClass: ApiKeyGuard },
       { provide: APP_GUARD, useClass: PlatformAccessGuard },
       { provide: APP_INTERCEPTOR, useClass: AccessContextInterceptor },
@@ -259,6 +264,24 @@ it('returns 403 on real settings routes for standard users and 200 for administr
       await server.inject({
         method: 'GET',
         url: '/api/settings/release/status',
+        headers: proxyHeaders('administrator@example.com'),
+      })
+    ).statusCode,
+  ).toBe(200);
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/settings/manager/status',
+        headers: proxyHeaders(),
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/settings/manager/status',
         headers: proxyHeaders('administrator@example.com'),
       })
     ).statusCode,
