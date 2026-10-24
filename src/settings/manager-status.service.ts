@@ -1,5 +1,5 @@
-/** Read-only bridge to the local Mergeron Manager Unix socket. */
-import { Injectable } from '@nestjs/common';
+/** Administrator-facing bridge to the local Mergeron Manager Unix socket. */
+import { HttpException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import http from 'node:http';
 
@@ -16,15 +16,28 @@ export class ManagerStatusService {
     );
   }
 
-  protected requestManager(): Promise<Record<string, unknown>> {
+  protected requestManager(
+    path = '/v1/status',
+    method: 'GET' | 'POST' = 'GET',
+    payload?: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     return new Promise((resolve, reject) => {
+      const body = payload ? JSON.stringify(payload) : undefined;
       const request = http.request(
         {
-          method: 'GET',
-          path: '/v1/status',
+          method,
+          path,
           socketPath: this.socketPath(),
           timeout: 3_000,
-          headers: { Accept: 'application/json' },
+          headers: {
+            Accept: 'application/json',
+            ...(body
+              ? {
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(body),
+                }
+              : {}),
+          },
         },
         (response) => {
           let body = '';
@@ -35,18 +48,22 @@ export class ManagerStatusService {
               request.destroy(new Error('Manager response is too large'));
           });
           response.on('end', () => {
-            if (response.statusCode !== 200) {
-              reject(
-                new Error(
-                  `Mergeron Manager returned HTTP ${response.statusCode ?? 'unknown'}`,
-                ),
-              );
-              return;
-            }
             try {
               const value: unknown = JSON.parse(body);
               if (!value || typeof value !== 'object' || Array.isArray(value))
                 throw new Error('Invalid Manager response');
+              if (response.statusCode !== 200) {
+                const error = (value as { error?: unknown }).error;
+                reject(
+                  new HttpException(
+                    typeof error === 'string'
+                      ? error
+                      : 'mergeronManagerRequestFailed',
+                    response.statusCode ?? 502,
+                  ),
+                );
+                return;
+              }
               resolve(value as Record<string, unknown>);
             } catch (error) {
               reject(
@@ -62,6 +79,7 @@ export class ManagerStatusService {
         request.destroy(new Error('Mergeron Manager timeout')),
       );
       request.on('error', reject);
+      if (body) request.write(body);
       request.end();
     });
   }
@@ -83,5 +101,18 @@ export class ManagerStatusService {
         error: 'mergeronManagerUnavailable',
       };
     }
+  }
+
+  async adopt(input: {
+    confirmation?: unknown;
+    expectedFingerprint?: unknown;
+  }) {
+    return {
+      available: true,
+      ...(await this.requestManager('/v1/adoption', 'POST', {
+        confirmation: input?.confirmation,
+        expectedFingerprint: input?.expectedFingerprint,
+      })),
+    };
   }
 }

@@ -50,6 +50,13 @@ export interface ManagerStatus {
     blockers: string[];
     protectedMounts: ManagerProtectedMount[];
   };
+  adoption?: {
+    state: 'eligible' | 'blocked' | 'adopted' | 'drifted';
+    fingerprint: string;
+    adoptedAt: string | null;
+    blockers: string[];
+    canAdopt: boolean;
+  };
   error?: string;
 }
 
@@ -68,6 +75,34 @@ export async function requestManagerStatus(): Promise<ManagerStatus> {
       ? data.message.join('\n')
       : data.message;
     throw new Error(message ?? `HTTP ${response.status}`);
+  }
+  return data;
+}
+
+export async function requestManagerAdoption(
+  expectedFingerprint: string,
+): Promise<ManagerStatus> {
+  const authorization = getAuthorizationHeader();
+  const response = await fetch(withBasePath('/api/settings/manager/adopt'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
+    body: JSON.stringify({
+      confirmation: 'ADOPT_EXISTING_INSTALLATION',
+      expectedFingerprint,
+    }),
+  });
+  const data = (await response.json()) as ManagerStatus & {
+    error?: string;
+    message?: string | string[];
+  };
+  if (!response.ok) {
+    const message = Array.isArray(data.message)
+      ? data.message.join('\n')
+      : data.message;
+    throw new Error(message ?? data.error ?? `HTTP ${response.status}`);
   }
   return data;
 }

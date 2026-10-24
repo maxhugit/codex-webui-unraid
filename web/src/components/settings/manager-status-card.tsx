@@ -1,9 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { translationKey } from '@/locales/translation-key';
 import {
   managerStatusQueryKey,
+  requestManagerAdoption,
   requestManagerStatus,
   type ManagerComponent,
 } from './manager-status-api';
@@ -77,6 +90,8 @@ function ComponentRow({ component }: { component: ManagerComponent }) {
 
 export function ManagerStatusCard() {
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const [confirmAdoption, setConfirmAdoption] = useState(false);
   const query = useQuery({
     queryKey: managerStatusQueryKey,
     queryFn: requestManagerStatus,
@@ -86,6 +101,13 @@ export function ManagerStatusCard() {
   });
   const data = query.data;
   const error = query.error?.message ?? data?.error;
+  const adoption = useMutation({
+    mutationFn: requestManagerAdoption,
+    onSuccess: (status) => {
+      queryClient.setQueryData(managerStatusQueryKey, status);
+      setConfirmAdoption(false);
+    },
+  });
 
   return (
     <section className="space-y-4 rounded-xl border border-border bg-card/50 p-4">
@@ -139,6 +161,24 @@ export function ManagerStatusCard() {
             )}
           </div>
 
+          {data.adoption?.state === 'adopted' && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+              <p className="font-medium">{t('managerInstallationAdopted')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('managerAdoptionDoesNotMoveOrRecreateData')}
+              </p>
+            </div>
+          )}
+
+          {data.adoption?.state === 'drifted' && (
+            <div
+              role="alert"
+              className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              {t('managerAdoptedInstallationChanged')}
+            </div>
+          )}
+
           <ul className="grid gap-3 sm:grid-cols-3">
             {data.components.map((component) => (
               <ComponentRow key={component.id} component={component} />
@@ -170,8 +210,54 @@ export function ManagerStatusCard() {
               {new Date(data.observedAt).toLocaleString(i18n.language)}
             </p>
           )}
+
+          {data.adoption?.canAdopt && (
+            <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {t('managerAdoptionReadyDescription')}
+              </p>
+              <Button
+                type="button"
+                onClick={() => setConfirmAdoption(true)}
+                disabled={adoption.isPending}
+              >
+                {t('adoptExistingInstallation')}
+              </Button>
+            </div>
+          )}
+
+          {adoption.error && (
+            <p role="alert" className="text-xs text-destructive">
+              {t(translationKey(adoption.error.message))}
+            </p>
+          )}
         </>
       )}
+
+      <AlertDialog open={confirmAdoption} onOpenChange={setConfirmAdoption}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('confirmExistingInstallationAdoption')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('confirmExistingInstallationAdoptionDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!data?.adoption?.fingerprint || adoption.isPending}
+              onClick={() => {
+                const fingerprint = data?.adoption?.fingerprint;
+                if (fingerprint) adoption.mutate(fingerprint);
+              }}
+            >
+              {t('confirmAdoption')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

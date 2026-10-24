@@ -175,7 +175,10 @@ beforeEach(async () => {
       },
       {
         provide: ManagerStatusService,
-        useValue: { status: () => ({ available: true, mode: 'observe' }) },
+        useValue: {
+          status: () => ({ available: true, mode: 'observe' }),
+          adopt: () => ({ adoption: { state: 'adopted' } }),
+        },
       },
       { provide: APP_GUARD, useClass: ApiKeyGuard },
       { provide: APP_GUARD, useClass: PlatformAccessGuard },
@@ -250,6 +253,32 @@ it('returns 403 on real settings routes for standard users and 200 for administr
       })
     ).statusCode,
   ).toBe(200);
+  expect(
+    (
+      await server.inject({
+        method: 'POST',
+        url: '/api/settings/manager/adopt',
+        headers: proxyHeaders(),
+        payload: {
+          confirmation: 'ADOPT_EXISTING_INSTALLATION',
+          expectedFingerprint: 'fingerprint',
+        },
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'POST',
+        url: '/api/settings/manager/adopt',
+        headers: proxyHeaders('administrator@example.com'),
+        payload: {
+          confirmation: 'ADOPT_EXISTING_INSTALLATION',
+          expectedFingerprint: 'fingerprint',
+        },
+      })
+    ).statusCode,
+  ).toBe(201);
   expect(
     (
       await server.inject({

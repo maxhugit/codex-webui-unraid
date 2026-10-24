@@ -58,7 +58,7 @@ Pour une nouvelle installation :
 
 ```bash
 STATE=/mnt/pool/appdata/mergeron/state
-mkdir -p "$STATE"/{home,workspace,logs,ssh,manager-run}
+mkdir -p "$STATE"/{home,workspace,logs,ssh,manager-run,manager-state}
 openssl rand -hex 48 > "$STATE/backend-token.txt"
 cp "$STATE/backend-token.txt" "$STATE/backend-token-nginx.txt"
 install -m 440 /dev/null "$STATE/openai-api-key.txt"

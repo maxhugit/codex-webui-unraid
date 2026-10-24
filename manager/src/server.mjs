@@ -4,6 +4,11 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DockerClient } from './docker-client.mjs';
 import {
+  confirmAdoption,
+  evaluateAdoption,
+  readAdoptionRecord,
+} from './adoption.mjs';
+import {
   collectInventory,
   scopeManifest,
   unavailableInventory,
@@ -19,6 +24,9 @@ const manifest = scopeManifest(
 const socketPath =
   process.env.MERGERON_MANAGER_SOCKET ?? '/run/mergeron-manager/manager.sock';
 const socketGroup = Number(process.env.MERGERON_MANAGER_SOCKET_GID ?? 11002);
+const adoptionPath =
+  process.env.MERGERON_MANAGER_ADOPTION_PATH ??
+  '/var/lib/mergeron-manager/adoption.json';
 const pollInterval = Math.max(
   5_000,
   Number(process.env.MERGERON_MANAGER_POLL_MS ?? 20_000),
@@ -32,6 +40,7 @@ let snapshot = unavailableInventory(
   new Error('Inventory not collected yet'),
 );
 let refreshing = null;
+let adopting = null;
 const events = [];
 
 function signature(value) {
@@ -55,7 +64,11 @@ async function refresh() {
   refreshing = (async () => {
     const previous = snapshot;
     try {
-      snapshot = await collectInventory(manifest, docker);
+      const inventory = await collectInventory(manifest, docker);
+      snapshot = evaluateAdoption(
+        inventory,
+        await readAdoptionRecord(adoptionPath),
+      );
     } catch (error) {
       snapshot = unavailableInventory(manifest, error);
     }
@@ -72,6 +85,49 @@ async function refresh() {
   }
 }
 
+function readJsonBody(request) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    request.setEncoding('utf8');
+    request.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 16 * 1024)
+        request.destroy(new Error('requestBodyTooLarge'));
+    });
+    request.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        reject(new Error('invalidJsonBody'));
+      }
+    });
+    request.on('error', reject);
+  });
+}
+
+async function adopt(body) {
+  if (adopting) return adopting;
+  adopting = (async () => {
+    const inventory = await collectInventory(manifest, docker);
+    const result = await confirmAdoption({
+      inventory,
+      existingRecord: await readAdoptionRecord(adoptionPath),
+      confirmation: body?.confirmation,
+      expectedFingerprint: body?.expectedFingerprint,
+      path: adoptionPath,
+    });
+    snapshot = result;
+    events.push({ at: result.observedAt, type: 'installationAdopted' });
+    if (events.length > 100) events.splice(0, events.length - 100);
+    return result;
+  })();
+  try {
+    return await adopting;
+  } finally {
+    adopting = null;
+  }
+}
+
 function json(response, status, value) {
   const body = JSON.stringify(value);
   response.writeHead(status, {
@@ -83,17 +139,39 @@ function json(response, status, value) {
 }
 
 const server = http.createServer(async (request, response) => {
-  if (request.method !== 'GET') {
-    json(response, 405, { error: 'readOnlyManager' });
-    return;
-  }
   if (request.url === '/healthz') {
+    if (request.method !== 'GET') {
+      json(response, 405, { error: 'methodNotAllowed' });
+      return;
+    }
     json(response, 200, { status: 'ok', mode: 'observe' });
     return;
   }
   if (request.url === '/v1/status') {
+    if (request.method !== 'GET') {
+      json(response, 405, { error: 'methodNotAllowed' });
+      return;
+    }
     await refresh();
     json(response, 200, { ...snapshot, events: [...events] });
+    return;
+  }
+  if (request.url === '/v1/adoption' && request.method === 'POST') {
+    try {
+      const result = await adopt(await readJsonBody(request));
+      json(response, 200, { ...result, events: [...events] });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'adoptionFailed';
+      const status =
+        code === 'adoptionConfirmationRequired' || code === 'invalidJsonBody'
+          ? 400
+          : 409;
+      json(response, status, { error: code });
+    }
+    return;
+  }
+  if (request.method !== 'GET') {
+    json(response, 405, { error: 'methodNotAllowed' });
     return;
   }
   json(response, 404, { error: 'notFound' });

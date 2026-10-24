@@ -32,6 +32,7 @@ temps.
     logs/
     ssh/
     manager-run/
+    manager-state/
     backend-token.txt
     backend-token-nginx.txt
     openai-api-key.txt

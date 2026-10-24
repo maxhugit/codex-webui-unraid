@@ -210,9 +210,11 @@ services:
       MERGERON_MANAGER_SOCKET_GID: '11002'
       MERGERON_MANAGER_POLL_MS: '20000'
       MERGERON_DOCKER_SOCKET: /var/run/docker.sock
+      MERGERON_MANAGER_ADOPTION_PATH: /var/lib/mergeron-manager/adoption.json
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${STATE_ROOT}/manager-run:/run/mergeron-manager
+      - ${STATE_ROOT}/manager-state:/var/lib/mergeron-manager
     network_mode: none
     read_only: true
     tmpfs:

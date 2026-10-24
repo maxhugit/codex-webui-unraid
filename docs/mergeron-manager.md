@@ -18,7 +18,8 @@ La première version du Manager est volontairement en mode `observe`. Elle :
 - vérifie que `/home/codex` et `/workspaces` restent montés depuis un stockage
   persistant ;
 - expose son résultat à l'application par un socket Unix local ;
-- refuse toutes les requêtes autres que `GET`.
+- accepte une seule écriture locale : l'enregistrement explicite de l'empreinte
+  d'une installation existante.
 
 Cette étape ne crée, ne redémarre, ne renomme et ne supprime aucun conteneur,
 réseau, volume ou fichier. Une installation existante reconnue apparaît comme
@@ -63,8 +64,24 @@ inspection des conteneurs.
 Les installations Compose et DockerMan montent le socket dans
 `STATE_ROOT/manager-run`. Ce dossier ne contient aucune donnée métier. Le
 Manager fonctionne sans réseau Docker (`network_mode: none`) et reçoit le socket
-Docker en lecture seule. Son implémentation refuse toujours toute méthode autre
-que `GET`.
+Docker en lecture seule. Son client Docker ne sait émettre que les deux requêtes
+`GET` d'inventaire. L'enregistrement d'adoption est conservé séparément dans
+`STATE_ROOT/manager-state/adoption.json`.
+
+## Adoption d'une installation existante
+
+L'adoption ne modifie pas Docker. Après confirmation d'un administrateur, le
+Manager enregistre exactement les identifiants des trois conteneurs, leurs
+images, leurs réseaux et les sources des montages persistants. L'opération est
+refusée si un composant est absent ou ambigu, si une image n'est pas autorisée,
+si un réseau requis manque ou si `/home/codex` et `/workspaces` ne sont pas des
+montages persistants accessibles en écriture.
+
+L'interface transmet l'empreinte SHA-256 de l'aperçu affiché. Le Manager relit
+Docker au moment de la confirmation et refuse l'adoption si cette empreinte a
+changé. Le fichier est créé une seule fois avec des permissions `0600`. Une
+différence ultérieure entre Docker et l'enregistrement passe l'installation en
+état « dérive » et bloque toute future gestion automatique.
 
 ## Production et recette isolées
 
@@ -79,11 +96,10 @@ jamais adopter un conteneur historique de production.
 
 L'installation complète sera ajoutée par incréments contrôlés :
 
-1. adoption explicite d'une installation existante, sans recréation ;
-2. première installation idempotente des trois conteneurs et de leurs réseaux ;
-3. mise à jour transactionnelle avec sauvegarde, contrôle de santé et retour
+1. première installation idempotente des trois conteneurs et de leurs réseaux ;
+2. mise à jour transactionnelle avec sauvegarde, contrôle de santé et retour
    automatique à l'image précédente ;
-4. réparation limitée aux conteneurs et réseaux déclarés dans le manifeste.
+3. réparation limitée aux conteneurs et réseaux déclarés dans le manifeste.
 
 Les volumes ou dossiers persistants ne feront pas partie d'une suppression ou
 d'un retour arrière automatique.

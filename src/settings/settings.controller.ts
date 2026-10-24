@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
 } from '@nestjs/common';
 import { BusinessException } from '../common/business.exception';
@@ -57,6 +58,19 @@ export class SettingsController {
   @ApiOperation({ summary: 'Read Mergeron stack health and data safeguards' })
   managerStackStatus() {
     return this.managerStatus.status();
+  }
+
+  /** Records the exact current installation without recreating containers or moving data. */
+  @Post('manager/adopt')
+  @ApiOperation({ summary: 'Adopt the verified existing Mergeron stack' })
+  adoptManagerStack(
+    @Body()
+    body: {
+      confirmation?: unknown;
+      expectedFingerprint?: unknown;
+    },
+  ) {
+    return this.managerStatus.adopt(body);
   }
 
   /** Lists runtime settings with optional category filtering. */
