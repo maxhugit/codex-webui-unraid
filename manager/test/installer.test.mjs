@@ -278,6 +278,47 @@ test('uses isolated development names and runtime configuration', async () => {
       ['mergeron-dev-admin', 'mergeron-dev-isolated'],
     );
     assert.equal(specification.Image, 'ghcr.io/maxhugit/mergeron:edge');
+    assert.deepEqual(specification.HostConfig.SecurityOpt, [
+      'no-new-privileges:true',
+    ]);
+    assert.deepEqual(specification.HostConfig.MaskedPaths, []);
+    assert.deepEqual(specification.HostConfig.ReadonlyPaths, []);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+test('creates development nginx upstreams without changing existing configuration', async () => {
+  const development = scopeManifest(
+    sourceManifest,
+    'mergeron-dev',
+    'development',
+  );
+  const directory = await mkdtemp(join(tmpdir(), 'mergeron-install-'));
+  try {
+    const configuration = await fixtureConfiguration(directory);
+    configuration.stackPrefix = development.stack;
+    await writeFile(
+      join(configuration.defaultsPath, 'nginx.conf.template'),
+      'set $backend http://mergeron-ui:8172; set $oauth http://mergeron-ui:12345;',
+    );
+    const docker = new FixtureDocker();
+    const plan = await createInstallPlan(development, docker, configuration);
+    await applyInstallPlan({
+      manifest: development,
+      docker,
+      configuration,
+      expectedFingerprint: plan.fingerprint,
+      confirmation: 'INSTALL',
+    });
+    const generated = await readFile(
+      join(directory, 'config/nginx.conf.template'),
+      'utf8',
+    );
+    assert.ok(generated.includes('http://mergeron-dev-ui:8172'));
+    assert.ok(generated.includes('http://mergeron-dev-ui:12345'));
+    assert.ok(!generated.includes('http://mergeron-ui:'));
+    const second = await createInstallPlan(development, docker, configuration);
+    assert.deepEqual(second.actions, []);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

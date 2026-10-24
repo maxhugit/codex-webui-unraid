@@ -51,9 +51,17 @@ export class DockerClient {
           });
           response.on('end', () => {
             if (!response.statusCode || response.statusCode >= 300) {
+              let message = '';
+              try {
+                const detail = JSON.parse(body);
+                if (typeof detail.message === 'string')
+                  message = `: ${detail.message.slice(0, 1024)}`;
+              } catch {
+                /* Keep non-JSON responses out of logs. */
+              }
               reject(
                 new Error(
-                  `Docker API returned HTTP ${response.statusCode ?? 'unknown'}`,
+                  `Docker API returned HTTP ${response.statusCode ?? 'unknown'}${message}`,
                 ),
               );
               return;
