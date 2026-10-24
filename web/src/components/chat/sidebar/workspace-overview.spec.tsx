@@ -17,7 +17,6 @@ describe('WorkspaceOverview creation menu', () => {
         <DragDropProvider>
           <WorkspaceOverview
             projectsHeader={<h2>Projects</h2>}
-            archivedThreads={[]}
             workspaceGroups={[
               {
                 projectId: 'p',
@@ -83,7 +82,6 @@ describe('WorkspaceOverview creation menu', () => {
       <DragDropProvider>
         <WorkspaceOverview
           projectsHeader={<h2>Projects</h2>}
-          archivedThreads={[]}
           workspaceGroups={[
             { cwd: '/workspaces/Unraid', threads: [], simpleChats: [] },
           ]}
@@ -109,14 +107,9 @@ describe('WorkspaceOverview creation menu', () => {
       </DragDropProvider>,
     );
 
-    const archive = screen.getByRole('button', { name: 'Archived projects' });
-    const projects = screen.getByRole('heading', { name: 'Projects' });
     expect(
-      archive.compareDocumentPosition(projects) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(archive).toHaveClass('text-sm', 'font-semibold', 'gap-2');
-    expect(archive).toHaveAttribute('aria-expanded', 'true');
+      screen.queryByRole('button', { name: 'Archived projects' }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Project actions' }));
     expect(screen.getByRole('button', { name: 'Work agent' })).toBeVisible();
@@ -149,7 +142,6 @@ describe('WorkspaceOverview creation menu', () => {
       <DragDropProvider>
         <WorkspaceOverview
           projectsHeader={<h2>Projects</h2>}
-          archivedThreads={[]}
           workspaceGroups={[
             {
               cwd: '/workspaces/Tests',
@@ -187,12 +179,80 @@ describe('WorkspaceOverview creation menu', () => {
     expect(toggleCollapse).toHaveBeenCalledWith('/workspaces/Tests');
   });
 
+  it('shows one compact project archive entry with its conversation count', async () => {
+    const user = userEvent.setup();
+    const openArchived = vi.fn();
+    render(
+      <DragDropProvider>
+        <WorkspaceOverview
+          projectsHeader={<h2>Projects</h2>}
+          workspaceGroups={[
+            {
+              cwd: '/workspaces/Tests',
+              projectId: 'project-1',
+              name: 'Tests',
+              threads: [],
+              simpleChats: [],
+              archivedAgents: [
+                {
+                  threadId: 'archived-1',
+                  workspacePath: '/workspaces/Tests',
+                  activeFolder: null,
+                  title: 'First archived agent',
+                  archived: true,
+                  taskId: null,
+                  taskResourceId: null,
+                  taskTitle: null,
+                  isSubtask: false,
+                },
+                {
+                  threadId: 'archived-2',
+                  workspacePath: '/workspaces/Tests',
+                  activeFolder: null,
+                  title: 'Second archived agent',
+                  archived: true,
+                  taskId: null,
+                  taskResourceId: null,
+                  taskTitle: null,
+                  isSubtask: false,
+                },
+              ],
+            },
+          ]}
+          collapsedGroups={new Set()}
+          isLoading={false}
+          onToggleCollapse={vi.fn()}
+          onOpenProject={vi.fn()}
+          onOpenArchivedDetail={openArchived}
+          onOpenWorkspaceDetail={vi.fn()}
+          onCreateAgentInWorkspace={vi.fn()}
+          onCreateSimpleChatInWorkspace={vi.fn()}
+          onCreateTaskBoard={vi.fn()}
+          onOpenResource={vi.fn()}
+          resourceActionPending={false}
+          onRenameResource={vi.fn()}
+          onDeleteResource={vi.fn()}
+          renderThreadRow={() => null}
+          renderSimpleChatRow={() => null}
+          movingThread={false}
+        />
+      </DragDropProvider>,
+    );
+
+    expect(screen.queryByText('First archived agent')).not.toBeInTheDocument();
+    const archive = screen.getByRole('button', {
+      name: /Archived conversations/,
+    });
+    expect(archive).toHaveTextContent('2');
+    await user.click(archive);
+    expect(openArchived).toHaveBeenCalledWith('project-1');
+  });
+
   it('renders project items in the persisted sidebar order', () => {
     render(
       <DragDropProvider>
         <WorkspaceOverview
           projectsHeader={<h2>Projects</h2>}
-          archivedThreads={[]}
           workspaceGroups={[
             {
               cwd: '/workspaces/Tests',

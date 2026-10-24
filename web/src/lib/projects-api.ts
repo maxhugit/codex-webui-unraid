@@ -1,6 +1,18 @@
 import { getAuthorizationHeader } from '@/auth-token';
 import { withBasePath } from '@/base-path';
 
+export interface ProjectAgentThreadSummary {
+  threadId: string;
+  workspacePath: string;
+  activeFolder: ActiveFolderSummary | null;
+  title: string;
+  archived: boolean;
+  taskId: string | null;
+  taskResourceId: string | null;
+  taskTitle: string | null;
+  isSubtask: boolean;
+}
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -14,17 +26,7 @@ export interface ProjectSummary {
   sidebarOrder?: string[];
   workspaces: ProjectWorkspaceSummary[];
   resources: ProjectResourceSummary[];
-  agentThreads?: Array<{
-    threadId: string;
-    workspacePath: string;
-    activeFolder: ActiveFolderSummary | null;
-    title: string;
-    archived: boolean;
-    taskId: string | null;
-    taskResourceId: string | null;
-    taskTitle: string | null;
-    isSubtask: boolean;
-  }>;
+  agentThreads?: ProjectAgentThreadSummary[];
 }
 
 export interface ProjectActivitySummary {

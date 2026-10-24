@@ -28,7 +28,7 @@ export const SIDEBAR_REGION_ID = 'app-sidebar';
 export type SidebarViewState =
   | { type: 'overview' }
   | { type: 'workspaceDetail'; cwd: string }
-  | { type: 'archivedDetail' };
+  | { type: 'archivedDetail'; projectId: string };
 
 // ── Store interface ──────────────────────────────────────────────────
 
@@ -67,8 +67,10 @@ export const useLayoutStore = create<LayoutState>()(
     (set, get) => ({
       workspaceTreeCollapsed: true,
       workspaceTreeWidth: 260,
-      setWorkspaceTreeCollapsed: (workspaceTreeCollapsed) => set({ workspaceTreeCollapsed }),
-      setWorkspaceTreeWidth: (width) => set({ workspaceTreeWidth: Math.max(180, Math.min(600, width)) }),
+      setWorkspaceTreeCollapsed: (workspaceTreeCollapsed) =>
+        set({ workspaceTreeCollapsed }),
+      setWorkspaceTreeWidth: (width) =>
+        set({ workspaceTreeWidth: Math.max(180, Math.min(600, width)) }),
       // ── Persisted defaults ───────────────────────────────────────────
       desktopSidebarCollapsed: false,
       collapsedGroupKeys: [],

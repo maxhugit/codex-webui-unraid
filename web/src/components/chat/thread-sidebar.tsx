@@ -56,6 +56,7 @@ import { threadLabel } from './sidebar/sidebar-types';
 import { ThreadRow } from './sidebar/thread-row';
 import { WorkspaceOverview } from './sidebar/workspace-overview';
 import { WorkspaceDetail } from './sidebar/workspace-detail';
+import { ArchivedAgentsDetail } from './sidebar/archived-agents-detail';
 import { SimpleChatRow } from './sidebar/simple-chat-row';
 import { RenameDialog, ConfirmDialog } from './sidebar/sidebar-dialogs';
 import { ForkGoalDialog } from './sidebar/fork-goal-dialog';
@@ -233,31 +234,18 @@ export function ThreadSidebar() {
     }),
     enabled: isHomeView,
   });
-  const overviewArchivedQuery = useQuery({
-    ...threadsListOverviewOptions({
-      query: { archived: true, limit: 5, sortKey: 'updated_at' },
-    }),
-    enabled: isHomeView,
-  });
   const detailQuery = useQuery({
     ...threadsListOverviewOptions({
-      query:
-        sidebarView.type === 'workspaceDetail'
-          ? {
-              archived: false,
-              cwd: sidebarView.cwd,
-              cursor: cursor ?? undefined,
-              limit: 20,
-              sortKey: 'updated_at',
-            }
-          : {
-              archived: true,
-              cursor: cursor ?? undefined,
-              limit: 20,
-              sortKey: 'updated_at',
-            },
+      query: {
+        archived: false,
+        cwd:
+          sidebarView.type === 'workspaceDetail' ? sidebarView.cwd : undefined,
+        cursor: cursor ?? undefined,
+        limit: 20,
+        sortKey: 'updated_at',
+      },
     }),
-    enabled: sidebarView.type !== 'overview',
+    enabled: sidebarView.type === 'workspaceDetail',
   });
   const simpleChatThreadsQuery = useQuery({
     queryKey: simpleChatThreadsQueryKey,
@@ -275,7 +263,10 @@ export function ThreadSidebar() {
   // No survivor to offer: this entry point deletes a whole conversation tree,
   // so there is nothing left of it to land on.
   const deleteThread = useDeleteThread({
-    onFinished: () => setDeleteTargetId(null),
+    onFinished: () => {
+      setDeleteTargetId(null);
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    },
   });
 
   // Rows arrive already collapsed and sorted; the client only indexes them so
@@ -283,10 +274,10 @@ export function ThreadSidebar() {
   const rowsByView = useMemo(
     () => ({
       active: overviewThreadsQuery.data?.data ?? [],
-      archived: overviewArchivedQuery.data?.data ?? [],
+      archived: [],
       detail: detailQuery.data?.data ?? [],
     }),
-    [overviewThreadsQuery.data, overviewArchivedQuery.data, detailQuery.data],
+    [overviewThreadsQuery.data, detailQuery.data],
   );
   // Which views may contribute, and why, is enforced in `selectSidebarRows`.
   const { rowByThreadId, displayThreadIdByMember, visibleThreads } = useMemo(
@@ -321,10 +312,6 @@ export function ThreadSidebar() {
           });
     return links;
   }, [projectsQuery.data]);
-  const archivedThreads = useMemo(
-    () => rowsByView.archived.map((row) => row.thread),
-    [rowsByView.archived],
-  );
   const workspaceGroups = useMemo(() => {
     const groups: WorkspaceGroup[] = (projectsQuery.data?.projects ?? []).map(
       (project) => ({
@@ -334,6 +321,9 @@ export function ThreadSidebar() {
         workspaces: project.workspaces,
         resources: project.resources,
         sidebarOrder: project.sidebarOrder,
+        archivedAgents: (project.agentThreads ?? []).filter(
+          (agent) => agent.archived,
+        ),
         threads: [] as ThreadDto[],
         simpleChats: [] as SimpleChatThread[],
       }),
@@ -367,20 +357,28 @@ export function ThreadSidebar() {
           (project) => project.workspacePath === sidebarView.cwd,
         )
       : undefined;
-  const detailThreads =
-    sidebarView.type === 'workspaceDetail' && detailProject
-      ? Array.from(
-          new Map(
-            [...rowsByView.detail.map((row) => row.thread), ...activeThreads]
-              .filter((thread) =>
-                detailProject.agentThreads?.some(
-                  (agent) => agent.threadId === thread.id,
-                ),
-              )
-              .map((thread) => [thread.id, thread]),
-          ).values(),
+  const archivedProject =
+    sidebarView.type === 'archivedDetail'
+      ? projectsQuery.data?.projects.find(
+          (project) => project.id === sidebarView.projectId,
         )
-      : rowsByView.detail.map((row) => row.thread);
+      : undefined;
+  const detailThreads =
+    sidebarView.type !== 'workspaceDetail'
+      ? []
+      : detailProject
+        ? Array.from(
+            new Map(
+              [...rowsByView.detail.map((row) => row.thread), ...activeThreads]
+                .filter((thread) =>
+                  detailProject.agentThreads?.some(
+                    (agent) => agent.threadId === thread.id,
+                  ),
+                )
+                .map((thread) => [thread.id, thread]),
+            ).values(),
+          )
+        : rowsByView.detail.map((row) => row.thread);
 
   const highlightedThreadId = threadId
     ? (displayThreadIdByMember.get(threadId) ?? threadId)
@@ -608,7 +606,10 @@ export function ThreadSidebar() {
     },
     // Whole-tree archival can fail partway through, leaving some members
     // archived; the list is stale either way, so refresh on settled.
-    onSettled: () => invalidateThreads(),
+    onSettled: () => {
+      invalidateThreads();
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
 
@@ -618,7 +619,10 @@ export function ThreadSidebar() {
       if (threadId === res.thread.id && threadMode === 'readOnly')
         openLiveThread(res.thread);
     },
-    onSettled: () => invalidateThreads(),
+    onSettled: () => {
+      invalidateThreads();
+      void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    },
     onError: (err) => addSystemError(getApiErrorMessage(err)),
   });
 
@@ -827,9 +831,9 @@ export function ThreadSidebar() {
     resetDetailPagination();
     setSidebarView({ type: 'workspaceDetail', cwd });
   };
-  const openArchivedDetail = () => {
+  const openArchivedDetail = (projectId: string) => {
     resetDetailPagination();
-    setSidebarView({ type: 'archivedDetail' });
+    setSidebarView({ type: 'archivedDetail', projectId });
   };
 
   const goNext = () => {
@@ -1104,12 +1108,10 @@ export function ThreadSidebar() {
           {sidebarView.type === 'overview' ? (
             <WorkspaceOverview
               projectsHeader={projectsHeader}
-              archivedThreads={archivedThreads}
               workspaceGroups={workspaceGroups}
               collapsedGroups={collapsedGroups}
               isLoading={
-                overviewThreadsQuery.isLoading ||
-                overviewArchivedQuery.isLoading
+                overviewThreadsQuery.isLoading || projectsQuery.isLoading
               }
               onToggleCollapse={toggleCollapsedGroup}
               onOpenProject={(projectId) =>
@@ -1180,26 +1182,38 @@ export function ThreadSidebar() {
               renderSimpleChatRow={renderSimpleChatRow}
               movingThread={reorderSidebar.isPending}
             />
-          ) : (
+          ) : sidebarView.type === 'archivedDetail' && archivedProject ? (
+            <ArchivedAgentsDetail
+              project={archivedProject}
+              pending={unarchiveThread.isPending || deleteThread.isPending}
+              onBack={() => setSidebarView({ type: 'overview' })}
+              onOpen={(agent) =>
+                void navigate({
+                  to: '/t/$threadId',
+                  params: { threadId: agent.threadId },
+                })
+              }
+              onRestore={(agent) =>
+                unarchiveThread.mutate({
+                  path: { threadId: agent.threadId },
+                })
+              }
+              onDelete={(agent) => setDeleteTargetId(agent.threadId)}
+            />
+          ) : sidebarView.type === 'workspaceDetail' ? (
             <WorkspaceDetail
               sidebarView={sidebarView}
               threads={detailThreads}
               simpleChats={
-                sidebarView.type === 'workspaceDetail'
-                  ? cursorStack.length === 0
-                    ? (simpleChatThreadsQuery.data?.threads.filter((thread) =>
-                        detailProject
-                          ? thread.projectId === detailProject.id
-                          : false,
-                      ) ?? [])
-                    : []
+                cursorStack.length === 0
+                  ? (simpleChatThreadsQuery.data?.threads.filter((thread) =>
+                      detailProject
+                        ? thread.projectId === detailProject.id
+                        : false,
+                    ) ?? [])
                   : []
               }
-              projectName={
-                sidebarView.type === 'workspaceDetail'
-                  ? detailProject?.name
-                  : undefined
-              }
+              projectName={detailProject?.name}
               isLoading={detailQuery.isLoading}
               hasPrevious={cursorStack.length > 0}
               hasNext={!!detailQuery.data?.nextCursor}
@@ -1209,6 +1223,10 @@ export function ThreadSidebar() {
               renderThreadRow={renderThreadRow}
               renderSimpleChatRow={renderSimpleChatRow}
             />
+          ) : (
+            <div className="px-2 py-8 text-center text-xs text-muted-foreground">
+              {t('noArchivedThreads')}
+            </div>
           )}
         </DragDropProvider>
       </ScrollArea>
