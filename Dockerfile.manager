@@ -1,6 +1,17 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22-bookworm-slim
+FROM node:22-bookworm-slim AS manager-files
+
+WORKDIR /opt/mergeron-manager
+COPY manager/package.json manager/stack-manifest.json ./
+COPY manager/src ./src
+
+RUN mkdir -p /runtime/run/mergeron-manager /runtime/var/lib/mergeron-manager \
+ && chmod 0750 /runtime/run/mergeron-manager \
+ && chmod 0700 /runtime/var/lib/mergeron-manager
+
+# Keep npm and the build distribution out of the privileged final image.
+FROM gcr.io/distroless/nodejs22-debian12@sha256:8a3e96fe3345b5d83ecec2066e7c498139a02a6d1214e4f6c39f9ce359f3f5bc
 
 ARG MERGERON_VERSION=0.1.0
 ARG MERGERON_REVISION=unknown
@@ -21,18 +32,16 @@ ENV NODE_ENV=production \
     MERGERON_MANAGER_POLL_MS=20000 \
     MERGERON_DOCKER_SOCKET=/var/run/docker.sock \
     MERGERON_MANAGER_ADOPTION_PATH=/var/lib/mergeron-manager/adoption.json \
-    MERGERON_STACK_PREFIX=mergeron
+    MERGERON_STACK_PREFIX=mergeron \
+    MERGERON_STACK_ENVIRONMENT=production
 
 WORKDIR /opt/mergeron-manager
-COPY manager/package.json manager/stack-manifest.json ./
-COPY manager/src ./src
-
-RUN mkdir -p /run/mergeron-manager /var/lib/mergeron-manager \
- && chmod 0750 /run/mergeron-manager \
- && chmod 0700 /var/lib/mergeron-manager
+COPY --from=manager-files --chown=0:0 /opt/mergeron-manager ./
+COPY --from=manager-files --chown=0:0 /runtime/ /
 
 VOLUME ["/run/mergeron-manager", "/var/lib/mergeron-manager"]
 HEALTHCHECK --interval=20s --timeout=3s --retries=3 --start-period=10s \
-  CMD ["node", "src/healthcheck.mjs"]
+  CMD ["/nodejs/bin/node", "src/healthcheck.mjs"]
 
-ENTRYPOINT ["node", "src/server.mjs"]
+USER 0
+ENTRYPOINT ["/nodejs/bin/node", "src/server.mjs"]

@@ -13,6 +13,8 @@ class ManagerDeploymentTest(unittest.TestCase):
         cls.production_env = (ROOT / "deployment/.env.example").read_text()
         cls.development_env = (ROOT / "deployment/.env.dev.example").read_text()
         cls.workflow = (ROOT / ".github/workflows/docker-publish.yml").read_text()
+        cls.quality_workflow = (ROOT / ".github/workflows/quality.yml").read_text()
+        cls.dockerfile = (ROOT / "Dockerfile.manager").read_text()
 
     def test_compose_manager_is_isolated_and_shares_only_its_unix_socket(self) -> None:
         manager = self.compose.split("  mergeron-manager:", 1)[1]
@@ -61,6 +63,25 @@ class ManagerDeploymentTest(unittest.TestCase):
         self.assertIn("file: ./Dockerfile.manager", self.workflow)
         self.assertIn("SOURCE_DIGEST: ${{ needs.manager-build.outputs.digest }}", self.workflow)
         self.assertIn("MANAGER_IMAGE_DIGEST", self.workflow)
+
+    def test_pull_requests_build_smoke_test_and_scan_the_manager(self) -> None:
+        self.assertIn("Build the minimal Manager image", self.quality_workflow)
+        self.assertIn(
+            "Start Manager and verify its Unix socket health check",
+            self.quality_workflow,
+        )
+        self.assertIn(
+            "Require no HIGH or CRITICAL Manager vulnerabilities",
+            self.quality_workflow,
+        )
+        self.assertIn("needs: [checks, image]", self.quality_workflow)
+
+    def test_manager_runtime_is_distroless_and_contains_no_npm_tree(self) -> None:
+        self.assertIn("FROM gcr.io/distroless/nodejs22-debian12@sha256:", self.dockerfile)
+        self.assertIn(
+            'ENTRYPOINT ["/nodejs/bin/node", "src/server.mjs"]',
+            self.dockerfile,
+        )
 
 
 if __name__ == "__main__":

@@ -135,19 +135,21 @@ jobs:
         run: pnpm --dir web check:bundle
 
   quality:
-    needs: checks
+    needs: [checks, image]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Require every source check
+      - name: Require every source and image check
         env:
-          RESULT: ${{ needs.checks.result }}
-        run: test "$RESULT" = success
+          SOURCE_RESULT: ${{ needs.checks.result }}
+          IMAGE_RESULT: ${{ needs.image.result }}
+        run: |
+          test "$SOURCE_RESULT" = success
+          test "$IMAGE_RESULT" = success || test "$IMAGE_RESULT" = skipped
 
   image:
-    # The publication workflow performs its own image build, scan and smoke
-    # test. During a PR, build once and export every reusable layer so that the
-    # exact main commit can be assembled quickly after the merge.
+    # Validate both published images before merge. The publication workflow
+    # repeats these checks on the immutable candidates before promotion.
     if: >-
       (github.event_name == 'pull_request' || inputs.validate_image == true) &&
       (github.event_name != 'pull_request' ||
@@ -246,6 +248,42 @@ jobs:
       - name: Verify corrected OpenSSH sources and retain raw scan findings
         run: python3 scripts/audit-openssh-backport.py trivy-quality-results.raw.json ssh-client-evidence.json
 
+      - name: Build the minimal Manager image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ./Dockerfile.manager
+          push: false
+          load: true
+          tags: mergeron-manager:quality-${{ github.sha }}
+
+      - name: Start Manager and verify its Unix socket health check
+        env:
+          IMAGE_REF: mergeron-manager:quality-${{ github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/mergeron-manager-run" "$RUNNER_TEMP/mergeron-manager-state"
+          container_id="$(docker run -d --read-only --network none --cap-drop ALL --cap-add CHOWN --security-opt no-new-privileges:true --tmpfs /tmp:rw,nosuid,nodev,size=8m -v /var/run/docker.sock:/var/run/docker.sock:ro -v "$RUNNER_TEMP/mergeron-manager-run:/run/mergeron-manager" -v "$RUNNER_TEMP/mergeron-manager-state:/var/lib/mergeron-manager" "$IMAGE_REF")"
+          trap 'docker logs "$container_id"; docker rm -f "$container_id" >/dev/null' EXIT
+          for attempt in $(seq 1 20); do
+            if docker exec "$container_id" /nodejs/bin/node src/healthcheck.mjs; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - name: Require no HIGH or CRITICAL Manager vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.1
+          image-ref: mergeron-manager:quality-${{ github.sha }}
+          format: json
+          output: trivy-manager-results.json
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '1'
+
       - name: Upload image security report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -255,6 +293,7 @@ jobs:
             trivy-quality-results.json
             trivy-quality-results.raw.json
             trivy-quality-results.headers.json
+            trivy-manager-results.json
             office-xml-evidence.json
             security/libxml2-patches/manifest.json
             ssh-client-evidence.json

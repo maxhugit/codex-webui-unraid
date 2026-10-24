@@ -4,35 +4,52 @@ import { dirname } from 'node:path';
 
 export const ADOPTION_CONFIRMATION = 'ADOPT_EXISTING_INSTALLATION';
 
+function snapshotComponents(inventory) {
+  return [...inventory.components]
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((component) => ({
+      id: component.id,
+      containerId: component.containerId,
+      containerName: component.containerName,
+      image: component.image,
+      networks: [...component.networks].sort(),
+      protectedMounts: [...component.protectedMounts]
+        .sort((left, right) => left.target.localeCompare(right.target))
+        .map((mount) => ({
+          target: mount.target,
+          source: mount.source,
+          type: mount.type,
+          writable: mount.writable,
+        })),
+    }));
+}
+
 function canonicalSnapshot(inventory) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     stack: inventory.stack,
     environment: inventory.environment,
-    components: [...inventory.components]
-      .sort((left, right) => left.id.localeCompare(right.id))
-      .map((component) => ({
-        id: component.id,
-        containerId: component.containerId,
-        containerName: component.containerName,
-        image: component.image,
-        networks: [...component.networks].sort(),
-        protectedMounts: [...component.protectedMounts]
-          .sort((left, right) => left.target.localeCompare(right.target))
-          .map((mount) => ({
-            target: mount.target,
-            source: mount.source,
-            type: mount.type,
-            writable: mount.writable,
-          })),
-      })),
+    components: snapshotComponents(inventory),
   };
 }
 
+// PR #103 persisted schema 1 before stack environments existed. Keep its
+// exact canonical form so an already adopted production installation remains
+// trusted without rewriting or deleting the immutable record.
+function legacySnapshot(inventory) {
+  return {
+    schemaVersion: 1,
+    stack: inventory.stack,
+    components: snapshotComponents(inventory),
+  };
+}
+
+function hashSnapshot(snapshot) {
+  return createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+}
+
 export function inventoryFingerprint(inventory) {
-  return createHash('sha256')
-    .update(JSON.stringify(canonicalSnapshot(inventory)))
-    .digest('hex');
+  return hashSnapshot(canonicalSnapshot(inventory));
 }
 
 function adoptionBlockers(inventory) {
@@ -53,10 +70,19 @@ export function evaluateAdoption(inventory, record = null) {
   const blockers = adoptionBlockers(inventory);
   let state = blockers.length === 0 ? 'eligible' : 'blocked';
   if (record) {
-    state =
+    const currentRecordMatches =
+      record.schemaVersion === 2 &&
       record.stack === inventory.stack &&
       record.environment === inventory.environment &&
-      record.fingerprint === fingerprint
+      record.fingerprint === fingerprint;
+    const legacyProductionRecordMatches =
+      record.schemaVersion === 1 &&
+      record.environment === undefined &&
+      inventory.environment === 'production' &&
+      record.stack === inventory.stack &&
+      record.fingerprint === hashSnapshot(legacySnapshot(inventory));
+    state =
+      currentRecordMatches || legacyProductionRecordMatches
         ? 'adopted'
         : 'drifted';
     if (state === 'drifted') blockers.push('adoptionRecordDrift');
@@ -80,13 +106,17 @@ export function evaluateAdoption(inventory, record = null) {
 export async function readAdoptionRecord(path) {
   try {
     const value = JSON.parse(await readFile(path, 'utf8'));
-    if (
-      value?.schemaVersion !== 1 ||
+    const commonRecordIsInvalid =
+      !value ||
+      ![1, 2].includes(value.schemaVersion) ||
       typeof value.stack !== 'string' ||
-      !['production', 'development'].includes(value.environment) ||
       typeof value.fingerprint !== 'string' ||
-      !Array.isArray(value.components)
-    )
+      !Array.isArray(value.components);
+    const environmentIsValid =
+      value?.schemaVersion === 1
+        ? value.environment === undefined
+        : ['production', 'development'].includes(value?.environment);
+    if (commonRecordIsInvalid || !environmentIsValid)
       throw new Error('Invalid adoption record');
     return value;
   } catch (error) {
