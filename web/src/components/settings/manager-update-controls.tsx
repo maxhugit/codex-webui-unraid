@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,11 @@ import {
   type ManagerStatus,
   type ManagerUpdatePlan,
 } from './manager-status-api';
+import { defaultManagerUpdateImage } from './manager-update-image';
+import {
+  requestServerRelease,
+  serverReleaseQueryKey,
+} from './server-release-api';
 
 const phases: Record<string, string> = {
   preparing: 'managerUpdatePreparing',
@@ -43,7 +48,16 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
   const { t, i18n } = useTranslation('manager');
   const { t: common } = useTranslation();
   const client = useQueryClient();
-  const [image, setImage] = useState('ghcr.io/maxhugit/mergeron:edge');
+  const release = useQuery({
+    queryKey: serverReleaseQueryKey,
+    queryFn: () => requestServerRelease(),
+    enabled: status.environment !== 'development',
+    staleTime: 15 * 60_000,
+    retry: false,
+  });
+  const [imageOverride, setImage] = useState<string | null>(null);
+  const image =
+    imageOverride ?? defaultManagerUpdateImage(status, release.data);
   const [plan, setPlan] = useState<ManagerUpdatePlan | null>(null);
   const [confirm, setConfirm] = useState<'apply' | 'rollback' | null>(null);
   const operation = status.update?.operation;
@@ -157,12 +171,14 @@ export function ManagerUpdateControls({ status }: { status: ManagerStatus }) {
         <Button
           variant="outline"
           disabled={busy || blocked || !image.trim()}
-          onClick={() =>
+          onClick={() => {
+            // Keep the reviewed target fixed if release discovery finishes later.
+            setImage(image.trim());
             mutation.mutate({
               action: 'plan',
               input: { images: { application: image.trim() } },
-            })
-          }
+            });
+          }}
         >
           {t('managerPreviewUpdate')}
         </Button>
