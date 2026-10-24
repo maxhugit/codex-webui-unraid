@@ -17,6 +17,11 @@ export function defaultManagerUpdateImage(
   status: ManagerStatus,
   release?: ServerReleaseStatus,
 ): string {
+  if (
+    release?.targetImage === `${repository}:edge` ||
+    release?.targetImage === `${repository}:latest`
+  )
+    return release.targetImage;
   if (status.environment === 'development') return `${repository}:edge`;
 
   // Treat an unknown environment conservatively, including older Managers.

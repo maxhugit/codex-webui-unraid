@@ -11,17 +11,20 @@ export function SettingsSaveBar({
   onSave,
   onDiscard,
   label = 'Save',
+  hideWhenClean = false,
 }: {
   dirty: boolean;
   saving: boolean;
   onSave: () => void;
   onDiscard?: () => void;
   label?: string;
+  hideWhenClean?: boolean;
 }) {
   const { t } = useTranslation();
   const desktopSidebarCollapsed = useLayoutStore(
     (state) => state.desktopSidebarCollapsed,
   );
+  if (hideWhenClean && !dirty && !saving) return null;
   return (
     <>
       <div className="h-24" aria-hidden="true" />

@@ -29,8 +29,8 @@ import {
   UpdateSettingDto,
 } from './dto/settings.dto';
 import { SettingsService, type ResolvedSetting } from './settings.service';
-import { ServerReleaseService } from './server-release.service';
 import { ManagerStatusService } from './manager-status.service';
+import { ImageUpdateService } from './image-update.service';
 
 @ApiTags('settings')
 @ApiBearerAuth()
@@ -40,8 +40,8 @@ import { ManagerStatusService } from './manager-status.service';
 export class SettingsController {
   constructor(
     private readonly settingsService: SettingsService,
-    private readonly serverRelease: ServerReleaseService,
     private readonly managerStatus: ManagerStatusService,
+    private readonly imageUpdates: ImageUpdateService,
   ) {}
 
   /** Reads the image build identity and the latest successfully published release. */
@@ -50,7 +50,7 @@ export class SettingsController {
     summary: 'Read installed and available Mergeron versions',
   })
   releaseStatus(@Query('refresh') refresh?: string) {
-    return this.serverRelease.status(refresh === 'true');
+    return this.imageUpdates.status(refresh === 'true');
   }
 
   /** Proxies the observe-only local stack inventory exposed by Mergeron Manager. */

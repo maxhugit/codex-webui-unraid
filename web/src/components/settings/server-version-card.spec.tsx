@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import i18n from '@/i18n';
 import { catalogFixture, json } from './catalog/catalog.testing';
 import { ServerVersionCard } from './server-version-card';
+import { managerStatusQueryKey } from './manager-status-api';
 
 let fixture: ReturnType<typeof catalogFixture>;
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -41,6 +42,10 @@ const status = {
 beforeEach(async () => {
   await i18n.changeLanguage('en');
   fixture = catalogFixture();
+  fixture.queryClient.setQueryData(managerStatusQueryKey, {
+    available: false,
+    components: [],
+  });
   fetchMock = vi.fn(() => Promise.resolve(json(status)));
   vi.stubGlobal('fetch', fetchMock);
 });
@@ -56,13 +61,11 @@ it('shows the installed channel, latest stable version and cumulative changes', 
   expect(await screen.findByText('0.1.0')).toBeVisible();
   expect(screen.getByText('Stable (latest)')).toBeVisible();
   expect(screen.getByText('0.2.1')).toBeVisible();
-  expect(
-    screen.getByText('A newer stable Mergeron version is available.'),
-  ).toBeVisible();
+  expect(screen.getByText('A new Mergeron image is available.')).toBeVisible();
   expect(screen.getByText('Mergeron 0.2.0')).toBeVisible();
   expect(screen.getByText('Mergeron 0.2.1')).toBeVisible();
   expect(screen.getByText('Ajoute la recherche.')).toBeVisible();
-  expect(screen.getByText('Corrige le mobile.')).toBeVisible();
+  expect(await screen.findByText('Corrige le mobile.')).toBeVisible();
 });
 
 it('refreshes only after the administrator requests it', async () => {
@@ -70,7 +73,7 @@ it('refreshes only after the administrator requests it', async () => {
   fixture.render(<ServerVersionCard />);
   await screen.findByText('0.1.0');
 
-  await user.click(screen.getByRole('button', { name: 'Check for updates' }));
+  await user.click(screen.getByRole('button', { name: 'Refresh detection' }));
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   expect(fetchMock.mock.calls[1]?.[0]).toBe(
@@ -99,5 +102,36 @@ it('does not claim that Mergeron is current when discovery fails', async () => {
   ).toBeVisible();
   expect(
     screen.queryByText('This Mergeron installation is up to date.'),
+  ).not.toBeInTheDocument();
+});
+
+it('shows one update action alongside the detected image and descriptions', async () => {
+  fixture.queryClient.setQueryData(managerStatusQueryKey, {
+    available: true,
+    mode: 'observe',
+    environment: 'development',
+    dockerConnected: true,
+    components: [],
+    dataSafety: { status: 'protected', blockers: [], protectedMounts: [] },
+    update: { busy: false, operation: null },
+  });
+  fetchMock.mockImplementation(() =>
+    Promise.resolve(
+      json({
+        ...status,
+        targetImage: 'ghcr.io/maxhugit/mergeron:edge',
+        latestRevision: 'b'.repeat(40),
+      }),
+    ),
+  );
+  fixture.render(<ServerVersionCard />);
+  expect(await screen.findByRole('button', { name: 'Update' })).toBeVisible();
+  expect(screen.getAllByRole('button', { name: 'Update' })).toHaveLength(1);
+  expect(await screen.findByText('Corrige le mobile.')).toBeVisible();
+  expect(
+    screen.queryByRole('button', { name: 'Save' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Preview update plan' }),
   ).not.toBeInTheDocument();
 });

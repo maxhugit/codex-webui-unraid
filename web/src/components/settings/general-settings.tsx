@@ -9,6 +9,7 @@ import { ManagerStatusCard } from './manager-status-card';
 
 export function GeneralSettings() {
   const { t } = useTranslation();
+  const { t: tm } = useTranslation('manager');
   const runtimeSettings = useCategorySettings('general', {
     excludeKeys: ONLYOFFICE_SETTING_KEYS,
   });
@@ -16,7 +17,14 @@ export function GeneralSettings() {
   return (
     <section className="space-y-4">
       <ServerVersionCard />
-      <ManagerStatusCard />
+      <details className="rounded-xl border border-border bg-card/50 p-4">
+        <summary className="cursor-pointer text-sm font-medium">
+          {tm('managerInfrastructureDetails')}
+        </summary>
+        <div className="mt-4">
+          <ManagerStatusCard />
+        </div>
+      </details>
       <div className="space-y-1">
         <h2 className="text-sm font-medium text-muted-foreground">
           {t('runtimeSettings')}
@@ -45,6 +53,8 @@ export function GeneralSettings() {
         />
       ))}
       <SettingsSaveBar
+        hideWhenClean
+        label="saveRuntimeSettings"
         dirty={runtimeSettings.isDirty}
         saving={runtimeSettings.isSaving}
         onSave={() => void runtimeSettings.handleSaveAll()}

@@ -180,6 +180,7 @@ async function inspectComponent(component, containers, docker) {
       normalizedNames(summary)[0] ||
       null,
     image,
+    imageId: inspect.Image ?? null,
     imageRepositoryAllowed:
       component.allowedImageRepositories.includes(repository),
     health: inspect.State?.Health?.Status ?? null,
