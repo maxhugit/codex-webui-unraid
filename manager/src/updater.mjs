@@ -637,12 +637,30 @@ export class TransactionalUpdater {
     }
     if (this.current.backupComplete) {
       const base = join(this.directory, this.current.id);
+      // manager-state is also mounted separately at /var/lib/... . Use its
+      // STATE_ROOT alias for relative quarantine references to work both on
+      // the Unraid host and inside the Manager, not just in one namespace.
+      const storageBase = join(
+        this.configuration.hostStatePath,
+        'manager-state',
+        'updates',
+        this.current.id,
+      );
+      const [journalDirectory, stateDirectory] = await Promise.all([
+        lstat(base),
+        lstat(storageBase),
+      ]);
+      if (
+        journalDirectory.dev !== stateDirectory.dev ||
+        journalDirectory.ino !== stateDirectory.ino
+      )
+        throw new Error('updateJournalInvalid');
       await mkdir(join(base, 'quarantine'), { recursive: true, mode: 0o700 });
       for (const name of dataEntries) {
         if (this.current.restored.includes(name)) continue;
         await restorePersistentEntry(
           this.configuration.hostStatePath,
-          base,
+          storageBase,
           this.current.id,
           name,
         );

@@ -329,17 +329,44 @@ test('Docker mount and object key order does not invalidate an unchanged plan', 
 
 test('blocks additional writable state mounts that are not covered by the backup', async (t) => {
   const { updater, docker, root } = await fixture(t);
-  docker.values
-    .get('original-application')
-    .Mounts.push({
-      Type: 'bind',
-      Source: `${root}/uncovered-data`,
-      Destination: '/custom',
-      RW: true,
-    });
+  docker.values.get('original-application').Mounts.push({
+    Type: 'bind',
+    Source: `${root}/uncovered-data`,
+    Destination: '/custom',
+    RW: true,
+  });
   const plan = await updater.plan(images);
   assert.equal(plan.applicable, false);
   assert.ok(plan.blockers.includes('application:updateMountOutsideState'));
+});
+
+test('quarantine references resolve when manager-state has another mount alias', async (t) => {
+  const { root, options, docker } = await fixture(t);
+  await mkdir(join(root, 'manager-state'));
+  await mkdir(join(root, 'different-depth'));
+  await symlink(
+    join(root, 'manager-state'),
+    join(root, 'different-depth/alias'),
+  );
+  const updater = new TransactionalUpdater({
+    ...options,
+    directory: join(root, 'different-depth/alias/updates'),
+  });
+  docker.unhealthy = true;
+  await begin(updater);
+  assert.equal(updater.current.status, 'rolledBack');
+  assert.equal(
+    await readFile(
+      join(
+        root,
+        'manager-state/updates',
+        updater.current.id,
+        'quarantine/home/database',
+      ),
+      'utf8',
+    ),
+    'migrated',
+  );
 });
 
 test('a failed backup restarts all original services without changing their data', async (t) => {
