@@ -206,6 +206,7 @@ services:
       io.mergeron.component: manager
     environment:
       MERGERON_STACK_PREFIX: ${MERGERON_STACK_PREFIX:-mergeron}
+      MERGERON_STACK_ENVIRONMENT: ${MERGERON_STACK_ENVIRONMENT:-production}
       MERGERON_MANAGER_SOCKET: /run/mergeron-manager/manager.sock
       MERGERON_MANAGER_SOCKET_GID: '11002'
       MERGERON_MANAGER_POLL_MS: '20000'
@@ -229,7 +230,7 @@ services:
     mem_limit: 128m
     cpus: 0.25
     healthcheck:
-      test: ['CMD', 'node', 'src/healthcheck.mjs']
+      test: ['CMD', '/nodejs/bin/node', 'src/healthcheck.mjs']
       interval: 20s
       timeout: 3s
       retries: 3

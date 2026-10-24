@@ -329,10 +329,11 @@ jobs:
           IMAGE_REF: ${{ steps.candidate.outputs.tags }}
         run: |
           mkdir -p "$RUNNER_TEMP/mergeron-manager-run"
+          sudo chown 0:0 "$RUNNER_TEMP/mergeron-manager-run"
           container_id="$(docker run -d --read-only --network none --cap-drop ALL --cap-add CHOWN --security-opt no-new-privileges:true --tmpfs /tmp:rw,nosuid,nodev,size=8m -v /var/run/docker.sock:/var/run/docker.sock:ro -v "$RUNNER_TEMP/mergeron-manager-run:/run/mergeron-manager" "$IMAGE_REF")"
           trap 'docker logs "$container_id"; docker rm -f "$container_id" >/dev/null' EXIT
           for attempt in $(seq 1 20); do
-            if docker exec "$container_id" node src/healthcheck.mjs; then
+            if docker exec "$container_id" /nodejs/bin/node src/healthcheck.mjs; then
               exit 0
             fi
             sleep 1

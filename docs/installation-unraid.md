@@ -50,7 +50,7 @@ cd /mnt/pool/appdata/mergeron
 
 Éditer `images.env`, adapter les chemins et renseigner
 `MERGERON_WEBUI_URL` avec l’URL HTTPS réellement utilisée par les navigateurs
-(par exemple `https://mergeron.hugotlab.fr`). Cette valeur fournit aussi le
+(par exemple `https://mergeron.example.com`). Cette valeur fournit aussi le
 domaine par défaut des callbacks OAuth MCP et des URL OnlyOffice. Une valeur
 personnalisée enregistrée dans **Administration > OnlyOffice > URL publique
 Mergeron** reste prioritaire et doit également être corrigée après un renommage.
@@ -181,8 +181,10 @@ quatre conteneurs avec **Add Container**.
 
 Copier `deployment/.env.dev.example` comme fichier d'environnement d'une
 seconde stack Compose. Ce profil utilise par défaut
-`/mnt/pool/appdata/mergeron-dev`, le préfixe `mergeron-dev`, le sous-réseau
-`172.30.44.16/28` et l'URL `https://mergeron-dev.hugotlab.fr`. Ne jamais lui
+`/mnt/pool/appdata/mergeron-dev`, le préfixe `mergeron-dev`, l'environnement
+`development`, le sous-réseau `172.30.44.16/28` et l'URL générique
+`https://mergeron-dev.example.com`, à remplacer par l'adresse de recette.
+Ne jamais lui
 attribuer le `STATE_ROOT` de production. Copier aussi la configuration Traefik
 sous un autre nom, remplacer l'hôte public et pointer son service vers
 `http://mergeron-dev-ingress:8080`.

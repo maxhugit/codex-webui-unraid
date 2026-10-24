@@ -20,6 +20,7 @@ const manifestPath = fileURLToPath(
 const manifest = scopeManifest(
   JSON.parse(await readFile(manifestPath, 'utf8')),
   process.env.MERGERON_STACK_PREFIX,
+  process.env.MERGERON_STACK_ENVIRONMENT,
 );
 const socketPath =
   process.env.MERGERON_MANAGER_SOCKET ?? '/run/mergeron-manager/manager.sock';

@@ -58,7 +58,7 @@ describe('CodexProcessManager unattended start failures', () => {
 
   it('overrides a stale persisted MCP callback with the configured public URL', async () => {
     manager = new CodexProcessManager(fixture.storage, {
-      getStringSetting: vi.fn(() => 'https://mergeron.hugotlab.fr/'),
+      getStringSetting: vi.fn(() => 'https://mergeron.example.com/'),
     } as unknown as SettingsService);
 
     await manager.onModuleInit();
@@ -70,7 +70,7 @@ describe('CodexProcessManager unattended start failures', () => {
         '--listen',
         'stdio://',
         '-c',
-        'mcp_oauth_callback_url="https://mergeron.hugotlab.fr/mcp/oauth/callback"',
+        'mcp_oauth_callback_url="https://mergeron.example.com/mcp/oauth/callback"',
         '-c',
         'mcp_oauth_callback_port=12345',
       ],

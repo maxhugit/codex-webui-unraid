@@ -42,7 +42,7 @@ de cliquer sur **Apply**, ainsi que le chemin du profil `seccomp=` dans
 
 Dans le formulaire `mergeron-ui`, remplacer **URL publique Mergeron** par le
 domaine HTTPS réellement utilisé (par exemple
-`https://mergeron.hugotlab.fr`). Cette valeur doit correspondre à l’adresse
+`https://mergeron.example.com`). Cette valeur doit correspondre à l’adresse
 WebUI du proxy inverse : elle alimente les callbacks OAuth MCP et les URL
 OnlyOffice. Une ancienne adresse redirigerait encore les connexions MCP vers
 l’ancien domaine. Si **Administration > OnlyOffice > URL publique Mergeron**

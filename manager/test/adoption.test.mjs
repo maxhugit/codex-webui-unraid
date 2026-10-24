@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -14,6 +15,7 @@ function inventory(overrides = {}) {
   return {
     schemaVersion: 1,
     stack: 'mergeron',
+    environment: 'production',
     mode: 'observe',
     observedAt: '2026-10-24T09:00:00.000Z',
     dockerConnected: true,
@@ -74,6 +76,37 @@ function inventory(overrides = {}) {
   };
 }
 
+function legacyRecord(value) {
+  const snapshot = {
+    schemaVersion: 1,
+    stack: value.stack,
+    components: [...value.components]
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((component) => ({
+        id: component.id,
+        containerId: component.containerId,
+        containerName: component.containerName,
+        image: component.image,
+        networks: [...component.networks].sort(),
+        protectedMounts: [...component.protectedMounts]
+          .sort((left, right) => left.target.localeCompare(right.target))
+          .map((mount) => ({
+            target: mount.target,
+            source: mount.source,
+            type: mount.type,
+            writable: mount.writable,
+          })),
+      })),
+  };
+  return {
+    ...snapshot,
+    fingerprint: createHash('sha256')
+      .update(JSON.stringify(snapshot))
+      .digest('hex'),
+    adoptedAt: '2026-10-24T08:00:00.000Z',
+  };
+}
+
 test('marks one complete and protected installation as eligible', () => {
   const result = evaluateAdoption(inventory());
   assert.equal(result.adoption.state, 'eligible');
@@ -109,10 +142,37 @@ test('persists the exact verified inventory only after explicit confirmation', a
     assert.equal(adopted.adoption.state, 'adopted');
     assert.equal(adopted.adoption.adoptedAt, '2026-10-24T09:05:00.000Z');
     const record = JSON.parse(await readFile(path, 'utf8'));
+    assert.equal(record.schemaVersion, 2);
+    assert.equal(record.environment, 'production');
     assert.equal(record.fingerprint, current.adoption.fingerprint);
     assert.equal(
       record.components[0].protectedMounts[0].source,
       '/mnt/pool/appdata/mergeron/state/home',
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('keeps a schema 1 production adoption from PR #103 valid without rewriting it', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'mergeron-adoption-'));
+  const path = join(directory, 'adoption.json');
+  try {
+    const original = `${JSON.stringify(legacyRecord(inventory()), null, 2)}\n`;
+    await writeFile(path, original, { mode: 0o600 });
+    const record = await readAdoptionRecord(path);
+    const adopted = evaluateAdoption(inventory(), record);
+    assert.equal(adopted.adoption.state, 'adopted');
+    assert.equal(adopted.adoption.adoptedAt, '2026-10-24T08:00:00.000Z');
+    assert.equal(await readFile(path, 'utf8'), original);
+
+    const development = inventory({
+      stack: 'mergeron-dev',
+      environment: 'development',
+    });
+    assert.equal(
+      evaluateAdoption(development, record).adoption.state,
+      'drifted',
     );
   } finally {
     await rm(directory, { recursive: true, force: true });

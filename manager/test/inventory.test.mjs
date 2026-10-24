@@ -132,8 +132,9 @@ test('refuses to choose between duplicate application containers', async () => {
 });
 
 test('scopes names and private networks for an isolated development stack', () => {
-  const scoped = scopeManifest(manifest, 'mergeron-dev');
+  const scoped = scopeManifest(manifest, 'mergeron-dev', 'development');
   assert.equal(scoped.stack, 'mergeron-dev');
+  assert.equal(scoped.environment, 'development');
   assert.deepEqual(
     scoped.components.map((component) => component.canonicalName),
     ['mergeron-dev-ui', 'mergeron-dev-ingress', 'mergeron-dev-squid'],
@@ -153,6 +154,17 @@ test('rejects an unsafe stack prefix', () => {
   assert.throws(() => scopeManifest(manifest, '../production'));
 });
 
+test('rejects an invalid environment or a development production identity', () => {
+  assert.throws(
+    () => scopeManifest(manifest, 'mergeron-dev', 'staging'),
+    /MERGERON_STACK_ENVIRONMENT/,
+  );
+  assert.throws(
+    () => scopeManifest(manifest, 'mergeron', 'development'),
+    /dedicated MERGERON_STACK_PREFIX/,
+  );
+});
+
 test('does not select labeled production containers from a development stack', async () => {
   const productionContainer = {
     Id: 'production-application',
@@ -165,7 +177,7 @@ test('does not select labeled production containers from a development stack', a
     },
   };
   const status = await collectInventory(
-    scopeManifest(manifest, 'mergeron-dev'),
+    scopeManifest(manifest, 'mergeron-dev', 'development'),
     {
       listContainers: async () => [productionContainer],
       inspectContainer: async () => {

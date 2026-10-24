@@ -85,12 +85,20 @@ différence ultérieure entre Docker et l'enregistrement passe l'installation en
 
 ## Production et recette isolées
 
-`MERGERON_STACK_PREFIX` sélectionne exclusivement les conteneurs et réseaux à
-observer. La valeur de production est `mergeron`. Une recette peut utiliser
-`mergeron-dev`, avec son propre `STATE_ROOT`, son propre sous-réseau
-administratif et ses conteneurs `mergeron-dev-*`. Les anciens noms ne sont
-reconnus que pour la pile de production afin qu'un Manager de recette ne puisse
-jamais adopter un conteneur historique de production.
+`MERGERON_STACK_ENVIRONMENT` déclare explicitement `production` ou
+`development`. `MERGERON_STACK_PREFIX` sélectionne exclusivement les
+conteneurs et réseaux à observer. Une recette utilise un préfixe dédié, par
+exemple `mergeron-dev`, avec son propre `STATE_ROOT`, son propre sous-réseau
+administratif et ses conteneurs préfixés. Le Manager refuse une pile
+`development` qui réutilise le préfixe de production. Les anciens noms ne sont
+reconnus que pour la pile `production` portant le préfixe canonique, afin qu'un
+Manager de recette ne puisse jamais adopter un conteneur historique de
+production.
+
+Le domaine public ne participe jamais à la sélection des conteneurs. Il est
+fourni séparément par `MERGERON_WEBUI_URL` dans le fichier d'environnement et
+transmis à l'application sous `MERGERON_PUBLIC_URL`. Le dépôt ne contient donc
+aucun domaine propre à une installation.
 
 ## Étapes suivantes
 
