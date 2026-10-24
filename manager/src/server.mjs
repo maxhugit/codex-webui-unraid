@@ -13,6 +13,11 @@ import {
   scopeManifest,
   unavailableInventory,
 } from './inventory.mjs';
+import {
+  applyInstallPlan,
+  createInstallPlan,
+  readInstallConfiguration,
+} from './installer.mjs';
 
 const manifestPath = fileURLToPath(
   new URL('../stack-manifest.json', import.meta.url),
@@ -35,6 +40,7 @@ const pollInterval = Math.max(
 const docker = new DockerClient(
   process.env.MERGERON_DOCKER_SOCKET ?? '/var/run/docker.sock',
 );
+const installConfiguration = readInstallConfiguration(manifest);
 
 let snapshot = unavailableInventory(
   manifest,
@@ -42,6 +48,7 @@ let snapshot = unavailableInventory(
 );
 let refreshing = null;
 let adopting = null;
+let installing = null;
 const events = [];
 
 function signature(value) {
@@ -129,6 +136,39 @@ async function adopt(body) {
   }
 }
 
+async function installationPlan() {
+  return createInstallPlan(manifest, docker, installConfiguration);
+}
+
+async function install(body, automatic = false) {
+  if (installing) return installing;
+  installing = (async () => {
+    const result = await applyInstallPlan({
+      manifest,
+      docker,
+      configuration: installConfiguration,
+      expectedFingerprint: body?.expectedFingerprint,
+      confirmation: body?.confirmation,
+      automatic,
+    });
+    events.push({
+      at: new Date().toISOString(),
+      type: result.changed
+        ? 'installationApplied'
+        : 'installationAlreadyCurrent',
+      actions: result.applied,
+    });
+    if (events.length > 100) events.splice(0, events.length - 100);
+    await refresh();
+    return result;
+  })();
+  try {
+    return await installing;
+  } finally {
+    installing = null;
+  }
+}
+
 function json(response, status, value) {
   const body = JSON.stringify(value);
   response.writeHead(status, {
@@ -145,7 +185,7 @@ const server = http.createServer(async (request, response) => {
       json(response, 405, { error: 'methodNotAllowed' });
       return;
     }
-    json(response, 200, { status: 'ok', mode: 'observe' });
+    json(response, 200, { status: 'ok', mode: 'install' });
     return;
   }
   if (request.url === '/v1/status') {
@@ -171,6 +211,32 @@ const server = http.createServer(async (request, response) => {
     }
     return;
   }
+  if (request.url === '/v1/install/plan' && request.method === 'GET') {
+    try {
+      json(response, 200, await installationPlan());
+    } catch (error) {
+      json(response, 503, {
+        error:
+          error instanceof Error ? error.message : 'installationPlanFailed',
+      });
+    }
+    return;
+  }
+  if (request.url === '/v1/install' && request.method === 'POST') {
+    try {
+      json(response, 200, await install(await readJsonBody(request)));
+    } catch (error) {
+      const code =
+        error instanceof Error ? error.message : 'installationFailed';
+      const status =
+        code === 'installationConfirmationRequired' ||
+        code === 'invalidJsonBody'
+          ? 400
+          : 409;
+      json(response, status, { error: code });
+    }
+    return;
+  }
   if (request.method !== 'GET') {
     json(response, 405, { error: 'methodNotAllowed' });
     return;
@@ -186,8 +252,19 @@ server.listen(socketPath, async () => {
     await chown(socketPath, 0, socketGroup).catch(() => undefined);
   }
   await refresh();
+  if (installConfiguration.enabled) {
+    try {
+      await install({}, true);
+    } catch (error) {
+      events.push({
+        at: new Date().toISOString(),
+        type: 'installationBlocked',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
   setInterval(() => void refresh(), pollInterval).unref();
-  console.log(`Mergeron Manager observe-only socket ready at ${socketPath}`);
+  console.log(`Mergeron Manager socket ready at ${socketPath}`);
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {

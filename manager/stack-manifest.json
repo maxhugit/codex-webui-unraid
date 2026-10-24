@@ -1,7 +1,22 @@
 {
   "schemaVersion": 1,
   "stack": "mergeron",
-  "mode": "observe",
+  "mode": "install",
+  "networks": [
+    { "id": "isolated", "name": "mergeron-isolated", "internal": true },
+    { "id": "external", "name": "mergeron-external", "internal": false },
+    {
+      "id": "admin",
+      "name": "mergeron-admin",
+      "internal": false,
+      "subnetFromConfiguration": true
+    },
+    {
+      "id": "proxy",
+      "name": "net_standard",
+      "external": true
+    }
+  ],
   "components": [
     {
       "id": "application",

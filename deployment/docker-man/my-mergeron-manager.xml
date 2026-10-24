@@ -8,7 +8,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/maxhugit/mergeron/issues</Support>
   <Project>https://github.com/maxhugit/mergeron</Project>
-  <Overview>Observe l'état de la pile Mergeron et ses montages persistants sans créer, modifier, redémarrer ni supprimer de conteneur.</Overview>
+  <Overview>Installe de façon idempotente puis observe la pile Mergeron, sans supprimer ni recréer les données persistantes.</Overview>
   <Category>Tools:System</Category>
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/maxhugit/mergeron/main/deployment/docker-man/my-mergeron-manager.xml</TemplateURL>
@@ -19,12 +19,22 @@
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Requires>Le dossier manager-run doit aussi être monté dans mergeron-ui. Cette version observe uniquement la pile.</Requires>
-  <Config Name="Socket Docker" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Nécessaire pour les deux lectures d'inventaire Docker implémentées par le Manager." Type="Path" Display="always" Required="true" Mask="false">/var/run/docker.sock</Config>
+  <Requires>Le réseau externe net_standard doit exister. Le dossier manager-run est partagé avec mergeron-ui.</Requires>
+  <Config Name="Socket Docker" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="API Docker locale utilisée uniquement pour les ressources déclarées par le manifeste." Type="Path" Display="always" Required="true" Mask="false">/var/run/docker.sock</Config>
+  <Config Name="Racine persistante" Target="/host-state" Default="/mnt/pool/appdata/mergeron/state" Mode="rw" Description="Prépare uniquement les dossiers et fichiers manquants. Aucun élément existant n'est écrasé ou supprimé." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/mergeron/state</Config>
   <Config Name="Socket Mergeron Manager" Target="/run/mergeron-manager" Default="/mnt/pool/appdata/mergeron/state/manager-run" Mode="rw" Description="Canal Unix partagé uniquement avec mergeron-ui." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/mergeron/state/manager-run</Config>
   <Config Name="État Mergeron Manager" Target="/var/lib/mergeron-manager" Default="/mnt/pool/appdata/mergeron/state/manager-state" Mode="rw" Description="Conserve uniquement l'empreinte d'adoption validée. Aucun fichier applicatif n'est déplacé dans ce dossier." Type="Path" Display="always" Required="true" Mask="false">/mnt/pool/appdata/mergeron/state/manager-state</Config>
   <Config Name="Préfixe de la pile" Target="MERGERON_STACK_PREFIX" Default="mergeron" Mode="" Description="Préfixe exact des conteneurs et réseaux observés. Utiliser mergeron-dev pour une recette isolée." Type="Variable" Display="always" Required="true" Mask="false">mergeron</Config>
   <Config Name="Environnement de la pile" Target="MERGERON_STACK_ENVIRONMENT" Default="production" Mode="" Description="Type de pile observée : production ou development. Une pile development doit utiliser un préfixe dédié." Type="Variable" Display="always" Required="true" Mask="false">production</Config>
+  <Config Name="Installation automatique" Target="MERGERON_INSTALL_ENABLED" Default="false" Mode="" Description="Mettre à true pour créer seulement les conteneurs et réseaux manquants après validation du plan." Type="Variable" Display="always" Required="true" Mask="false">false</Config>
+  <Config Name="Chemin hôte des données" Target="MERGERON_STATE_ROOT" Default="/mnt/pool/appdata/mergeron/state" Mode="" Description="Chemin absolu utilisé dans les montages créés par Docker." Type="Variable" Display="always" Required="true" Mask="false">/mnt/pool/appdata/mergeron/state</Config>
+  <Config Name="Racine appdata Unraid" Target="MERGERON_UNRAID_APPDATA_ROOT" Default="/mnt/user/appdata" Mode="" Description="Racine appdata exposée à l'application." Type="Variable" Display="always" Required="true" Mask="false">/mnt/user/appdata</Config>
+  <Config Name="Sous-réseau administrateur" Target="MERGERON_ADMIN_SUBNET" Default="172.30.44.0/28" Mode="" Description="Sous-réseau dédié au réseau administratif Mergeron." Type="Variable" Display="always" Required="true" Mask="false">172.30.44.0/28</Config>
+  <Config Name="URL publique" Target="MERGERON_WEBUI_URL" Default="https://mergeron.example.com" Mode="" Description="URL publique transmise à l'application ; elle ne sert pas à identifier la pile." Type="Variable" Display="always" Required="true" Mask="false">https://mergeron.example.com</Config>
+  <Config Name="Icône Unraid" Target="MERGERON_ICON_URL" Default="https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png" Mode="" Description="Icône affichée pour les conteneurs créés." Type="Variable" Display="advanced" Required="true" Mask="false">https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png</Config>
+  <Config Name="Image application" Target="MERGERON_APP_IMAGE" Default="ghcr.io/maxhugit/mergeron:latest" Mode="" Description="Image autorisée de mergeron-ui." Type="Variable" Display="advanced" Required="true" Mask="false">ghcr.io/maxhugit/mergeron:latest</Config>
+  <Config Name="Image ingress" Target="MERGERON_INGRESS_IMAGE" Default="nginx:stable" Mode="" Description="Image autorisée de mergeron-ingress." Type="Variable" Display="advanced" Required="true" Mask="false">nginx:stable</Config>
+  <Config Name="Image egress" Target="MERGERON_EGRESS_IMAGE" Default="ubuntu/squid:latest" Mode="" Description="Image autorisée de mergeron-squid." Type="Variable" Display="advanced" Required="true" Mask="false">ubuntu/squid:latest</Config>
   <Config Name="Chemin du socket Manager" Target="MERGERON_MANAGER_SOCKET" Default="/run/mergeron-manager/manager.sock" Mode="" Description="Socket Unix local exposé à mergeron-ui." Type="Variable" Display="advanced" Required="true" Mask="false">/run/mergeron-manager/manager.sock</Config>
   <Config Name="Groupe du socket Manager" Target="MERGERON_MANAGER_SOCKET_GID" Default="11002" Mode="" Description="GID autorisé à lire le socket local." Type="Variable" Display="advanced" Required="true" Mask="false">11002</Config>
   <Config Name="Intervalle d'observation" Target="MERGERON_MANAGER_POLL_MS" Default="20000" Mode="" Description="Intervalle entre deux inventaires, en millisecondes." Type="Variable" Display="advanced" Required="true" Mask="false">20000</Config>

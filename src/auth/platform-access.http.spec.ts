@@ -178,6 +178,8 @@ beforeEach(async () => {
         useValue: {
           status: () => ({ available: true, mode: 'observe' }),
           adopt: () => ({ adoption: { state: 'adopted' } }),
+          installationPlan: () => ({ applicable: true, actions: [] }),
+          install: () => ({ changed: false, applied: [] }),
         },
       },
       { provide: APP_GUARD, useClass: ApiKeyGuard },
@@ -315,6 +317,44 @@ it('returns 403 on real settings routes for standard users and 200 for administr
       })
     ).statusCode,
   ).toBe(200);
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/settings/manager/install/plan',
+        headers: proxyHeaders(),
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'GET',
+        url: '/api/settings/manager/install/plan',
+        headers: proxyHeaders('administrator@example.com'),
+      })
+    ).statusCode,
+  ).toBe(200);
+  expect(
+    (
+      await server.inject({
+        method: 'POST',
+        url: '/api/settings/manager/install',
+        headers: proxyHeaders(),
+        payload: { confirmation: 'INSTALL', expectedFingerprint: 'hash' },
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await server.inject({
+        method: 'POST',
+        url: '/api/settings/manager/install',
+        headers: proxyHeaders('administrator@example.com'),
+        payload: { confirmation: 'INSTALL', expectedFingerprint: 'hash' },
+      })
+    ).statusCode,
+  ).toBe(201);
   expect(
     (
       await server.inject({

@@ -1,7 +1,7 @@
 # Choisir le mode d’installation Unraid
 
 La plateforme utilise les mêmes trois conteneurs applicatifs, auxquels s'ajoute
-Mergeron Manager en observation, avec les mêmes volumes, secrets et réseaux.
+Mergeron Manager, avec les mêmes volumes, secrets et réseaux.
 Seul le composant qui crée et met à jour les conteneurs change : les
 formulaires Docker natifs d’Unraid, appelés ici **DockerMan**, ou le plugin
 **Compose Manager**.
@@ -11,21 +11,27 @@ protection lorsque toutes les options sont conservées. Ils ne doivent jamais
 être actifs simultanément, car ils utilisent les mêmes noms de conteneurs et les
 mêmes données persistantes.
 
+Pour une installation neuve, le Manager peut aussi créer directement les trois
+conteneurs et les réseaux privés lorsque `MERGERON_INSTALL_ENABLED=true`. Ce
+bootstrap ne doit pas être lancé en parallèle d'une création Compose ou
+DockerMan. Une fois le plan appliqué, remettre la variable à `false` conserve
+l'observation sans nouvelle création automatique.
+
 ## Comparaison
 
-| Sujet                        | Formulaires DockerMan                                                        | Compose Manager                                                                                         |
-| ---------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Recommandation               | Choix par défaut pour l’exploitation quotidienne sur Unraid                  | Choix adapté à une stack gérée comme un ensemble                                                        |
-| Dépendance                   | Fonction Docker native d’Unraid                                              | Plugin Compose Manager installé                                                                         |
-| Source de configuration      | Quatre modèles XML importés puis enregistrés dans les formulaires Unraid     | `docker-compose.yml` et `images.env` dans l’Appdata                                                     |
+| Sujet                        | Formulaires DockerMan                                                        | Compose Manager                                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Recommandation               | Choix par défaut pour l’exploitation quotidienne sur Unraid                  | Choix adapté à une stack gérée comme un ensemble                                                         |
+| Dépendance                   | Fonction Docker native d’Unraid                                              | Plugin Compose Manager installé                                                                          |
+| Source de configuration      | Quatre modèles XML importés puis enregistrés dans les formulaires Unraid     | `docker-compose.yml` et `images.env` dans l’Appdata                                                      |
 | Présentation                 | Quatre conteneurs séparés dans l’onglet **Docker**                           | Une stack dans **Docker > Compose**, avec les quatre conteneurs également identifiables par leurs labels |
-| Ordre de démarrage           | Squid, application, puis ingress ; les états de santé doivent être contrôlés | `depends_on` et les contrôles de santé décrivent l’ordre                                                |
-| Réseaux secondaires          | Ajoutés par le réconciliateur hôte après chaque recréation                   | Déclarés directement dans le fichier Compose                                                            |
-| Après redémarrage Unraid     | Le réconciliateur doit être relancé avant une future recréation DockerMan    | Compose recrée directement la topologie déclarée                                                        |
-| Mise à jour de l’application | **Check for Updates**, puis **Update** sur `mergeron-ui`                  | Modifier ou conserver `MERGERON_APP_IMAGE`, puis **Update Stack**                                       |
-| Mise à jour Nginx/Squid      | Indépendante, conteneur par conteneur                                        | Incluse dans la mise à jour de la stack si de nouvelles images sont téléchargées                        |
-| Retour arrière               | Remplacer le champ **Repository** par un tag `sha-<commit>`                  | Remplacer `MERGERON_APP_IMAGE` dans `images.env` par ce tag                                             |
-| Portabilité                  | Très intégrée à l’interface Unraid                                           | Configuration déclarative plus simple à copier et comparer                                              |
+| Ordre de démarrage           | Squid, application, puis ingress ; les états de santé doivent être contrôlés | `depends_on` et les contrôles de santé décrivent l’ordre                                                 |
+| Réseaux secondaires          | Ajoutés par le réconciliateur hôte après chaque recréation                   | Déclarés directement dans le fichier Compose                                                             |
+| Après redémarrage Unraid     | Le réconciliateur doit être relancé avant une future recréation DockerMan    | Compose recrée directement la topologie déclarée                                                         |
+| Mise à jour de l’application | **Check for Updates**, puis **Update** sur `mergeron-ui`                     | Modifier ou conserver `MERGERON_APP_IMAGE`, puis **Update Stack**                                        |
+| Mise à jour Nginx/Squid      | Indépendante, conteneur par conteneur                                        | Incluse dans la mise à jour de la stack si de nouvelles images sont téléchargées                         |
+| Retour arrière               | Remplacer le champ **Repository** par un tag `sha-<commit>`                  | Remplacer `MERGERON_APP_IMAGE` dans `images.env` par ce tag                                              |
+| Portabilité                  | Très intégrée à l’interface Unraid                                           | Configuration déclarative plus simple à copier et comparer                                               |
 
 ## Architecture commune
 
@@ -37,8 +43,9 @@ Dans les deux modes :
    services locaux autorisés ;
 3. `mergeron-ingress` démarre sur `mergeron-isolated` et rejoint `net_standard`
    pour être joint par Traefik et Authentik.
-4. `mergeron-manager` ne rejoint aucun réseau, lit l'inventaire Docker et
-   partage uniquement son socket Unix avec `mergeron-ui`.
+4. `mergeron-manager` ne rejoint aucun réseau, crée uniquement les ressources
+   manquantes autorisées, lit l'inventaire Docker et partage son socket Unix
+   avec `mergeron-ui`.
 
 Le backend `mergeron` ne publie aucun port sur l’hôte. Les répertoires de
 `STATE_ROOT` contiennent les données durables et restent identiques lors d’un
