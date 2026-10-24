@@ -123,6 +123,24 @@ export class ManagerStatusService {
     };
   }
 
+  async updateOperation(
+    action: 'plan' | 'apply' | 'rollback' | 'recover',
+    input: {
+      images?: unknown;
+      confirmation?: unknown;
+      expectedFingerprint?: unknown;
+      operationId?: unknown;
+    },
+  ) {
+    const path = action === 'apply' ? '/v1/update' : `/v1/update/${action}`;
+    return this.requestManager(path, 'POST', {
+      images: input?.images,
+      confirmation: input?.confirmation,
+      expectedFingerprint: input?.expectedFingerprint,
+      operationId: input?.operationId,
+    });
+  }
+
   async install(input: {
     confirmation?: unknown;
     expectedFingerprint?: unknown;

@@ -94,6 +94,40 @@ export class SettingsController {
   }
 
   /** Lists runtime settings with optional category filtering. */
+  @Post('manager/update/plan')
+  @ApiOperation({ summary: 'Preview a transactional stack update' })
+  managerUpdatePlan(@Body() body: { images?: unknown }) {
+    return this.managerStatus.updateOperation('plan', body);
+  }
+
+  @Post('manager/update')
+  @ApiOperation({ summary: 'Start a confirmed transactional stack update' })
+  managerUpdate(
+    @Body()
+    body: {
+      images?: unknown;
+      confirmation?: unknown;
+      expectedFingerprint?: unknown;
+    },
+  ) {
+    return this.managerStatus.updateOperation('apply', body);
+  }
+
+  @Post('manager/update/rollback')
+  @ApiOperation({ summary: 'Restore the previous stack and its saved data' })
+  managerRollback(
+    @Body() body: { confirmation?: unknown; operationId?: unknown },
+  ) {
+    return this.managerStatus.updateOperation('rollback', body);
+  }
+
+  @Post('manager/update/recover')
+  @ApiOperation({ summary: 'Retry an interrupted update recovery' })
+  managerRecover(@Body() body: { confirmation?: unknown }) {
+    return this.managerStatus.updateOperation('recover', body);
+  }
+
+  /** Lists runtime settings with optional category filtering. */
   @Get()
   @ApiOperation({ summary: 'List runtime settings' })
   @ApiQuery({ name: 'category', required: false })

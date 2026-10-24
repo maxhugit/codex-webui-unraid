@@ -158,4 +158,30 @@ export class DockerClient {
       method: 'POST',
     });
   }
+
+  stopContainer(id) {
+    return this.request(`/containers/${encodeURIComponent(id)}/stop?t=60`, {
+      method: 'POST',
+      timeout: 70_000,
+    });
+  }
+
+  renameContainer(id, name) {
+    return this.request(
+      `/containers/${encodeURIComponent(id)}/rename?name=${encodeURIComponent(name)}`,
+      { method: 'POST' },
+    );
+  }
+
+  removeContainer(id) {
+    // Never force a running container or remove its persistent volumes.
+    return this.request(
+      `/containers/${encodeURIComponent(id)}?force=false&v=false`,
+      { method: 'DELETE' },
+    );
+  }
+
+  inspectImage(reference) {
+    return this.request(`/images/${encodeURIComponent(reference)}/json`);
+  }
 }

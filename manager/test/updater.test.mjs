@@ -1,0 +1,365 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  writeFile,
+  rm,
+  lstat,
+  symlink,
+} from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { TransactionalUpdater } from '../src/updater.mjs';
+import { scopeManifest } from '../src/inventory.mjs';
+
+const manifest = scopeManifest(
+  JSON.parse(
+    await readFile(new URL('../stack-manifest.json', import.meta.url)),
+  ),
+  'mergeron-dev',
+  'development',
+);
+const images = { application: 'ghcr.io/maxhugit/mergeron:next' };
+
+class Docker {
+  constructor(root) {
+    this.values = new Map();
+    this.calls = [];
+    this.sequence = 0;
+    for (const component of manifest.components) {
+      const repo = component.allowedImageRepositories[0];
+      const config = {
+        Image: `${repo}:previous`,
+        Labels: {
+          'io.mergeron.managed': 'true',
+          'io.mergeron.stack': manifest.stack,
+          'io.mergeron.component': component.id,
+        },
+        Env: ['SECRET=never-display'],
+        Healthcheck: { Test: ['CMD', 'true'] },
+      };
+      const binds =
+        component.id === 'application'
+          ? [`${root}/home:/home/codex`, `${root}/workspace:/workspaces`]
+          : [];
+      const spec = {
+        ...config,
+        HostConfig: { Binds: binds },
+        NetworkingConfig: {
+          EndpointsConfig: Object.fromEntries(
+            component.requiredNetworks.map((n) => [
+              n,
+              { Aliases: [component.canonicalName] },
+            ]),
+          ),
+        },
+      };
+      const id = `original-${component.id}`;
+      this.values.set(
+        id,
+        this.inspect(id, component.canonicalName, spec, true),
+      );
+    }
+  }
+  image(reference) {
+    const repo = reference.split('@')[0].replace(/:[^/:]+$/, '');
+    return `${repo}@sha256:${(reference.includes('next') ? 'b' : 'a').repeat(64)}`;
+  }
+  inspect(id, name, spec, running = false) {
+    const { HostConfig, NetworkingConfig, ...Config } = structuredClone(spec);
+    return {
+      Id: id,
+      Name: `/${name}`,
+      Config,
+      HostConfig,
+      Image: this.image(Config.Image),
+      State: {
+        Running: running,
+        Status: running ? 'running' : 'created',
+        Health: { Status: 'healthy' },
+      },
+      Mounts: (HostConfig.Binds ?? []).map((b) => {
+        const [Source, Destination] = b.split(':');
+        return { Type: 'bind', Source, Destination, RW: true };
+      }),
+      NetworkSettings: { Networks: NetworkingConfig.EndpointsConfig },
+    };
+  }
+  async listContainers() {
+    return [...this.values.values()].map((v) => ({
+      Id: v.Id,
+      Names: [v.Name],
+      Image: v.Config.Image,
+      Labels: v.Config.Labels,
+    }));
+  }
+  async inspectContainer(id) {
+    return structuredClone(this.values.get(id));
+  }
+  async inspectImage(ref) {
+    const pinned = this.image(ref);
+    return { Id: pinned, RepoDigests: [pinned] };
+  }
+  async pullImage(ref) {
+    this.calls.push(['pull', ref]);
+    if (this.pullFailure) throw new Error('registry password=secret');
+  }
+  async stopContainer(id) {
+    this.calls.push(['stop', id]);
+    this.values.get(id).State.Running = false;
+  }
+  async startContainer(id) {
+    this.calls.push(['start', id]);
+    const value = this.values.get(id);
+    value.State.Running = true;
+    if (
+      this.unhealthy &&
+      value.Config.Labels['io.mergeron.transaction'] &&
+      value.Config.Labels['io.mergeron.component'] === 'application'
+    ) {
+      await writeFile(join(this.root, 'home', 'database'), 'migrated');
+      await writeFile(join(this.root, 'home', 'new-file'), 'new data');
+      value.State.Health.Status = 'unhealthy';
+    }
+    if (this.afterStart) await this.afterStart(id);
+  }
+  async renameContainer(id, name) {
+    this.calls.push(['rename', id, name]);
+    this.values.get(id).Name = `/${name}`;
+  }
+  async createContainer(name, spec) {
+    const id = `candidate-${++this.sequence}`;
+    this.calls.push(['create', name]);
+    this.values.set(id, this.inspect(id, name, spec));
+    if (this.afterCreate) await this.afterCreate(id);
+    return { Id: id };
+  }
+  async removeContainer(id) {
+    assert.equal(this.values.get(id).State.Running, false);
+    this.calls.push(['remove', id]);
+    this.values.delete(id);
+  }
+}
+
+async function fixture(t) {
+  const root = await mkdtemp(join(tmpdir(), 'manager-update-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const name of ['home', 'workspace', 'logs', 'ssh', 'config'])
+    await mkdir(join(root, name), { mode: 0o700 });
+  for (const name of [
+    'backend-token.txt',
+    'backend-token-nginx.txt',
+    'openai-api-key.txt',
+  ])
+    await writeFile(join(root, name), 'secret', { mode: 0o600 });
+  await writeFile(join(root, 'home', 'database'), 'original', { mode: 0o600 });
+  await symlink('/does/not/exist', join(root, 'home', 'external-link'));
+  const docker = new Docker(root);
+  docker.root = root;
+  const options = {
+    manifest,
+    docker,
+    configuration: { stateRoot: root, hostStatePath: root },
+    adoptionPath: join(root, 'manager-state', 'adoption.json'),
+    directory: join(root, 'manager-state', 'updates'),
+    healthTimeoutMs: 10,
+    pollMs: 1,
+  };
+  const updater = new TransactionalUpdater(options);
+  return { root, docker, updater, options };
+}
+async function begin(updater) {
+  const plan = await updater.plan(images);
+  assert.deepEqual(plan.blockers, []);
+  await updater.begin({
+    images,
+    confirmation: 'UPDATE_WITH_ROLLBACK',
+    expectedFingerprint: plan.fingerprint,
+  });
+  await updater.task;
+}
+
+test('commits only healthy candidates, pins images, preserves mounts and hides secrets', async (t) => {
+  const { root, updater, docker } = await fixture(t);
+  await begin(updater);
+  assert.equal(updater.current.status, 'succeeded');
+  assert.equal(docker.values.size, 3);
+  assert.equal(await readFile(join(root, 'home/database'), 'utf8'), 'original');
+  assert.equal((await lstat(join(root, 'home/database'))).mode & 0o777, 0o600);
+  assert.equal(JSON.stringify(updater.status()).includes('SECRET'), false);
+  assert.ok(
+    updater.current.containers.every((c) =>
+      c.target.Image.includes('@sha256:'),
+    ),
+  );
+  assert.equal((await updater.plan(images)).applicable, true);
+});
+
+test('failed health restores original database, quarantines newly written data and retains backup', async (t) => {
+  const { root, updater, docker } = await fixture(t);
+  docker.unhealthy = true;
+  await begin(updater);
+  assert.equal(updater.current.status, 'rolledBack');
+  assert.equal(await readFile(join(root, 'home/database'), 'utf8'), 'original');
+  const quarantine = join(
+    updater.directory,
+    updater.current.id,
+    'quarantine',
+    'home',
+  );
+  assert.equal(
+    await readFile(join(quarantine, 'database'), 'utf8'),
+    'migrated',
+  );
+  assert.equal(
+    await readFile(join(quarantine, 'new-file'), 'utf8'),
+    'new data',
+  );
+  assert.ok(
+    [...docker.values.keys()].every((id) => id.startsWith('original-')),
+  );
+});
+
+test('image pull failure never stops the stack and diagnostics do not leak credentials', async (t) => {
+  const { updater, docker } = await fixture(t);
+  docker.pullFailure = true;
+  await begin(updater);
+  assert.equal(updater.current.status, 'rolledBack');
+  assert.deepEqual(
+    docker.calls.map((c) => c[0]),
+    ['pull'],
+  );
+  assert.equal(JSON.stringify(updater.status()).includes('password'), false);
+});
+
+test('requires confirmation, a fresh plan and rejects arbitrary image repositories', async (t) => {
+  const { updater, docker } = await fixture(t);
+  await assert.rejects(
+    updater.plan({ application: 'evil.example/image:latest' }),
+    /updateImageNotAllowed/,
+  );
+  await assert.rejects(updater.begin({ images }), /updateConfirmationRequired/);
+  await assert.rejects(
+    updater.begin({
+      images,
+      confirmation: 'UPDATE_WITH_ROLLBACK',
+      expectedFingerprint: 'stale',
+    }),
+    /updatePlanChanged/,
+  );
+  assert.deepEqual(docker.calls, []);
+});
+
+test('serializes concurrent requests during image download', async (t) => {
+  const { updater, docker } = await fixture(t);
+  let release;
+  docker.pullImage = () =>
+    new Promise((resolve) => {
+      release = resolve;
+    });
+  const plan = await updater.plan(images);
+  const input = {
+    images,
+    confirmation: 'UPDATE_WITH_ROLLBACK',
+    expectedFingerprint: plan.fingerprint,
+  };
+  await updater.begin(input);
+  await assert.rejects(updater.begin(input), /managerOperationInProgress/);
+  release();
+  await updater.task;
+  assert.equal(updater.current.status, 'succeeded');
+});
+
+test('manual rollback recreates original pinned images after a successful commit', async (t) => {
+  const { updater, root } = await fixture(t);
+  await begin(updater);
+  await writeFile(join(root, 'home/database'), 'after successful update');
+  await updater.requestRollback({
+    operationId: updater.current.id,
+    confirmation: 'ROLLBACK_WITH_DATA_RESTORE',
+  });
+  await updater.task;
+  assert.equal(updater.current.status, 'rolledBack');
+  assert.equal(await readFile(join(root, 'home/database'), 'utf8'), 'original');
+});
+
+test('restart recovers a crash after Docker creates a candidate before its ID is journalled', async (t) => {
+  const { updater, docker, options, root } = await fixture(t);
+  let crashed = false;
+  docker.afterCreate = async () => {
+    if (!crashed) {
+      crashed = true;
+      throw new Error('crash');
+    }
+  };
+  // Simulate abrupt death: no in-process rollback, then instantiate a new Manager.
+  updater.rollback = async () => {
+    throw new Error('process terminated');
+  };
+  await begin(updater);
+  const recovered = new TransactionalUpdater(options);
+  await recovered.recover();
+  assert.equal(recovered.current.status, 'rolledBack');
+  assert.equal(await readFile(join(root, 'home/database'), 'utf8'), 'original');
+  assert.equal(docker.values.size, 3);
+});
+
+test('blocks unhealthy or unmanaged containers and unexpected persistent sources', async (t) => {
+  const { updater, docker } = await fixture(t);
+  const app = docker.values.get('original-application');
+  app.Mounts[0].Source = '/production/home';
+  app.Config.Labels['io.mergeron.managed'] = 'false';
+  assert.equal((await updater.plan(images)).applicable, false);
+  assert.deepEqual(docker.calls, []);
+});
+
+test('Docker mount and object key order does not invalidate an unchanged plan', async (t) => {
+  const { updater, docker } = await fixture(t);
+  const first = await updater.plan(images);
+  for (const value of docker.values.values()) {
+    value.Mounts.reverse();
+    value.Config.Labels = Object.fromEntries(
+      Object.entries(value.Config.Labels).reverse(),
+    );
+  }
+  assert.equal((await updater.plan(images)).fingerprint, first.fingerprint);
+});
+
+test('a failed backup restarts all original services without changing their data', async (t) => {
+  const { updater, docker, root } = await fixture(t);
+  const stop = docker.stopContainer.bind(docker);
+  let injected = false;
+  docker.stopContainer = async (id) => {
+    await stop(id);
+    if (!injected) {
+      injected = true;
+      // An unsupported special file is created only after preflight.
+      await import('node:child_process').then(({ execFileSync }) =>
+        execFileSync('mkfifo', [join(root, 'home/unsupported-fifo')]),
+      );
+    }
+  };
+  await begin(updater);
+  assert.equal(updater.current.status, 'rolledBack');
+  assert.equal(updater.current.backupComplete, false);
+  assert.ok([...docker.values.values()].every((value) => value.State.Running));
+  assert.equal(await readFile(join(root, 'home/database'), 'utf8'), 'original');
+});
+
+test('rollback refuses a renamed candidate rather than replacing an unrelated resource', async (t) => {
+  const { updater, docker } = await fixture(t);
+  await begin(updater);
+  const candidate = updater.current.containers[0];
+  docker.values.get(candidate.candidateId).Name = '/manually-renamed';
+  await assert.rejects(
+    updater.requestRollback({
+      operationId: updater.current.id,
+      confirmation: 'ROLLBACK_WITH_DATA_RESTORE',
+    }),
+    /updateCandidateIdentityConflict/,
+  );
+  assert.equal(updater.current.status, 'succeeded');
+  assert.equal(updater.busy, false);
+});

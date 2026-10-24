@@ -24,7 +24,7 @@ d'inventorier les installations existantes. Il :
   déclarés par le manifeste ;
 - conserve l'adoption explicite d'une installation existante.
 
-Le plan expose toujours une liste `destructiveActions` vide. Le Manager ne
+Le plan d'installation expose toujours une liste `destructiveActions` vide. L'installateur ne
 supprime, ne renomme, ne recrée et n'écrase aucun conteneur, réseau, volume,
 dossier ou fichier existant. Une ressource incompatible bloque toute
 l'installation. Une interruption peut être reprise : le plan suivant ne
@@ -64,7 +64,10 @@ L'accès à `/var/run/docker.sock` donne techniquement des droits élevés sur
 l'hôte. L'image du Manager reste donc minimale, sans accès Internet entrant et
 sans outil client arbitraire. Son client Docker limite les écritures à la
 création des réseaux et conteneurs du manifeste et au démarrage de ces derniers.
-Il n'implémente aucune route Docker de suppression.
+La mise à jour ajoute uniquement l'arrêt, le renommage et la suppression des
+conteneurs vérifiés de la pile sélectionnée, sans suppression de volume, de
+réseau ou de données persistantes. Aucune opération Docker arbitraire n'est
+exposée par HTTP.
 
 Le Manager conserve seulement `CHOWN` (création des dossiers applicatifs) et
 `DAC_READ_SEARCH` (relecture des secrets privés appartenant à l'UID 11002).
@@ -130,13 +133,72 @@ fourni séparément par `MERGERON_WEBUI_URL` dans le fichier d'environnement et
 transmis à l'application sous `MERGERON_PUBLIC_URL`. Le dépôt ne contient donc
 aucun domaine propre à une installation.
 
-## Étapes suivantes
+## Mise à jour transactionnelle et retour arrière
 
-L'installation complète sera ajoutée par incréments contrôlés :
+Les réglages généraux du serveur proposent un aperçu puis une confirmation de
+mise à jour. L'opération continue dans le Manager lorsque l'application est
+arrêtée ; son suivi reste disponible sur le socket local. Seuls les
+administrateurs accèdent aux routes applicatives `/api/settings/manager/update`.
 
-1. mise à jour transactionnelle avec sauvegarde, contrôle de santé et retour
-   automatique à l'image précédente ;
-2. réparation limitée aux conteneurs et réseaux déclarés dans le manifeste.
+1. `POST /v1/update/plan` avec `images` sélectionne des images des seuls dépôts
+   autorisés. Les trois services doivent être sains, gérés ou explicitement
+   adoptés, avec des noms canoniques et des montages compatibles. Une dérive
+   d'adoption bloque l'opération. L'ordre variable des montages Docker ne
+   modifie pas l'empreinte.
+2. `POST /v1/update` avec cette empreinte et
+   `confirmation=UPDATE_WITH_ROLLBACK` lance l'opération en arrière-plan. Les
+   images sont téléchargées avant l'arrêt et épinglées par empreinte publiée.
+   Les spécifications Docker, réseaux et montages existants sont conservés.
+3. Après arrêt des trois services, le Manager sauvegarde `home`, `workspace`,
+   `logs`, `ssh`, `config` et les trois fichiers secrets sous
+   `manager-state/updates/<opération>/backup`. L'espace libre doit permettre la
+   sauvegarde et sa restauration. Les liens symboliques ne sont pas suivis ;
+   les sockets temporaires sont ignorés, les autres fichiers spéciaux bloquent
+   la sauvegarde. La copie conserve propriétaires, permissions ordinaires et
+   dates, sans nécessiter de capacité supplémentaire.
+4. Les anciens conteneurs sont conservés arrêtés sous un nom de secours. Les
+   remplaçants démarrent dans l'ordre Squid, application, ingress. Chacun doit
+   devenir sain dans un délai borné, puis les trois sont contrôlés ensemble.
+5. Après validation durable du résultat, seuls les anciens conteneurs arrêtés
+   sont supprimés (`force=false`, `v=false`). Les images et sauvegardes restent
+   présentes. Le référentiel d'adoption est actualisé uniquement s'il existait
+   déjà ; aucune adoption implicite n'est créée.
+
+Une erreur avant validation déclenche la restauration des données et le
+redémarrage des anciens conteneurs. Les données écrites par la version rejetée
+sont déplacées dans `quarantine`, jamais supprimées. Le journal privé `0600`
+permet de reprendre la récupération au redémarrage du Manager, y compris si
+Docker a créé un conteneur juste avant l'interruption. Après le point de
+validation, le redémarrage termine seulement le nettoyage. Si la récupération
+échoue, toute nouvelle installation ou mise à jour est bloquée ;
+`POST /v1/update/recover` avec `confirmation=RETRY_RECOVERY` la réessaie.
+
+`POST /v1/update/rollback`, avec l'identifiant de la dernière opération réussie
+et `confirmation=ROLLBACK_WITH_DATA_RESTORE`, restaure aussi les données de sa
+sauvegarde. Cela annule les modifications applicatives postérieures à cette
+sauvegarde, conservées séparément en quarantaine. Les versions plus anciennes
+ne sont pas sélectionnables implicitement. Les sauvegardes et journaux ne sont
+pas purgés automatiquement : prévoir leur rétention et surveiller l'espace.
+
+Le suivi public ne contient jamais les spécifications complètes, variables
+d'environnement ni secrets du journal privé. L'installation, l'adoption, la
+mise à jour et la récupération ne peuvent pas s'exécuter simultanément.
+
+### Limites explicites
+
+- Les fichiers externes montés sous `/appdata` ne sont ni sauvegardés ni
+  restaurés ; ils ne sont jamais supprimés. Le rollback couvre les données
+  applicatives sous `STATE_ROOT`, pas tous les fichiers de l'hôte.
+- Les ACL et attributs étendus ne sont pas copiés. Un stockage utilisant ces
+  mécanismes nécessite une sauvegarde externe adaptée avant mise à jour.
+- Les volumes Docker et les noms historiques doivent être migrés explicitement
+  avant cette première version de l'updater ; ils sont refusés, pas convertis.
+- Le Manager ne se met pas lui-même à jour et ne répare pas encore une pile
+  arbitrairement endommagée.
+
+## Étape suivante
+
+Réparation limitée aux conteneurs et réseaux déclarés dans le manifeste.
 
 Les volumes ou dossiers persistants ne feront pas partie d'une suppression ou
 d'un retour arrière automatique.
