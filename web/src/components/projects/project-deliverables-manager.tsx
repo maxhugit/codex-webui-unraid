@@ -445,7 +445,7 @@ function DeliverablesList({
             >
               <button
                 type="button"
-                className="col-span-full min-w-0 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring @min-[68rem]:col-span-1"
+                className="order-1 col-span-1 min-w-0 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring @min-[36rem]:col-span-2 @min-[68rem]:order-none @min-[68rem]:col-span-1"
                 onClick={() => onSelect(item.id)}
               >
                 <strong className="block truncate">{item.title}</strong>
@@ -453,16 +453,21 @@ function DeliverablesList({
                   {item.description || t('noDescription')}
                 </span>
               </button>
-              <span className="flex items-center gap-2 text-sm">
+              <span className="order-3 flex items-center gap-2 text-sm @min-[68rem]:order-none">
                 <span className="text-xs text-muted-foreground @min-[68rem]:hidden">
                   {t('documents')}:
                 </span>
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 {count}
               </span>
-              <LifecycleBadge status={displayedLifecycle(item)} />
               <span
-                className={`flex w-fit items-center gap-2 rounded-md px-2 py-1 text-xs font-medium ${
+                data-testid={`deliverable-status-${item.id}`}
+                className="order-2 justify-self-end @min-[68rem]:order-none @min-[68rem]:justify-self-auto"
+              >
+                <LifecycleBadge status={displayedLifecycle(item)} />
+              </span>
+              <span
+                className={`order-4 flex w-fit items-center gap-2 rounded-md px-2 py-1 text-xs font-medium @min-[68rem]:order-none ${
                   item.validationStatus === 'approved'
                     ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                     : item.validationStatus === 'rejected'
@@ -482,7 +487,7 @@ function DeliverablesList({
                       translationKey(validationStatuses[item.validationStatus]),
                     )}
               </span>
-              <span className="flex min-w-0 items-center gap-2 text-sm">
+              <span className="order-5 flex min-w-0 items-center gap-2 text-sm @min-[68rem]:order-none">
                 <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                 {task ? (
                   <button
@@ -499,13 +504,13 @@ function DeliverablesList({
                 )}
               </span>
               <span
-                className={`w-fit rounded-md px-2 py-1 text-xs font-medium ${item.confidentiality === 'restricted' ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300' : 'bg-muted text-muted-foreground'}`}
+                className={`order-6 w-fit rounded-md px-2 py-1 text-xs font-medium @min-[68rem]:order-none ${item.confidentiality === 'restricted' ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300' : 'bg-muted text-muted-foreground'}`}
               >
                 {item.confidentiality === 'restricted'
                   ? t('restrictedAccessShort')
                   : t('standardAccessShort')}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="order-7 text-xs text-muted-foreground @min-[68rem]:order-none">
                 {new Date(item.updatedAt).toLocaleDateString()}
               </span>
             </div>

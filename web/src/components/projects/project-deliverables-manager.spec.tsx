@@ -308,6 +308,14 @@ it.each([
 it('keeps the table search visible and exposes filters through a mobile toggle', async () => {
   await setupList();
 
+  expect(screen.getByRole('button', { name: /Report/ })).toHaveClass(
+    'order-1',
+    '@min-[36rem]:col-span-2',
+  );
+  expect(screen.getByTestId('deliverable-status-d')).toHaveClass(
+    'order-2',
+    'justify-self-end',
+  );
   expect(screen.getByLabelText('Search deliverables')).toBeInTheDocument();
   const toggle = screen.getByRole('button', { name: 'Filters' });
   expect(toggle).toHaveAttribute('aria-expanded', 'false');
