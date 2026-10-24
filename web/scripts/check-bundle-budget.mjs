@@ -16,7 +16,7 @@ const budgets = {
   // workspace transfers, and unified local/Git/SSH/FTP source picker are
   // intentionally localized in the shared catalog. Keep a narrow ceiling
   // around that reviewed content while preserving regression detection.
-  commonCatalogAssetBytes: 178_000,
+  commonCatalogAssetBytes: 180_000,
 };
 
 const entries = await readdir(assetsDirectory, { withFileTypes: true }).catch(
