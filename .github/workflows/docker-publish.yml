@@ -40,6 +40,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Resolve Mergeron build identity
+        id: release-version
+        run: node scripts/release-version.mjs "${GITHUB_REF_NAME}"
+
       - name: Vérifier l'absence de contenu chinois
         run: python3 scripts/check-no-chinese.py
 
@@ -66,9 +70,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=edge,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ steps.release-version.outputs.is_release }}
             type=sha,prefix=sha-
-            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push immutable candidate
         id: build
@@ -79,7 +85,19 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ steps.candidate.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            MERGERON_VERSION=${{ steps.release-version.outputs.version }}
+            MERGERON_REVISION=${{ github.sha }}
+            MERGERON_BUILD_DATE=${{ steps.release-version.outputs.created }}
+            MERGERON_RELEASE_CHANNEL=${{ steps.release-version.outputs.channel }}
+          labels: |
+            org.opencontainers.image.title=Mergeron
+            org.opencontainers.image.description=Plateforme collaborative auto-hébergée de gestion de projets et d'agents
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.version=${{ steps.release-version.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.release-version.outputs.created }}
           # A registry cache avoids the very slow GitHub cache export observed
           # on large toolchain layers while retaining intermediate build stages.
           cache-from: |
@@ -89,6 +107,14 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max,compression=zstd,compression-level=3,oci-mediatypes=true,image-manifest=true
           provenance: mode=max
           sbom: true
+
+      - name: Verify embedded build identity
+        env:
+          IMAGE_REF: ${{ steps.candidate.outputs.tags }}
+          MERGERON_VERSION: ${{ steps.release-version.outputs.version }}
+          MERGERON_CHANNEL: ${{ steps.release-version.outputs.channel }}
+          MERGERON_BUILD_DATE: ${{ steps.release-version.outputs.created }}
+        run: scripts/verify-build-info-image.sh "$IMAGE_REF" "$MERGERON_VERSION" "$GITHUB_SHA" "$MERGERON_BUILD_DATE" "$MERGERON_CHANNEL"
 
       - name: Verify header package and native compilation
         env:
@@ -242,3 +268,45 @@ jobs:
           SOURCE_DIGEST: ${{ needs.build.outputs.digest }}
           TARGET_TAGS: ${{ needs.build.outputs.tags }}
         run: scripts/promote-image.sh
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, promote]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate release version
+        id: release-version
+        run: node scripts/release-version.mjs "${GITHUB_REF_NAME}"
+
+      - name: Publish GitHub Release with cumulative notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.release-version.outputs.version }}
+          IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          published_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg tag "$GITHUB_REF_NAME" \
+            --arg revision "$GITHUB_SHA" \
+            --arg image "${REGISTRY}/${IMAGE_NAME}" \
+            --arg digest "$IMAGE_DIGEST" \
+            --arg publishedAt "$published_at" \
+            '{schemaVersion: 1, version: $version, tag: $tag, revision: $revision, image: $image, digest: $digest, publishedAt: $publishedAt}' \
+            > mergeron-release.json
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists."
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --verify-tag \
+              --generate-notes \
+              --title "Mergeron $VERSION"
+          fi
+
+          gh release upload "$GITHUB_REF_NAME" mergeron-release.json --clobber

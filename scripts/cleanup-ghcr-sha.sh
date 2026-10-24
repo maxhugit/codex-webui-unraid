@@ -15,7 +15,7 @@ endpoint="/users/${owner}/packages/container/${package}/versions"
 versions="$(gh api --paginate --slurp "${endpoint}?per_page=100")"
 
 # Only delete versions whose complete tag set consists of sha-* tags. Images
-# carrying latest, buildcache or a future release tag are always protected.
+# carrying latest, edge, buildcache or a release tag are always protected.
 candidates=()
 while IFS= read -r candidate; do
   candidates+=("${candidate}")

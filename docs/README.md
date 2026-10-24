@@ -12,6 +12,7 @@ dans cet ordre :
 6. [Configuration des intégrations](configuration-integrations.md)
 7. [Sauvegarde et restauration](sauvegarde-restauration.md)
 8. [Exploitation et dépannage](exploitation-depannage.md)
+9. [Versions et publications](publications.md)
 
 ## Guide d’utilisation
 
