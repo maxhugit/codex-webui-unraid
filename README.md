@@ -7,8 +7,11 @@ développement actuellement intégré, pas le nom de la plateforme.
 
 L’icône graphite-cuivre est commune au web et à la PWA. Son original vectoriel
 se trouve dans [`web/public/mergeron-icon.svg`](web/public/mergeron-icon.svg).
-L’image officielle est `ghcr.io/maxhugit/mergeron:latest`. Les conteneurs sont
-nommés `mergeron`, `mergeron-ingress` et `mergeron-squid`. Les variables de
+L’image officielle est `ghcr.io/maxhugit/mergeron:latest` et l'observateur local
+est d'abord publié sous `ghcr.io/maxhugit/mergeron-manager:edge` ; son tag
+`latest` est créé avec une version stable. Les conteneurs
+applicatifs sont nommés `mergeron-ui`, `mergeron-ingress` et `mergeron-squid` ;
+`mergeron-manager` les observe sans les modifier. Les variables de
 configuration, volumes et clés de stockage existants sont conservés.
 La [migration vers Mergeron](docs/migration-mergeron.md) décrit les changements
 à reporter dans les formulaires Unraid ou une installation Compose existante.
@@ -36,11 +39,12 @@ licence AGPL-3.0-or-later.
 
 ## Architecture de production
 
-La plateforme utilise trois conteneurs :
+La plateforme utilise trois conteneurs applicatifs et un observateur local :
 
 1. `mergeron` exécute l’interface et le moteur Codex ;
 2. `mergeron-ingress` protège et transmet les requêtes entrantes ;
 3. `mergeron-squid` filtre les accès HTTP/HTTPS sortants.
+4. `mergeron-manager` lit l'état Docker et expose son diagnostic par socket Unix.
 
 ```mermaid
 flowchart LR
@@ -84,6 +88,8 @@ Chaque modification de la branche `main` construit et publie une image continue 
 ```text
 ghcr.io/maxhugit/mergeron:edge
 ghcr.io/maxhugit/mergeron:sha-<commit>
+ghcr.io/maxhugit/mergeron-manager:edge
+ghcr.io/maxhugit/mergeron-manager:sha-<commit>
 ```
 
 Un tag Git `v0.x.y`, identique aux versions des deux `package.json`, publie

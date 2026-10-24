@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { collectInventory } from '../src/inventory.mjs';
+import { collectInventory, scopeManifest } from '../src/inventory.mjs';
 
 const manifest = JSON.parse(
   await readFile(new URL('../stack-manifest.json', import.meta.url), 'utf8'),
@@ -129,4 +129,49 @@ test('refuses to choose between duplicate application containers', async () => {
   assert.ok(
     status.dataSafety.blockers.includes('application:multipleContainers'),
   );
+});
+
+test('scopes names and private networks for an isolated development stack', () => {
+  const scoped = scopeManifest(manifest, 'mergeron-dev');
+  assert.equal(scoped.stack, 'mergeron-dev');
+  assert.deepEqual(
+    scoped.components.map((component) => component.canonicalName),
+    ['mergeron-dev-ui', 'mergeron-dev-ingress', 'mergeron-dev-squid'],
+  );
+  assert.deepEqual(scoped.components[0].legacyNames, []);
+  assert.deepEqual(scoped.components[0].requiredNetworks, [
+    'mergeron-dev-isolated',
+    'mergeron-dev-admin',
+  ]);
+  assert.deepEqual(scoped.components[1].requiredNetworks, [
+    'mergeron-dev-isolated',
+    'net_standard',
+  ]);
+});
+
+test('rejects an unsafe stack prefix', () => {
+  assert.throws(() => scopeManifest(manifest, '../production'));
+});
+
+test('does not select labeled production containers from a development stack', async () => {
+  const productionContainer = {
+    Id: 'production-application',
+    Names: ['/unrelated-name'],
+    Image: 'ghcr.io/maxhugit/mergeron:latest',
+    Labels: {
+      'io.mergeron.managed': 'true',
+      'io.mergeron.stack': 'mergeron',
+      'io.mergeron.component': 'application',
+    },
+  };
+  const status = await collectInventory(
+    scopeManifest(manifest, 'mergeron-dev'),
+    {
+      listContainers: async () => [productionContainer],
+      inspectContainer: async () => {
+        throw new Error('production container must not be inspected');
+      },
+    },
+  );
+  assert.equal(status.components[0].state, 'missing');
 });

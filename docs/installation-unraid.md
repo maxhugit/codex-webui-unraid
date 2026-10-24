@@ -11,8 +11,8 @@ choisir cette variante. Avec Compose Manager, `docker-compose.yml` et
 sécurité et versions d’images doivent y être modifiés, puis appliqués avec
 **Update Stack**.
 
-Ce guide permet de reconstruire les trois conteneurs sans placer de secret dans
-Git. Il part d’un Unraid sur lequel Docker fonctionne. Traefik, Authentik,
+Ce guide permet de reconstruire les trois conteneurs applicatifs et leur Manager
+d'observation sans placer de secret dans Git. Il part d’un Unraid sur lequel Docker fonctionne. Traefik, Authentik,
 OnlyOffice et HA-MCP sont des services externes : les étapes ci-dessous indiquent
 comment raccorder Codex à chacun d’eux.
 
@@ -48,13 +48,15 @@ cp /tmp/mergeron-install/deployment/.env.example \
 cd /mnt/pool/appdata/mergeron
 ```
 
-Éditer `images.env`, adapter les trois chemins et renseigner
+Éditer `images.env`, adapter les chemins et renseigner
 `MERGERON_WEBUI_URL` avec l’URL HTTPS réellement utilisée par les navigateurs
 (par exemple `https://mergeron.hugotlab.fr`). Cette valeur fournit aussi le
 domaine par défaut des callbacks OAuth MCP et des URL OnlyOffice. Une valeur
 personnalisée enregistrée dans **Administration > OnlyOffice > URL publique
 Mergeron** reste prioritaire et doit également être corrigée après un renommage.
-Remplacer si possible `latest` par un tag `sha-...`. Le fichier `.env` de
+Conserver `MERGERON_STACK_PREFIX=mergeron` en production. Remplacer si possible
+`latest` par un tag `sha-...` commun aux images de l'application et du Manager.
+Le fichier `.env` de
 production ne doit jamais être envoyé sur GitHub.
 
 Vérifier que les fichiers de configuration sont présents :
@@ -70,7 +72,7 @@ test -f config/seccomp-bwrap.json
 
 ```bash
 STATE=/mnt/pool/appdata/mergeron/state
-mkdir -p "$STATE"/{home,workspace,logs,ssh}
+mkdir -p "$STATE"/{home,workspace,logs,ssh,manager-run}
 ```
 
 L’utilisateur du conteneur porte l’UID/GID `11002:11002`. Le groupe `11001`
@@ -153,7 +155,7 @@ Dans sa page, choisir **Add New Stack**, donner un nom à la stack et sélection
 le dossier contenant le fichier Compose. Configurer ensuite le chemin du fichier
 d’environnement dans **Stack Settings**.
 
-Compose Manager affiche alors les trois services et fournit les actions **Up**,
+Compose Manager affiche alors les quatre services et fournit les actions **Up**,
 **Down**, **Logs** et **Update Stack**.
 
 ### Déploiement manuel d’une nouvelle version
@@ -166,13 +168,24 @@ Compose Manager affiche alors les trois services et fournit les actions **Up**,
 5. cliquer sur **Update Stack** ;
 6. attendre que l’application principale soit saine, puis tester l’interface.
 
-L’action met à jour automatiquement l’application, Nginx et Squid. Compose
+L’action met à jour automatiquement l’application, Nginx, Squid et le Manager.
+Compose
 respecte les contrôles de santé et ne démarre l’entrée Nginx qu’après
 l’application principale.
 
 Compose attache directement chaque service à tous ses réseaux déclarés. Ne pas
 lancer le réconciliateur DockerMan pour cette stack et ne pas recréer l’un des
-trois conteneurs avec **Add Container**.
+quatre conteneurs avec **Add Container**.
+
+### Installer une recette `mergeron-dev`
+
+Copier `deployment/.env.dev.example` comme fichier d'environnement d'une
+seconde stack Compose. Ce profil utilise par défaut
+`/mnt/pool/appdata/mergeron-dev`, le préfixe `mergeron-dev`, le sous-réseau
+`172.30.44.16/28` et l'URL `https://mergeron-dev.hugotlab.fr`. Ne jamais lui
+attribuer le `STATE_ROOT` de production. Copier aussi la configuration Traefik
+sous un autre nom, remplacer l'hôte public et pointer son service vers
+`http://mergeron-dev-ingress:8080`.
 
 ## 5. Configurer Traefik
 
@@ -250,6 +263,7 @@ docker inspect mergeron --format '{{.State.Health.Status}}'
 curl -I https://mergeron.example.com
 docker logs --tail 100 mergeron-ingress
 docker logs --tail 100 mergeron-squid
+docker inspect mergeron-manager --format '{{.State.Health.Status}}'
 ```
 
 Tester ensuite : connexion Authentik, création d’une conversation, terminal,
@@ -260,7 +274,7 @@ Liste de validation finale :
 
 - [ ] un utilisateur non authentifié est redirigé vers Authentik ;
 - [ ] aucun port du backend Codex n’est publié directement sur Unraid ;
-- [ ] les trois conteneurs sont sains ;
+- [ ] les trois conteneurs applicatifs et le Manager sont sains ;
 - [ ] une conversation et son espace de travail persistent après redémarrage ;
 - [ ] `/appdata` est visible et modifiable uniquement après authentification ;
 - [ ] le chat simple fonctionne sans révéler la clé OpenAI ;
@@ -282,7 +296,7 @@ Procédure de mise à jour reproductible :
 2. exécuter `docker compose ... config` pour valider les fichiers ;
 3. définir le nouveau tag `sha-<commit>` dans `images.env` ;
 4. utiliser **Update Stack**, ou exécuter `pull` puis `up -d` ;
-5. contrôler l’état des trois conteneurs et les réseaux ;
+5. contrôler l’état des trois conteneurs applicatifs, du Manager et les réseaux ;
 6. effectuer les tests fonctionnels de la section précédente.
 
 Pour revenir en arrière, remettre l’ancien tag dans `images.env`, relancer la

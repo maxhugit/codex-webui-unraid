@@ -1,9 +1,9 @@
 # Déploiement Unraid
 
-Ce dossier contient les définitions reproductibles des trois conteneurs de la
-plateforme Codex : application, passerelle Nginx et proxy de sortie Squid.
+Ce dossier contient les définitions reproductibles des trois conteneurs
+applicatifs de Mergeron et du Manager d'observation local.
 
-`docker-man/` contient les trois formulaires standard recommandés pour l'onglet
+`docker-man/` contient les quatre formulaires standard recommandés pour l'onglet
 Docker d'Unraid, le script de préparation des réseaux et le réconciliateur qui
 restaure leurs réseaux secondaires après chaque recréation DockerMan. Le
 fichier `compose.unraid.yml` reste disponible pour Compose Manager.
