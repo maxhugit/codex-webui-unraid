@@ -59,8 +59,9 @@ configurations Unraid. Cette capacité est puissante : elle doit rester réserv�
 ## Cycle d’une requête
 
 1. Le navigateur ouvre le domaine public configuré pour Codex.
-2. Traefik termine HTTPS et interroge Authentik.
-3. Nginx vérifie à nouveau la session et injecte le jeton interne.
+2. Traefik termine HTTPS et transmet la requête à Nginx.
+3. Nginx interroge Authentik, renouvelle ou redemande la session si nécessaire,
+   puis injecte le jeton interne.
 4. Le backend répond, démarre Codex CLI ou accède aux données persistantes.
 5. Les connexions Internet autorisées passent par Squid.
 

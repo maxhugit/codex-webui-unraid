@@ -176,8 +176,9 @@ trois conteneurs avec **Add Container**.
 
 ## 5. Configurer Traefik
 
-Copier `deployment/traefik/codex.yml` dans le dossier dynamique de Traefik. Le
-middleware nommé `authentik` doit déjà exister.
+Copier `deployment/traefik/mergeron.yml` dans le dossier dynamique de Traefik.
+Le routeur ne doit pas ajouter un second middleware Authentik : Nginx assure
+le contrôle de session et la redirection vers l’outpost.
 
 Vérifier que Traefik est attaché à `net_standard` et peut résoudre
 `mergeron-ingress`.
@@ -188,15 +189,17 @@ actif, utilise TLS et pointe vers le port `8080` de `mergeron-ingress`.
 ## 6. Configurer Authentik
 
 Créer une application Proxy Provider pour le domaine public choisi, puis
-associer son outpost au middleware Traefik `authentik`.
+associer son outpost embarqué au domaine Mergeron.
 
-Nginx réalise une seconde vérification sur :
+Nginx réalise l’unique vérification sur :
 
 ```text
 http://authentik:9000/outpost.goauthentik.io/auth/nginx
 ```
 
-Le nom Docker `authentik` doit donc être résolvable depuis `net_standard`.
+Le nom Docker `authentik` doit donc être résolvable depuis `net_standard`. Les
+chemins `/outpost.goauthentik.io/*` sont relayés publiquement par Nginx afin que
+la connexion et le renouvellement de session puissent aboutir.
 
 Conserver ce fournisseur proxy pendant la première mise en service du SSO
 applicatif. Créer en parallèle un fournisseur OAuth2/OpenID avec l’URI de retour
