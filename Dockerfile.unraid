@@ -359,7 +359,7 @@ restore_missing_seed() {
       exit 1
     fi
   done
-  tar -C /home/codex --zstd --skip-old-files --no-overwrite-dir -xf "${ROOT_SEED}"
+  tar -C /home/codex --zstd --skip-old-files -xf "${ROOT_SEED}"
   if [ ! -e "${ROOT_MARKER}" ]; then touch "${ROOT_MARKER}"; fi
 }
 
