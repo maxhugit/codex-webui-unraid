@@ -66,6 +66,13 @@ sans outil client arbitraire. Son client Docker limite les écritures à la
 création des réseaux et conteneurs du manifeste et au démarrage de ces derniers.
 Il n'implémente aucune route Docker de suppression.
 
+Le Manager conserve seulement `CHOWN` (création des dossiers applicatifs) et
+`DAC_READ_SEARCH` (relecture des secrets privés appartenant à l'UID 11002).
+Cette seconde capacité est indispensable à la reprise et à l'idempotence :
+elle évite de rendre les secrets lisibles par tous, de changer leurs
+propriétaires ou de les réécrire. Elle s'applique dans l'espace de montages du
+Manager ; aucun montage de la racine de l'hôte n'est ajouté.
+
 Les installations Compose et DockerMan montent le socket dans
 `STATE_ROOT/manager-run`. Ce dossier ne contient aucune donnée métier. Le
 Manager fonctionne sans réseau Docker (`network_mode: none`). `STATE_ROOT` est

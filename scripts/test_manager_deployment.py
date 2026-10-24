@@ -36,6 +36,9 @@ class ManagerDeploymentTest(unittest.TestCase):
             ROOT / "deployment/docker-man/my-mergeron-manager.xml"
         ).getroot()
         self.assertEqual(root.findtext("Network"), "none")
+        self.assertIn("--cap-add DAC_READ_SEARCH", root.findtext("ExtraParams"))
+        manager = self.compose.split("  mergeron-manager:", 1)[1]
+        self.assertIn("      - DAC_READ_SEARCH", manager)
         self.assertIsNone(root.find("Config[@Type='Port']"))
         self.assertEqual(
             root.find("Config[@Target='/var/run/docker.sock']").attrib["Mode"],
