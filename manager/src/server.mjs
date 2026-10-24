@@ -1,8 +1,10 @@
 import http from 'node:http';
+import net from 'node:net';
 import { chmod, chown, mkdir, readFile, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DockerClient } from './docker-client.mjs';
+import { TransactionalUpdater } from './updater.mjs';
 import {
   confirmAdoption,
   evaluateAdoption,
@@ -41,6 +43,14 @@ const docker = new DockerClient(
   process.env.MERGERON_DOCKER_SOCKET ?? '/var/run/docker.sock',
 );
 const installConfiguration = readInstallConfiguration(manifest);
+const updater = new TransactionalUpdater({
+  manifest,
+  docker,
+  configuration: installConfiguration,
+  adoptionPath,
+  directory: `${dirname(adoptionPath)}/updates`,
+});
+let ready = false;
 
 let snapshot = unavailableInventory(
   manifest,
@@ -72,7 +82,18 @@ async function refresh() {
   refreshing = (async () => {
     const previous = snapshot;
     try {
-      const inventory = await collectInventory(manifest, docker);
+      const inventory = await collectInventory(manifest, {
+        listContainers: async () =>
+          (await docker.listContainers()).filter(
+            (container) =>
+              !updater.current?.containers?.some(
+                (item) =>
+                  item.id === container.Id &&
+                  container.Names?.includes(`/${item.backupName}`),
+              ),
+          ),
+        inspectContainer: (id) => docker.inspectContainer(id),
+      });
       snapshot = evaluateAdoption(
         inventory,
         await readAdoptionRecord(adoptionPath),
@@ -114,6 +135,13 @@ function readJsonBody(request) {
 }
 
 async function adopt(body) {
+  if (
+    !ready ||
+    installing ||
+    updater.busy ||
+    updater.current?.status === 'recoveryRequired'
+  )
+    throw new Error('managerOperationInProgress');
   if (adopting) return adopting;
   adopting = (async () => {
     const inventory = await collectInventory(manifest, docker);
@@ -141,6 +169,13 @@ async function installationPlan() {
 }
 
 async function install(body, automatic = false) {
+  if (
+    !ready ||
+    adopting ||
+    updater.busy ||
+    updater.current?.status === 'recoveryRequired'
+  )
+    throw new Error('managerOperationInProgress');
   if (installing) return installing;
   installing = (async () => {
     const result = await applyInstallPlan({
@@ -194,7 +229,48 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     await refresh();
-    json(response, 200, { ...snapshot, events: [...events] });
+    json(response, 200, {
+      ...snapshot,
+      events: [...events],
+      update: updater.status(),
+    });
+    return;
+  }
+  if (
+    [
+      '/v1/update/plan',
+      '/v1/update',
+      '/v1/update/rollback',
+      '/v1/update/recover',
+    ].includes(request.url) &&
+    request.method === 'POST'
+  ) {
+    try {
+      if (!ready || installing || adopting || updater.busy)
+        throw new Error('managerOperationInProgress');
+      const body = await readJsonBody(request);
+      if (request.url === '/v1/update/plan')
+        json(response, 200, await updater.plan(body.images));
+      else if (request.url === '/v1/update/rollback')
+        json(response, 200, await updater.requestRollback(body));
+      else if (request.url === '/v1/update/recover') {
+        if (body.confirmation !== 'RETRY_RECOVERY')
+          throw new Error('updateConfirmationRequired');
+        void updater
+          .recover()
+          .catch((error) => console.error(updater.safeError(error)));
+        json(response, 200, updater.status());
+      } else json(response, 200, await updater.begin(body));
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'updateFailed';
+      json(
+        response,
+        code === 'updateConfirmationRequired' || code === 'invalidJsonBody'
+          ? 400
+          : 409,
+        { error: code },
+      );
+    }
     return;
   }
   if (request.url === '/v1/adoption' && request.method === 'POST') {
@@ -245,12 +321,25 @@ const server = http.createServer(async (request, response) => {
 });
 
 await mkdir(dirname(socketPath), { recursive: true, mode: 0o750 });
+// Do not unlink a live Manager's socket: this also serializes all stack writers.
+await new Promise((resolve, reject) => {
+  const probe = net.createConnection(socketPath);
+  probe.once('connect', () => {
+    probe.destroy();
+    reject(new Error('managerAlreadyRunning'));
+  });
+  probe.once('error', (error) =>
+    ['ENOENT', 'ECONNREFUSED'].includes(error.code) ? resolve() : reject(error),
+  );
+});
 await rm(socketPath, { force: true });
 server.listen(socketPath, async () => {
   await chmod(socketPath, 0o660);
   if (Number.isInteger(socketGroup) && socketGroup >= 0) {
     await chown(socketPath, 0, socketGroup).catch(() => undefined);
   }
+  await updater.recover();
+  ready = true;
   await refresh();
   if (installConfiguration.enabled) {
     try {

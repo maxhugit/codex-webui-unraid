@@ -15,6 +15,37 @@ class FixtureManagerStatusService extends ManagerStatusService {
 }
 
 describe('ManagerStatusService', () => {
+  it('forwards asynchronous update commands only to fixed local endpoints', async () => {
+    class UpdateFixture extends ManagerStatusService {
+      requests: unknown[][] = [];
+      protected override requestManager(
+        path?: string,
+        method?: 'GET' | 'POST',
+        payload?: Record<string, unknown>,
+      ): Promise<Record<string, unknown>> {
+        this.requests.push([path, method, payload]);
+        return Promise.resolve({ busy: true });
+      }
+    }
+    const service = new UpdateFixture(new ConfigService());
+    for (const action of ['plan', 'apply', 'rollback', 'recover'] as const) {
+      await service.updateOperation(action, {
+        confirmation: 'explicit',
+        images: { application: 'ghcr.io/maxhugit/mergeron:edge' },
+        expectedFingerprint: 'fingerprint',
+        operationId: 'operation',
+      });
+    }
+    expect(service.requests.map(([path]) => path)).toEqual([
+      '/v1/update/plan',
+      '/v1/update',
+      '/v1/update/rollback',
+      '/v1/update/recover',
+    ]);
+    expect(service.requests.every(([, method]) => method === 'POST')).toBe(
+      true,
+    );
+  });
   it('returns the manager inventory without modifying it', async () => {
     const service = new FixtureManagerStatusService({
       mode: 'observe',

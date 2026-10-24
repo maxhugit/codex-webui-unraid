@@ -59,6 +59,53 @@ export interface ManagerStatus {
     canAdopt: boolean;
   };
   error?: string;
+  update?: {
+    busy: boolean;
+    operation: null | {
+      id: string;
+      status: 'running' | 'succeeded' | 'rolledBack' | 'recoveryRequired';
+      phase: string;
+      error?: string;
+      backupRetained: boolean;
+      images: Record<string, string>;
+      previousImages: Record<string, string>;
+      events: { at: string; phase: string; status: string }[];
+    };
+  };
+}
+
+export interface ManagerUpdatePlan {
+  fingerprint: string;
+  applicable: boolean;
+  blockers: string[];
+  images: Record<string, string>;
+}
+
+export async function requestManagerUpdate(
+  action: 'plan' | 'apply' | 'rollback' | 'recover',
+  input: Record<string, unknown>,
+): Promise<ManagerUpdatePlan> {
+  const authorization = getAuthorizationHeader();
+  const response = await fetch(
+    withBasePath(
+      `/api/settings/manager/update${action === 'apply' ? '' : `/${action}`}`,
+    ),
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authorization ? { Authorization: authorization } : {}),
+      },
+      body: JSON.stringify(input),
+    },
+  );
+  const data = (await response.json()) as ManagerUpdatePlan & {
+    message?: string;
+    error?: string;
+  };
+  if (!response.ok)
+    throw new Error(data.message ?? data.error ?? `HTTP ${response.status}`);
+  return data;
 }
 
 export const managerStatusQueryKey = ['administration', 'manager-status'];

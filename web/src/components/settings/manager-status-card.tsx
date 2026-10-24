@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { translationKey } from '@/locales/translation-key';
+import { ManagerUpdateControls } from './manager-update-controls';
 import {
   managerStatusQueryKey,
   requestManagerAdoption,
@@ -84,12 +85,18 @@ function ComponentRow({ component }: { component: ManagerComponent }) {
           {t('missingNetworks')}: {component.missingNetworks.join(', ')}
         </p>
       )}
+      {component.image && (
+        <p className="break-all font-mono text-xs text-muted-foreground">
+          {component.image}
+        </p>
+      )}
     </li>
   );
 }
 
 export function ManagerStatusCard() {
   const { t, i18n } = useTranslation();
+  const { t: tm } = useTranslation('manager');
   const queryClient = useQueryClient();
   const [confirmAdoption, setConfirmAdoption] = useState(false);
   const query = useQuery({
@@ -115,11 +122,17 @@ export function ManagerStatusCard() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">Mergeron Manager</h2>
           <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-            {t('observationOnly')}
+            {data?.update
+              ? tm('managerTransactionalUpdate')
+              : t('observationOnly')}
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          {t('managerObservesTheExistingStackWithoutChangingContainersOrData')}
+          {data?.update
+            ? tm('managerUpdateSafetyDescription')
+            : t(
+                'managerObservesTheExistingStackWithoutChangingContainersOrData',
+              )}
         </p>
       </div>
 
@@ -170,7 +183,7 @@ export function ManagerStatusCard() {
             </div>
           )}
 
-          {data.adoption?.state === 'drifted' && (
+          {data.adoption?.state === 'drifted' && !data.update?.busy && (
             <div
               role="alert"
               className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
@@ -231,6 +244,7 @@ export function ManagerStatusCard() {
               {t(translationKey(adoption.error.message))}
             </p>
           )}
+          {data.update && <ManagerUpdateControls status={data} />}
         </>
       )}
 
