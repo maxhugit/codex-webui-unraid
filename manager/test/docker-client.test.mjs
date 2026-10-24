@@ -71,3 +71,16 @@ test('surfaces an image pull failure from the Docker event stream', async () => 
     /registry denied/,
   );
 });
+test('includes Docker diagnostic messages instead of an opaque HTTP failure', async () => {
+  const fake = transport(() => ({
+    statusCode: 500,
+    body: JSON.stringify({ message: 'invalid security option' }),
+  }));
+  await assert.rejects(
+    new DockerClient('/docker.sock', fake.factory).createContainer(
+      'mergeron-dev-ui',
+      {},
+    ),
+    /HTTP 500: invalid security option/,
+  );
+});

@@ -1,12 +1,4 @@
-import { constants } from 'node:fs';
-import {
-  copyFile,
-  chown,
-  mkdir,
-  open,
-  readFile,
-  lstat,
-} from 'node:fs/promises';
+import { chown, mkdir, open, readFile, lstat } from 'node:fs/promises';
 import { createHash, randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { collectInventory } from './inventory.mjs';
@@ -77,6 +69,7 @@ export function readInstallConfiguration(manifest, env = process.env) {
     'MERGERON_STATE_ROOT',
   );
   const configuration = {
+    stackPrefix: manifest.stack,
     enabled: env.MERGERON_INSTALL_ENABLED === 'true',
     stateRoot,
     hostStatePath: absoluteSafePath(
@@ -376,14 +369,9 @@ async function preparePersistentState(configuration) {
   if (!tokenExists && !nginxTokenExists) {
     const token = `${randomBytes(32).toString('base64url')}\n`;
     await createExclusive(tokenPath, token, 0o600, applicationOwner);
-    await createExclusive(nginxTokenPath, token, 0o600, applicationOwner);
+    await createExclusive(nginxTokenPath, token);
   } else if (tokenExists && !nginxTokenExists) {
-    await createExclusive(
-      nginxTokenPath,
-      await readFile(tokenPath),
-      0o600,
-      applicationOwner,
-    );
+    await createExclusive(nginxTokenPath, await readFile(tokenPath));
   } else if (!tokenExists && nginxTokenExists) {
     await createExclusive(
       tokenPath,
@@ -408,10 +396,15 @@ async function preparePersistentState(configuration) {
   for (const file of ['nginx.conf.template', 'squid.conf']) {
     const destination = join(configuration.hostStatePath, 'config', file);
     if (!(await exists(destination)))
-      await copyFile(
-        join(defaults, file),
+      await createExclusive(
         destination,
-        constants.COPYFILE_EXCL,
+        file === 'nginx.conf.template'
+          ? (await readFile(join(defaults, file), 'utf8')).replaceAll(
+              'http://mergeron-ui:',
+              `http://${configuration.stackPrefix ?? 'mergeron'}-ui:`,
+            )
+          : await readFile(join(defaults, file)),
+        0o644,
       );
   }
 }
@@ -532,7 +525,10 @@ export function containerSpecification(manifest, component, configuration) {
         Init: true,
         GroupAdd: ['11001'],
         StopTimeout: 1800,
-        SecurityOpt: ['no-new-privileges:true', 'systempaths=unconfined'],
+        // Docker CLI translates systempaths=unconfined into these API fields.
+        SecurityOpt: ['no-new-privileges:true'],
+        MaskedPaths: [],
+        ReadonlyPaths: [],
         LogConfig: {
           Type: 'json-file',
           Config: { 'max-size': '20m', 'max-file': '5' },
@@ -549,10 +545,20 @@ export function containerSpecification(manifest, component, configuration) {
         "export MERGERON_BACKEND_TOKEN=\"$(cat /run/secrets/backend_token)\"; envsubst '${MERGERON_BACKEND_TOKEN}' < /etc/nginx/templates-secure/nginx.conf.template > /tmp/nginx.conf; exec nginx -c /tmp/nginx.conf -g 'daemon off;'",
       ],
       Healthcheck: {
-        Test: ['CMD', 'nginx', '-t', '-c', '/tmp/nginx.conf'],
+        Test: [
+          'CMD',
+          'curl',
+          '--fail',
+          '--silent',
+          '--show-error',
+          '--max-time',
+          '3',
+          'http://127.0.0.1:8080/_health',
+        ],
         Interval: 20_000_000_000,
         Timeout: 5_000_000_000,
         Retries: 5,
+        StartPeriod: 20_000_000_000,
       },
       HostConfig: {
         ...commonHostConfig({
