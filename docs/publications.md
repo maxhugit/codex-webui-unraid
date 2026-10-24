@@ -50,6 +50,22 @@ Chaque GitHub Release contient également `mergeron-release.json`, un manifeste
 lisible par la plateforme avec la version, le commit, le nom de l’image, son
 digest immuable et la date de publication.
 
+## Consultation depuis Mergeron
+
+La page **Réglages généraux du serveur** affiche en lecture seule la version
+installée, son canal, la dernière version stable publiée et le commit de
+construction. Elle interroge les GitHub Releases officielles avec un cache de
+15 minutes ; le bouton de vérification force une actualisation.
+
+Quand une version stable plus récente existe, la page regroupe les notes de
+toutes les versions comprises entre la version installée et la dernière
+version. Une erreur de connexion est affichée explicitement et n’est jamais
+interprétée comme un serveur à jour.
+
+Cette consultation ne télécharge pas d’image et ne déclenche aucune opération
+Docker. Le lancement et le suivi d’une mise à jour relèvent d’une évolution
+séparée.
+
 ## Préparer une publication
 
 1. choisir la prochaine version `0.x.y` ;
