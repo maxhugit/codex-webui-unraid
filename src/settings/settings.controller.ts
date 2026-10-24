@@ -28,6 +28,7 @@ import {
   UpdateSettingDto,
 } from './dto/settings.dto';
 import { SettingsService, type ResolvedSetting } from './settings.service';
+import { ServerReleaseService } from './server-release.service';
 
 @ApiTags('settings')
 @ApiBearerAuth()
@@ -35,7 +36,19 @@ import { SettingsService, type ResolvedSetting } from './settings.service';
 @ApiBadRequestResponse({ type: ApiErrorResponseDto })
 @Controller('settings')
 export class SettingsController {
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly serverRelease: ServerReleaseService,
+  ) {}
+
+  /** Reads the image build identity and the latest successfully published release. */
+  @Get('release/status')
+  @ApiOperation({
+    summary: 'Read installed and available Mergeron versions',
+  })
+  releaseStatus(@Query('refresh') refresh?: string) {
+    return this.serverRelease.status(refresh === 'true');
+  }
 
   /** Lists runtime settings with optional category filtering. */
   @Get()

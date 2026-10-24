@@ -4,6 +4,7 @@ import { SettingEditor } from './setting-editor';
 import { SettingsSaveBar } from './settings-save-bar';
 import { useCategorySettings } from './use-category-settings';
 import { ONLYOFFICE_SETTING_KEYS } from './settings-sections';
+import { ServerVersionCard } from './server-version-card';
 
 export function GeneralSettings() {
   const { t } = useTranslation();
@@ -13,6 +14,7 @@ export function GeneralSettings() {
 
   return (
     <section className="space-y-4">
+      <ServerVersionCard />
       <div className="space-y-1">
         <h2 className="text-sm font-medium text-muted-foreground">
           {t('runtimeSettings')}
