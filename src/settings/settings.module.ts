@@ -5,11 +5,12 @@ import { DatabaseModule } from '../database/database.module';
 import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 import { ServerReleaseService } from './server-release.service';
+import { ManagerStatusService } from './manager-status.service';
 
 @Module({
   imports: [ConfigModule, DatabaseModule],
   controllers: [SettingsController],
-  providers: [SettingsService, ServerReleaseService],
-  exports: [SettingsService, ServerReleaseService],
+  providers: [SettingsService, ServerReleaseService, ManagerStatusService],
+  exports: [SettingsService, ServerReleaseService, ManagerStatusService],
 })
 export class SettingsModule {}

@@ -59,6 +59,8 @@ Les formulaires Docker standard d'Unraid se trouvent dans
 disponible dans [`deployment/compose.unraid.yml`](deployment/compose.unraid.yml).
 Les détails des réseaux et des protections sont documentés dans
 [`docs/architecture-unraid.md`](docs/architecture-unraid.md).
+La conception progressive du gestionnaire local est décrite dans
+[`docs/mergeron-manager.md`](docs/mergeron-manager.md).
 
 ## Reconstruire la plateforme
 

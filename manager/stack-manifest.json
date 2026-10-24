@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "stack": "mergeron",
+  "mode": "observe",
+  "components": [
+    {
+      "id": "application",
+      "displayName": "Mergeron",
+      "canonicalName": "mergeron-ui",
+      "legacyNames": ["mergeron", "codex-webui"],
+      "allowedImageRepositories": [
+        "ghcr.io/maxhugit/mergeron",
+        "ghcr.io/maxhugit/codex-webui-unraid"
+      ],
+      "requiredNetworks": ["mergeron-isolated", "mergeron-admin"],
+      "protectedMounts": [
+        {
+          "target": "/home/codex",
+          "purpose": "configuration, conversations and SQLite database"
+        },
+        {
+          "target": "/workspaces",
+          "purpose": "project workspaces"
+        }
+      ]
+    },
+    {
+      "id": "ingress",
+      "displayName": "Mergeron Ingress",
+      "canonicalName": "mergeron-ingress",
+      "legacyNames": ["codex-web-ingress"],
+      "allowedImageRepositories": ["nginx"],
+      "requiredNetworks": ["mergeron-isolated", "net_standard"],
+      "protectedMounts": []
+    },
+    {
+      "id": "egress",
+      "displayName": "Mergeron Squid",
+      "canonicalName": "mergeron-squid",
+      "legacyNames": ["codex-web-squid"],
+      "allowedImageRepositories": ["ubuntu/squid"],
+      "requiredNetworks": ["mergeron-isolated", "mergeron-external"],
+      "protectedMounts": []
+    }
+  ]
+}
