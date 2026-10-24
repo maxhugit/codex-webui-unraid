@@ -72,7 +72,7 @@ test -f config/seccomp-bwrap.json
 
 ```bash
 STATE=/mnt/pool/appdata/mergeron/state
-mkdir -p "$STATE"/{home,workspace,logs,ssh,manager-run}
+mkdir -p "$STATE"/{home,workspace,logs,ssh,manager-run,manager-state}
 ```
 
 L’utilisateur du conteneur porte l’UID/GID `11002:11002`. Le groupe `11001`

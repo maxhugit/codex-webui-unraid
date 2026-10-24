@@ -153,7 +153,7 @@ async function inspectComponent(component, containers, docker) {
         (component.stackName === 'mergeron' && !labels[STACK_LABEL]))
         ? 'managed'
         : 'adoptable',
-    containerId: String(summary.Id).slice(0, 12),
+    containerId: String(summary.Id),
     containerName:
       String(inspect.Name ?? '').replace(/^\//, '') ||
       normalizedNames(summary)[0] ||

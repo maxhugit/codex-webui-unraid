@@ -20,16 +20,18 @@ ENV NODE_ENV=production \
     MERGERON_MANAGER_SOCKET_GID=11002 \
     MERGERON_MANAGER_POLL_MS=20000 \
     MERGERON_DOCKER_SOCKET=/var/run/docker.sock \
+    MERGERON_MANAGER_ADOPTION_PATH=/var/lib/mergeron-manager/adoption.json \
     MERGERON_STACK_PREFIX=mergeron
 
 WORKDIR /opt/mergeron-manager
 COPY manager/package.json manager/stack-manifest.json ./
 COPY manager/src ./src
 
-RUN mkdir -p /run/mergeron-manager \
- && chmod 0750 /run/mergeron-manager
+RUN mkdir -p /run/mergeron-manager /var/lib/mergeron-manager \
+ && chmod 0750 /run/mergeron-manager \
+ && chmod 0700 /var/lib/mergeron-manager
 
-VOLUME ["/run/mergeron-manager"]
+VOLUME ["/run/mergeron-manager", "/var/lib/mergeron-manager"]
 HEALTHCHECK --interval=20s --timeout=3s --retries=3 --start-period=10s \
   CMD ["node", "src/healthcheck.mjs"]
 

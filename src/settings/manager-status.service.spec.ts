@@ -42,4 +42,37 @@ describe('ManagerStatusService', () => {
       error: 'mergeronManagerUnavailable',
     });
   });
+
+  it('forwards explicit adoption confirmation to the local manager', async () => {
+    class AdoptionFixture extends ManagerStatusService {
+      request: unknown[] | null = null;
+
+      protected override requestManager(
+        path?: string,
+        method?: 'GET' | 'POST',
+        payload?: Record<string, unknown>,
+      ): Promise<Record<string, unknown>> {
+        this.request = [path, method, payload];
+        return Promise.resolve({ adoption: { state: 'adopted' } });
+      }
+    }
+    const service = new AdoptionFixture(new ConfigService());
+    await expect(
+      service.adopt({
+        confirmation: 'ADOPT_EXISTING_INSTALLATION',
+        expectedFingerprint: 'fingerprint',
+      }),
+    ).resolves.toEqual({
+      available: true,
+      adoption: { state: 'adopted' },
+    });
+    expect(service.request).toEqual([
+      '/v1/adoption',
+      'POST',
+      {
+        confirmation: 'ADOPT_EXISTING_INSTALLATION',
+        expectedFingerprint: 'fingerprint',
+      },
+    ]);
+  });
 });

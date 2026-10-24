@@ -19,6 +19,9 @@ class ManagerDeploymentTest(unittest.TestCase):
         self.assertIn("network_mode: none", manager)
         self.assertIn("/var/run/docker.sock:/var/run/docker.sock:ro", manager)
         self.assertIn("${STATE_ROOT}/manager-run:/run/mergeron-manager", manager)
+        self.assertIn(
+            "${STATE_ROOT}/manager-state:/var/lib/mergeron-manager", manager
+        )
         application = self.compose.split("  mergeron-ui:", 1)[1].split(
             "  mergeron-ingress:", 1
         )[0]

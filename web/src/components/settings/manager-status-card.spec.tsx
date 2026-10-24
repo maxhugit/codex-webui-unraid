@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import i18n from '@/i18n';
 import { catalogFixture, json } from './catalog/catalog.testing';
@@ -54,6 +55,13 @@ const protectedStatus = {
       },
     ],
   },
+  adoption: {
+    state: 'eligible' as const,
+    fingerprint: 'verified-fingerprint',
+    adoptedAt: null,
+    blockers: [],
+    canAdopt: true,
+  },
 };
 
 beforeEach(async () => {
@@ -66,7 +74,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('shows an existing installation as adoptable without offering a mutation', async () => {
+it('shows an existing protected installation as explicitly adoptable', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(() => Promise.resolve(json(protectedStatus))),
@@ -82,7 +90,54 @@ it('shows an existing installation as adoptable without offering a mutation', as
     'Existing installation detected',
   );
   expect(screen.getByText('codex-webui')).toBeVisible();
-  expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Adopt this installation' }),
+  ).toBeVisible();
+});
+
+it('adopts only after confirmation and sends the verified fingerprint', async () => {
+  const user = userEvent.setup();
+  const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.method === 'POST')
+      return json({
+        ...protectedStatus,
+        components: protectedStatus.components.map((component) => ({
+          ...component,
+          adoption: 'managed' as const,
+        })),
+        adoption: {
+          state: 'adopted' as const,
+          fingerprint: 'verified-fingerprint',
+          adoptedAt: '2026-10-24T09:05:00Z',
+          blockers: [],
+          canAdopt: false,
+        },
+      });
+    return json(protectedStatus);
+  });
+  vi.stubGlobal('fetch', fetch);
+  fixture.render(<ManagerStatusCard />);
+
+  await user.click(
+    await screen.findByRole('button', { name: 'Adopt this installation' }),
+  );
+  expect(
+    screen.getByText(
+      /will record the exact container IDs, images, networks and persistent paths/i,
+    ),
+  ).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Confirm adoption' }));
+
+  expect(
+    await screen.findByText('Existing installation adopted'),
+  ).toBeVisible();
+  const request = fetch.mock.calls.find((call) => call[1]?.method === 'POST');
+  expect(request?.[1]?.body).toBe(
+    JSON.stringify({
+      confirmation: 'ADOPT_EXISTING_INSTALLATION',
+      expectedFingerprint: 'verified-fingerprint',
+    }),
+  );
 });
 
 it('makes a missing manager non-blocking for the current installation', async () => {
