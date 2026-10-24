@@ -11,7 +11,7 @@ RUN mkdir -p /runtime/run/mergeron-manager /runtime/var/lib/mergeron-manager \
  && chmod 0700 /runtime/var/lib/mergeron-manager
 
 # Keep npm and the build distribution out of the privileged final image.
-FROM gcr.io/distroless/nodejs22-debian12@sha256:8a3e96fe3345b5d83ecec2066e7c498139a02a6d1214e4f6c39f9ce359f3f5bc
+FROM gcr.io/distroless/nodejs22-debian13@sha256:f643bc05bdcf5a8d98442e8a2a5c7a3a4c3a0e3bc4cdc5f10557d47f1ddd5812
 
 ARG MERGERON_VERSION=0.1.0
 ARG MERGERON_REVISION=unknown

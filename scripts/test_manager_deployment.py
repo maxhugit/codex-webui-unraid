@@ -77,7 +77,7 @@ class ManagerDeploymentTest(unittest.TestCase):
         self.assertIn("needs: [checks, image]", self.quality_workflow)
 
     def test_manager_runtime_is_distroless_and_contains_no_npm_tree(self) -> None:
-        self.assertIn("FROM gcr.io/distroless/nodejs22-debian12@sha256:", self.dockerfile)
+        self.assertIn("FROM gcr.io/distroless/nodejs22-debian13@sha256:", self.dockerfile)
         self.assertIn(
             'ENTRYPOINT ["/nodejs/bin/node", "src/server.mjs"]',
             self.dockerfile,
