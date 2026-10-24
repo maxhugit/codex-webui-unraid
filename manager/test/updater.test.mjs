@@ -234,6 +234,26 @@ test('image pull failure never stops the stack and diagnostics do not leak crede
   assert.equal(JSON.stringify(updater.status()).includes('password'), false);
 });
 
+test('image metadata failure during partial preparation leaves all services running and permits retry', async (t) => {
+  const { updater, docker } = await fixture(t);
+  const inspectImage = docker.inspectImage.bind(docker);
+  docker.inspectImage = async (reference) => {
+    if (reference.startsWith('nginx'))
+      throw new Error('transient image metadata failure');
+    return inspectImage(reference);
+  };
+  await begin(updater);
+  assert.equal(updater.current.status, 'rolledBack');
+  assert.equal(
+    docker.calls.some(([action]) => action === 'stop'),
+    false,
+  );
+  assert.ok([...docker.values.values()].every((value) => value.State.Running));
+  docker.inspectImage = inspectImage;
+  await begin(updater);
+  assert.equal(updater.current.status, 'succeeded');
+});
+
 test('requires confirmation, a fresh plan and rejects arbitrary image repositories', async (t) => {
   const { updater, docker } = await fixture(t);
   await assert.rejects(

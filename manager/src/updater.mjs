@@ -517,6 +517,10 @@ export class TransactionalUpdater {
   async startAndCheck(containers) {
     for (const component of ['egress', 'application', 'ingress']) {
       const item = containers.find((c) => c.component === component);
+      // Preparation may fail while only part of the original specifications
+      // has been journalled. Those originals were not stopped; recover the
+      // recorded subset without inventing missing container identities.
+      if (!item) continue;
       const before = await this.docker.inspectContainer(item.id);
       if (!before.State.Running) await this.docker.startContainer(item.id);
       const deadline = Date.now() + this.healthTimeoutMs;
