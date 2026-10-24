@@ -29,6 +29,12 @@ export function scopeManifest(
     ...manifest,
     stack: stackPrefix,
     environment: stackEnvironment,
+    networks: (manifest.networks ?? []).map((network) => ({
+      ...network,
+      name: network.name.startsWith(`${manifest.stack}-`)
+        ? `${stackPrefix}-${network.name.slice(manifest.stack.length + 1)}`
+        : network.name,
+    })),
     components: manifest.components.map((component) => ({
       ...component,
       stackName: stackPrefix,

@@ -115,4 +115,24 @@ export class ManagerStatusService {
       })),
     };
   }
+
+  async installationPlan() {
+    return {
+      available: true,
+      ...(await this.requestManager('/v1/install/plan')),
+    };
+  }
+
+  async install(input: {
+    confirmation?: unknown;
+    expectedFingerprint?: unknown;
+  }) {
+    return {
+      available: true,
+      ...(await this.requestManager('/v1/install', 'POST', {
+        confirmation: input?.confirmation,
+        expectedFingerprint: input?.expectedFingerprint,
+      })),
+    };
+  }
 }

@@ -73,6 +73,26 @@ export class SettingsController {
     return this.managerStatus.adopt(body);
   }
 
+  /** Returns an immutable, non-destructive installation preview. */
+  @Get('manager/install/plan')
+  @ApiOperation({ summary: 'Preview the first Mergeron installation' })
+  managerInstallationPlan() {
+    return this.managerStatus.installationPlan();
+  }
+
+  /** Applies exactly the previously reviewed installation plan. */
+  @Post('manager/install')
+  @ApiOperation({ summary: 'Install missing Mergeron resources' })
+  installManagerStack(
+    @Body()
+    body: {
+      confirmation?: unknown;
+      expectedFingerprint?: unknown;
+    },
+  ) {
+    return this.managerStatus.install(body);
+  }
+
   /** Lists runtime settings with optional category filtering. */
   @Get()
   @ApiOperation({ summary: 'List runtime settings' })

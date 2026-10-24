@@ -1,0 +1,284 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  applyInstallPlan,
+  containerSpecification,
+  createInstallPlan,
+  readInstallConfiguration,
+} from '../src/installer.mjs';
+import { scopeManifest } from '../src/inventory.mjs';
+
+const sourceManifest = JSON.parse(
+  await readFile(new URL('../stack-manifest.json', import.meta.url), 'utf8'),
+);
+const manifest = scopeManifest(sourceManifest, 'mergeron', 'production');
+
+class FixtureDocker {
+  constructor({ proxy = true } = {}) {
+    this.networks = proxy
+      ? [{ Name: 'net_standard', Driver: 'bridge', Internal: false }]
+      : [];
+    this.containers = [];
+    this.images = [];
+    this.inspections = new Map();
+    this.calls = [];
+  }
+
+  async listNetworks() {
+    return this.networks;
+  }
+
+  async listContainers() {
+    return this.containers;
+  }
+
+  async listImages() {
+    return this.images;
+  }
+
+  async inspectContainer(id) {
+    return this.inspections.get(id);
+  }
+
+  async createNetwork(specification) {
+    this.calls.push(['createNetwork', specification.Name]);
+    this.networks.push({
+      ...specification,
+      Name: specification.Name,
+      IPAM: specification.IPAM ?? { Config: [] },
+    });
+    return { Id: `network-${specification.Name}` };
+  }
+
+  async pullImage(reference) {
+    this.calls.push(['pullImage', reference]);
+    this.images.push({ RepoTags: [reference], RepoDigests: [] });
+  }
+
+  async createContainer(name, specification) {
+    this.calls.push(['createContainer', name]);
+    const id = `container-${name}`;
+    this.containers.push({
+      Id: id,
+      Names: [`/${name}`],
+      Image: specification.Image,
+      Labels: specification.Labels,
+    });
+    this.inspections.set(id, {
+      Name: `/${name}`,
+      Config: {
+        Image: specification.Image,
+        Labels: specification.Labels,
+      },
+      State: { Running: false, Status: 'created' },
+      RestartCount: 0,
+      NetworkSettings: {
+        Networks: specification.NetworkingConfig.EndpointsConfig,
+      },
+      Mounts: (specification.HostConfig.Binds ?? []).map((bind) => {
+        const [Source, Destination, mode] = bind.split(':');
+        return { Source, Destination, Type: 'bind', RW: mode !== 'ro' };
+      }),
+    });
+    return { Id: id };
+  }
+
+  async startContainer(id) {
+    this.calls.push(['startContainer', id]);
+    const inspection = this.inspections.get(id);
+    inspection.State = { Running: true, Status: 'running' };
+  }
+}
+
+async function fixtureConfiguration(directory) {
+  const defaults = join(directory, 'defaults');
+  await mkdir(defaults);
+  await Promise.all([
+    writeFile(join(defaults, 'nginx.conf.template'), 'existing nginx default'),
+    writeFile(join(defaults, 'squid.conf'), 'existing squid default'),
+  ]);
+  const configuration = readInstallConfiguration(manifest, {
+    MERGERON_STATE_ROOT: '/mnt/pool/appdata/mergeron/state',
+    MERGERON_MANAGER_HOST_STATE: directory,
+    MERGERON_MANAGER_DEFAULT_CONFIG: defaults,
+    MERGERON_WEBUI_URL: 'https://mergeron.example.test',
+  });
+  configuration.applyOwnership = false;
+  return configuration;
+}
+
+test('plans only missing declared resources and exposes zero destructive actions', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'mergeron-install-'));
+  try {
+    const plan = await createInstallPlan(
+      manifest,
+      new FixtureDocker(),
+      await fixtureConfiguration(directory),
+      new Date('2026-10-24T11:00:00Z'),
+    );
+    assert.equal(plan.applicable, true);
+    assert.deepEqual(plan.destructiveActions, []);
+    assert.equal(
+      plan.actions.filter((action) => action.type === 'createNetwork').length,
+      3,
+    );
+    assert.equal(
+      plan.actions.filter((action) => action.type === 'createContainer').length,
+      3,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('blocks installation when the external Unraid network is absent', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'mergeron-install-'));
+  try {
+    const plan = await createInstallPlan(
+      manifest,
+      new FixtureDocker({ proxy: false }),
+      await fixtureConfiguration(directory),
+    );
+    assert.equal(plan.applicable, false);
+    assert.ok(plan.blockers.includes('net_standard:externalNetworkMissing'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('refuses a stale or unconfirmed plan before the first Docker write', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'mergeron-install-'));
+  try {
+    const configuration = await fixtureConfiguration(directory);
+    const docker = new FixtureDocker();
+    const plan = await createInstallPlan(manifest, docker, configuration);
+    await assert.rejects(
+      applyInstallPlan({
+        manifest,
+        docker,
+        configuration,
+        expectedFingerprint: plan.fingerprint,
+        confirmation: 'WRONG',
+      }),
+      /installationConfirmationRequired/,
+    );
+    await assert.rejects(
+      applyInstallPlan({
+        manifest,
+        docker,
+        configuration,
+        expectedFingerprint: 'stale',
+        confirmation: 'INSTALL',
+      }),
+      /installationPlanChanged/,
+    );
+    assert.deepEqual(docker.calls, []);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('applies a fresh installation once and preserves every existing file', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'mergeron-install-'));
+  try {
+    const configuration = await fixtureConfiguration(directory);
+    await mkdir(join(directory, 'home'));
+    await mkdir(join(directory, 'config'));
+    await writeFile(join(directory, 'home', 'keep.txt'), 'do not replace');
+    await writeFile(join(directory, 'config', 'squid.conf'), 'custom squid');
+    const docker = new FixtureDocker();
+    const plan = await createInstallPlan(manifest, docker, configuration);
+    const result = await applyInstallPlan({
+      manifest,
+      docker,
+      configuration,
+      expectedFingerprint: plan.fingerprint,
+      confirmation: 'INSTALL',
+    });
+    assert.equal(result.changed, true);
+    assert.deepEqual(
+      docker.calls.filter(([operation]) => operation === 'createContainer'),
+      [
+        ['createContainer', 'mergeron-squid'],
+        ['createContainer', 'mergeron-ui'],
+        ['createContainer', 'mergeron-ingress'],
+      ],
+    );
+    assert.equal(
+      await readFile(join(directory, 'home', 'keep.txt'), 'utf8'),
+      'do not replace',
+    );
+    assert.equal(
+      await readFile(join(directory, 'config', 'squid.conf'), 'utf8'),
+      'custom squid',
+    );
+    const secondPlan = await createInstallPlan(manifest, docker, configuration);
+    assert.equal(secondPlan.applicable, true);
+    assert.deepEqual(secondPlan.actions, []);
+    const second = await applyInstallPlan({
+      manifest,
+      docker,
+      configuration,
+      expectedFingerprint: secondPlan.fingerprint,
+      confirmation: 'INSTALL',
+    });
+    assert.equal(second.changed, false);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('rejects unsafe paths, environments and image repositories', () => {
+  assert.throws(
+    () => readInstallConfiguration(manifest, { MERGERON_STATE_ROOT: '/' }),
+    /MERGERON_STATE_ROOT/,
+  );
+  assert.throws(
+    () =>
+      readInstallConfiguration(manifest, {
+        MERGERON_APP_IMAGE: 'docker.io/untrusted/application:latest',
+      }),
+    /imageRepositoryNotAllowed/,
+  );
+  assert.throws(
+    () =>
+      readInstallConfiguration(manifest, {
+        MERGERON_ADMIN_SUBNET: '172.999.44.0/28',
+      }),
+    /MERGERON_ADMIN_SUBNET/,
+  );
+});
+
+test('uses isolated development names and runtime configuration', async () => {
+  const development = scopeManifest(
+    sourceManifest,
+    'mergeron-dev',
+    'development',
+  );
+  const directory = await mkdtemp(join(tmpdir(), 'mergeron-install-'));
+  try {
+    const configuration = readInstallConfiguration(development, {
+      MERGERON_STATE_ROOT: '/mnt/pool/appdata/mergeron-dev/state',
+      MERGERON_MANAGER_HOST_STATE: directory,
+    });
+    const component = development.components.find(
+      (item) => item.id === 'application',
+    );
+    const specification = containerSpecification(
+      development,
+      component,
+      configuration,
+    );
+    assert.ok(specification.Env.includes('NODE_ENV=development'));
+    assert.deepEqual(
+      Object.keys(specification.NetworkingConfig.EndpointsConfig).sort(),
+      ['mergeron-dev-admin', 'mergeron-dev-isolated'],
+    );
+    assert.equal(specification.Image, 'ghcr.io/maxhugit/mergeron:edge');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

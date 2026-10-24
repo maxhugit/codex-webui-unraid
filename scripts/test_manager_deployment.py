@@ -16,10 +16,11 @@ class ManagerDeploymentTest(unittest.TestCase):
         cls.quality_workflow = (ROOT / ".github/workflows/quality.yml").read_text()
         cls.dockerfile = (ROOT / "Dockerfile.manager").read_text()
 
-    def test_compose_manager_is_isolated_and_shares_only_its_unix_socket(self) -> None:
+    def test_compose_manager_is_isolated_and_mounts_only_declared_host_state(self) -> None:
         manager = self.compose.split("  mergeron-manager:", 1)[1]
         self.assertIn("network_mode: none", manager)
         self.assertIn("/var/run/docker.sock:/var/run/docker.sock:ro", manager)
+        self.assertIn("${STATE_ROOT}:/host-state", manager)
         self.assertIn("${STATE_ROOT}/manager-run:/run/mergeron-manager", manager)
         self.assertIn(
             "${STATE_ROOT}/manager-state:/var/lib/mergeron-manager", manager
@@ -28,6 +29,7 @@ class ManagerDeploymentTest(unittest.TestCase):
             "  mergeron-ingress:", 1
         )[0]
         self.assertIn("${STATE_ROOT}/manager-run:/run/mergeron-manager", application)
+        self.assertIn("MERGERON_INSTALL_ENABLED: ${MERGERON_INSTALL_ENABLED:-false}", manager)
 
     def test_dockerman_manager_has_no_network_or_published_port(self) -> None:
         root = ET.parse(
@@ -39,12 +41,17 @@ class ManagerDeploymentTest(unittest.TestCase):
             root.find("Config[@Target='/var/run/docker.sock']").attrib["Mode"],
             "ro",
         )
+        self.assertEqual(
+            root.find("Config[@Target='/host-state']").attrib["Mode"],
+            "rw",
+        )
 
     def test_development_profile_cannot_reuse_production_identity(self) -> None:
         self.assertIn("STATE_ROOT=/mnt/pool/appdata/mergeron/state", self.production_env)
         self.assertIn(
             "MERGERON_STACK_ENVIRONMENT=production", self.production_env
         )
+        self.assertIn("MERGERON_INSTALL_ENABLED=false", self.production_env)
         self.assertIn(
             "STATE_ROOT=/mnt/pool/appdata/mergeron-dev/state", self.development_env
         )
@@ -57,6 +64,7 @@ class ManagerDeploymentTest(unittest.TestCase):
             "MERGERON_WEBUI_URL=https://mergeron-dev.example.com",
             self.development_env,
         )
+        self.assertIn("MERGERON_INSTALL_ENABLED=false", self.development_env)
 
     def test_workflow_builds_and_promotes_the_manager_by_digest(self) -> None:
         self.assertIn("manager-build:", self.workflow)
@@ -82,6 +90,7 @@ class ManagerDeploymentTest(unittest.TestCase):
             'ENTRYPOINT ["/nodejs/bin/node", "src/server.mjs"]',
             self.dockerfile,
         )
+        self.assertIn("deployment/config/squid.conf", self.dockerfile)
 
 
 if __name__ == "__main__":

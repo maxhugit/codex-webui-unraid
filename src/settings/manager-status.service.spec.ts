@@ -15,7 +15,7 @@ class FixtureManagerStatusService extends ManagerStatusService {
 }
 
 describe('ManagerStatusService', () => {
-  it('returns the observe-only inventory without modifying it', async () => {
+  it('returns the manager inventory without modifying it', async () => {
     const service = new FixtureManagerStatusService({
       mode: 'observe',
       dockerConnected: true,
@@ -73,6 +73,35 @@ describe('ManagerStatusService', () => {
         confirmation: 'ADOPT_EXISTING_INSTALLATION',
         expectedFingerprint: 'fingerprint',
       },
+    ]);
+  });
+
+  it('proxies installation preview and explicit application separately', async () => {
+    class InstallationFixture extends ManagerStatusService {
+      requests: unknown[][] = [];
+
+      protected override requestManager(
+        path?: string,
+        method?: 'GET' | 'POST',
+        payload?: Record<string, unknown>,
+      ): Promise<Record<string, unknown>> {
+        this.requests.push([path, method, payload]);
+        return Promise.resolve({ applicable: true, actions: [] });
+      }
+    }
+    const service = new InstallationFixture(new ConfigService());
+    await service.installationPlan();
+    await service.install({
+      confirmation: 'INSTALL',
+      expectedFingerprint: 'fingerprint',
+    });
+    expect(service.requests).toEqual([
+      ['/v1/install/plan', undefined, undefined],
+      [
+        '/v1/install',
+        'POST',
+        { confirmation: 'INSTALL', expectedFingerprint: 'fingerprint' },
+      ],
     ]);
   });
 });

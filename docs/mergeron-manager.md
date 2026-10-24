@@ -6,9 +6,10 @@ conteneurs de la plateforme. Son déploiement est séparé de l'application afin
 qu'une panne ou une mise à jour de `mergeron-ui` ne supprime jamais le composant
 chargé de l'observer.
 
-## Première étape : observation sans modification
+## Installation initiale sécurisée
 
-La première version du Manager est volontairement en mode `observe`. Elle :
+Le Manager sait désormais préparer une installation neuve et continue
+d'inventorier les installations existantes. Il :
 
 - inventorie `mergeron-ui`, `mergeron-ingress` et `mergeron-squid` avec l'API
   Docker locale ;
@@ -18,13 +19,17 @@ La première version du Manager est volontairement en mode `observe`. Elle :
 - vérifie que `/home/codex` et `/workspaces` restent montés depuis un stockage
   persistant ;
 - expose son résultat à l'application par un socket Unix local ;
-- accepte une seule écriture locale : l'enregistrement explicite de l'empreinte
-  d'une installation existante.
+- produit un plan signé avant toute installation ;
+- crée uniquement les dossiers, fichiers, réseaux et conteneurs manquants
+  déclarés par le manifeste ;
+- conserve l'adoption explicite d'une installation existante.
 
-Cette étape ne crée, ne redémarre, ne renomme et ne supprime aucun conteneur,
-réseau, volume ou fichier. Une installation existante reconnue apparaît comme
-« adoptable », mais reste entièrement sous le contrôle de son mode
-d'installation actuel.
+Le plan expose toujours une liste `destructiveActions` vide. Le Manager ne
+supprime, ne renomme, ne recrée et n'écrase aucun conteneur, réseau, volume,
+dossier ou fichier existant. Une ressource incompatible bloque toute
+l'installation. Une interruption peut être reprise : le plan suivant ne
+contient plus les ressources déjà créées et redémarre uniquement un conteneur
+géré resté dans l'état `created` ou `stopped`.
 
 L'image est publiée séparément sous
 `ghcr.io/maxhugit/mergeron-manager`. Elle suit les mêmes tags `edge`,
@@ -44,9 +49,9 @@ toute future prise en charge si :
 - le montage persistant de `/workspaces` est absent ou en lecture seule.
 
 Le chemin source réel de chaque montage est affiché dans les réglages généraux
-du serveur. Les données ne seront jamais copiées vers un nouveau volume de
-manière implicite. Une future adoption devra conserver exactement ces sources
-et demander une sauvegarde vérifiée avant la première opération destructive.
+du serveur. Les données ne sont jamais copiées vers un nouveau volume de
+manière implicite. Les fichiers existants sont ouverts en lecture pour les
+contrôles mais ne sont jamais réécrits.
 
 ## Isolation
 
@@ -56,17 +61,35 @@ Le backend Mergeron relaie l'inventaire aux seuls administrateurs via
 `GET /api/settings/manager/status`.
 
 L'accès à `/var/run/docker.sock` donne techniquement des droits élevés sur
-l'hôte. L'image du Manager doit donc rester minimale, ne recevoir aucun accès
-Internet entrant et ne contenir aucun outil client arbitraire. Dans cette
-première étape, son client Docker n'implémente que deux appels `GET` : liste et
-inspection des conteneurs.
+l'hôte. L'image du Manager reste donc minimale, sans accès Internet entrant et
+sans outil client arbitraire. Son client Docker limite les écritures à la
+création des réseaux et conteneurs du manifeste et au démarrage de ces derniers.
+Il n'implémente aucune route Docker de suppression.
 
 Les installations Compose et DockerMan montent le socket dans
 `STATE_ROOT/manager-run`. Ce dossier ne contient aucune donnée métier. Le
-Manager fonctionne sans réseau Docker (`network_mode: none`) et reçoit le socket
-Docker en lecture seule. Son client Docker ne sait émettre que les deux requêtes
-`GET` d'inventaire. L'enregistrement d'adoption est conservé séparément dans
+Manager fonctionne sans réseau Docker (`network_mode: none`). `STATE_ROOT` est
+également monté dans `/host-state` afin de créer les éléments manquants par des
+ouvertures exclusives. L'enregistrement d'adoption reste séparé dans
 `STATE_ROOT/manager-state/adoption.json`.
+
+## Plan et application
+
+`GET /v1/install/plan` retourne les créations prévues, les blocages, les
+garanties de non-destruction et une empreinte SHA-256. `POST /v1/install`
+demande cette empreinte et la confirmation exacte `INSTALL`; le Manager relit
+Docker avant d'agir et refuse un plan devenu obsolète.
+
+Pour une installation neuve sans interface, `MERGERON_INSTALL_ENABLED=true`
+autorise l'application automatique du plan au démarrage. La valeur par défaut
+reste `false`. Les fichiers de configuration nginx et Squid et les secrets
+internes ne sont créés que s'ils sont absents. Si les deux copies du jeton
+interne existent avec des valeurs différentes, l'installation est bloquée.
+
+Le réseau externe `net_standard` doit préexister. Le Manager crée uniquement
+les trois réseaux appartenant à la pile : `isolated`, `external` et `admin`.
+Les images absentes sont téléchargées explicitement dans le plan avant la
+création des conteneurs.
 
 ## Adoption d'une installation existante
 
@@ -104,10 +127,9 @@ aucun domaine propre à une installation.
 
 L'installation complète sera ajoutée par incréments contrôlés :
 
-1. première installation idempotente des trois conteneurs et de leurs réseaux ;
-2. mise à jour transactionnelle avec sauvegarde, contrôle de santé et retour
+1. mise à jour transactionnelle avec sauvegarde, contrôle de santé et retour
    automatique à l'image précédente ;
-3. réparation limitée aux conteneurs et réseaux déclarés dans le manifeste.
+2. réparation limitée aux conteneurs et réseaux déclarés dans le manifeste.
 
 Les volumes ou dossiers persistants ne feront pas partie d'une suppression ou
 d'un retour arrière automatique.
