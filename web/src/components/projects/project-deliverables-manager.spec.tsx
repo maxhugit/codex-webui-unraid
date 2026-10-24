@@ -393,7 +393,27 @@ it('submits the current document snapshot for human validation', async () => {
   });
 });
 it('creates a linked agent only through an explicit action', async () => {
-  await setup();
+  const task = {
+    id: 'parent',
+    title: 'Prepare report',
+    resourceId: 'tm',
+    parentTaskId: null,
+    status: 'To do',
+    progress: 0,
+    dueAt: null,
+    assigneeId: null,
+    assigneeName: null,
+    linkedThreadId: null,
+  };
+  await setup({
+    ...board,
+    taskManagers: [{ id: 'tm', name: 'Tasks' }],
+    tasks: [
+      task,
+      { ...task, id: 'child', title: 'Review figures', parentTaskId: 'parent' },
+    ],
+    deliverables: [{ ...item, primaryTaskId: 'parent' }],
+  });
   expect(
     api.mock.calls.some((call) => String(call[0]).endsWith('/agent')),
   ).toBe(false);
@@ -406,13 +426,47 @@ it('creates a linked agent only through an explicit action', async () => {
           : board,
     ),
   );
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Work on this deliverable' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Entrust to an agent' }));
+  expect(
+    screen.getByText(/always be assigned through that subtask/i),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Create work agent' }));
   await waitFor(() =>
     expect(api).toHaveBeenCalledWith('/p/resources/r/deliverables/d/agent', {
       method: 'POST',
-      body: JSON.stringify({ version: 3 }),
+      body: JSON.stringify({
+        version: 3,
+        subtaskTitle: 'Produce — Report',
+      }),
+    }),
+  );
+});
+it('creates an internal execution unit when no task manager is configured', async () => {
+  await setup();
+  api.mockImplementation((path, input) =>
+    Promise.resolve(
+      String(path).endsWith('/agent')
+        ? { threadId: 'new-agent', taskId: 'internal-subtask' }
+        : input
+          ? {}
+          : board,
+    ),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Entrust to an agent' }));
+  expect(screen.getByText(/No task manager is required/i)).toBeInTheDocument();
+  expect(
+    screen.getByRole('option', {
+      name: 'Create an execution unit automatically',
+    }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Create work agent' }));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith('/p/resources/r/deliverables/d/agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        version: 3,
+        subtaskTitle: 'Produce — Report',
+      }),
     }),
   );
 });
@@ -591,7 +645,7 @@ it('renames a deliverable from its header', async () => {
 it('keeps access controls in their dedicated tab and shows assignment summaries', async () => {
   await setup();
   expect(screen.queryByLabelText('Confidentiality')).not.toBeInTheDocument();
-  expect(screen.getByText('No assigned agent')).toBeInTheDocument();
+  expect(screen.getByText('No agent contribution')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Access' }));
   expect(screen.getByLabelText('Confidentiality')).toBeInTheDocument();
   expect(

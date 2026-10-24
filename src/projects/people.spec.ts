@@ -242,4 +242,37 @@ describe('people and task responsibility', () => {
     expect(configuration.projectManagerPersonId).toBeNull();
     expect(configuration.groups[0]?.memberIds).toEqual([]);
   });
+  it('creates deliverable execution subtasks in a hidden task manager', () => {
+    database.db.delete(projectResources).run();
+    const subtask = service.createDeliverableExecutionSubtask(
+      'p',
+      'deliverable-1',
+      'Release note',
+      'Ready to publish',
+      undefined,
+      'Write the release note',
+    );
+    const parent = database.db
+      .select()
+      .from(projectTasks)
+      .all()
+      .find((task) => task.id === subtask.parentTaskId);
+    const internalResource = database.db
+      .select()
+      .from(projectResources)
+      .all()
+      .find((resource) => resource.id === subtask.resourceId);
+    expect(subtask).toMatchObject({
+      title: 'Write the release note',
+      executionMode: 'agent',
+    });
+    expect(parent?.labels).toContain('mergeron:deliverable:deliverable-1');
+    expect(internalResource?.config).toEqual({
+      internal: true,
+      purpose: 'deliverable_execution',
+    });
+    expect(service.createResource('p', { type: 'task_board' }).name).toBe(
+      'Gestionnaire de tâches',
+    );
+  });
 });

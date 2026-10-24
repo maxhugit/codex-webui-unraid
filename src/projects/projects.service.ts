@@ -988,7 +988,9 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           })
           .sort((a, b) => Number(b.primary) - Number(a.primary)),
         resources: resources.filter(
-          (resource) => resource.projectId === project.id,
+          (resource) =>
+            resource.projectId === project.id &&
+            resource.config.internal !== true,
         ),
         agentThreads: agents
           .filter(
@@ -1318,7 +1320,8 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
           eq(projectResources.type, input.type),
         ),
       )
-      .all();
+      .all()
+      .filter((resource) => resource.config.internal !== true);
     if (input.type !== 'task_board' && siblings.length) return siblings[0];
     const label =
       input.type === 'deliverable_board'
@@ -1372,6 +1375,78 @@ export class ProjectsService implements OnModuleInit, OnModuleDestroy {
         .run();
     });
     return resource;
+  }
+
+  createDeliverableExecutionSubtask(
+    projectId: string,
+    deliverableId: string,
+    title: string,
+    criteria: string,
+    actor?: ProjectActivityActor,
+    subtaskTitle?: string,
+  ): ProjectTask {
+    const marker = `mergeron:deliverable:${deliverableId}`;
+    let resource = this.db
+      .select()
+      .from(projectResources)
+      .where(
+        and(
+          eq(projectResources.projectId, projectId),
+          eq(projectResources.type, 'task_board'),
+        ),
+      )
+      .all()
+      .find(
+        (candidate) =>
+          candidate.config.internal === true &&
+          candidate.config.purpose === 'deliverable_execution',
+      );
+    if (!resource) {
+      resource = this.createResource(projectId, {
+        type: 'task_board',
+        name: 'Exécutions internes des livrables',
+      });
+      resource = {
+        ...resource,
+        config: { internal: true, purpose: 'deliverable_execution' },
+      };
+      this.db
+        .update(projectResources)
+        .set({ config: resource.config, updatedAt: Date.now() })
+        .where(eq(projectResources.id, resource.id))
+        .run();
+    }
+    let parent = this.db
+      .select()
+      .from(projectTasks)
+      .where(eq(projectTasks.resourceId, resource.id))
+      .all()
+      .find((task) => !task.parentTaskId && task.labels.includes(marker));
+    if (!parent)
+      parent = this.createTask(
+        projectId,
+        resource.id,
+        {
+          title: `Livrable — ${title}`,
+          description:
+            'Unité interne créée automatiquement pour organiser les agents de ce livrable.',
+          labels: [marker],
+          validationCriteria: criteria,
+        },
+        actor,
+      );
+    return this.createTask(
+      projectId,
+      resource.id,
+      {
+        parentTaskId: parent.id,
+        title: subtaskTitle?.trim() || `Produire — ${title}`,
+        description: `Produire le livrable « ${title} » depuis cette unité d’exécution.`,
+        validationCriteria: criteria,
+        executionMode: 'agent',
+      },
+      actor,
+    );
   }
 
   async readResource(projectId: string, resourceId: string) {

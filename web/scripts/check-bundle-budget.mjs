@@ -2,18 +2,21 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const webRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+);
 const assetsDirectory = path.resolve(webRoot, '..', 'public', 'assets');
 
 const budgets = {
   maximumJavaScriptAssetBytes: 1_100_000,
   mainEntryAssetBytes: 350_000,
   totalJavaScriptBytes: 18_000_000,
-  // The platform guide, project agent management, workspace transfers, and
-  // unified local/Git/SSH/FTP source picker are intentionally localized in the
-  // shared catalog. Keep a narrow ceiling around that reviewed content while
-  // preserving regression detection.
-  commonCatalogAssetBytes: 175_000,
+  // The platform guide, project agent management, deliverable execution flow,
+  // workspace transfers, and unified local/Git/SSH/FTP source picker are
+  // intentionally localized in the shared catalog. Keep a narrow ceiling
+  // around that reviewed content while preserving regression detection.
+  commonCatalogAssetBytes: 178_000,
 };
 
 const entries = await readdir(assetsDirectory, { withFileTypes: true }).catch(
@@ -35,7 +38,10 @@ const assets = await Promise.all(
 );
 
 assets.sort((left, right) => right.size - left.size);
-const totalJavaScriptBytes = assets.reduce((total, asset) => total + asset.size, 0);
+const totalJavaScriptBytes = assets.reduce(
+  (total, asset) => total + asset.size,
+  0,
+);
 const largestAsset = assets[0];
 const mainEntryAsset = assets.find((asset) => asset.name.startsWith('index-'));
 const commonCatalogAsset = assets.find((asset) =>
