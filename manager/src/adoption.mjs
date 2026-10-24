@@ -8,6 +8,7 @@ function canonicalSnapshot(inventory) {
   return {
     schemaVersion: 1,
     stack: inventory.stack,
+    environment: inventory.environment,
     components: [...inventory.components]
       .sort((left, right) => left.id.localeCompare(right.id))
       .map((component) => ({
@@ -53,7 +54,9 @@ export function evaluateAdoption(inventory, record = null) {
   let state = blockers.length === 0 ? 'eligible' : 'blocked';
   if (record) {
     state =
-      record.stack === inventory.stack && record.fingerprint === fingerprint
+      record.stack === inventory.stack &&
+      record.environment === inventory.environment &&
+      record.fingerprint === fingerprint
         ? 'adopted'
         : 'drifted';
     if (state === 'drifted') blockers.push('adoptionRecordDrift');
@@ -80,6 +83,7 @@ export async function readAdoptionRecord(path) {
     if (
       value?.schemaVersion !== 1 ||
       typeof value.stack !== 'string' ||
+      !['production', 'development'].includes(value.environment) ||
       typeof value.fingerprint !== 'string' ||
       !Array.isArray(value.components)
     )

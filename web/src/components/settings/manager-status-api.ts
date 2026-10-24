@@ -41,6 +41,7 @@ export interface ManagerStatus {
   available: boolean;
   schemaVersion?: number;
   stack?: string;
+  environment?: 'production' | 'development';
   mode: 'observe';
   observedAt?: string;
   dockerConnected: boolean;

@@ -41,12 +41,18 @@ class ManagerDeploymentTest(unittest.TestCase):
     def test_development_profile_cannot_reuse_production_identity(self) -> None:
         self.assertIn("STATE_ROOT=/mnt/pool/appdata/mergeron/state", self.production_env)
         self.assertIn(
+            "MERGERON_STACK_ENVIRONMENT=production", self.production_env
+        )
+        self.assertIn(
             "STATE_ROOT=/mnt/pool/appdata/mergeron-dev/state", self.development_env
         )
         self.assertIn("MERGERON_STACK_PREFIX=mergeron-dev", self.development_env)
+        self.assertIn(
+            "MERGERON_STACK_ENVIRONMENT=development", self.development_env
+        )
         self.assertIn("MERGERON_ADMIN_SUBNET=172.30.44.16/28", self.development_env)
         self.assertIn(
-            "MERGERON_WEBUI_URL=https://mergeron-dev.hugotlab.fr",
+            "MERGERON_WEBUI_URL=https://mergeron-dev.example.com",
             self.development_env,
         )
 

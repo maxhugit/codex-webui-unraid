@@ -2,10 +2,24 @@ const MANAGED_LABEL = 'io.mergeron.managed';
 const COMPONENT_LABEL = 'io.mergeron.component';
 const STACK_LABEL = 'io.mergeron.stack';
 
-export function scopeManifest(manifest, stackPrefix = manifest.stack) {
+export function scopeManifest(
+  manifest,
+  stackPrefix = manifest.stack,
+  stackEnvironment = 'production',
+) {
   if (!/^[a-z0-9][a-z0-9_-]*$/.test(stackPrefix)) {
     throw new Error('MERGERON_STACK_PREFIX is invalid');
   }
+  if (!['production', 'development'].includes(stackEnvironment)) {
+    throw new Error('MERGERON_STACK_ENVIRONMENT is invalid');
+  }
+  if (stackEnvironment === 'development' && stackPrefix === manifest.stack) {
+    throw new Error(
+      'A development stack must use a dedicated MERGERON_STACK_PREFIX',
+    );
+  }
+  const acceptsLegacyNames =
+    stackEnvironment === 'production' && stackPrefix === manifest.stack;
   const componentNames = {
     application: `${stackPrefix}-ui`,
     ingress: `${stackPrefix}-ingress`,
@@ -14,6 +28,7 @@ export function scopeManifest(manifest, stackPrefix = manifest.stack) {
   return {
     ...manifest,
     stack: stackPrefix,
+    environment: stackEnvironment,
     components: manifest.components.map((component) => ({
       ...component,
       stackName: stackPrefix,
@@ -21,7 +36,7 @@ export function scopeManifest(manifest, stackPrefix = manifest.stack) {
         stackPrefix === manifest.stack
           ? component.canonicalName
           : componentNames[component.id],
-      legacyNames: stackPrefix === manifest.stack ? component.legacyNames : [],
+      legacyNames: acceptsLegacyNames ? component.legacyNames : [],
       requiredNetworks: component.requiredNetworks.map((network) =>
         network.startsWith(`${manifest.stack}-`)
           ? `${stackPrefix}-${network.slice(manifest.stack.length + 1)}`
@@ -197,6 +212,7 @@ export async function collectInventory(manifest, docker, now = new Date()) {
   return {
     schemaVersion: manifest.schemaVersion,
     stack: manifest.stack,
+    environment: manifest.environment,
     mode: 'observe',
     observedAt: now.toISOString(),
     dockerConnected: true,
@@ -213,6 +229,7 @@ export function unavailableInventory(manifest, error, now = new Date()) {
   return {
     schemaVersion: manifest.schemaVersion,
     stack: manifest.stack,
+    environment: manifest.environment,
     mode: 'observe',
     observedAt: now.toISOString(),
     dockerConnected: false,

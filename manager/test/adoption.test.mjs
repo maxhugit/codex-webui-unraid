@@ -14,6 +14,7 @@ function inventory(overrides = {}) {
   return {
     schemaVersion: 1,
     stack: 'mergeron',
+    environment: 'production',
     mode: 'observe',
     observedAt: '2026-10-24T09:00:00.000Z',
     dockerConnected: true,
