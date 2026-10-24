@@ -18,8 +18,8 @@ flowchart LR
 
     B -->|HTTPS| V
     V --> T
-    T --> A
     T --> N
+    N --> A
     N -->|jeton interne| C
     C --> S
     S --> O
@@ -48,9 +48,10 @@ Montages persistants :
 
 ### `mergeron-ingress`
 
-Passerelle Nginx entre Traefik et l’application. Elle effectue une seconde
-vérification Authentik, remplace tout en-tête `Authorization` fourni par le
-client et injecte le jeton interne attendu par Codex.
+Passerelle Nginx entre Traefik et l’application. Elle est l’unique point de
+contrôle Authentik, propage au navigateur les cookies de session renouvelés,
+remplace tout en-tête `Authorization` fourni par le client et injecte le jeton
+interne attendu par Mergeron.
 
 Les exceptions machine-à-machine sont limitées au retour OAuth MCP et aux deux
 routes OnlyOffice. Les contrôles applicatifs OnlyOffice restent obligatoires.
@@ -75,9 +76,10 @@ de domaines Internet.
 ## Flux entrant
 
 1. Traefik termine TLS pour le domaine public choisi par l’administrateur.
-2. Le middleware Authentik valide la session.
-3. Traefik transmet à `mergeron-ingress:8080`.
-4. Nginx contrôle à nouveau Authentik.
+2. Traefik transmet à `mergeron-ingress:8080`.
+3. Nginx valide ou renouvelle la session auprès d’Authentik.
+4. Une session absente ou expirée est redirigée vers le flux de connexion de
+   l’outpost, puis vers l’URL initiale.
 5. Nginx transmet vers `mergeron:8172` avec le jeton interne.
 
 ## Flux sortant

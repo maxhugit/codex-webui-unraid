@@ -36,8 +36,9 @@ http {
             proxy_set_header X-Webui-Auth-Email "";
         }
 
-        # Defense in depth: Traefik already checks Authentik, but this second
-        # check prevents another container on net_standard from bypassing it.
+        # Nginx is the single Authentik enforcement point. Keeping the check
+        # here prevents another container on net_standard from bypassing the
+        # public Traefik route.
         location = /_authentik_check {
             internal;
             proxy_pass $authentik_backend/outpost.goauthentik.io/auth/nginx;
@@ -52,6 +53,27 @@ http {
             proxy_set_header X-Original-URI $request_uri;
             proxy_set_header X-Original-URL https://$http_host$request_uri;
             proxy_set_header Cookie $http_cookie;
+        }
+
+        # Authentik's browser endpoints must remain reachable without first
+        # passing the auth subrequest. They complete login, refresh the session
+        # and return the browser to its original URL.
+        location /outpost.goauthentik.io {
+            proxy_pass $authentik_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Original-URL https://$http_host$request_uri;
+            proxy_pass_request_body off;
+            proxy_set_header Content-Length "";
+        }
+
+        location @goauthentik_proxy_signin {
+            internal;
+            add_header Set-Cookie $auth_cookie always;
+            return 302 /outpost.goauthentik.io/start?rd=https://$http_host$request_uri;
         }
 
         # Public OAuth return endpoint used only while `codex mcp login` is
@@ -105,6 +127,9 @@ http {
             auth_request /_authentik_check;
             auth_request_set $identity_uid $upstream_http_x_authentik_uid;
             auth_request_set $identity_email $upstream_http_x_authentik_email;
+            auth_request_set $auth_cookie $upstream_http_set_cookie;
+            add_header Set-Cookie $auth_cookie always;
+            error_page 401 = @goauthentik_proxy_signin;
             proxy_pass $mergeron_backend;
             proxy_http_version 1.1;
             proxy_set_header Host $host;

@@ -159,9 +159,11 @@ session opaque, révocable et limitée dans le temps.
 ### Transition depuis le proxy Authentik
 
 Cette version conserve volontairement le fournisseur proxy existant devant
-l’application. Configurer et tester d’abord le nouveau bouton SSO tout en étant
-protégé par ce proxy. Ne retirer le middleware Traefik et la vérification Nginx
-que dans une bascule ultérieure, après avoir validé au minimum :
+l’application. Nginx en est l’unique point de contrôle afin d’éviter deux états
+de session concurrents entre Traefik et Nginx. Configurer et tester d’abord le
+nouveau bouton SSO tout en étant protégé par ce proxy. Ne retirer cette
+vérification Nginx que dans une bascule ultérieure, après avoir validé au
+minimum :
 
 1. un compte administrateur explicitement lié ;
 2. une connexion SSO complète dans une fenêtre privée ;
@@ -171,15 +173,16 @@ que dans une bascule ultérieure, après avoir validé au minimum :
 Le fournisseur proxy actuel continue donc à protéger toutes les routes publiques
 pendant cette étape.
 
-Nginx réalise aussi une vérification interne auprès de :
+Nginx réalise la vérification interne auprès de :
 
 ```text
 http://authentik:9000/outpost.goauthentik.io/auth/nginx
 ```
 
 Le conteneur Authentik et `mergeron-ingress` doivent donc partager
-`net_standard`. Après configuration, une fenêtre privée doit être redirigée vers
-Authentik ; aucune page Codex ne doit apparaître avant authentification.
+`net_standard`. Les routes `/outpost.goauthentik.io/*` doivent rester publiques
+sur ce domaine. Après configuration, une fenêtre privée doit être redirigée vers
+Authentik ; aucune page Mergeron ne doit apparaître avant authentification.
 
 ## OpenAI et Codex
 

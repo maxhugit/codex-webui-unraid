@@ -29,7 +29,6 @@ http:
         - websecure
       priority: 100
       middlewares:
-        - authentik
         - mergeron-security-headers
       service: mergeron-web
       tls:
