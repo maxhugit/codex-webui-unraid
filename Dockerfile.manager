@@ -19,7 +19,8 @@ ENV NODE_ENV=production \
     MERGERON_MANAGER_SOCKET=/run/mergeron-manager/manager.sock \
     MERGERON_MANAGER_SOCKET_GID=11002 \
     MERGERON_MANAGER_POLL_MS=20000 \
-    MERGERON_DOCKER_SOCKET=/var/run/docker.sock
+    MERGERON_DOCKER_SOCKET=/var/run/docker.sock \
+    MERGERON_STACK_PREFIX=mergeron
 
 WORKDIR /opt/mergeron-manager
 COPY manager/package.json manager/stack-manifest.json ./

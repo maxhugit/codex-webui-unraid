@@ -3,12 +3,19 @@ import { chmod, chown, mkdir, readFile, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DockerClient } from './docker-client.mjs';
-import { collectInventory, unavailableInventory } from './inventory.mjs';
+import {
+  collectInventory,
+  scopeManifest,
+  unavailableInventory,
+} from './inventory.mjs';
 
 const manifestPath = fileURLToPath(
   new URL('../stack-manifest.json', import.meta.url),
 );
-const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+const manifest = scopeManifest(
+  JSON.parse(await readFile(manifestPath, 'utf8')),
+  process.env.MERGERON_STACK_PREFIX,
+);
 const socketPath =
   process.env.MERGERON_MANAGER_SOCKET ?? '/run/mergeron-manager/manager.sock';
 const socketGroup = Number(process.env.MERGERON_MANAGER_SOCKET_GID ?? 11002);

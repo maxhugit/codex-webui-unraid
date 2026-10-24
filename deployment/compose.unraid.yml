@@ -1,13 +1,16 @@
 services:
   mergeron-ui:
     image: ${MERGERON_APP_IMAGE:-ghcr.io/maxhugit/mergeron:latest}
-    container_name: mergeron-ui
+    container_name: ${MERGERON_STACK_PREFIX:-mergeron}-ui
     restart: unless-stopped
     labels:
       net.unraid.docker.managed: composeman
       net.unraid.docker.icon: ${MERGERON_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
       net.unraid.docker.webui: ${MERGERON_WEBUI_URL:-https://mergeron.example.com}
       net.unraid.docker.shell: /bin/bash
+      io.mergeron.managed: 'true'
+      io.mergeron.stack: ${MERGERON_STACK_PREFIX:-mergeron}
+      io.mergeron.component: application
     init: true
     user: '11002:11002'
     working_dir: /app
@@ -24,6 +27,7 @@ services:
       WEBUI_DB_PATH: /home/codex/.codex/codex-webui.sqlite
       WEBUI_REQUIRE_IDENTITY: 'true'
       MERGERON_PUBLIC_URL: ${MERGERON_WEBUI_URL:-https://mergeron.example.com}
+      MERGERON_MANAGER_SOCKET: /run/mergeron-manager/manager.sock
       WEBUI_PROTECTED_PATHS: /home/codex,/run/secrets,/app,/proc,/sys,/dev,/etc,/root,/appdata/mergeron
       WORKSPACE_ROOTS: /workspaces,/appdata
       LOG_LEVEL: info
@@ -46,6 +50,7 @@ services:
       - ${STATE_ROOT}/backend-token.txt:/run/secrets/backend_token:ro
       - ${STATE_ROOT}/openai-api-key.txt:/run/secrets/openai_api_key:ro
       - ${STATE_ROOT}/ssh:/home/codex/.ssh:ro
+      - ${STATE_ROOT}/manager-run:/run/mergeron-manager
     networks:
       mergeron-isolated:
         aliases: [mergeron-ui, mergeron]
@@ -90,12 +95,15 @@ services:
 
   mergeron-ingress:
     image: ${MERGERON_INGRESS_IMAGE:-nginx:stable}
-    container_name: mergeron-ingress
+    container_name: ${MERGERON_STACK_PREFIX:-mergeron}-ingress
     restart: unless-stopped
     labels:
       net.unraid.docker.managed: composeman
       net.unraid.docker.icon: ${MERGERON_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
       net.unraid.docker.shell: /bin/sh
+      io.mergeron.managed: 'true'
+      io.mergeron.stack: ${MERGERON_STACK_PREFIX:-mergeron}
+      io.mergeron.component: ingress
     depends_on:
       mergeron-ui:
         condition: service_healthy
@@ -140,12 +148,15 @@ services:
 
   mergeron-squid:
     image: ${MERGERON_EGRESS_IMAGE:-ubuntu/squid:latest}
-    container_name: mergeron-squid
+    container_name: ${MERGERON_STACK_PREFIX:-mergeron}-squid
     restart: unless-stopped
     labels:
       net.unraid.docker.managed: composeman
       net.unraid.docker.icon: ${MERGERON_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
       net.unraid.docker.shell: /bin/bash
+      io.mergeron.managed: 'true'
+      io.mergeron.stack: ${MERGERON_STACK_PREFIX:-mergeron}
+      io.mergeron.component: egress
     volumes:
       - ${DEPLOY_ROOT}/config/squid.conf:/etc/squid/squid.conf:ro
     networks:
@@ -183,20 +194,64 @@ services:
         max-size: 10m
         max-file: '3'
 
+  mergeron-manager:
+    image: ${MERGERON_MANAGER_IMAGE:-ghcr.io/maxhugit/mergeron-manager:edge}
+    container_name: ${MERGERON_STACK_PREFIX:-mergeron}-manager
+    restart: unless-stopped
+    labels:
+      net.unraid.docker.managed: composeman
+      net.unraid.docker.icon: ${MERGERON_ICON_URL:-https://raw.githubusercontent.com/maxhugit/mergeron/main/web/public/pwa-icon-192.png}
+      net.unraid.docker.shell: /bin/sh
+      io.mergeron.stack: ${MERGERON_STACK_PREFIX:-mergeron}
+      io.mergeron.component: manager
+    environment:
+      MERGERON_STACK_PREFIX: ${MERGERON_STACK_PREFIX:-mergeron}
+      MERGERON_MANAGER_SOCKET: /run/mergeron-manager/manager.sock
+      MERGERON_MANAGER_SOCKET_GID: '11002'
+      MERGERON_MANAGER_POLL_MS: '20000'
+      MERGERON_DOCKER_SOCKET: /var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${STATE_ROOT}/manager-run:/run/mergeron-manager
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=8m
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test: ['CMD', 'node', 'src/healthcheck.mjs']
+      interval: 20s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
 networks:
   mergeron-isolated:
-    name: mergeron-isolated
+    name: ${MERGERON_STACK_PREFIX:-mergeron}-isolated
     internal: true
     driver: bridge
   mergeron-external:
-    name: mergeron-external
+    name: ${MERGERON_STACK_PREFIX:-mergeron}-external
     driver: bridge
   mergeron-admin:
-    name: mergeron-admin
+    name: ${MERGERON_STACK_PREFIX:-mergeron}-admin
     driver: bridge
     ipam:
       config:
-        - subnet: 172.30.44.0/28
+        - subnet: ${MERGERON_ADMIN_SUBNET:-172.30.44.0/28}
   net_standard:
     external: true
     name: net_standard

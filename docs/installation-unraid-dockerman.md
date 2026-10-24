@@ -58,7 +58,7 @@ Pour une nouvelle installation :
 
 ```bash
 STATE=/mnt/pool/appdata/mergeron/state
-mkdir -p "$STATE"/{home,workspace,logs,ssh}
+mkdir -p "$STATE"/{home,workspace,logs,ssh,manager-run}
 openssl rand -hex 48 > "$STATE/backend-token.txt"
 cp "$STATE/backend-token.txt" "$STATE/backend-token-nginx.txt"
 install -m 440 /dev/null "$STATE/openai-api-key.txt"
@@ -147,19 +147,24 @@ les mêmes noms de conteneurs et utilisent les mêmes données.
 Les volumes persistants ne sont pas supprimés quand un conteneur est retiré.
 Éviter néanmoins toute action visant le dossier Appdata.
 
-## 5. Ajouter les trois conteneurs
+## 5. Ajouter les conteneurs
 
 Dans **Docker**, cliquer sur **Add Container**, puis sélectionner successivement
 les modèles dans **Template** :
 
 1. `mergeron-squid` ;
 2. `mergeron` ;
-3. `mergeron-ingress`.
+3. `mergeron-ingress` ;
+4. `mergeron-manager`.
 
 Activer **Advanced View**, vérifier les chemins proposés, puis cliquer sur
 **Apply** pour chacun. Aucun port et aucune option `--network` ne doivent être
 ajoutés manuellement dans **Extra Parameters**. Le réconciliateur ajoute les
 réseaux secondaires dès que DockerMan recrée un conteneur Codex.
+
+Le formulaire `mergeron-manager` monte le socket Docker en lecture seule et le
+dossier `state/manager-run`, également monté dans `mergeron-ui`. Il n'expose
+aucun port, n'appartient à aucun réseau et reste en observation uniquement.
 
 Dans les options d'autostart d'Unraid, conserver le même ordre. Un délai court
 entre les conteneurs est acceptable, mais les contrôles de santé restent la
@@ -174,6 +179,7 @@ réelle, par exemple `https://mergeron.example.com`.
 docker inspect mergeron-squid --format '{{.State.Health.Status}}'
 docker inspect mergeron --format '{{.State.Health.Status}}'
 docker inspect mergeron-ingress --format '{{.State.Health.Status}}'
+docker inspect mergeron-manager --format '{{.State.Health.Status}}'
 docker network inspect mergeron-isolated
 /mnt/pool/appdata/mergeron/reconcile-networks.sh once
 curl -I https://mergeron.example.com

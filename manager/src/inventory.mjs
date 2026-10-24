@@ -1,5 +1,35 @@
 const MANAGED_LABEL = 'io.mergeron.managed';
 const COMPONENT_LABEL = 'io.mergeron.component';
+const STACK_LABEL = 'io.mergeron.stack';
+
+export function scopeManifest(manifest, stackPrefix = manifest.stack) {
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(stackPrefix)) {
+    throw new Error('MERGERON_STACK_PREFIX is invalid');
+  }
+  const componentNames = {
+    application: `${stackPrefix}-ui`,
+    ingress: `${stackPrefix}-ingress`,
+    egress: `${stackPrefix}-squid`,
+  };
+  return {
+    ...manifest,
+    stack: stackPrefix,
+    components: manifest.components.map((component) => ({
+      ...component,
+      stackName: stackPrefix,
+      canonicalName:
+        stackPrefix === manifest.stack
+          ? component.canonicalName
+          : componentNames[component.id],
+      legacyNames: stackPrefix === manifest.stack ? component.legacyNames : [],
+      requiredNetworks: component.requiredNetworks.map((network) =>
+        network.startsWith(`${manifest.stack}-`)
+          ? `${stackPrefix}-${network.slice(manifest.stack.length + 1)}`
+          : network,
+      ),
+    })),
+  };
+}
 
 function normalizedNames(container) {
   return Array.isArray(container.Names)
@@ -14,8 +44,12 @@ function candidatesFor(component, containers) {
   ]);
   return containers.filter((container) => {
     const labels = container.Labels ?? {};
+    const labeledComponent =
+      labels[COMPONENT_LABEL] === component.id &&
+      (labels[STACK_LABEL] === component.stackName ||
+        (component.stackName === 'mergeron' && !labels[STACK_LABEL]));
     return (
-      labels[COMPONENT_LABEL] === component.id ||
+      labeledComponent ||
       normalizedNames(container).some((name) => acceptedNames.has(name))
     );
   });
@@ -114,7 +148,9 @@ async function inspectComponent(component, containers, docker) {
     state: componentState(inspect),
     adoption:
       labels[MANAGED_LABEL] === 'true' &&
-      labels[COMPONENT_LABEL] === component.id
+      labels[COMPONENT_LABEL] === component.id &&
+      (labels[STACK_LABEL] === component.stackName ||
+        (component.stackName === 'mergeron' && !labels[STACK_LABEL]))
         ? 'managed'
         : 'adoptable',
     containerId: String(summary.Id).slice(0, 12),

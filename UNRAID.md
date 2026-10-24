@@ -1,7 +1,8 @@
 # Exploitation sur Unraid
 
-La plateforme comprend trois conteneurs. Pour une installation native dans
-l'onglet **Docker** d'Unraid, utiliser les trois formulaires de
+La plateforme comprend trois conteneurs applicatifs et Mergeron Manager en
+observation. Pour une installation native dans l'onglet **Docker** d'Unraid,
+utiliser les quatre formulaires de
 [`deployment/docker-man`](deployment/docker-man) et suivre la
 [procédure DockerMan](docs/installation-unraid-dockerman.md).
 
@@ -16,7 +17,7 @@ temps.
 | Mode            | À privilégier pour                                                           | Point d’attention                                                                                   |
 | --------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | DockerMan       | intégration native à l’onglet Docker et mises à jour conteneur par conteneur | le réconciliateur rattache les réseaux secondaires et doit être relancé après un redémarrage Unraid |
-| Compose Manager | gestion déclarative et mise à jour des trois services comme une stack        | les changements doivent être reportés dans `docker-compose.yml` ou `images.env`                     |
+| Compose Manager | gestion déclarative et mise à jour des quatre services comme une stack        | les changements doivent être reportés dans `docker-compose.yml` ou `images.env`                     |
 
 ## Emplacements recommandés
 
@@ -30,6 +31,7 @@ temps.
     workspace/
     logs/
     ssh/
+    manager-run/
     backend-token.txt
     backend-token-nginx.txt
     openai-api-key.txt
@@ -43,8 +45,9 @@ Avec les formulaires standard, utiliser **Docker > Check for Updates**, puis
 **Update** sur `mergeron`. Unraid recrée le conteneur à partir de `latest`
 sans toucher aux données persistantes de `state`.
 
-Les trois conteneurs restent nécessaires : Nginx porte l'authentification et le
-routage entrant, tandis que Squid contrôle les accès Internet sortants.
+Les trois conteneurs applicatifs restent nécessaires : Nginx porte
+l'authentification et le routage entrant, tandis que Squid contrôle les accès
+Internet sortants. Le Manager observe leur santé sans réseau ni port publié.
 
 Dans ce mode, le formulaire de chaque conteneur est sa configuration de référence.
 Mettre à jour `mergeron` ne recrée pas automatiquement Nginx ou Squid. Leurs
@@ -81,8 +84,8 @@ Dans **Docker > Compose**, la stack permet de :
 
 - modifier le fichier Compose ;
 - modifier le fichier d’environnement et le tag `MERGERON_APP_IMAGE` ;
-- démarrer ou arrêter les trois conteneurs ensemble ;
-- utiliser **Update Stack** pour télécharger les images et recréer les trois
+- démarrer ou arrêter les quatre conteneurs ensemble ;
+- utiliser **Update Stack** pour télécharger les images et recréer les quatre
   conteneurs dans le bon ordre.
 
 Ne pas mélanger les conteneurs de cette stack avec ceux créés depuis les
@@ -91,5 +94,5 @@ formulaires DockerMan : ils ont volontairement les mêmes noms.
 La procédure d’installation et de restauration complète est disponible dans
 [`docs/installation-unraid.md`](docs/installation-unraid.md).
 
-L’architecture et les responsabilités des trois conteneurs sont décrites dans
+L’architecture et les responsabilités des conteneurs sont décrites dans
 [`docs/architecture-unraid.md`](docs/architecture-unraid.md).

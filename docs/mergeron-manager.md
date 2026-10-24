@@ -25,6 +25,13 @@ réseau, volume ou fichier. Une installation existante reconnue apparaît comme
 « adoptable », mais reste entièrement sous le contrôle de son mode
 d'installation actuel.
 
+L'image est publiée séparément sous
+`ghcr.io/maxhugit/mergeron-manager`. Elle suit les mêmes tags `edge`,
+`sha-<commit>`, `0.x.y`, `0.x` et `latest` que l'application, mais son cycle de
+vie reste indépendant de `mergeron-ui`. Avant la première publication stable,
+les formulaires utilisent `edge` ; `latest` n'est jamais inventé à partir d'une
+construction non publiée.
+
 ## Barrières contre la perte de données
 
 Le manifeste `manager/stack-manifest.json` décrit les composants acceptés, les
@@ -53,17 +60,30 @@ Internet entrant et ne contenir aucun outil client arbitraire. Dans cette
 première étape, son client Docker n'implémente que deux appels `GET` : liste et
 inspection des conteneurs.
 
+Les installations Compose et DockerMan montent le socket dans
+`STATE_ROOT/manager-run`. Ce dossier ne contient aucune donnée métier. Le
+Manager fonctionne sans réseau Docker (`network_mode: none`) et reçoit le socket
+Docker en lecture seule. Son implémentation refuse toujours toute méthode autre
+que `GET`.
+
+## Production et recette isolées
+
+`MERGERON_STACK_PREFIX` sélectionne exclusivement les conteneurs et réseaux à
+observer. La valeur de production est `mergeron`. Une recette peut utiliser
+`mergeron-dev`, avec son propre `STATE_ROOT`, son propre sous-réseau
+administratif et ses conteneurs `mergeron-dev-*`. Les anciens noms ne sont
+reconnus que pour la pile de production afin qu'un Manager de recette ne puisse
+jamais adopter un conteneur historique de production.
+
 ## Étapes suivantes
 
 L'installation complète sera ajoutée par incréments contrôlés :
 
-1. publication de l'image `ghcr.io/maxhugit/mergeron-manager` et formulaires
-   Compose/DockerMan ;
-2. adoption explicite d'une installation existante, sans recréation ;
-3. première installation idempotente des trois conteneurs et de leurs réseaux ;
-4. mise à jour transactionnelle avec sauvegarde, contrôle de santé et retour
+1. adoption explicite d'une installation existante, sans recréation ;
+2. première installation idempotente des trois conteneurs et de leurs réseaux ;
+3. mise à jour transactionnelle avec sauvegarde, contrôle de santé et retour
    automatique à l'image précédente ;
-5. réparation limitée aux conteneurs et réseaux déclarés dans le manifeste.
+4. réparation limitée aux conteneurs et réseaux déclarés dans le manifeste.
 
 Les volumes ou dossiers persistants ne feront pas partie d'une suppression ou
 d'un retour arrière automatique.

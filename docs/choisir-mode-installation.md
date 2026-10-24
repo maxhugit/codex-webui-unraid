@@ -1,7 +1,8 @@
 # Choisir le mode d’installation Unraid
 
-La plateforme utilise toujours les mêmes trois conteneurs, volumes, secrets et
-réseaux. Seul le composant qui crée et met à jour les conteneurs change : les
+La plateforme utilise les mêmes trois conteneurs applicatifs, auxquels s'ajoute
+Mergeron Manager en observation, avec les mêmes volumes, secrets et réseaux.
+Seul le composant qui crée et met à jour les conteneurs change : les
 formulaires Docker natifs d’Unraid, appelés ici **DockerMan**, ou le plugin
 **Compose Manager**.
 
@@ -16,8 +17,8 @@ mêmes données persistantes.
 | ---------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Recommandation               | Choix par défaut pour l’exploitation quotidienne sur Unraid                  | Choix adapté à une stack gérée comme un ensemble                                                        |
 | Dépendance                   | Fonction Docker native d’Unraid                                              | Plugin Compose Manager installé                                                                         |
-| Source de configuration      | Trois modèles XML importés puis enregistrés dans les formulaires Unraid      | `docker-compose.yml` et `images.env` dans l’Appdata                                                     |
-| Présentation                 | Trois conteneurs séparés dans l’onglet **Docker**                            | Une stack dans **Docker > Compose**, avec les trois conteneurs également identifiables par leurs labels |
+| Source de configuration      | Quatre modèles XML importés puis enregistrés dans les formulaires Unraid     | `docker-compose.yml` et `images.env` dans l’Appdata                                                     |
+| Présentation                 | Quatre conteneurs séparés dans l’onglet **Docker**                           | Une stack dans **Docker > Compose**, avec les quatre conteneurs également identifiables par leurs labels |
 | Ordre de démarrage           | Squid, application, puis ingress ; les états de santé doivent être contrôlés | `depends_on` et les contrôles de santé décrivent l’ordre                                                |
 | Réseaux secondaires          | Ajoutés par le réconciliateur hôte après chaque recréation                   | Déclarés directement dans le fichier Compose                                                            |
 | Après redémarrage Unraid     | Le réconciliateur doit être relancé avant une future recréation DockerMan    | Compose recrée directement la topologie déclarée                                                        |
@@ -36,6 +37,8 @@ Dans les deux modes :
    services locaux autorisés ;
 3. `mergeron-ingress` démarre sur `mergeron-isolated` et rejoint `net_standard`
    pour être joint par Traefik et Authentik.
+4. `mergeron-manager` ne rejoint aucun réseau, lit l'inventaire Docker et
+   partage uniquement son socket Unix avec `mergeron-ui`.
 
 Le backend `mergeron` ne publie aucun port sur l’hôte. Les répertoires de
 `STATE_ROOT` contiennent les données durables et restent identiques lors d’un
@@ -61,7 +64,7 @@ Procédure complète :
 ## Choisir Compose Manager
 
 Choisir Compose Manager lorsque la priorité est de conserver la topologie dans
-un fichier unique, de gérer les trois services ensemble et de laisser Compose
+un fichier unique, de gérer les quatre services ensemble et de laisser Compose
 créer directement toutes les connexions réseau. Aucun réconciliateur hôte n’est
 nécessaire.
 
@@ -81,10 +84,10 @@ les deux variantes montent les mêmes chemins. La séquence sûre est :
 
 1. sauvegarder `STATE_ROOT/home` et noter le tag d’image actif ;
 2. désactiver l’autostart du mode précédent ;
-3. arrêter puis supprimer uniquement ses trois conteneurs ;
+3. arrêter puis supprimer uniquement ses quatre conteneurs ;
 4. conserver intégralement `STATE_ROOT` et les fichiers de configuration ;
 5. installer le nouveau mode avec les mêmes chemins et secrets ;
-6. vérifier les réseaux, les trois états de santé et l’accès HTTPS ;
+6. vérifier les réseaux, les quatre états de santé et l’accès HTTPS ;
 7. tester une conversation, un fichier, OnlyOffice, les MCP et SSH.
 
 Ne jamais lancer une commande de suppression visant le dossier Appdata pendant
