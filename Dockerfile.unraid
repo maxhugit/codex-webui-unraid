@@ -277,6 +277,24 @@ CMD ["/bin/bash", "-euc", "git init --bare /tmp/remote.git && exec /usr/sbin/ssh
 # ── Stage 6: Runtime ─────────────────────────────────────────────────
 FROM runtime-base AS runtime
 
+ARG MERGERON_VERSION=0.1.0
+ARG MERGERON_REVISION=unknown
+ARG MERGERON_BUILD_DATE=unknown
+ARG MERGERON_RELEASE_CHANNEL=edge
+
+LABEL org.opencontainers.image.title="Mergeron" \
+      org.opencontainers.image.description="Plateforme collaborative auto-hébergée de gestion de projets et d'agents" \
+      org.opencontainers.image.source="https://github.com/maxhugit/mergeron" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.version="${MERGERON_VERSION}" \
+      org.opencontainers.image.revision="${MERGERON_REVISION}" \
+      org.opencontainers.image.created="${MERGERON_BUILD_DATE}"
+
+ENV MERGERON_VERSION="${MERGERON_VERSION}" \
+    MERGERON_REVISION="${MERGERON_REVISION}" \
+    MERGERON_BUILD_DATE="${MERGERON_BUILD_DATE}" \
+    MERGERON_RELEASE_CHANNEL="${MERGERON_RELEASE_CHANNEL}"
+
 # runtime-base sets HOME before installing system packages. Some installers may
 # leave build-only dotfiles there, which makes the entrypoint mistake a brand-new
 # container home for an existing persistent volume. The final runtime image must
@@ -289,6 +307,14 @@ RUN groupadd --gid 11002 codex \
  && ! find /home/codex -mindepth 1 -maxdepth 1 -print -quit | grep -q .
 
 WORKDIR /app
+
+RUN jq -n \
+      --arg version "${MERGERON_VERSION}" \
+      --arg revision "${MERGERON_REVISION}" \
+      --arg builtAt "${MERGERON_BUILD_DATE}" \
+      --arg channel "${MERGERON_RELEASE_CHANNEL}" \
+      '{version: $version, revision: $revision, builtAt: $builtAt, channel: $channel}' \
+      > /app/build-info.json
 
 # The toolchain exists only once in the final image and is restored into a
 # mounted /home/codex on first start.

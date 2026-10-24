@@ -19,7 +19,7 @@ dispose jamais directement des secrets OpenAI, SSH ou MCP.
 | `docs/`              | documentation d’architecture, installation et exploitation            |
 | `codex_probe/`       | outils de vérification du protocole Codex                             |
 | `.github/workflows/` | construction et publication de l’image GHCR                           |
-| `Dockerfile.unraid`  | construction multiétape de l’image publiée pour Unraid                 |
+| `Dockerfile.unraid`  | construction multiétape de l’image publiée pour Unraid                |
 
 ## Construction de l’image
 
@@ -31,8 +31,12 @@ Le `Dockerfile.unraid` effectue les opérations suivantes :
 4. installation des dépendances système, Python et Office ;
 5. copie des migrations et des fichiers compilés dans l’image finale.
 
-Un envoi sur `main` déclenche GitHub Actions. L’image est publiée dans GHCR avec
-les tags `latest` et `sha-<commit>`. Le tag SHA est recommandé en production.
+Un envoi sur `main` déclenche GitHub Actions. L’image continue est publiée dans
+GHCR avec les tags `edge` et `sha-<commit>`. Un tag Git stable `v0.x.y` publie
+la même révision sous `0.x.y`, `0.x` et `latest`, puis crée la GitHub Release et
+ses notes cumulées. Les images incorporent leur version, leur commit, leur date
+de construction et leur canal dans `/app/build-info.json` et dans leurs labels
+OCI. Voir la [procédure de publication](publications.md).
 
 ## Données persistantes
 

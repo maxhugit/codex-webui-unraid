@@ -72,19 +72,29 @@ pour une gestion native dans l'onglet Docker. La
 la préparation des secrets, les réseaux, Traefik, Authentik, OnlyOffice, SSH et
 MCP.
 
-## Construction de l’image
+## Construction et versions de l’image
 
-Chaque modification de la branche `main` construit et publie :
+Mergeron reste en version majeure `0` pendant sa phase actuelle. Les versions
+stables suivent donc le format `0.x.y`.
+
+Chaque modification de la branche `main` construit et publie une image continue :
 
 ```text
-ghcr.io/maxhugit/mergeron:latest
+ghcr.io/maxhugit/mergeron:edge
 ghcr.io/maxhugit/mergeron:sha-<commit>
 ```
 
-Pour la production, un tag immuable `sha-...` est préférable à `latest`.
+Un tag Git `v0.x.y`, identique aux versions des deux `package.json`, publie
+ensuite la version stable sous `0.x.y`, `0.x` et `latest`. La GitHub Release et
+ses notes cumulées sont créées uniquement après validation et promotion de
+l’image. La [procédure de publication](docs/publications.md) décrit le cycle
+complet.
+
+Pour la production, un tag immuable `0.x.y` ou `sha-...` est préférable à
+`latest`.
 
 Le registre conserve automatiquement les 10 images les plus récentes portant
-uniquement un tag `sha-*`. Les tags `latest`, `buildcache` et les éventuels tags
+uniquement un tag `sha-*`. Les tags `latest`, `edge`, `buildcache` et les tags
 de version sont protégés. Le nettoyage est exécuté chaque semaine et peut être
 lancé manuellement en mode simulation depuis GitHub Actions.
 

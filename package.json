@@ -19,6 +19,8 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest run --inspect-brk --no-file-parallelism",
+    "check:release": "node scripts/release-version.mjs",
+    "test:release": "node --test scripts/release-version.test.mjs",
     "codex:schema": "codex app-server generate-ts --out src/codex/codex-schema",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
