@@ -1,4 +1,4 @@
-/** Overview view: pinned archive group + workspace groups with collapse. */
+/** Overview view: project groups with compact, project-scoped archives. */
 import {
   Archive,
   Bot,
@@ -50,13 +50,12 @@ function ThreadSkeleton() {
 
 interface Props {
   projectsHeader: React.ReactNode;
-  archivedThreads: ThreadDto[];
   workspaceGroups: WorkspaceGroup[];
   collapsedGroups: Set<string>;
   isLoading: boolean;
   onToggleCollapse: (key: string) => void;
   onOpenProject: (projectId: string) => void;
-  onOpenArchivedDetail: () => void;
+  onOpenArchivedDetail: (projectId: string) => void;
   onOpenWorkspaceDetail: (cwd: string) => void;
   onCreateAgentInWorkspace: (group: WorkspaceGroup) => void;
   onCreateSimpleChatInWorkspace: (group: WorkspaceGroup) => void;
@@ -83,7 +82,6 @@ interface Props {
 
 export function WorkspaceOverview({
   projectsHeader,
-  archivedThreads,
   workspaceGroups,
   collapsedGroups,
   isLoading,
@@ -109,7 +107,6 @@ export function WorkspaceOverview({
 }: Props) {
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const archivedCollapsed = collapsedGroups.has('__archived__');
 
   if (isLoading) {
     return (
@@ -129,63 +126,6 @@ export function WorkspaceOverview({
 
   return (
     <div className="space-y-3 pb-2">
-      {/* Pinned archive group */}
-      <section>
-        <div className="flex items-center gap-1 px-1 py-2">
-          <button
-            type="button"
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-sm font-semibold text-foreground/90 hover:text-foreground"
-            onClick={() => onToggleCollapse('__archived__')}
-            aria-expanded={!archivedCollapsed}
-          >
-            <Archive aria-hidden="true" className="h-4 w-4 shrink-0" />
-            {t('archivedProjects')}
-            {archivedCollapsed ? (
-              <ChevronRight
-                aria-hidden="true"
-                className="ml-auto h-3.5 w-3.5 shrink-0 transition-transform"
-              />
-            ) : (
-              <ChevronDown
-                aria-hidden="true"
-                className="ml-auto h-3.5 w-3.5 shrink-0 transition-transform"
-              />
-            )}
-          </button>
-          <button
-            type="button"
-            className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            onClick={onOpenArchivedDetail}
-            aria-label={t('viewMore')}
-            title={t('viewMore')}
-          >
-            <Eye className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <AnimatePresence initial={false}>
-          {!archivedCollapsed && (
-            <motion.div
-              key="archived-content"
-              initial="closed"
-              animate="open"
-              exit="closed"
-              variants={collapseVariants}
-              transition={{ duration: 0.15, ease: 'easeInOut' }}
-              className="overflow-hidden"
-            >
-              <div className="space-y-0.5">
-                {archivedThreads.map((thread) => renderThreadRow(thread, true))}
-                {archivedThreads.length === 0 && (
-                  <p className="py-2 pl-5 text-xs text-muted-foreground">
-                    {t('noArchivedThreads')}
-                  </p>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
-
       {projectsHeader}
 
       {/* Workspace groups */}
@@ -387,6 +327,23 @@ export function WorkspaceOverview({
                         )}
                       </SidebarItemDropTarget>
                     ))}
+                    {group.projectId &&
+                      Boolean(group.archivedAgents?.length) && (
+                        <button
+                          type="button"
+                          className="group flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                          onClick={() => onOpenArchivedDetail(group.projectId!)}
+                        >
+                          <Archive className="h-3.5 w-3.5 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate">
+                            {t('archivedAgents')}
+                          </span>
+                          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+                            {group.archivedAgents?.length}
+                          </span>
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                        </button>
+                      )}
                   </div>
                 </motion.div>
               )}
@@ -395,7 +352,7 @@ export function WorkspaceOverview({
         );
       })}
 
-      {workspaceGroups.length === 0 && archivedThreads.length === 0 && (
+      {workspaceGroups.length === 0 && (
         <p className="px-2 py-8 text-center text-xs text-muted-foreground">
           {t('noThreadsYet')}
         </p>

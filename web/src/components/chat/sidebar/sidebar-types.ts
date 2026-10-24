@@ -2,6 +2,7 @@
 import type { ThreadDto } from '@/generated/api';
 import type { SimpleChatThreadSummary } from '@/lib/simple-chat-api';
 import type {
+  ProjectAgentThreadSummary,
   ProjectResourceSummary,
   ProjectWorkspaceSummary,
 } from '@/lib/projects-api';
@@ -33,6 +34,7 @@ export interface WorkspaceGroup {
   workspaces?: ProjectWorkspaceSummary[];
   resources?: ProjectResourceSummary[];
   sidebarOrder?: string[];
+  archivedAgents?: ProjectAgentThreadSummary[];
   cwd: string;
   threads: ThreadDto[];
   simpleChats: SimpleChatThreadSummary[];
